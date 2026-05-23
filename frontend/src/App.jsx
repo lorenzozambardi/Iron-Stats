@@ -10,7 +10,6 @@ import {
   AlertCircle, 
   RotateCcw,
   Sparkles,
-  ChevronRight,
   TrendingUp,
   Edit,
   Trash2,
@@ -76,7 +75,51 @@ const groupSets = (sets) => {
 };
 
 // A beautiful custom rendered live preview of the parsed logbook contents
-function LogbookPreview({ workoutData }) {
+function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex }) {
+  const scrollAnimRef = useRef(null);
+
+  useEffect(() => {
+    if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
+      const element = document.getElementById(`preview-ex-${activeExerciseStartLine}`);
+      if (element) {
+        const container = element.closest('.preview-container');
+        if (container) {
+          const elementRect = element.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          const targetY = container.scrollTop + (elementRect.top - containerRect.top);
+          
+          if (scrollAnimRef.current) {
+            cancelAnimationFrame(scrollAnimRef.current);
+          }
+
+          const startY = container.scrollTop;
+          const difference = targetY - startY;
+          const duration = 200; // 200ms is the sweet spot for quintic ease-out
+          const startTime = performance.now();
+
+          const step = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Cubic Bezier-equivalent curve: easeOutQuint (cubic-bezier(0.23, 1, 0.32, 1))
+            const ease = 1 - Math.pow(1 - progress, 5);
+            container.scrollTop = startY + difference * ease;
+            if (progress < 1) {
+              scrollAnimRef.current = requestAnimationFrame(step);
+            } else {
+              scrollAnimRef.current = null;
+            }
+          };
+          scrollAnimRef.current = requestAnimationFrame(step);
+        }
+      }
+    }
+    return () => {
+      if (scrollAnimRef.current) {
+        cancelAnimationFrame(scrollAnimRef.current);
+      }
+    };
+  }, [activeExerciseStartLine]);
+
   if (!workoutData || workoutData.length === 0) {
     return (
       <div className="preview-empty">
@@ -101,68 +144,78 @@ function LogbookPreview({ workoutData }) {
           <h2 className="preview-session-title">Session {sessNum}</h2>
           
           <div className="preview-exercises-list">
-            {exercises.map((ex, exIdx) => (
-              <div key={exIdx} className="preview-exercise-card">
-                <div className="preview-exercise-header">
-                  <div className="preview-exercise-info">
-                    <h3>{ex.exercise_obj ? ex.exercise_obj.name : ex.raw_name}</h3>
-                    <div className="preview-badges">
-                      <span className="badge">⏱️ {formatRestTime(ex.rest_seconds)} rest</span>
-                      {ex.exercise_obj && (
-                        <span className="badge muscle">
-                          {MUSCLES[Object.keys(ex.exercise_obj.muscles_distr)[0]] || Object.keys(ex.exercise_obj.muscles_distr)[0]}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="preview-weeks-grid">
-                  {ex.weeks.map(wk => (
-                    <div key={wk.week_num} className="preview-week-column">
-                      <div className="preview-week-header">W{wk.week_num}</div>
-                      <div className="preview-sets-list">
-                        {groupSets(wk.sets).map((g, gIdx) => {
-                          if (g.isDropset) {
-                            return (
-                              <div key={gIdx} className="preview-set-row dropset" style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '4px', padding: '3px' }}>
-                                <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: 'rgba(239, 68, 68, 0.8)', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid rgba(239, 68, 68, 0.1)', paddingBottom: '1px', marginBottom: '2px' }}>Dropset</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px' }}>
-                                  {g.sets.map((s, sIdx) => (
-                                    <React.Fragment key={sIdx}>
-                                      {sIdx > 0 && <span style={{ color: 'rgba(239, 68, 68, 0.4)', fontSize: '0.65rem' }}>➔</span>}
-                                      <span style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
-                                        <span className="preview-set-weight">{s.load}</span>
-                                        <span className="preview-set-reps">×{s.base_reps + s.assisted_reps}</span>
-                                        {s.partial_reps > 0 && <span className="preview-set-partial" style={{ fontSize: '0.6rem' }}>+{s.partial_reps}p</span>}
-                                        {s.assisted_reps > 0 && <span className="preview-set-assisted" style={{ fontSize: '0.6rem' }}>({s.assisted_reps}a)</span>}
-                                      </span>
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          } else {
-                            const s = g.set;
-                            return (
-                              <div key={gIdx} className="preview-set-row">
-                                <span className="preview-set-weight">{s.load}kg</span>
-                                <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
-                                {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
-                                {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
-                              </div>
-                            );
-                          }
-                        })}
-                        {wk.sets.length === 0 && (
-                          <div className="preview-no-sets">-</div>
+            {exercises.map((ex, exIdx) => {
+              const isActive = activeExerciseStartLine === ex.startLine;
+              return (
+                <div 
+                  key={exIdx} 
+                  id={`preview-ex-${ex.startLine}`}
+                  className={`preview-exercise-card ${isActive ? 'active' : ''}`}
+                >
+                  <div className="preview-exercise-header">
+                    <div className="preview-exercise-info">
+                      <h3>{ex.exercise_obj ? ex.exercise_obj.name : ex.raw_name}</h3>
+                      <div className="preview-badges">
+                        <span className="badge">⏱️ {formatRestTime(ex.rest_seconds)} rest</span>
+                        {ex.exercise_obj && (
+                          <span className="badge muscle">
+                            {MUSCLES[Object.keys(ex.exercise_obj.muscles_distr)[0]] || Object.keys(ex.exercise_obj.muscles_distr)[0]}
+                          </span>
                         )}
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="preview-weeks-grid">
+                    {ex.weeks.map(wk => {
+                      const isWeekActive = activeWeekLineIndex === wk.lineIndex;
+                      return (
+                        <div key={wk.week_num} className={`preview-week-column ${isWeekActive ? 'active' : ''}`}>
+                          <div className="preview-week-header">W{wk.week_num}</div>
+                          <div className="preview-sets-list">
+                            {groupSets(wk.sets).map((g, gIdx) => {
+                              if (g.isDropset) {
+                                return (
+                                  <div key={gIdx} className="preview-set-row dropset" style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '4px', padding: '3px' }}>
+                                    <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: 'rgba(239, 68, 68, 0.8)', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid rgba(239, 68, 68, 0.1)', paddingBottom: '1px', marginBottom: '2px' }}>Dropset</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px' }}>
+                                      {g.sets.map((s, sIdx) => (
+                                        <React.Fragment key={sIdx}>
+                                          {sIdx > 0 && <span style={{ color: 'rgba(239, 68, 68, 0.4)', fontSize: '0.65rem' }}>➔</span>}
+                                          <span style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+                                            <span className="preview-set-weight">{s.load}</span>
+                                            <span className="preview-set-reps">×{s.base_reps + s.assisted_reps}</span>
+                                            {s.partial_reps > 0 && <span className="preview-set-partial" style={{ fontSize: '0.6rem' }}>+{s.partial_reps}p</span>}
+                                            {s.assisted_reps > 0 && <span className="preview-set-assisted" style={{ fontSize: '0.6rem' }}>({s.assisted_reps}a)</span>}
+                                          </span>
+                                        </React.Fragment>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                const s = g.set;
+                                return (
+                                  <div key={gIdx} className="preview-set-row">
+                                    <span className="preview-set-weight">{s.load}kg</span>
+                                    <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
+                                    {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
+                                    {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
+                                  </div>
+                                );
+                              }
+                            })}
+                            {wk.sets.length === 0 && (
+                              <div className="preview-no-sets">-</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
@@ -551,6 +604,35 @@ export default function App() {
   const [muscleSearch, setMuscleSearch] = useState('');
   const [muscleMetric, setMuscleMetric] = useState('effective');
 
+  // Dynamic sliding highlight for Navbar
+  const tabNavRef = useRef(null);
+  const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  const updateNavbarHighlight = useCallback(() => {
+    if (!tabNavRef.current) return;
+    const activeBtn = tabNavRef.current.querySelector('.tab-btn.active');
+    if (activeBtn) {
+      setHighlightStyle({
+        left: activeBtn.offsetLeft,
+        width: activeBtn.offsetWidth,
+        opacity: 1
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    updateNavbarHighlight();
+    const timer = setTimeout(updateNavbarHighlight, 50);
+    window.addEventListener('resize', updateNavbarHighlight);
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(updateNavbarHighlight);
+    }
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateNavbarHighlight);
+    };
+  }, [activeTab, updateNavbarHighlight]);
+
   // Dashboard filter state
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
   const [dashFilterWeek, setDashFilterWeek] = useState('all');     // 'all' or week number
@@ -662,6 +744,44 @@ export default function App() {
     }
     return [];
   }, [logbookText, exercisesDb]);
+
+  // Cursor Tracking State for scroll sync
+  const [activeCursorLine, setActiveCursorLine] = useState(null);
+
+  const activeExerciseStartLine = useMemo(() => {
+    if (activeCursorLine === null || !workoutData || workoutData.length === 0) return null;
+    let currentExStartLine = null;
+    for (let i = 0; i < workoutData.length; i++) {
+      const ex = workoutData[i];
+      const nextEx = workoutData[i + 1];
+      const endLine = nextEx ? nextEx.startLine : Infinity;
+      if (activeCursorLine >= ex.startLine && activeCursorLine < endLine) {
+        currentExStartLine = ex.startLine;
+        break;
+      }
+    }
+    return currentExStartLine;
+  }, [activeCursorLine, workoutData]);
+
+  const activeWeekLineIndex = useMemo(() => {
+    if (activeCursorLine === null || !workoutData || workoutData.length === 0) return null;
+    for (const ex of workoutData) {
+      for (const wk of ex.weeks) {
+        if (wk.lineIndex === activeCursorLine) {
+          return wk.lineIndex;
+        }
+      }
+    }
+    return null;
+  }, [activeCursorLine, workoutData]);
+
+  const handleCursorMove = (e) => {
+    const text = e.target.value;
+    const start = e.target.selectionStart;
+    const textBefore = text.substring(0, start);
+    const lineNum = textBefore.split('\n').length - 1;
+    setActiveCursorLine(lineNum);
+  };
 
   // Load a program's markdown content dynamically
   const loadProgram = (progName) => {
@@ -977,6 +1097,12 @@ export default function App() {
     setLogbookText(newText);
     setSyncStatus('syncing');
 
+    // Update active cursor line on change too
+    const start = e.target.selectionStart;
+    const textBefore = newText.substring(0, start);
+    const lineNum = textBefore.split('\n').length - 1;
+    setActiveCursorLine(lineNum);
+
     // Debounce saving
     if (saveTimeout) clearTimeout(saveTimeout);
     const timeout = setTimeout(() => {
@@ -1090,6 +1216,7 @@ export default function App() {
   };
 
   // Helper: Append template to editor
+  // eslint-disable-next-line no-unused-vars
   const insertTemplate = (type) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -1383,34 +1510,56 @@ export default function App() {
       {/* Header */}
       <header className="app-header">
         <div className="brand">
-          <Dumbbell size={24} color="#6366f1" />
+          <Dumbbell size={24} color="#f43f5e" />
           <h1>Algorithmic Bodybuilding</h1>
           <span className="badge">v1.0.0</span>
         </div>
 
         {/* Tab Selection */}
-        <div className="tab-nav">
+        <div className="tab-nav" ref={tabNavRef} style={{ position: 'relative' }}>
+          <div 
+            className="tab-nav-highlight" 
+            style={{
+              position: 'absolute',
+              top: '4px',
+              bottom: '4px',
+              left: `${highlightStyle.left}px`,
+              width: `${highlightStyle.width}px`,
+              opacity: highlightStyle.opacity,
+              transition: 'left var(--transition-normal), width var(--transition-normal), opacity var(--transition-fast)',
+              pointerEvents: 'none',
+              borderRadius: '99px',
+              background: 'rgba(99, 102, 241, 0.08)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2), 0 0 10px rgba(99, 102, 241, 0.15)',
+              border: 'none',
+              zIndex: 0
+            }}
+          />
           <button 
             className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
             onClick={() => { setActiveTab('editor'); setSelectedSession(null); }}
+            style={{ zIndex: 1, position: 'relative' }}
           >
             <Edit size={16} /> Editor
           </button>
           <button 
             className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => { setActiveTab('dashboard'); setSelectedSession(null); }}
+            style={{ zIndex: 1, position: 'relative' }}
           >
             <BarChart3 size={16} /> Dashboard
           </button>
           <button 
             className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
             onClick={() => { setActiveTab('sessions'); }}
+            style={{ zIndex: 1, position: 'relative' }}
           >
             <BookOpen size={16} /> Sessions
           </button>
           <button 
             className={`tab-btn ${activeTab === 'db' ? 'active' : ''}`}
             onClick={() => { setActiveTab('db'); setSelectedSession(null); }}
+            style={{ zIndex: 1, position: 'relative' }}
           >
             <Search size={16} /> Exercise DB
           </button>
@@ -1474,12 +1623,6 @@ export default function App() {
           <div className="editor-tab-workspace">
             {/* Editor Sub-Header */}
             <div className="editor-control-bar">
-              <div className="editor-program-info">
-                <span className="current-program-badge">
-                  Editing: <b>{currentProgram}.md</b>
-                </span>
-              </div>
-              
               {/* Edit Mode Toggles */}
               <div className="editor-mode-toggles">
                 <button 
@@ -1504,12 +1647,6 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="editor-actions">
-                <button className="btn" onClick={() => insertTemplate('session')}>
-                  <Plus size={14} /> Add Session
-                </button>
-                <button className="btn" onClick={() => insertTemplate('exercise')}>
-                  <Plus size={14} /> Add Exercise
-                </button>
                 <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookText)}>
                   <Save size={14} /> Save Now
                 </button>
@@ -1521,7 +1658,7 @@ export default function App() {
               
               {/* Text Area Column */}
               {(editorMode === 'edit' || editorMode === 'split') && (
-                <div className="glass-card editor-panel">
+                <div className="editor-panel">
                   <div className="editor-wrapper">
                     <textarea
                       ref={textareaRef}
@@ -1529,6 +1666,9 @@ export default function App() {
                       value={logbookText}
                       onChange={handleTextChange}
                       onKeyDown={handleKeyDown}
+                      onKeyUp={handleCursorMove}
+                      onClick={handleCursorMove}
+                      onFocus={handleCursorMove}
                       placeholder="# 1&#10;Lat machine | 3'&#10;90..9+2.7+2&#10;90..9+2.8+2"
                       spellCheck="false"
                     />
@@ -1559,9 +1699,13 @@ export default function App() {
 
               {/* Live Preview Column */}
               {(editorMode === 'preview' || editorMode === 'split') && (
-                <div className="glass-card preview-panel">
+                <div className="preview-panel">
                   <div className="preview-container">
-                    <LogbookPreview workoutData={workoutData} />
+                    <LogbookPreview 
+                      workoutData={workoutData} 
+                      activeExerciseStartLine={activeExerciseStartLine}
+                      activeWeekLineIndex={activeWeekLineIndex}
+                    />
                   </div>
                 </div>
               )}
@@ -1574,481 +1718,480 @@ export default function App() {
             onBack={() => { setActiveTab('dashboard'); setSelectedMetricDetail(null); }} 
           />
         ) : (
-          <div className="glass-card main-content-card">
-            
+          <>
             {/* TAB CONTENT: DASHBOARD */}
             {activeTab === 'dashboard' && (
-              <div className="glass-card-body">
+              <div className="glass-card main-content-card">
+                <div className="glass-card-body">
 
-                {/* ── Dashboard Filter Bar ── */}
-                <div style={{
-                  display: 'flex', flexDirection: 'column', gap: '10px',
-                  padding: '14px 16px', marginBottom: '20px',
-                  background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
-                  borderRadius: '12px'
-                }}>
+                  {/* ── Dashboard Filter Bar ── */}
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: '10px',
+                    padding: '14px 16px', marginBottom: '20px',
+                    background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
+                    borderRadius: '12px'
+                  }}>
 
-                  {/* Top row: Compare toggle + program picker + clear */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-                    <button
-                      id="dash-compare-toggle"
-                      className={`btn ${compareMode ? 'btn-secondary' : ''}`}
-                      style={{ padding: '6px 14px', fontSize: '0.8rem' }}
-                      onClick={() => {
-                        const next = !compareMode;
-                        setCompareMode(next);
-                        if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeek('all'); }
-                        else if (compareProgram) loadCompareProgram(compareProgram);
-                      }}
-                    >
-                      ⚡ Compare Programs
-                    </button>
-                    {compareMode && (
-                      <>
-                        <select
-                          id="dash-compare-program"
-                          className="select-control"
-                          style={{ minWidth: '130px' }}
-                          value={compareProgram}
-                          onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeek('all'); }}
-                        >
-                          <option value="">— pick program —</option>
-                          {programs.filter(p => p !== currentProgram).map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                        {compareLoading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loading…</span>}
-                      </>
-                    )}
-                    {hasAnyFilter && (
+                    {/* Top row: Compare toggle + program picker + clear */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                       <button
-                        className="btn"
-                        style={{ marginLeft: 'auto', padding: '4px 10px', fontSize: '0.75rem', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
-                        onClick={clearAllDashFilters}
+                        id="dash-compare-toggle"
+                        className={`btn ${compareMode ? 'btn-secondary' : ''}`}
+                        style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                        onClick={() => {
+                          const next = !compareMode;
+                          setCompareMode(next);
+                          if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeek('all'); }
+                          else if (compareProgram) loadCompareProgram(compareProgram);
+                        }}
                       >
-                        ✕ Clear All Filters
+                        ⚡ Compare Programs
                       </button>
-                    )}
-                  </div>
-
-                  {/* Filter rows */}
-                  {compareMode && compareProgram ? (
-                    // Compare mode: two columns, one per program
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      {/* Program A filters */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
-                          {currentProgram}
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session</span>
-                            <select id="dash-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                              value={dashFilterSession}
-                              onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
-                            >
-                              <option value="all">All</option>
-                              {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
-                            </select>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Week</span>
-                            <select id="dash-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                              value={dashFilterWeek}
-                              onChange={e => setDashFilterWeek(e.target.value)}
-                            >
-                              <option value="all">All</option>
-                              {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Program B filters */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
-                          {compareProgram}
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session</span>
-                            <select id="cmp-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                              value={cmpFilterSession}
-                              onChange={e => { setCmpFilterSession(e.target.value); setCmpFilterWeek('all'); }}
-                            >
-                              <option value="all">All</option>
-                              {compareSessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
-                            </select>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Week</span>
-                            <select id="cmp-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                              value={cmpFilterWeek}
-                              onChange={e => setCmpFilterWeek(e.target.value)}
-                            >
-                              <option value="all">All</option>
-                              {cmpWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Shared muscle filter — full width row */}
-                      <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Muscle Group</span>
-                        <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px', fontSize: '0.78rem' }}
-                          value={dashMuscleMacro}
-                          onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
+                      {compareMode && (
+                        <>
+                          <select
+                            id="dash-compare-program"
+                            className="select-control"
+                            style={{ minWidth: '130px' }}
+                            value={compareProgram}
+                            onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeek('all'); }}
+                          >
+                            <option value="">— pick program —</option>
+                            {programs.filter(p => p !== currentProgram).map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          {compareLoading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loading…</span>}
+                        </>
+                      )}
+                      {hasAnyFilter && (
+                        <button
+                          className="btn"
+                          style={{ marginLeft: 'auto', padding: '4px 10px', fontSize: '0.75rem', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
+                          onClick={clearAllDashFilters}
                         >
-                          <option value="all">All Groups</option>
-                          {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
+                          ✕ Clear All Filters
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter rows */}
+                    {compareMode && compareProgram ? (
+                      // Compare mode: two columns, one per program
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        {/* Program A filters */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
+                            {currentProgram}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session</span>
+                              <select id="dash-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
+                                value={dashFilterSession}
+                                onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                              >
+                                <option value="all">All</option>
+                                {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Week</span>
+                              <select id="dash-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
+                                value={dashFilterWeek}
+                                onChange={e => setDashFilterWeek(e.target.value)}
+                              >
+                                <option value="all">All</option>
+                                {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Program B filters */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
+                            {compareProgram}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session</span>
+                              <select id="cmp-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
+                                value={cmpFilterSession}
+                                onChange={e => { setCmpFilterSession(e.target.value); setCmpFilterWeek('all'); }}
+                              >
+                                <option value="all">All</option>
+                                {compareSessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Week</span>
+                              <select id="cmp-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
+                                value={cmpFilterWeek}
+                                onChange={e => setCmpFilterWeek(e.target.value)}
+                              >
+                                <option value="all">All</option>
+                                {cmpWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Shared muscle filter — full width row */}
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid var(--border-color)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Muscle Group</span>
+                          <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px', fontSize: '0.78rem' }}
+                            value={dashMuscleMacro}
+                            onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
+                          >
+                            <option value="all">All Groups</option>
+                            {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
+                            <>
+                              <span style={{ color: 'var(--border-color)' }}>›</span>
+                              <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px', fontSize: '0.78rem' }}
+                                value={dashMuscleSubgroup}
+                                onChange={e => setDashMuscleSubgroup(e.target.value)}
+                              >
+                                <option value="all">All {dashMuscleMacro}</option>
+                                {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </>
+                          )}
+                          {dashMuscleMacro !== 'all' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(shared across both programs)</span>}
+                        </div>
+                      </div>
+                    ) : (
+                      // Normal mode: single row of filters
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Session</span>
+                          <select id="dash-session-filter" className="select-control" style={{ minWidth: '120px' }}
+                            value={dashFilterSession}
+                            onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                          >
+                            <option value="all">All Sessions</option>
+                            {sessionsList.map(s => <option key={s} value={s}>Session {s}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week</span>
+                          <select id="dash-week-filter" className="select-control" style={{ minWidth: '120px' }}
+                            value={dashFilterWeek}
+                            onChange={e => setDashFilterWeek(e.target.value)}
+                          >
+                            <option value="all">All Weeks</option>
+                            {dashWeeksList.map(w => <option key={w} value={w}>Week {w}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Muscle</span>
+                          <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px' }}
+                            value={dashMuscleMacro}
+                            onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
+                          >
+                            <option value="all">All Groups</option>
+                            {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                        </div>
                         {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                          <>
-                            <span style={{ color: 'var(--border-color)' }}>›</span>
-                            <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px', fontSize: '0.78rem' }}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sub-group</span>
+                            <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px' }}
                               value={dashMuscleSubgroup}
                               onChange={e => setDashMuscleSubgroup(e.target.value)}
                             >
                               <option value="all">All {dashMuscleMacro}</option>
                               {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
-                          </>
+                          </div>
                         )}
-                        {dashMuscleMacro !== 'all' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(shared across both programs)</span>}
                       </div>
-                    </div>
-                  ) : (
-                    // Normal mode: single row of filters
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Session</span>
-                        <select id="dash-session-filter" className="select-control" style={{ minWidth: '120px' }}
-                          value={dashFilterSession}
-                          onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
-                        >
-                          <option value="all">All Sessions</option>
-                          {sessionsList.map(s => <option key={s} value={s}>Session {s}</option>)}
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week</span>
-                        <select id="dash-week-filter" className="select-control" style={{ minWidth: '120px' }}
-                          value={dashFilterWeek}
-                          onChange={e => setDashFilterWeek(e.target.value)}
-                        >
-                          <option value="all">All Weeks</option>
-                          {dashWeeksList.map(w => <option key={w} value={w}>Week {w}</option>)}
-                        </select>
-                      </div>
-                      <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Muscle</span>
-                        <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px' }}
-                          value={dashMuscleMacro}
-                          onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
-                        >
-                          <option value="all">All Groups</option>
-                          {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                      </div>
-                      {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sub-group</span>
-                          <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px' }}
-                            value={dashMuscleSubgroup}
-                            onChange={e => setDashMuscleSubgroup(e.target.value)}
-                          >
-                            <option value="all">All {dashMuscleMacro}</option>
-                            {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      )}
+                    )}
+                  </div>
+
+                  {/* Active filter pills */}
+                  {hasAnyFilter && (
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Filters:</span>
+                      {dashFilterSession !== 'all' && <span style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#a5b4fc' }}>{currentProgram} · S{dashFilterSession}</span>}
+                      {dashFilterWeek !== 'all' && <span style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#a5b4fc' }}>{currentProgram} · W{dashFilterWeek}</span>}
+                      {cmpFilterSession !== 'all' && <span style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#67e8f9' }}>{compareProgram} · S{cmpFilterSession}</span>}
+                      {cmpFilterWeek !== 'all' && <span style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#67e8f9' }}>{compareProgram} · W{cmpFilterWeek}</span>}
+                      {dashMuscleMacro !== 'all' && <span style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#d8b4fe' }}>{dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro}</span>}
                     </div>
                   )}
-                </div>
 
-                {/* Active filter pills */}
-                {hasAnyFilter && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Filters:</span>
-                    {dashFilterSession !== 'all' && <span style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#a5b4fc' }}>{currentProgram} · S{dashFilterSession}</span>}
-                    {dashFilterWeek !== 'all' && <span style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#a5b4fc' }}>{currentProgram} · W{dashFilterWeek}</span>}
-                    {cmpFilterSession !== 'all' && <span style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#67e8f9' }}>{compareProgram} · S{cmpFilterSession}</span>}
-                    {cmpFilterWeek !== 'all' && <span style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#67e8f9' }}>{compareProgram} · W{cmpFilterWeek}</span>}
-                    {dashMuscleMacro !== 'all' && <span style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#d8b4fe' }}>{dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro}</span>}
-                  </div>
-                )}
+                  {/* ── Summary Cards ── */}
+                  {compareMode && compareProgram && !compareLoading ? (
+                    // Compare mode: 2-column layout with A vs B
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                      {/* Column headers */}
+                      <div style={{
+                        gridColumn: '1', padding: '8px 16px',
+                        background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)',
+                        borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600,
+                        color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px'
+                      }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
+                        {currentProgram}
+                      </div>
+                      <div style={{
+                        gridColumn: '2', padding: '8px 16px',
+                        background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)',
+                        borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600,
+                        color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '8px'
+                      }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
+                        {compareProgram}
+                      </div>
 
-                {/* ── Summary Cards ── */}
-                {compareMode && compareProgram && !compareLoading ? (
-                  // Compare mode: 2-column layout with A vs B
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                    {/* Column headers */}
-                    <div style={{
-                      gridColumn: '1', padding: '8px 16px',
-                      background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)',
-                      borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600,
-                      color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px'
-                    }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
-                      {currentProgram}
-                    </div>
-                    <div style={{
-                      gridColumn: '2', padding: '8px 16px',
-                      background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)',
-                      borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600,
-                      color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '8px'
-                    }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
-                      {compareProgram}
-                    </div>
-
-                    {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(totalTonnage, compareTotalTonnage)],
-                      ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(totalVolume, compareTotalVolume)],
-                      ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(totalEffectiveReps, compareTotalEffReps)],
-                      ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(totalSets, compareTotalSets)],
-                      ['Total TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(totalTut, compareTotalTut)],
-                      ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(totalEffectiveTut, compareTotalEffectiveTut)],
-                      ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(totalFatigue, compareTotalFatigue)]
-                    ].map(([label, cls, valA, valB, d]) => (
-                      <React.Fragment key={label}>
-                        <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
-                          <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {label}
-                            <span className="info-icon-wrapper">
-                              <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                              {renderMetricTooltip(cls)}
+                      {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(totalTonnage, compareTotalTonnage)],
+                        ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(totalVolume, compareTotalVolume)],
+                        ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(totalEffectiveReps, compareTotalEffReps)],
+                        ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(totalSets, compareTotalSets)],
+                        ['Total TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(totalTut, compareTotalTut)],
+                        ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(totalEffectiveTut, compareTotalEffectiveTut)],
+                        ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(totalFatigue, compareTotalFatigue)]
+                      ].map(([label, cls, valA, valB, d]) => (
+                        <React.Fragment key={label}>
+                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
+                            <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {label}
+                              <span className="info-icon-wrapper">
+                                <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                                {renderMetricTooltip(cls)}
+                              </span>
                             </span>
-                          </span>
-                          <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
-                          {d && <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {compareProgram}</span>}
-                        </div>
-                        <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
-                          <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {label}
-                            <span className="info-icon-wrapper">
-                              <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                              {renderMetricTooltip(cls)}
+                            <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
+                            {d && <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {compareProgram}</span>}
+                          </div>
+                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
+                            <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {label}
+                              <span className="info-icon-wrapper">
+                                <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                                {renderMetricTooltip(cls)}
+                              </span>
                             </span>
+                            <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
+                            <span className="metric-trend">{compareProgram}</span>
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  ) : (
+                    // Normal summary cards
+                    <div className="metrics-summary-grid">
+                      <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Volume
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderVolumeTooltip()}
                           </span>
-                          <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
-                          <span className="metric-trend">{compareProgram}</span>
-                        </div>
-                      </React.Fragment>
-                    ))}
-                  </div>
-                ) : (
-                  // Normal summary cards
-                  <div className="metrics-summary-grid">
-                    <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Volume
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderVolumeTooltip()}
                         </span>
-                      </span>
-                      <span className="metric-value">{totalVolume.toLocaleString()} reps</span>
-                      <span className="metric-trend">
-                        {dashFilterSession !== 'all' ? `Session ${dashFilterSession}` : 'All sessions'}
-                        {dashFilterWeek !== 'all' ? ` · Week ${dashFilterWeek}` : ''}
-                      </span>
-                    </div>
-                    <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Tonnage
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderTonnageTooltip()}
+                        <span className="metric-value">{totalVolume.toLocaleString()} reps</span>
+                        <span className="metric-trend">
+                          {dashFilterSession !== 'all' ? `Session ${dashFilterSession}` : 'All sessions'}
+                          {dashFilterWeek !== 'all' ? ` · Week ${dashFilterWeek}` : ''}
                         </span>
-                      </span>
-                      <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
-                      <span className="metric-trend">Load-adjusted</span>
-                    </div>
-                    <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Effective Reps
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderEffectiveRepsTooltip()}
+                      </div>
+                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Tonnage
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderTonnageTooltip()}
+                          </span>
                         </span>
-                      </span>
-                      <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
-                      <span className="metric-trend">Stimulative reps</span>
-                    </div>
-                    <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Sets
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderSetsTooltip()}
+                        <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
+                        <span className="metric-trend">Load-adjusted</span>
+                      </div>
+                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Effective Reps
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderEffectiveRepsTooltip()}
+                          </span>
                         </span>
-                      </span>
-                      <span className="metric-value">{totalSets.toLocaleString()} sets</span>
-                      <span className="metric-trend">Total sets performed</span>
-                    </div>
-                    <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Total TUT
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderTutTooltip()}
+                        <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
+                        <span className="metric-trend">Stimulative reps</span>
+                      </div>
+                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Sets
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderSetsTooltip()}
+                          </span>
                         </span>
-                      </span>
-                      <span className="metric-value">{totalTut.toLocaleString()}s</span>
-                      <span className="metric-trend">Time under tension</span>
-                    </div>
-                    <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Effective TUT
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderEffectiveTutTooltip()}
+                        <span className="metric-value">{totalSets.toLocaleString()} sets</span>
+                        <span className="metric-trend">Total sets performed</span>
+                      </div>
+                      <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Total TUT
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderTutTooltip()}
+                          </span>
                         </span>
-                      </span>
-                      <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
-                      <span className="metric-trend">Stimulative TUT</span>
-                    </div>
-                    <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); setActiveTab('metric-details'); }}>
-                      <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Accumulated Fatigue
-                        <span className="info-icon-wrapper">
-                          <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                          {renderFatigueTooltip()}
+                        <span className="metric-value">{totalTut.toLocaleString()}s</span>
+                        <span className="metric-trend">Time under tension</span>
+                      </div>
+                      <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Effective TUT
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderEffectiveTutTooltip()}
+                          </span>
                         </span>
-                      </span>
-                      <span className="metric-value">{totalFatigue.toLocaleString()}</span>
-                      <span className="metric-trend">Rep-level fatigue</span>
+                        <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
+                        <span className="metric-trend">Stimulative TUT</span>
+                      </div>
+                      <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Accumulated Fatigue
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderFatigueTooltip()}
+                          </span>
+                        </span>
+                        <span className="metric-value">{totalFatigue.toLocaleString()}</span>
+                        <span className="metric-trend">Rep-level fatigue</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* ── Progress Charts Grid ── */}
-                <div className="analytics-grid">
+                  {/* ── Progress Charts Grid ── */}
+                  <div className="analytics-grid">
 
-                  {/* Volume & Tonnage Trends */}
-                  <div className="chart-container">
-                    <div className="chart-header">
-                      <span className="chart-title">
-                        {compareMode && compareProgram
-                          ? `Tonnage Comparison — ${currentProgram} vs ${compareProgram}`
-                          : 'Weekly Tonnage & Volume Progression'}
-                      </span>
-                      <TrendingUp size={16} color="#10b981" />
+                    {/* Volume & Tonnage Trends */}
+                    <div className="chart-container">
+                      <div className="chart-header">
+                        <span className="chart-title">
+                          {compareMode && compareProgram
+                            ? `Tonnage Comparison — ${currentProgram} vs ${compareProgram}`
+                            : 'Weekly Tonnage & Volume Progression'}
+                        </span>
+                        <TrendingUp size={16} color="#10b981" />
+                      </div>
+                      <div style={{ width: '100%', height: 260 }}>
+                        <ResponsiveContainer>
+                          <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                            <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
+                            <YAxis yAxisId="left" stroke="var(--color-tonnage)" fontSize={11} />
+                            <YAxis yAxisId="right" orientation="right" stroke="var(--color-volume)" fontSize={11} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
+                            <Legend fontSize={10} />
+                            <Line yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--color-tonnage)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? `Tonnage — ${currentProgram}` : 'Tonnage (kg)'} />
+                            {compareMode && compareProgram && (
+                              <Line yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="var(--accent-secondary)" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name={`Tonnage — ${compareProgram}`} />
+                            )}
+                            {!compareMode && (
+                              <>
+                                <Line yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--color-volume)" strokeWidth={2} name="Volume (reps)" />
+                                <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom" stroke="var(--accent-secondary)" strokeWidth={2} name="Effective Reps (Last 5)" />
+                              </>
+                            )}
+                            {compareMode && compareProgram && (
+                              <>
+                                <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom" stroke="var(--accent-primary)" strokeWidth={2} name={`Eff.Reps — ${currentProgram}`} />
+                                <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom_B" stroke="#a855f7" strokeWidth={2} strokeDasharray="6 3" name={`Eff.Reps — ${compareProgram}`} />
+                              </>
+                            )}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                    <div style={{ width: '100%', height: 260 }}>
-                      <ResponsiveContainer>
-                        <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                          <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
-                          <YAxis yAxisId="left" stroke="var(--color-tonnage)" fontSize={11} />
-                          <YAxis yAxisId="right" orientation="right" stroke="var(--color-volume)" fontSize={11} />
-                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
-                          <Legend fontSize={10} />
-                          <Line yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--color-tonnage)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? `Tonnage — ${currentProgram}` : 'Tonnage (kg)'} />
-                          {compareMode && compareProgram && (
-                            <Line yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="var(--accent-secondary)" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name={`Tonnage — ${compareProgram}`} />
-                          )}
-                          {!compareMode && (
-                            <>
-                              <Line yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--color-volume)" strokeWidth={2} name="Volume (reps)" />
-                              <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom" stroke="var(--accent-secondary)" strokeWidth={2} name="Effective Reps (Last 5)" />
-                            </>
-                          )}
-                          {compareMode && compareProgram && (
-                            <>
-                              <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom" stroke="var(--accent-primary)" strokeWidth={2} name={`Eff.Reps — ${currentProgram}`} />
-                              <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom_B" stroke="#a855f7" strokeWidth={2} strokeDasharray="6 3" name={`Eff.Reps — ${compareProgram}`} />
-                            </>
-                          )}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
 
-                  {/* Muscle Group Volume */}
-                  <div className="chart-container">
-                    <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {dashMuscleMacro !== 'all' 
-                          ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Sets` : `${dashMuscleMacro} Sub-group Volume`)
-                          : (muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume')} <Sparkles size={14} color="#6366f1" />
-                      </span>
-                      <select
-                        className="select-control select-small"
-                        value={muscleMetric}
-                        onChange={(e) => setMuscleMetric(e.target.value)}
-                      >
-                        <option value="effective">Eff Reps (Last 5)</option>
-                        <option value="volume">Std Volume</option>
-                        <option value="sets">Sets</option>
-                      </select>
-                    </div>
-                    <div className="muscle-list">
-                      {displayMuscleData.map((m, idx) => {
-                        const allData = compareMode && displayCompareMuscleData.length > 0
-                          ? [...displayMuscleData, ...displayCompareMuscleData]
-                          : displayMuscleData;
-                        const maxVal = Math.max(...allData.map(item => item.value), 1);
-                        const pct = (m.value / maxVal) * 100;
-                        const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
-                        const barColor = colors[idx % colors.length];
-                        const compareEntry = compareMode ? displayCompareMuscleData.find(c => c.name === m.name) : null;
-                        const comparePct = compareEntry ? (compareEntry.value / maxVal) * 100 : 0;
+                    {/* Muscle Group Volume */}
+                    <div className="chart-container">
+                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {dashMuscleMacro !== 'all' 
+                            ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Sets` : `${dashMuscleMacro} Sub-group Volume`)
+                            : (muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume')} <Sparkles size={14} color="var(--accent-primary)" />
+                        </span>
+                        <select
+                          className="select-control select-small"
+                          value={muscleMetric}
+                          onChange={(e) => setMuscleMetric(e.target.value)}
+                        >
+                          <option value="effective">Eff Reps (Last 5)</option>
+                          <option value="volume">Std Volume</option>
+                          <option value="sets">Sets</option>
+                        </select>
+                      </div>
+                      <div className="muscle-list">
+                        {displayMuscleData.map((m, idx) => {
+                          const allData = compareMode && displayCompareMuscleData.length > 0
+                            ? [...displayMuscleData, ...displayCompareMuscleData]
+                            : displayMuscleData;
+                          const maxVal = Math.max(...allData.map(item => item.value), 1);
+                          const pct = (m.value / maxVal) * 100;
+                          const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+                          const barColor = colors[idx % colors.length];
+                          const compareEntry = compareMode ? displayCompareMuscleData.find(c => c.name === m.name) : null;
+                          const comparePct = compareEntry ? (compareEntry.value / maxVal) * 100 : 0;
 
-                        return (
-                          <div className="muscle-row" key={m.name}>
-                            <div className="muscle-row-header">
-                              <span className="muscle-row-name">{m.name}</span>
-                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <span className="muscle-row-value">{m.value}</span>
+                          return (
+                            <div className="muscle-row" key={m.name}>
+                              <div className="muscle-row-header">
+                                <span className="muscle-row-name">{m.name}</span>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                  <span className="muscle-row-value">{m.value}</span>
+                                  {compareEntry && (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-secondary)' }}>
+                                      vs {compareEntry.value}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Primary bar */}
+                              <div className="progress-bar-bg" style={{ position: 'relative', height: compareEntry ? '8px' : '6px' }}>
+                                <div
+                                  className="progress-bar-fill"
+                                  style={{ width: `${pct}%`, backgroundColor: barColor, boxShadow: `0 0 8px ${barColor}40`, height: '100%', position: 'absolute', top: 0 }}
+                                />
                                 {compareEntry && (
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-secondary)' }}>
-                                    vs {compareEntry.value}
-                                  </span>
+                                  <div
+                                    style={{
+                                      position: 'absolute', top: 0, left: 0,
+                                      width: `${comparePct}%`, height: '100%',
+                                      background: 'var(--accent-secondary)',
+                                      opacity: 0.35, borderRadius: '99px'
+                                    }}
+                                  />
                                 )}
                               </div>
-                            </div>
-                            {/* Primary bar */}
-                            <div className="progress-bar-bg" style={{ position: 'relative', height: compareEntry ? '8px' : '6px' }}>
-                              <div
-                                className="progress-bar-fill"
-                                style={{ width: `${pct}%`, backgroundColor: barColor, boxShadow: `0 0 8px ${barColor}40`, height: '100%', position: 'absolute', top: 0 }}
-                              />
                               {compareEntry && (
-                                <div
-                                  style={{
-                                    position: 'absolute', top: 0, left: 0,
-                                    width: `${comparePct}%`, height: '100%',
-                                    background: 'var(--accent-secondary)',
-                                    opacity: 0.35, borderRadius: '99px'
-                                  }}
-                                />
+                                <div style={{ display: 'flex', gap: '6px', fontSize: '0.65rem', marginTop: '2px' }}>
+                                  <span style={{ color: barColor }}>● {currentProgram}</span>
+                                  <span style={{ color: 'var(--accent-secondary)' }}>● {compareProgram}</span>
+                                </div>
                               )}
                             </div>
-                            {compareEntry && (
-                              <div style={{ display: 'flex', gap: '6px', fontSize: '0.65rem', marginTop: '2px' }}>
-                                <span style={{ color: barColor }}>● {currentProgram}</span>
-                                <span style={{ color: 'var(--accent-secondary)' }}>● {compareProgram}</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
+
                   </div>
 
                 </div>
-
-
-
               </div>
             )}
 
             {/* TAB CONTENT: SESSIONS VIEW */}
             {activeTab === 'sessions' && (
-              <div className="glass-card-body">
+              <div className="tab-workspace-flat">
                 {selectedSession === null ? (
                   <>
                     <div className="session-cards-grid">
@@ -2058,6 +2201,29 @@ export default function App() {
                         const latestWeeklyData = calculateMetrics(workoutData, sessNum, latestWeek, null, null);
                         const latestEffReps = latestWeeklyData.reduce((sum, d) => sum + (d.effectiveRepsCustom || 0), 0);
                         
+                        // Calculate effective reps per main muscle group in this session for the latest week
+                        const muscleEffReps = {};
+                        latestWeeklyData.forEach(d => {
+                          const wEx = sessExercises.find(e => e.exercise_obj && e.exercise_obj.name === d.name);
+                          if (wEx && wEx.exercise_obj) {
+                            Object.entries(wEx.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
+                              const main = MUSCLES[sub];
+                              if (main) {
+                                if (!muscleEffReps[main]) {
+                                  muscleEffReps[main] = 0;
+                                }
+                                muscleEffReps[main] += (d.effectiveRepsCustom || 0) * pct;
+                              }
+                            });
+                          }
+                        });
+
+                        // Only include main muscle groups with at least 10 effective reps
+                        const qualifyingMuscles = Object.entries(muscleEffReps)
+                          .filter(([, reps]) => reps >= 10)
+                          .map(([main]) => main);
+                        const musclesStr = qualifyingMuscles.length > 0 ? qualifyingMuscles.sort().join(', ') : 'None';
+
                         return (
                           <div 
                             className="session-card" 
@@ -2066,11 +2232,11 @@ export default function App() {
                           >
                             <span className="session-card-num">Session {sessNum}</span>
                             <div className="session-card-details">
-                              <span>🏋️ {sessExercises.length} Exercises</span>
-                              <span>🔥 {latestEffReps.toFixed(0)} Effective Reps (W{latestWeek})</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--accent-primary)', marginTop: '8px', fontWeight: '500' }}>
-                              View Details <ChevronRight size={14} />
+                              <span>{sessExercises.length} Exercises</span>
+                              <span>{latestEffReps.toFixed(0)} Effective Reps (W{latestWeek})</span>
+                              <span style={{ marginTop: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                <strong>Muscles:</strong> {musclesStr}
+                              </span>
                             </div>
                           </div>
                         );
@@ -2124,10 +2290,10 @@ export default function App() {
                                     {MUSCLES[Object.keys(wEx.exercise_obj.muscles_distr)[0]] || Object.keys(wEx.exercise_obj.muscles_distr)[0]}
                                   </span>
                                 )}
-                                <span className="badge">⏱️ {formatRestTime(wEx.rest_seconds)} rest</span>
+                                <span className="badge">{formatRestTime(wEx.rest_seconds)} rest</span>
                                 {wEx.concentric !== undefined && (
                                   <span className="badge" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', color: 'var(--color-tut)' }}>
-                                    ⚡ Tempo: {wEx.concentric}-{wEx.shortening_pause}-{wEx.eccentric}-{wEx.lengthening_pause}
+                                    Tempo: {wEx.concentric}-{wEx.shortening_pause}-{wEx.eccentric}-{wEx.lengthening_pause}
                                   </span>
                                 )}
                               </div>
@@ -2216,11 +2382,9 @@ export default function App() {
               </div>
             )}
 
-
-
             {/* TAB CONTENT: EXERCISE DATABASE */}
             {activeTab === 'db' && (
-              <div className="glass-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="tab-workspace-flat" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="filters-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Search size={16} color="var(--text-muted)" />
                   <input 
@@ -2255,20 +2419,20 @@ export default function App() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <h4 className="ex-card-title" style={{ margin: 0, wordBreak: 'break-word', fontSize: '0.95rem' }}>{ex.name}</h4>
                             {logbookText.split('\n').some(line => line.toLowerCase().startsWith(`override: ${ex.name.toLowerCase()} |`)) && (
-                              <span style={{ 
-                                background: 'rgba(99, 102, 241, 0.15)', 
-                                color: '#818cf8', 
-                                border: '1px solid rgba(99, 102, 241, 0.3)',
-                                alignSelf: 'flex-start',
-                                fontSize: '0.7rem',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                marginTop: '2px',
-                                fontWeight: '500'
-                              }}>
-                                Overridden for {currentProgram}
-                              </span>
-                            )}
+                                <span style={{ 
+                                  background: 'rgba(99, 102, 241, 0.15)', 
+                                  color: '#818cf8', 
+                                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                                  alignSelf: 'flex-start',
+                                  fontSize: '0.7rem',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  marginTop: '2px',
+                                  fontWeight: '500'
+                                }}>
+                                  Overridden for {currentProgram}
+                                </span>
+                              )}
                           </div>
                         </div>
                         <div className="ex-card-detail" style={{ margin: '4px 0 10px 0' }}>
@@ -2292,8 +2456,7 @@ export default function App() {
                 </div>
               </div>
             )}
-
-          </div>
+          </>
         )}
 
       </div>

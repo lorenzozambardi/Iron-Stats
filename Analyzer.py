@@ -64,7 +64,7 @@ exercises_list = [
     Exercise("SA Pulley", {"Latissimus Dorsi": 0.7, "Lower Trapezius and Rhomboids": 0.2, "Biceps Brachii": 0.1}, 5.5, 0.70, is_isolation=True),
     Exercise("T-Bar", {"Latissimus Dorsi": 0.4, "Upper and Mid Trapezius": 0.3, "Lower Trapezius and Rhomboids": 0.2, "Erectors": 0.1}, 8.0, 0.35),
     Exercise("Machine T-Bar", {"Latissimus Dorsi": 0.4, "Upper and Mid Trapezius": 0.3, "Lower Trapezius and Rhomboids": 0.3}, 6.5, 0.55),
-    Exercise("Pullover", {"Latissimus Dorsi": 0.8, "Sternal Head": 0.2}, 4.5, 0.75, is_isolation=True),
+    Exercise("Pullover", {"Latissimus Dorsi": 1}, 4.5, 0.75, is_isolation=True),
     Exercise("SA Cable Pulldown", {"Latissimus Dorsi": 0.9, "Biceps Brachii": 0.1}, 4.5, 0.75, is_isolation=True),
     Exercise("SA Machine Pulldown", {"Latissimus Dorsi": 0.9, "Biceps Brachii": 0.1}, 5.0, 0.70, is_isolation=True),
     Exercise("Chin-Ups", {"Latissimus Dorsi": 0.4, "Biceps Brachii": 0.5, "Lower Trapezius and Rhomboids": 0.1}, 7.5, 0.45),

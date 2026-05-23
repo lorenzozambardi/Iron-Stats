@@ -430,7 +430,7 @@ export function parseLine(line, lineIndex = 0) {
 }
 
 export function parseLogbook(logText, exercises) {
-  const lines = logText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const lines = logText.split('\n');
   const localExercises = getExercisesWithOverrides(logText, exercises);
   const workoutData = [];
   let currentExercise = null;
@@ -438,7 +438,10 @@ export function parseLogbook(logText, exercises) {
   let currentSession = 0;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i].trim();
+    if (line.length === 0) {
+      continue;
+    }
     try {
       if (line.startsWith('#')) {
         const match = line.match(/\d+/);
@@ -503,7 +506,8 @@ export function parseLogbook(logText, exercises) {
           currentExercise.weeks.push({
             week_num: currentWeek,
             sets: parsedSets,
-            raw_line: line
+            raw_line: line,
+            lineIndex: i
           });
           currentWeek++;
         }
@@ -521,7 +525,8 @@ export function parseLogbook(logText, exercises) {
             shortening_pause: s_pause,
             eccentric: e,
             lengthening_pause: l,
-            weeks: []
+            weeks: [],
+            startLine: i
           };
           workoutData.push(currentExercise);
           currentWeek = 1;

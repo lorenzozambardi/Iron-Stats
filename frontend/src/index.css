@@ -216,10 +216,10 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
   flex: 1;
   display: flex;
-  background: #05070c;
-  border-radius: 8px;
+  background: transparent;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: none;
 }
 
 .editor-line-numbers {
@@ -243,7 +243,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   line-height: 1.6;
-  padding: 14px;
+  padding: 14px 0;
   resize: none;
   overflow-y: auto;
   white-space: pre;
@@ -348,10 +348,14 @@ h1, h2, h3, h4, h5, h6 {
 .tab-nav {
   display: flex;
   gap: 6px;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(15, 20, 32, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 4px;
   border-radius: 99px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 4px 20px rgba(0, 0, 0, 0.2);
+  position: relative;
   flex-shrink: 0;
 }
 
@@ -361,11 +365,11 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.85rem;
   font-weight: 500;
   border-radius: 99px;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -380,9 +384,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .tab-btn.active {
   color: var(--text-primary);
-  background: var(--bg-glass-active);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.tab-btn.active svg {
+  color: var(--accent-primary) !important;
+  filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.7));
+  transition: all var(--transition-fast);
 }
 
 /* Autocomplete suggestion popup */
@@ -842,32 +851,15 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  padding: 10px 0 16px 0;
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
   flex-wrap: wrap;
   gap: 12px;
-}
-
-.editor-program-info {
-  display: flex;
-  align-items: center;
-}
-
-.current-program-badge {
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  background: rgba(255,255,255,0.03);
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.current-program-badge b {
-  color: var(--accent-primary);
+  margin-bottom: 8px;
 }
 
 .editor-mode-toggles {
@@ -909,13 +901,18 @@ h1, h2, h3, h4, h5, h6 {
 
 .editor-split-container {
   display: grid;
-  gap: 16px;
+  gap: 32px;
   flex: 1;
   min-height: 0;
 }
 
 .editor-split-container.mode-split {
   grid-template-columns: 1fr 1fr;
+}
+
+.editor-split-container.mode-split .editor-panel {
+  border-right: 1px solid var(--border-color);
+  padding-right: 32px;
 }
 
 .editor-split-container.mode-edit {
@@ -934,13 +931,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .preview-container {
-  padding: 20px;
+  padding: 14px 0;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  background: #030509;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 /* Logbook Preview Styles */
@@ -985,6 +982,13 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: all var(--transition-normal);
+}
+
+.preview-exercise-card.active {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.04);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.08);
 }
 
 .preview-exercise-header {
@@ -1019,6 +1023,17 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: all var(--transition-normal);
+}
+
+.preview-week-column.active {
+  border-color: rgba(6, 182, 212, 0.45);
+  background: rgba(6, 182, 212, 0.05);
+}
+
+.preview-week-column.active .preview-week-header {
+  color: var(--accent-secondary);
+  border-bottom-color: rgba(6, 182, 212, 0.25);
 }
 
 .preview-week-header {
@@ -1415,5 +1430,14 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: center;
     margin-top: 4px;
   }
+}
+
+.tab-workspace-flat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 8px 0;
 }
 
