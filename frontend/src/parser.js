@@ -237,15 +237,14 @@ export function parseRepToken(repStr, loads, dropsetId = null) {
       const partial = match[3] ? parseInt(match[3], 10) : 0;
       const rpe = match[4] ? parseFloat(match[4]) : 9.0;
       
-      const fullReps = base;
-      const effectiveRepsCustom = Math.min(5, fullReps);
-      
       if (assisted > 0) {
         base -= assisted;
       }
       
-      // Calculate effective reps
-      const effectiveReps = base + (assisted * COEFF_ASSISTED) + (partial * COEFF_PARTIAL);
+      // Calculate effective reps taking RPE, partials, and assisted reps into account
+      const effBase = Math.min(base, Math.max(0, rpe - 4.0));
+      const effectiveReps = effBase + (assisted * COEFF_ASSISTED) + (partial * COEFF_PARTIAL);
+      const effectiveRepsCustom = effectiveReps;
       
       setsOut.push({
         load,
@@ -472,11 +471,13 @@ export function parseLogbook(logText, exercises) {
               const prevSets = currentExercise.weeks[currentExercise.weeks.length - 1].sets;
               parsedSets = prevSets.map((s, idx) => {
                 const load = idx < loads.length ? loads[idx] : loads[loads.length - 1];
-                const effectiveReps = s.base_reps + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
+                const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
+                const effectiveReps = effBase + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
                 return {
                   ...s,
                   load,
-                  effectiveReps
+                  effectiveReps,
+                  effectiveRepsCustom: effectiveReps
                 };
               });
             }
@@ -494,7 +495,12 @@ export function parseLogbook(logText, exercises) {
               currentExercise.lengthening_pause
             );
             const totalTut = tuts.reduce((sum, val) => sum + val, 0);
-            const effectiveTut = tuts.slice(-5).reduce((sum, val) => sum + val, 0);
+            const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
+            const effBaseCount = Math.round(effBase);
+            const startIndex = Math.max(0, s.base_reps - effBaseCount);
+            const baseTut = tuts.slice(startIndex, s.base_reps).reduce((sum, val) => sum + val, 0);
+            const extendedTut = tuts.slice(s.base_reps).reduce((sum, val) => sum + val, 0);
+            const effectiveTut = baseTut + extendedTut;
             return {
               ...s,
               tuts,

@@ -311,7 +311,7 @@ const renderEffectiveTutTooltip = () => (
   <div className="info-tooltip" style={{ textAlign: 'left' }}>
     <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-effective-tut)', fontSize: '0.8rem' }}>Effective TUT</div>
     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the time under tension for the final 5 repetitions of each set
+      Sums the time under tension for the effective repetitions of each set
     </div>
   </div>
 );
@@ -363,20 +363,21 @@ const MetricDetailsPage = ({ metric, onBack }) => {
           title: 'Total Volume',
           subtitle: 'Weighted effective repetitions',
           color: 'var(--color-volume)',
-          description: 'Volume measures the total stimulative muscular workload of your exercises. Rather than using raw repetition counts, it uses effective repetitions (effReps) where base reps are weighted at 1.0, assisted reps at 0.5, and partial reps at 0.33.',
+          description: 'Volume measures the total stimulative muscular workload of your exercises. Rather than using raw repetition counts, it uses effective repetitions (effReps) where base reps are weighted at 1.0 (subject to proximity to failure, RPE - 4), assisted reps at 0.5, and partial reps at 0.33.',
           formulas: [
             '\\text{Volume} = \\sum_{s \\in \\text{Sets}} \\text{effReps}_s \\cdot D_m',
-            '\\text{effReps}_s = R_{\\text{base}} + 0.5 \\cdot R_{\\text{assisted}} + 0.33 \\cdot R_{\\text{partial}}'
+            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
           ],
           variables: [
             { symbol: '\\text{Volume}', desc: 'The accumulated workload credit assigned to a target muscle group.' },
-            { symbol: '\\text{effReps}_s', desc: 'The effective rep count of set s, adjusting for range of motion and assistance.' },
-            { symbol: 'R_{\\text{base}}', desc: 'Full range of motion base repetitions.' },
-            { symbol: 'R_{\\text{assisted}}', desc: 'Assisted repetitions (spotter-helped).' },
-            { symbol: 'R_{\\text{partial}}', desc: 'Partial range of motion repetitions.' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient (from 0.0 to 1.0).' }
+            { symbol: '\\text{effReps}_s', desc: 'The effective rep count of set s, adjusting for range of motion, assistance, and RPE.' },
+            { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
+            { symbol: '\\text{RPE}_s', desc: 'Rate of Perceived Exertion of set s (representing proximity to failure).' },
+            { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
+            { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },
+            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If you perform a set of Squats for 8 base reps, 2 assisted reps, and 3 partial reps (8+2a+3p), and squats target Quads at 100% (Dm = 1.0):\n effReps = 8 + 0.5*(2) + 0.33*(3) = 8 + 1 + 1 = 10.0 reps.\nTotal Volume for that set is 10.0 reps.'
+          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, taken to RPE 9.0 (logged as 10(2)+3@9) targeting Quads (Dm = 1.0):\nBase reps = 8. Base effective reps = min(8, 9.0 - 4.0) = 5.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Volume for that set is 5.0 + 1.0 + 0.99 = 6.99 reps.'
         };
       case 'tonnage':
         return {
@@ -401,20 +402,24 @@ const MetricDetailsPage = ({ metric, onBack }) => {
         };
       case 'effective':
         return {
-          title: 'Effective Reps (Last 5)',
-          subtitle: 'Stimulative hypertrophic repetitions',
+          title: 'Effective Reps',
+          subtitle: 'Hypertrophy-stimulative repetitions',
           color: 'var(--accent-secondary)',
-          description: 'Based on the effective reps model, only the final 5 repetitions of a set taken close to failure recruit high-threshold motor units and create enough mechanical tension to trigger maximum muscle growth.',
+          description: 'Effective reps count stimulative repetitions in a set. The base reps are determined by proximity to failure (measured by RPE), where base effective reps = RPE - 4. Assisted and partial reps are also included and weighted (assisted reps at 0.5, partial reps at 0.33).',
           formulas: [
-            '\\text{EffReps}_{\\text{last5}} = \\sum_{s \\in \\text{Sets}} \\min(5, R_{\\text{base}, s}) \\cdot D_m'
+            '\\text{EffReps} = \\sum_{s \\in \\text{Sets}} \\text{effReps}_s \\cdot D_m',
+            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
           ],
           variables: [
-            { symbol: '\\text{EffReps}_{\\text{last5}}', desc: 'Hypertrophy-stimulative repetition count accumulated.' },
-            { symbol: 'R_{\\text{base}, s}', desc: 'The count of full range of motion base repetitions in set s.' },
-            { symbol: '\\min(5, R_{\\text{base}, s})', desc: 'Caps the contribution of base reps per set to 5, as reps before the last 5 are considered non-stimulative warmup reps.' },
+            { symbol: '\\text{EffReps}', desc: 'Total hypertrophy-stimulative repetitions for a target muscle group.' },
+            { symbol: '\\text{effReps}_s', desc: 'Effective repetitions count of set s.' },
+            { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
+            { symbol: '\\text{RPE}_s', desc: 'Rate of Perceived Exertion of set s (representing proximity to failure).' },
+            { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
+            { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'Performing 3 sets of 8 base reps (which are taken close to failure, RPE >= 9) targeting Quads (Dm = 1.0):\nSet 1: min(5, 8) = 5 reps\nSet 2: min(5, 8) = 5 reps\nSet 3: min(5, 8) = 5 reps\nTotal Effective Reps = 15 reps.'
+          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, taken to RPE 9.0 (logged as 10(2)+3@9) targeting Quads (Dm = 1.0):\nBase reps = 8. Base effective reps = min(8, 9.0 - 4.0) = 5.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Effective Reps for that set = 5.0 + 1.0 + 0.99 = 6.99 reps.'
         };
       case 'tut':
         return {
@@ -441,20 +446,23 @@ const MetricDetailsPage = ({ metric, onBack }) => {
         };
       case 'effective-tut':
         return {
-          title: 'Effective TUT (Last 5)',
+          title: 'Effective TUT',
           subtitle: 'Duration under stimulative tension',
           color: 'var(--color-effective-tut)',
-          description: 'Isolates and aggregates the time under tension specifically for the last 5 base repetitions of each set. Since concentric velocity drops significantly near failure, this captures the true high-tension stimulus duration.',
+          description: 'Isolates and aggregates the time under tension specifically for the effective repetitions of each set. Unassisted base reps are counted based on proximity to failure (RPE - 4), while all assisted and partial reps are fully included.',
           formulas: [
-            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}} - 5)}^{R_{\\text{base}} - 1} T_{\\text{base}, i} \\right) \\cdot D_m'
+            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}} - N_s)}^{R_{\\text{base}} - 1} T_{\\text{base}, i} + T_{\\text{extended}, s} \\right) \\cdot D_m',
+            'N_s = \\text{round}(\\min(R_{\\text{base}}, \\max(0.0, \\text{RPE}_s - 4.0)))',
+            'T_{\\text{extended}, s} = \\sum T_{\\text{assisted}} + \\sum T_{\\text{partial}}'
           ],
           variables: [
             { symbol: '\\text{TUT}_{\\text{eff}}', desc: 'Total duration in seconds spent under high mechanical tension.' },
+            { symbol: 'N_s', desc: 'The rounded count of effective unassisted base repetitions in set s.' },
             { symbol: 'T_{\\text{base}, i}', desc: 'Duration of base repetition i, including the fatigue slowdown.' },
-            { symbol: '\\max(0, R_{\\text{base}} - 5)', desc: 'Filters out the early, low-recruitment warm-up repetitions from the calculation.' },
+            { symbol: 'T_{\\text{extended}, s}', desc: 'Total duration of assisted and partial reps in set s.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If a set has 8 base reps, only reps 3, 4, 5, 6, 7, and 8 (the final 5 base reps) contribute to Effective TUT. If these 5 reps average 7.5 seconds each due to concentric slowdown, the Effective TUT is 37.5 seconds.'
+          example: 'If a set has 8 base reps, 2 assisted reps, and 3 partial reps taken to RPE 9.0:\nEffective base reps count (N) = round(min(8, 9.0 - 4.0)) = 5 reps. Thus, only the final 5 base reps (reps 4 to 8) contribute to the base TUT, and 100% of all assisted and partial reps contribute to the extended TUT.\nEffective TUT = (sum of last 5 base reps TUT) + (all assisted reps TUT) + (all partial reps TUT).'
         };
       case 'fatigue':
         return {
@@ -603,6 +611,8 @@ export default function App() {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [muscleSearch, setMuscleSearch] = useState('');
   const [muscleMetric, setMuscleMetric] = useState('effective');
+  const [progressionExercise, setProgressionExercise] = useState('all_metrics');
+  const [overallChartMetric, setOverallChartMetric] = useState('Volume');
 
   // Dynamic sliding highlight for Navbar
   const tabNavRef = useRef(null);
@@ -1325,7 +1335,17 @@ export default function App() {
     const targetSession = dashFilterSession !== 'all' ? parseInt(dashFilterSession, 10) : null;
     const targetMacro = dashMuscleMacro !== 'all' ? dashMuscleMacro : null;
     const targetSub = dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : null;
-    return weeksToUse.map(week => {
+
+    const activeWeeks = weeksToUse.filter(week => {
+      // Only filter out incomplete weeks if we are looking at overall progression (no specific session filter)
+      if (targetSession !== null) return true;
+      if (sessionsList.length === 0) return true;
+      return sessionsList.every(sess => 
+        workoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
+      );
+    });
+
+    return activeWeeks.map(week => {
       const weeklyData = calculateMetrics(dashFilteredData, targetSession, week, targetMacro, targetSub);
       return {
         week: `W${week}`,
@@ -1338,16 +1358,25 @@ export default function App() {
         Sets: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
       };
     });
-  }, [dashFilteredData, dashFilterSession, dashFilterWeek, dashWeeksList, dashMuscleMacro, dashMuscleSubgroup]);
+  }, [dashFilteredData, dashFilterSession, dashFilterWeek, dashWeeksList, dashMuscleMacro, dashMuscleSubgroup, sessionsList, workoutData]);
 
   // Compare program B metrics by week — respects its own session/week + shared muscle filters
-
   const compareMetricsByWeek = useMemo(() => {
     const weeksToUse = cmpFilterWeek === 'all' ? cmpWeeksList : cmpWeeksList.filter(w => w === parseInt(cmpFilterWeek, 10));
     const targetSession = cmpFilterSession !== 'all' ? parseInt(cmpFilterSession, 10) : null;
     const targetMacro = dashMuscleMacro !== 'all' ? dashMuscleMacro : null;
     const targetSub = dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : null;
-    return weeksToUse.map(week => {
+
+    const activeWeeks = weeksToUse.filter(week => {
+      // Only filter out incomplete weeks if we are looking at overall progression (no specific session filter)
+      if (targetSession !== null) return true;
+      if (compareSessionsList.length === 0) return true;
+      return compareSessionsList.every(sess => 
+        compareWorkoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
+      );
+    });
+
+    return activeWeeks.map(week => {
       const weeklyData = calculateMetrics(cmpFilteredData, targetSession, week, targetMacro, targetSub);
       return {
         week: `W${week}`,
@@ -1360,7 +1389,7 @@ export default function App() {
         Sets_B: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
       };
     });
-  }, [cmpFilteredData, cmpFilterSession, cmpFilterWeek, cmpWeeksList, dashMuscleMacro, dashMuscleSubgroup]);
+  }, [cmpFilteredData, cmpFilterSession, cmpFilterWeek, cmpWeeksList, dashMuscleMacro, dashMuscleSubgroup, compareSessionsList, compareWorkoutData]);
 
   // Merged chart data for compare mode
   const mergedChartData = useMemo(() => {
@@ -1450,6 +1479,175 @@ export default function App() {
   const compareTotalTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.TotalTut_B || 0), 0);
   const compareTotalEffectiveTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut_B || 0), 0);
   const compareTotalSets = compareMetricsByWeek.reduce((sum, m) => sum + (m.Sets_B || 0), 0);
+
+  const getMetricLabelAndUnit = (metric) => {
+    switch (metric) {
+      case 'Volume': return { name: 'Volume', unit: 'reps' };
+      case 'Tonnage': return { name: 'Tonnage', unit: 'kg' };
+      case 'Fatigue': return { name: 'Neuromuscular Fatigue', unit: 'units' };
+      case 'EffectiveRepsCustom': return { name: 'Effective Reps', unit: 'reps' };
+      case 'EffectiveTut': return { name: 'Effective TUT', unit: 's' };
+      case 'TotalTut': return { name: 'Total TUT', unit: 's' };
+      case 'Sets': return { name: 'Sets', unit: '' };
+      default: return { name: metric, unit: '' };
+    }
+  };
+
+  const getMetricColor = (metric) => {
+    switch (metric) {
+      case 'Volume': return 'var(--color-volume)';
+      case 'Tonnage': return 'var(--color-tonnage)';
+      case 'Fatigue': return 'var(--color-fatigue)';
+      case 'EffectiveRepsCustom': return 'var(--accent-secondary)';
+      case 'EffectiveTut': return 'var(--color-effective-tut)';
+      case 'TotalTut': return 'var(--color-tut)';
+      case 'Sets': return 'var(--color-sets)';
+      default: return 'var(--accent-primary)';
+    }
+  };
+
+  const getMetricColorB = (metric) => {
+    switch (metric) {
+      case 'Volume': return '#a855f7'; // Purple
+      case 'Tonnage': return 'var(--accent-secondary)'; // Lavender/Secondary Accent
+      case 'Fatigue': return 'var(--color-tut)'; // Violet
+      case 'EffectiveRepsCustom': return 'var(--color-effective-tut)'; // Pink
+      case 'EffectiveTut': return 'var(--color-volume)'; // Amber
+      case 'TotalTut': return 'var(--color-tonnage)'; // Emerald
+      case 'Sets': return 'var(--color-fatigue)'; // Rose
+      default: return 'var(--accent-secondary)';
+    }
+  };
+
+  // Bounds calculations to scale the selected metric dynamically
+  const overallChartBoundsSelected = useMemo(() => {
+    const data = compareMode ? mergedChartData : metricsByWeek;
+    if (!data || data.length === 0) {
+      return ['auto', 'auto'];
+    }
+    const keyA = overallChartMetric;
+    const keyB = `${overallChartMetric}_B`;
+    const values = [];
+    data.forEach(d => {
+      if (d[keyA] !== undefined && !isNaN(d[keyA])) values.push(d[keyA]);
+      if (d[keyB] !== undefined && !isNaN(d[keyB])) values.push(d[keyB]);
+    });
+    if (values.length === 0) return ['auto', 'auto'];
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const range = maxVal - minVal;
+    
+    // Provide a small margin (15% of range, or at least 1)
+    const margin = range > 0 ? range * 0.15 : Math.max(minVal * 0.1, 1.0);
+    const calculatedMin = Math.max(0, minVal - margin);
+    const calculatedMax = maxVal + margin;
+    return [parseFloat(calculatedMin.toFixed(1)), parseFloat(calculatedMax.toFixed(1))];
+  }, [compareMode, mergedChartData, metricsByWeek, overallChartMetric]);
+
+  // Derived: unique exercises list across current and compared programs
+  const uniqueExerciseNames = useMemo(() => {
+    const names = new Set();
+    workoutData.forEach(d => {
+      if (d.exercise_obj) names.add(d.exercise_obj.name);
+      else if (d.raw_name) names.add(d.raw_name);
+    });
+    if (compareMode && compareWorkoutData) {
+      compareWorkoutData.forEach(d => {
+        if (d.exercise_obj) names.add(d.exercise_obj.name);
+        else if (d.raw_name) names.add(d.raw_name);
+      });
+    }
+    return Array.from(names).sort();
+  }, [workoutData, compareWorkoutData, compareMode]);
+
+  // Derived: chart data for a selected specific exercise over weeks (plots exercise-specific Volume and Tonnage)
+  const exerciseChartData = useMemo(() => {
+    if (progressionExercise === 'all_metrics') return [];
+    
+    const weeksSet = new Set();
+    
+    const getProgData = (dataSrc, suffix = '') => {
+      const match = dataSrc.find(d => 
+        (d.exercise_obj && d.exercise_obj.name === progressionExercise) || 
+        (d.raw_name === progressionExercise)
+      );
+      if (!match) return {};
+      
+      const ex = match.exercise_obj || { load_multiplier: 1.0, load_offset: 0.0 };
+      const loadMult = ex.load_multiplier !== undefined ? ex.load_multiplier : 1.0;
+      const loadOffset = ex.load_offset !== undefined ? ex.load_offset : 0.0;
+      
+      const res = {};
+      match.weeks.forEach(w => {
+        weeksSet.add(w.week_num);
+        let totalVol = 0;
+        let totalTon = 0;
+        w.sets.forEach(s => {
+          const effReps = s.effectiveReps || 0;
+          totalVol += effReps;
+          const actualLoad = (s.load * loadMult) + loadOffset;
+          totalTon += actualLoad * effReps;
+        });
+        res[`W${w.week_num}`] = {
+          [`Tonnage${suffix}`]: parseFloat(totalTon.toFixed(1)),
+          [`Volume${suffix}`]: parseFloat(totalVol.toFixed(1))
+        };
+      });
+      return res;
+    };
+
+    const progA = getProgData(workoutData, '');
+    const progB = compareMode && compareWorkoutData ? getProgData(compareWorkoutData, '_B') : {};
+    
+    const sortedWeeks = Array.from(weeksSet).sort((a, b) => a - b);
+    return sortedWeeks.map(wNum => {
+      const wKey = `W${wNum}`;
+      return {
+        week: wKey,
+        ...(progA[wKey] || {}),
+        ...(progB[wKey] || {})
+      };
+    });
+  }, [progressionExercise, workoutData, compareWorkoutData, compareMode]);
+
+  // Bounds calculations to separate exercise Tonnage (upper half) and Volume (lower half) in the exercise trend chart
+  const exerciseChartBounds = useMemo(() => {
+    if (progressionExercise === 'all_metrics' || exerciseChartData.length === 0) {
+      return { tonnageDomain: ['auto', 'auto'], volumeDomain: ['auto', 'auto'] };
+    }
+
+    let tValues = [];
+    let vValues = [];
+
+    exerciseChartData.forEach(d => {
+      if (d.Tonnage !== undefined && !isNaN(d.Tonnage)) tValues.push(d.Tonnage);
+      if (d.Tonnage_B !== undefined && !isNaN(d.Tonnage_B)) tValues.push(d.Tonnage_B);
+      if (d.Volume !== undefined && !isNaN(d.Volume)) vValues.push(d.Volume);
+      if (d.Volume_B !== undefined && !isNaN(d.Volume_B)) vValues.push(d.Volume_B);
+    });
+
+    const tMin = tValues.length > 0 ? Math.min(...tValues) : 0;
+    const tMax = tValues.length > 0 ? Math.max(...tValues) : 100;
+    const vMin = vValues.length > 0 ? Math.min(...vValues) : 0;
+    const vMax = vValues.length > 0 ? Math.max(...vValues) : 100;
+
+    // Tonnage stays in upper half:
+    const tRange = tMax - tMin;
+    const tDelta = tRange > 0 ? tRange : Math.max(tMin * 0.1, 10);
+    const tonnageMinDomain = tMin - tDelta - tDelta * 0.15;
+    const tonnageMaxDomain = tMax + tDelta * 0.15;
+
+    // Volume stays in lower half:
+    const vRange = vMax - vMin;
+    const vDelta = vRange > 0 ? vRange : Math.max(vMin * 0.1, 10);
+    const volumeMinDomain = Math.max(0, vMin - vDelta * 0.15);
+    const volumeMaxDomain = vMax + vDelta + vDelta * 0.15;
+
+    return {
+      tonnageDomain: [parseFloat(tonnageMinDomain.toFixed(1)), parseFloat(tonnageMaxDomain.toFixed(1))],
+      volumeDomain: [parseFloat(volumeMinDomain.toFixed(1)), parseFloat(volumeMaxDomain.toFixed(1))]
+    };
+  }, [progressionExercise, exerciseChartData]);
 
   // Helper: delta label for compare mode
   const delta = (a, b) => {
@@ -1757,7 +1955,7 @@ export default function App() {
                             onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeek('all'); }}
                           >
                             <option value="">— pick program —</option>
-                            {programs.filter(p => p !== currentProgram).map(p => <option key={p} value={p}>{p}</option>)}
+                            {programs.map(p => <option key={p} value={p}>{p}</option>)}
                           </select>
                           {compareLoading && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loading…</span>}
                         </>
@@ -1781,7 +1979,7 @@ export default function App() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '8px' }}>
                           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
-                            {currentProgram}
+                            {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                           </div>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1811,7 +2009,7 @@ export default function App() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '8px' }}>
                           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
-                            {compareProgram}
+                            {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                           </div>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1936,7 +2134,7 @@ export default function App() {
                         color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px'
                       }}>
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
-                        {currentProgram}
+                        {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                       </div>
                       <div style={{
                         gridColumn: '2', padding: '8px 16px',
@@ -1945,7 +2143,7 @@ export default function App() {
                         color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '8px'
                       }}>
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
-                        {compareProgram}
+                        {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                       </div>
 
                       {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(totalTonnage, compareTotalTonnage)],
@@ -1966,7 +2164,7 @@ export default function App() {
                               </span>
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
-                            {d && <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {compareProgram}</span>}
+                            {d && <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {currentProgram === compareProgram ? 'Selection B' : compareProgram}</span>}
                           </div>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
                             <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1977,7 +2175,7 @@ export default function App() {
                               </span>
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
-                            <span className="metric-trend">{compareProgram}</span>
+                            <span className="metric-trend">{currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}</span>
                           </div>
                         </React.Fragment>
                       ))}
@@ -2073,40 +2271,124 @@ export default function App() {
 
                     {/* Volume & Tonnage Trends */}
                     <div className="chart-container">
-                      <div className="chart-header">
-                        <span className="chart-title">
-                          {compareMode && compareProgram
-                            ? `Tonnage Comparison — ${currentProgram} vs ${compareProgram}`
-                            : 'Weekly Tonnage & Volume Progression'}
+                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <span className="chart-title" style={{ fontSize: '0.92rem' }}>
+                          {progressionExercise === 'all_metrics'
+                            ? (compareMode && compareProgram
+                              ? `Weekly Progression Comparison`
+                              : 'Weekly Progression')
+                            : `Exercise Strength Trend — ${progressionExercise}`}
                         </span>
-                        <TrendingUp size={16} color="#10b981" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Analyze:</span>
+                          <select 
+                            className="select-control select-small"
+                            value={progressionExercise}
+                            onChange={(e) => setProgressionExercise(e.target.value)}
+                            style={{ minWidth: '160px', padding: '4px 24px 4px 10px', fontSize: '0.75rem', height: '28px' }}
+                          >
+                            <option value="all_metrics">📊 Overall Program Metrics</option>
+                            <optgroup label="Exercises">
+                              {uniqueExerciseNames.map(ex => (
+                                <option key={ex} value={ex}>🏋️ {ex}</option>
+                              ))}
+                            </optgroup>
+                          </select>
+                          {progressionExercise === 'all_metrics' && (
+                            <>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '4px' }}>Metric:</span>
+                              <select
+                                className="select-control select-small"
+                                value={overallChartMetric}
+                                onChange={(e) => setOverallChartMetric(e.target.value)}
+                                style={{ minWidth: '120px', padding: '4px 24px 4px 10px', fontSize: '0.75rem', height: '28px' }}
+                              >
+                                <option value="Volume">Volume</option>
+                                <option value="Tonnage">Tonnage</option>
+                                <option value="Fatigue">Fatigue</option>
+                                <option value="EffectiveRepsCustom">Effective Reps</option>
+                                <option value="EffectiveTut">Effective TUT</option>
+                                <option value="TotalTut">Total TUT</option>
+                                <option value="Sets">Sets</option>
+                              </select>
+                            </>
+                          )}
+                          <TrendingUp size={15} color="var(--accent-primary)" style={{ opacity: 0.8 }} />
+                        </div>
                       </div>
                       <div style={{ width: '100%', height: 260 }}>
                         <ResponsiveContainer>
-                          <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
-                            <YAxis yAxisId="left" stroke="var(--color-tonnage)" fontSize={11} />
-                            <YAxis yAxisId="right" orientation="right" stroke="var(--color-volume)" fontSize={11} />
-                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
-                            <Legend fontSize={10} />
-                            <Line yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--color-tonnage)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? `Tonnage — ${currentProgram}` : 'Tonnage (kg)'} />
-                            {compareMode && compareProgram && (
-                              <Line yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="var(--accent-secondary)" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name={`Tonnage — ${compareProgram}`} />
-                            )}
-                            {!compareMode && (
-                              <>
-                                <Line yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--color-volume)" strokeWidth={2} name="Volume (reps)" />
-                                <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom" stroke="var(--accent-secondary)" strokeWidth={2} name="Effective Reps (Last 5)" />
-                              </>
-                            )}
-                            {compareMode && compareProgram && (
-                              <>
-                                <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom" stroke="var(--accent-primary)" strokeWidth={2} name={`Eff.Reps — ${currentProgram}`} />
-                                <Line yAxisId="right" type="monotone" dataKey="EffectiveRepsCustom_B" stroke="#a855f7" strokeWidth={2} strokeDasharray="6 3" name={`Eff.Reps — ${compareProgram}`} />
-                              </>
-                            )}
-                          </LineChart>
+                          {progressionExercise === 'all_metrics' ? (
+                            <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                              <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
+                              <YAxis 
+                                stroke={getMetricColor(overallChartMetric)} 
+                                fontSize={11} 
+                                domain={overallChartBoundsSelected}
+                                tickFormatter={(val) => typeof val === 'number' ? (val % 1 === 0 ? val.toLocaleString() : val.toFixed(1)) : val}
+                                label={{ 
+                                  value: `${getMetricLabelAndUnit(overallChartMetric).name}${getMetricLabelAndUnit(overallChartMetric).unit ? ` (${getMetricLabelAndUnit(overallChartMetric).unit})` : ''}`, 
+                                  angle: -90, 
+                                  position: 'insideLeft', 
+                                  style: { fill: 'var(--text-muted)', fontSize: 9 } 
+                                }}
+                              />
+                              <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
+                              <Legend fontSize={10} />
+                              <Line 
+                                type="monotone" 
+                                dataKey={overallChartMetric} 
+                                stroke={getMetricColor(overallChartMetric)} 
+                                strokeWidth={3} 
+                                activeDot={{ r: 6 }} 
+                                name={compareMode ? `${getMetricLabelAndUnit(overallChartMetric).name} — Selection A` : `${getMetricLabelAndUnit(overallChartMetric).name}${getMetricLabelAndUnit(overallChartMetric).unit ? ` (${getMetricLabelAndUnit(overallChartMetric).unit})` : ''}`} 
+                              />
+                              {compareMode && compareProgram && (
+                                <Line 
+                                  type="monotone" 
+                                  dataKey={`${overallChartMetric}_B`} 
+                                  stroke={getMetricColorB(overallChartMetric)} 
+                                  strokeWidth={2} 
+                                  strokeDasharray="6 3" 
+                                  activeDot={{ r: 5 }} 
+                                  name={`${getMetricLabelAndUnit(overallChartMetric).name} — Selection B`} 
+                                />
+                              )}
+                            </LineChart>
+                          ) : (
+                            <LineChart data={exerciseChartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                              <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
+                              <YAxis 
+                                yAxisId="left" 
+                                stroke="var(--accent-primary)" 
+                                fontSize={11} 
+                                domain={exerciseChartBounds.tonnageDomain}
+                                tickFormatter={(val) => Math.round(val).toLocaleString()}
+                                label={{ value: 'Tonnage (kg)', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-muted)', fontSize: 9 } }} 
+                              />
+                              <YAxis 
+                                yAxisId="right" 
+                                orientation="right" 
+                                stroke="var(--accent-secondary)" 
+                                fontSize={11} 
+                                domain={exerciseChartBounds.volumeDomain}
+                                tickFormatter={(val) => Math.round(val).toLocaleString()}
+                                label={{ value: 'Volume (reps)', angle: 90, position: 'insideRight', style: { fill: 'var(--text-muted)', fontSize: 9 } }} 
+                              />
+                              <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
+                              <Legend fontSize={10} />
+                              <Line yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--accent-primary)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? 'Tonnage — Selection A' : 'Tonnage (kg)'} />
+                              <Line yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--accent-secondary)" strokeWidth={2.5} name={compareMode ? 'Volume — Selection A' : 'Volume (reps)'} />
+                              {compareMode && compareProgram && (
+                                <>
+                                  <Line yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="#fda4af" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name="Tonnage — Selection B" />
+                                  <Line yAxisId="right" type="monotone" dataKey="Volume_B" stroke="#a855f7" strokeWidth={1.5} strokeDasharray="4 2" name="Volume — Selection B" />
+                                </>
+                              )}
+                            </LineChart>
+                          )}
                         </ResponsiveContainer>
                       </div>
                     </div>
@@ -2124,7 +2406,7 @@ export default function App() {
                           value={muscleMetric}
                           onChange={(e) => setMuscleMetric(e.target.value)}
                         >
-                          <option value="effective">Eff Reps (Last 5)</option>
+                          <option value="effective">Effective Reps</option>
                           <option value="volume">Std Volume</option>
                           <option value="sets">Sets</option>
                         </select>

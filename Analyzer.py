@@ -98,7 +98,8 @@ class SetData:
     
     @property
     def effective_reps(self) -> float:
-        return self.base_reps + (self.assisted_reps * COEFF_ASSISTED) + (self.partial_reps * COEFF_PARTIAL)
+        eff_base = min(float(self.base_reps), max(0.0, self.rpe - 4.0))
+        return eff_base + (self.assisted_reps * COEFF_ASSISTED) + (self.partial_reps * COEFF_PARTIAL)
 
 @dataclass
 class WeekData:
@@ -450,7 +451,12 @@ def analyze_workout_log(log_text: str, exercises: List[Exercise]) -> List[Workou
                         )
                         s.tuts = tuts
                         s.total_tut = sum(tuts)
-                        s.effective_tut = sum(tuts[-5:])
+                        eff_base = min(float(s.base_reps), max(0.0, s.rpe - 4.0))
+                        eff_base_count = int(eff_base + 0.5)
+                        start_idx = max(0, s.base_reps - eff_base_count)
+                        base_tut = sum(tuts[start_idx:s.base_reps])
+                        extended_tut = sum(tuts[s.base_reps:])
+                        s.effective_tut = base_tut + extended_tut
                     
                     current_exercise.weeks.append(WeekData(week_num=current_week, sets=parsed_sets))
                     current_week += 1
