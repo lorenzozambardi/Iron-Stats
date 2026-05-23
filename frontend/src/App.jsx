@@ -358,26 +358,25 @@ const renderMetricTooltip = (cls) => {
 const MetricDetailsPage = ({ metric, onBack }) => {
   const getMetricData = () => {
     switch (metric) {
-      case 'volume':
+case 'volume':
         return {
           title: 'Total Volume',
           subtitle: 'Weighted effective repetitions',
           color: 'var(--color-volume)',
-          description: 'Volume measures the total stimulative muscular workload of your exercises. Rather than using raw repetition counts, it uses effective repetitions (effReps) where base reps are weighted at 1.0 (subject to proximity to failure, RPE - 4), assisted reps at 0.5, and partial reps at 0.33.',
+          description: 'Volume measures the total stimulative muscular workload of your exercises. It sums your base repetitions alongside weighted contributions from assisted and partial repetitions, scaled by the target muscle group distribution.',
           formulas: [
-            '\\text{Volume} = \\sum_{s \\in \\text{Sets}} \\text{effReps}_s \\cdot D_m',
-            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+            '\\text{Volume} = \\sum_{s \\in \\text{Sets}} \\text{TotReps}_s \\cdot D_m',
+            '\\text{TotReps}_s = R_{\\text{base}, s} + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
           ],
           variables: [
             { symbol: '\\text{Volume}', desc: 'The accumulated workload credit assigned to a target muscle group.' },
-            { symbol: '\\text{effReps}_s', desc: 'The effective rep count of set s, adjusting for range of motion, assistance, and RPE.' },
+            { symbol: '\\text{TotReps}_s', desc: 'The effective rep count of set s, combining base, assisted, and partial repetitions.' },
             { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
-            { symbol: '\\text{RPE}_s', desc: 'Rate of Perceived Exertion of set s (representing proximity to failure).' },
             { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
             { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, taken to RPE 9.0 (logged as 10(2)+3@9) targeting Quads (Dm = 1.0):\nBase reps = 8. Base effective reps = min(8, 9.0 - 4.0) = 5.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Volume for that set is 5.0 + 1.0 + 0.99 = 6.99 reps.'
+          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, targeting Quads (Dm = 1.0):\nBase reps = 8.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Volume for that set is (8.0 + 1.0 + 0.99) * 1.0 = 9.99 reps.'
         };
       case 'tonnage':
         return {

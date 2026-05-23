@@ -494,7 +494,7 @@ def calculate_metrics(workout_data: List[WorkoutExercise], target_session: Optio
             vol, ton, total_fat, total_tut, effective_tut, sets_count = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             for s in w_data.sets:
                 eff_reps = s.effective_reps * distr_sum
-                vol += eff_reps
+                vol += s.base_reps * distr_sum
                 actual_load = (s.load * ex.load_multiplier) + ex.load_offset
                 ton += actual_load * eff_reps
                 set_fat = calculate_set_fatigue(

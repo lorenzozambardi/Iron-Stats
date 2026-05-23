@@ -583,7 +583,7 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
       
       for (const s of wData.sets) {
         const effReps = s.effectiveReps * distrSum;
-        vol += effReps;
+        vol += s.base_reps * distrSum;
         
         const actualLoad = (s.load * ex.load_multiplier) + ex.load_offset;
         ton += actualLoad * effReps;
