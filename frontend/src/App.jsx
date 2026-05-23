@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import katex from 'katex';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import 'katex/dist/katex.min.css';
 import { 
   BookOpen, 
@@ -8,7 +7,6 @@ import {
   Dumbbell, 
   Search, 
   Plus, 
-  Check, 
   AlertCircle, 
   RotateCcw,
   Sparkles,
@@ -22,8 +20,6 @@ import {
   ResponsiveContainer, 
   LineChart, 
   Line, 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   Tooltip, 
@@ -174,17 +170,34 @@ function LogbookPreview({ workoutData }) {
   );
 }
 
+let katexPromise = null;
+const loadKatex = () => {
+  if (!katexPromise) {
+    katexPromise = import('katex').then((module) => module.default || module);
+  }
+  return katexPromise;
+};
+
 const Latex = ({ math, block = false }) => {
-  const html = useMemo(() => {
-    try {
-      return katex.renderToString(math, {
-        displayMode: block,
-        throwOnError: false
-      });
-    } catch (err) {
-      console.error("KaTeX rendering error:", err);
-      return math;
-    }
+  const [html, setHtml] = useState(math);
+
+  useEffect(() => {
+    let active = true;
+    loadKatex().then((katex) => {
+      if (!active) return;
+      try {
+        const rendered = katex.renderToString(math, {
+          displayMode: block,
+          throwOnError: false
+        });
+        setHtml(rendered);
+      } catch (err) {
+        console.error("KaTeX rendering error:", err);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [math, block]);
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
@@ -530,7 +543,6 @@ export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
   const [exercisesDb, setExercisesDb] = useState([]);
-  const [workoutData, setWorkoutData] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [expandedExercise, setExpandedExercise] = useState(null);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
@@ -644,11 +656,11 @@ export default function App() {
   }, []);
 
   // Parse logbook text whenever it changes or the exercises DB updates
-  useEffect(() => {
+  const workoutData = useMemo(() => {
     if (logbookText && exercisesDb.length > 0) {
-      const parsed = parseLogbook(logbookText, exercisesDb);
-      setWorkoutData(parsed);
+      return parseLogbook(logbookText, exercisesDb);
     }
+    return [];
   }, [logbookText, exercisesDb]);
 
   // Load a program's markdown content dynamically
@@ -844,6 +856,7 @@ export default function App() {
       })
       .then(() => {
         setExercisesDb(updatedList);
+        setShowExerciseModal(false);
         setSyncStatus('saved');
         setSyncError('');
       })
@@ -893,7 +906,7 @@ export default function App() {
       return match[1].trim().toLowerCase() === searchName.toLowerCase();
     });
 
-    let newText = '';
+    let newText;
     if (existingIdx !== -1) {
       lines[existingIdx] = overrideLine;
       newText = lines.join('\n');
@@ -1107,7 +1120,6 @@ export default function App() {
 
   // Calculated Metrics
   const sessionsList = Array.from(new Set(workoutData.map(d => d.session))).sort((a, b) => a - b);
-  const weeksList = Array.from(new Set(workoutData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b);
 
   // Helper: load a comparison program and parse it
   const loadCompareProgram = (progName) => {
@@ -1202,9 +1214,6 @@ export default function App() {
   }, [dashFilteredData, dashFilterSession, dashFilterWeek, dashWeeksList, dashMuscleMacro, dashMuscleSubgroup]);
 
   // Compare program B metrics by week — respects its own session/week + shared muscle filters
-  const compareWeeksList = useMemo(() =>
-    Array.from(new Set(compareWorkoutData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b),
-  [compareWorkoutData]);
 
   const compareMetricsByWeek = useMemo(() => {
     const weeksToUse = cmpFilterWeek === 'all' ? cmpWeeksList : cmpWeeksList.filter(w => w === parseInt(cmpFilterWeek, 10));
@@ -1238,13 +1247,14 @@ export default function App() {
   }, [compareMode, metricsByWeek, compareMetricsByWeek]);
 
   // Calculate Muscle distribution breakdown — respects all filters
-  const calculateMuscleDistribution = (dataSource, weekOverride, sessionOverride) => {
+  const calculateMuscleDistribution = useCallback((dataSource, weekOverride) => {
     const distributions = {};
-    const src = dataSource || dashFilteredData;
+    const src = dataSource;
+    if (!src) return [];
     const effectiveWeekFilter = weekOverride !== undefined ? weekOverride : dashFilterWeek;
     src.forEach(wEx => {
       const ex = wEx.exercise_obj;
-      // Session filter (only if sessionOverride provided, else trust that src is already filtered)
+      if (!ex) return;
       wEx.weeks.forEach(wData => {
         if (effectiveWeekFilter !== 'all' && wData.week_num !== parseInt(effectiveWeekFilter, 10)) return;
         if (effectiveWeekFilter === 'all' && wData.week_num !== Math.max(...wEx.weeks.map(w => w.week_num))) return;
@@ -1277,10 +1287,24 @@ export default function App() {
         value: parseFloat(val.toFixed(1))
       })).sort((a,b) => b.value - a.value)
     })).sort((a,b) => b.value - a.value);
-  };
+  }, [dashFilterWeek, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
 
-  const muscleData = useMemo(() => calculateMuscleDistribution(dashFilteredData), [dashFilteredData, dashFilterWeek, muscleMetric, dashMuscleMacro, dashMuscleSubgroup]);
-  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all') : [], [compareMode, cmpFilteredData, cmpFilterWeek, muscleMetric, dashMuscleMacro, dashMuscleSubgroup]);
+  const muscleData = useMemo(() => calculateMuscleDistribution(dashFilteredData), [dashFilteredData, calculateMuscleDistribution]);
+  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all') : [], [compareMode, cmpFilteredData, cmpFilterWeek, calculateMuscleDistribution]);
+
+  const displayMuscleData = useMemo(() => {
+    if (dashMuscleMacro === 'all') return muscleData;
+    const macroObj = muscleData.find(m => m.name === dashMuscleMacro);
+    if (!macroObj) return [];
+    return macroObj.subMuscles;
+  }, [muscleData, dashMuscleMacro]);
+
+  const displayCompareMuscleData = useMemo(() => {
+    if (dashMuscleMacro === 'all') return compareMuscleData;
+    const macroObj = compareMuscleData.find(m => m.name === dashMuscleMacro);
+    if (!macroObj) return [];
+    return macroObj.subMuscles;
+  }, [compareMuscleData, dashMuscleMacro]);
 
   // Overall totals (filtered)
   const totalVolume = metricsByWeek.reduce((sum, m) => sum + m.Volume, 0);
@@ -1383,12 +1407,6 @@ export default function App() {
             onClick={() => { setActiveTab('sessions'); }}
           >
             <BookOpen size={16} /> Sessions
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'muscles' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('muscles'); setSelectedSession(null); }}
-          >
-            <Sparkles size={16} /> Muscle Load
           </button>
           <button 
             className={`tab-btn ${activeTab === 'db' ? 'active' : ''}`}
@@ -1953,7 +1971,9 @@ export default function App() {
                   <div className="chart-container">
                     <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume'} <Sparkles size={14} color="#6366f1" />
+                        {dashMuscleMacro !== 'all' 
+                          ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Sets` : `${dashMuscleMacro} Sub-group Volume`)
+                          : (muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume')} <Sparkles size={14} color="#6366f1" />
                       </span>
                       <select
                         className="select-control select-small"
@@ -1966,15 +1986,15 @@ export default function App() {
                       </select>
                     </div>
                     <div className="muscle-list">
-                      {muscleData.map((m, idx) => {
-                        const allData = compareMode && compareMuscleData.length > 0
-                          ? [...muscleData, ...compareMuscleData]
-                          : muscleData;
+                      {displayMuscleData.map((m, idx) => {
+                        const allData = compareMode && displayCompareMuscleData.length > 0
+                          ? [...displayMuscleData, ...displayCompareMuscleData]
+                          : displayMuscleData;
                         const maxVal = Math.max(...allData.map(item => item.value), 1);
                         const pct = (m.value / maxVal) * 100;
                         const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
                         const barColor = colors[idx % colors.length];
-                        const compareEntry = compareMode ? compareMuscleData.find(c => c.name === m.name) : null;
+                        const compareEntry = compareMode ? displayCompareMuscleData.find(c => c.name === m.name) : null;
                         const comparePct = compareEntry ? (compareEntry.value / maxVal) * 100 : 0;
 
                         return (
@@ -2021,45 +2041,7 @@ export default function App() {
 
                 </div>
 
-                {/* ── Per-Session Quick Stats (shown when no session filter active) ── */}
-                {dashFilterSession === 'all' && dashFilterWeek === 'all' && !compareMode && sessionsList.length > 1 && (
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <BookOpen size={14} /> Session Overview
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
-                      {sessionsList.map(sessNum => {
-                        const sessData = workoutData.filter(d => d.session === sessNum);
-                        const latestWeek = Math.max(...sessData.flatMap(e => e.weeks.map(w => w.week_num)), 1);
-                        const metrics = calculateMetrics(workoutData, sessNum, null, null, null);
-                        const totTonnage = metrics.reduce((s, d) => s + d.tonnage, 0);
-                        const latestEff = calculateMetrics(workoutData, sessNum, latestWeek, null, null).reduce((s, d) => s + (d.effectiveRepsCustom || 0), 0);
-                        return (
-                          <div
-                            key={sessNum}
-                            style={{
-                              background: 'rgba(255,255,255,0.015)', border: '1px solid var(--border-color)',
-                              borderRadius: '10px', padding: '12px 16px', cursor: 'pointer',
-                              transition: 'all var(--transition-fast)'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; }}
-                            onClick={() => setDashFilterSession(String(sessNum))}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-primary)' }}>S{sessNum}</span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{sessData.length} exercises</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              <span>🏋️ <b style={{ color: 'var(--color-tonnage)' }}>{totTonnage.toFixed(0)} kg</b> total tonnage</span>
-                              <span>⚡ <b style={{ color: 'var(--accent-secondary)' }}>{latestEff.toFixed(0)}</b> eff. reps (W{latestWeek})</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+
 
               </div>
             )}
@@ -2234,68 +2216,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB CONTENT: MUSCLES */}
-            {activeTab === 'muscles' && (
-              <div className="glass-card-body">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>{muscleMetric === 'sets' ? 'Muscle Sets Distribution Details' : 'Muscle Volume Distribution Details'}</h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Calculation Mode:</span>
-                    <select 
-                      className="select-control"
-                      value={muscleMetric}
-                      onChange={(e) => setMuscleMetric(e.target.value)}
-                    >
-                      <option value="effective">Effective Reps (Last 5)</option>
-                      <option value="volume">Standard Volume (Weighted reps)</option>
-                      <option value="sets">Total Sets (Scaled by distribution)</option>
-                    </select>
-                  </div>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '24px' }}>
-                  Shows the {muscleMetric === 'sets' ? 'number of sets' : 'volume (in reps)'} being delivered to each muscle group based on exercise selection and set volume in the latest week.
-                </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  {muscleData.map((macroGroup, idx) => (
-                    <div key={macroGroup.name} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                        <h3 style={{ fontSize: '1.1rem', color: 'var(--accent-primary)' }}>{macroGroup.name}</h3>
-                        <span style={{ fontWeight: 'bold' }}>{macroGroup.value} {muscleMetric === 'sets' ? 'sets' : 'reps'} total</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
-                        {macroGroup.subMuscles.map(sub => (
-                          <div key={sub.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                              <span style={{ color: 'var(--text-secondary)' }}>{sub.name}</span>
-                              <span style={{ fontWeight: 'bold' }}>{sub.value} {muscleMetric === 'sets' ? 'sets' : 'reps'}</span>
-                            </div>
-                            <div className="progress-bar-bg" style={{ height: '4px' }}>
-                              <div 
-                                className="progress-bar-fill" 
-                                style={{ 
-                                  width: `${Math.min((sub.value / macroGroup.value) * 100, 100)}%`, 
-                                  backgroundColor: 'var(--accent-secondary)' 
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {muscleData.length === 0 && (
-                    <div className="empty-state">
-                      <AlertCircle size={48} />
-                      <h3>No muscle data available</h3>
-                      <p>Make sure you have exercises in your logbook that map to muscles in the database.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* TAB CONTENT: EXERCISE DATABASE */}
             {activeTab === 'db' && (
@@ -2324,7 +2245,11 @@ export default function App() {
 
                 <div className="exercise-db-grid" style={{ flex: 1, overflowY: 'auto' }}>
                   {filteredExercises.map(ex => (
-                    <div className="exercise-db-card" key={ex.name}>
+                    <div 
+                      className="exercise-db-card" 
+                      key={ex.name}
+                      onClick={() => handleOpenEditExercise(ex)}
+                    >
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '4px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2344,30 +2269,6 @@ export default function App() {
                                 Overridden for {currentProgram}
                               </span>
                             )}
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                            <button
-                              className="btn-icon-small"
-                              style={{ width: '22px', height: '22px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.03)' }}
-                              title="Edit Exercise"
-                              onClick={() => handleOpenEditExercise(ex)}
-                            >
-                              <Edit size={12} />
-                            </button>
-                            <button
-                              className="btn-icon-small"
-                              style={{ 
-                                width: '22px', 
-                                height: '22px', 
-                                border: '1px solid rgba(239, 68, 68, 0.2)', 
-                                background: 'rgba(239, 68, 68, 0.05)',
-                                color: '#ef4444' 
-                              }}
-                              title="Delete Exercise"
-                              onClick={() => handleDeleteExercise(ex.name)}
-                            >
-                              <Trash2 size={12} />
-                            </button>
                           </div>
                         </div>
                         <div className="ex-card-detail" style={{ margin: '4px 0 10px 0' }}>
@@ -2444,7 +2345,18 @@ export default function App() {
       {showExerciseModal && (
         <div className="modal-overlay" onClick={() => setShowExerciseModal(false)}>
           <div className="modal-card" style={{ maxWidth: '500px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">{editingExercise ? 'Edit Exercise' : 'Add Exercise'}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingRight: '20px' }}>
+              <h3 className="modal-title" style={{ borderBottom: 'none' }}>{editingExercise ? 'Edit Exercise' : 'Add Exercise'}</h3>
+              {editingExercise && (
+                <button
+                  className="btn btn-danger"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => handleDeleteExercise(editingExercise.name)}
+                >
+                  <Trash2 size={13} /> Delete Exercise
+                </button>
+              )}
+            </div>
             <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               
               <div>
@@ -2698,7 +2610,7 @@ export default function App() {
               {exerciseError && <div className="modal-error" style={{ marginTop: '4px' }}>{exerciseError}</div>}
 
             </div>
-            <div className="modal-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="modal-actions">
               {currentHasOverride && (
                 <button
                   className="btn btn-danger"
@@ -2723,7 +2635,7 @@ export default function App() {
                 Save for {currentProgram} Only
               </button>
               <button
-                className="btn btn-success"
+                className="btn btn-success-solid"
                 onClick={handleSaveExercise}
                 disabled={exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100}
                 style={{

@@ -76,19 +76,25 @@ export function getExercisesWithOverrides(logText, globalExercises) {
 function levenshteinDistance(s1, s2) {
   const m = s1.length;
   const n = s2.length;
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
   for (let i = 1; i <= m; i++) {
+    curr[0] = i;
     for (let j = 1; j <= n; j++) {
       if (s1[i - 1] === s2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
+        curr[j] = prev[j - 1];
       } else {
-        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + 1);
+        curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + 1);
       }
     }
+    const temp = prev;
+    prev = curr;
+    curr = temp;
   }
-  return dp[m][n];
+  return prev[n];
 }
 
 function getStringSimilarity(s1, s2) {
@@ -97,6 +103,74 @@ function getStringSimilarity(s1, s2) {
   if (maxLen === 0) return 1.0;
   return 1.0 - dist / maxLen;
 }
+
+// Hard map from Analyzer.py (enhanced to fix matching bug)
+const HARD_MAP = {
+  // --- PETTO ---
+  "flat db bench": "Flat DB Bench",
+  "spinte db": "Flat DB Bench", "spinte manubri": "Flat DB Bench", "panca piana db": "Flat DB Bench",
+  "spinte 20": "20 DB Bench", "spinte db 20": "20 DB Bench", "spinte manubri 20": "20 DB Bench",
+  "spinte 32": "32 DB Bench", "spinte db 32": "32 DB Bench", "spinte manubri 32": "32 DB Bench",
+  "spinte 45": "45 DB Bench", "spinte db 45": "45 DB Bench", "spinte manubri 45": "45 DB Bench",
+  "panca piana": "Flat Barbell Bench", "panca piana bil": "Flat Barbell Bench",
+  "panca 20": "20 Barbell Bench", "panca 32": "32 Barbell Bench", "panca 45": "45 Barbell Bench",
+  "sm piana": "Flat SM Bench", 
+  "sm 20": "20 SM Bench", "20 sm": "20 SM Bench",
+  "sm 32": "32 SM Bench", "32 sm": "32 SM Bench",
+  "sm 45": "45 SM Bench", "45 sm": "45 SM Bench",
+  "sm press 30": "30 SM Press", "smith 30": "30 SM Press",
+  "croci db": "DB Flies", "croci manubri": "DB Flies",
+  "croci cavo basso": "Low Cable Flies", "croci basse": "Low Cable Flies",
+  "croci cavo alto": "High Cable Flies", "croci alte": "High Cable Flies",
+  "croci incl": "Incl Cable Flies", "croci cavo incl": "Incl Cable Flies",
+  "pec dec": "Pec Deck", "butterfly": "Pec Deck", "pectoral": "Pec Deck",
+  "chest press": "Chest Press",
+
+  // --- DORSO ---
+  "lat machine": "Lat Machine", "lat presa larga": "Lat Machine", "lat": "Lat Machine",
+  "lat machine alternative": "Lat Machine Alternative",
+  "pulley stretta": "Close Pulley", "pulley presa stretta": "Close Pulley",
+  "pulley larga": "Wide Pulley", "pulley presa larga": "Wide Pulley",
+  "pulley sa": "SA Pulley", "pulley mono": "SA Pulley", "pulley single arm": "SA Pulley",
+  "t-bar": "T-Bar", "tbar": "T-Bar", "t bar": "T-Bar",
+  "machine t-bar": "Machine T-Bar", "t-bar macch": "Machine T-Bar",
+  "pullover": "Pullover", "pullover cavo": "Pullover",
+  "sa pulldown": "SA Cable Pulldown", "single arm pulldown": "SA Cable Pulldown", "pulldown cavo": "SA Cable Pulldown",
+  "sa machine pulldown": "SA Machine Pulldown", "pulldown macch": "SA Machine Pulldown",
+  "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
+
+  // --- SPALLE ---
+  "lr": "LR", "alzate laterali": "LR", "lateral raise": "LR",
+  "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
+  "shoulder press": "Machine Press", "press macch": "Machine Press",
+  "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
+
+  // --- GAMBE ---
+  "squat": "Squat", "back squat": "Squat",
+  "pressa": "Leg Press 45", "leg press": "Leg Press 45", "pressa 45": "Leg Press 45",
+  "hack squat": "Hack Squat", "hack": "Hack Squat",
+  "sissy": "Sissy Squat", "sissy squat": "Sissy Squat",
+  "rdl": "RDL", "stacchi rumeni": "RDL", "rumeni": "RDL",
+  "stacco gambe tese": "Stiff Leg Deadlift", "sldl": "Stiff Leg Deadlift",
+  "deadlift": "Deadlift", "stacco": "Deadlift", "stacco terra": "Deadlift",
+  "leg curl": "Leg Curl", "leg curl sdraiato": "Leg Curl",
+  "leg ext": "Leg Extension", "leg extension": "Leg Extension",
+
+  // --- BRACCIA (Bicipiti) ---
+  "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl",
+  "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
+  "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
+  "preacher": "Preacher Curl", "scott": "Preacher Curl", "panca scott": "Preacher Curl",
+
+  // --- BRACCIA (Tricipiti) ---
+  "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
+  "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
+  "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
+  "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
+  "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps"
+};
+
+const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.length);
 
 export function matchExercise(rawName, exercises) {
   const namePart = rawName.split('|')[0];
@@ -110,77 +184,10 @@ export function matchExercise(rawName, exercises) {
     }
   }
 
-  // Hard map from Analyzer.py (enhanced to fix matching bug)
-  const hardMap = {
-    // --- PETTO ---
-    "flat db bench": "Flat DB Bench",
-    "spinte db": "Flat DB Bench", "spinte manubri": "Flat DB Bench", "panca piana db": "Flat DB Bench",
-    "spinte 20": "20 DB Bench", "spinte db 20": "20 DB Bench", "spinte manubri 20": "20 DB Bench",
-    "spinte 32": "32 DB Bench", "spinte db 32": "32 DB Bench", "spinte manubri 32": "32 DB Bench",
-    "spinte 45": "45 DB Bench", "spinte db 45": "45 DB Bench", "spinte manubri 45": "45 DB Bench",
-    "panca piana": "Flat Barbell Bench", "panca piana bil": "Flat Barbell Bench",
-    "panca 20": "20 Barbell Bench", "panca 32": "32 Barbell Bench", "panca 45": "45 Barbell Bench",
-    "sm piana": "Flat SM Bench", 
-    "sm 20": "20 SM Bench", "20 sm": "20 SM Bench",
-    "sm 32": "32 SM Bench", "32 sm": "32 SM Bench",
-    "sm 45": "45 SM Bench", "45 sm": "45 SM Bench",
-    "sm press 30": "30 SM Press", "smith 30": "30 SM Press",
-    "croci db": "DB Flies", "croci manubri": "DB Flies",
-    "croci cavo basso": "Low Cable Flies", "croci basse": "Low Cable Flies",
-    "croci cavo alto": "High Cable Flies", "croci alte": "High Cable Flies",
-    "croci incl": "Incl Cable Flies", "croci cavo incl": "Incl Cable Flies",
-    "pec dec": "Pec Deck", "butterfly": "Pec Deck", "pectoral": "Pec Deck",
-    "chest press": "Chest Press",
-
-    // --- DORSO ---
-    "lat machine": "Lat Machine", "lat presa larga": "Lat Machine", "lat": "Lat Machine",
-    "lat machine alternative": "Lat Machine Alternative",
-    "pulley stretta": "Close Pulley", "pulley presa stretta": "Close Pulley",
-    "pulley larga": "Wide Pulley", "pulley presa larga": "Wide Pulley",
-    "pulley sa": "SA Pulley", "pulley mono": "SA Pulley", "pulley single arm": "SA Pulley",
-    "t-bar": "T-Bar", "tbar": "T-Bar", "t bar": "T-Bar",
-    "machine t-bar": "Machine T-Bar", "t-bar macch": "Machine T-Bar",
-    "pullover": "Pullover", "pullover cavo": "Pullover",
-    "sa pulldown": "SA Cable Pulldown", "single arm pulldown": "SA Cable Pulldown", "pulldown cavo": "SA Cable Pulldown",
-    "sa machine pulldown": "SA Machine Pulldown", "pulldown macch": "SA Machine Pulldown",
-    "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
-
-    // --- SPALLE ---
-    "lr": "LR", "alzate laterali": "LR", "lateral raise": "LR",
-    "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
-    "shoulder press": "Machine Press", "press macch": "Machine Press",
-    "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
-
-    // --- GAMBE ---
-    "squat": "Squat", "back squat": "Squat",
-    "pressa": "Leg Press 45", "leg press": "Leg Press 45", "pressa 45": "Leg Press 45",
-    "hack squat": "Hack Squat", "hack": "Hack Squat",
-    "sissy": "Sissy Squat", "sissy squat": "Sissy Squat",
-    "rdl": "RDL", "stacchi rumeni": "RDL", "rumeni": "RDL",
-    "stacco gambe tese": "Stiff Leg Deadlift", "sldl": "Stiff Leg Deadlift",
-    "deadlift": "Deadlift", "stacco": "Deadlift", "stacco terra": "Deadlift",
-    "leg curl": "Leg Curl", "leg curl sdraiato": "Leg Curl",
-    "leg ext": "Leg Extension", "leg extension": "Leg Extension",
-
-    // --- BRACCIA (Bicipiti) ---
-    "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl",
-    "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
-    "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
-    "preacher": "Preacher Curl", "scott": "Preacher Curl", "panca scott": "Preacher Curl",
-
-    // --- BRACCIA (Tricipiti) ---
-    "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
-    "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
-    "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
-    "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
-    "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps"
-  };
-
   // Check hard map
-  const keys = Object.keys(hardMap).sort((a, b) => b.length - a.length);
-  for (const key of keys) {
+  for (const key of SORTED_HARD_MAP_KEYS) {
     if (rawClean.includes(key)) {
-      return exercises.find(e => e.name === hardMap[key]) || null;
+      return exercises.find(e => e.name === HARD_MAP[key]) || null;
     }
   }
 
@@ -281,7 +288,7 @@ export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, conce
   // 1. Base reps
   for (let j = 0; j < baseReps; j++) {
     const rir = (10.0 - rpe) + (baseReps - 1 - j);
-    let slowdown = 0.0;
+    let slowdown;
     if (rir >= 5.0) {
       slowdown = 0.0;
     } else if (rir >= 4.0) {
@@ -315,14 +322,14 @@ export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, conce
   return tuts;
 }
 
-export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff) {
-  const tuts = calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause);
+export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff, tuts = null) {
+  const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause);
   let totalFat = 0.0;
   
   // 1. Base reps
   for (let j = 0; j < baseReps; j++) {
-    if (j >= tuts.length) break;
-    const repTut = tuts[j];
+    if (j >= actualTuts.length) break;
+    const repTut = actualTuts[j];
     let rpeMult = 1.0;
     if (rpe > 0) {
       const rir = (10.0 - rpe) + (baseReps - 1 - j);
@@ -335,8 +342,8 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
   // 2. Assisted reps
   for (let j = 0; j < assistedReps; j++) {
     const idx = baseReps + j;
-    if (idx >= tuts.length) break;
-    const repTut = tuts[idx];
+    if (idx >= actualTuts.length) break;
+    const repTut = actualTuts[idx];
     const repRpe = 7.0;
     const rpeMult = Math.pow(1.1, repRpe - 7.5);
     totalFat += repTut * rpeMult * fatigue * loadCoeff * COEFF_ASSISTED;
@@ -345,9 +352,8 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
   // 3. Partial reps
   for (let j = 0; j < partialReps; j++) {
     const idx = baseReps + assistedReps + j;
-    if (idx >= tuts.length) break;
-    const repTut = tuts[idx];
-    const repRpe = 7.5;
+    if (idx >= actualTuts.length) break;
+    const repTut = actualTuts[idx];
     const rpeMult = 1.0;
     totalFat += repTut * rpeMult * fatigue * loadCoeff * (COEFF_PARTIAL / 0.5);
   }
@@ -365,7 +371,7 @@ export function parseLine(line, lineIndex = 0) {
   const nextDropsetId = () => `ds_${lineIndex}_${dropsetCounter++}`;
 
   // Plain numbers separated by single dots (reps only, load-less)
-  if (/^[\d()+\u002b@\.]+$/.test(cleanLine) && !cleanLine.includes('..')) {
+  if (/^[\d()+\u002b@.]+$/.test(cleanLine) && !cleanLine.includes('..')) {
     const tokens = cleanLine.split('.');
     const sets = [];
     for (const t of tokens) {
@@ -385,7 +391,7 @@ export function parseLine(line, lineIndex = 0) {
       let loadsPart = cleanLine.substring(0, lastIdx);
       let repsPart = cleanLine.substring(lastIdx + 2);
       if (repsPart.includes('.') && loadsPart.includes('..')) {
-        if (/^[\d()+\u002b@\.]+$/.test(repsPart)) {
+        if (/^[\d()+\u002b@.]+$/.test(repsPart)) {
           loadsPart = loadsPart.replace(/\.\./g, '/');
           repsPart = repsPart.replace(/\./g, '/');
           cleanLine = `${loadsPart}..${repsPart}`;
@@ -447,7 +453,7 @@ export function parseLogbook(logText, exercises) {
       }
 
       // Check if it's a rep/set log line (contains '..' or starts with digit/contains only numbers/symbols)
-      const isLogLine = line.includes('..') || /^[old\s]*[\d().+\/@\s]+$/i.test(line);
+      const isLogLine = line.includes('..') || /^[old\s]*[\d().+/@\s]+$/i.test(line);
 
       if (isLogLine) {
         if (currentExercise) {
@@ -474,7 +480,7 @@ export function parseLogbook(logText, exercises) {
           }
 
           parsedSets = parsedSets.map(s => {
-            const tuts = calculateSetTuts(
+            const tuts = s.tuts || calculateSetTuts(
               s.base_reps,
               s.assisted_reps,
               s.partial_reps,
@@ -488,6 +494,7 @@ export function parseLogbook(logText, exercises) {
             const effectiveTut = tuts.slice(-5).reduce((sum, val) => sum + val, 0);
             return {
               ...s,
+              tuts,
               totalTut,
               effectiveTut
             };
@@ -580,7 +587,8 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
           wEx.eccentric,
           wEx.lengthening_pause,
           ex.fatigue,
-          ex.load_coeff
+          ex.load_coeff,
+          s.tuts
         );
         totalFat += setFat * distrSum;
         

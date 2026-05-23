@@ -94,6 +94,7 @@ class SetData:
     rpe: float = 9.0
     total_tut: float = 0.0
     effective_tut: float = 0.0
+    tuts: List[float] = field(default_factory=list)
     
     @property
     def effective_reps(self) -> float:
@@ -116,6 +117,70 @@ class WorkoutExercise:
     eccentric: float = 2.0
     lengthening_pause: float = 0.0
 
+HARD_MAP = {
+    # --- PETTO ---
+    "flat db bench": "Flat DB Bench",
+    "spinte db": "Flat DB Bench", "spinte manubri": "Flat DB Bench", "panca piana db": "Flat DB Bench",
+    "spinte 20": "20 DB Bench", "spinte db 20": "20 DB Bench", "spinte manubri 20": "20 DB Bench",
+    "spinte 32": "32 DB Bench", "spinte db 32": "32 DB Bench", "spinte manubri 32": "32 DB Bench",
+    "spinte 45": "45 DB Bench", "spinte db 45": "45 DB Bench", "spinte manubri 45": "45 DB Bench",
+    "panca piana": "Flat Barbell Bench", "panca piana bil": "Flat Barbell Bench",
+    "panca 20": "20 Barbell Bench", "panca 32": "32 Barbell Bench", "panca 45": "45 Barbell Bench",
+    "sm piana": "Flat SM Bench", "sm 20": "20 SM Bench", "20 sm": "20 SM Bench", "sm 32": "32 SM Bench", "32 sm": "32 SM Bench", "sm 45": "45 SM Bench", "45 sm": "45 SM Bench",
+    "sm press 30": "30 SM Press", "smith 30": "30 SM Press",
+    "croci db": "DB Flies", "croci manubri": "DB Flies",
+    "croci cavo basso": "Low Cable Flies", "croci basse": "Low Cable Flies",
+    "croci cavo alto": "High Cable Flies", "croci alte": "High Cable Flies",
+    "croci incl": "Incl Cable Flies", "croci cavo incl": "Incl Cable Flies",
+    "pec dec": "Pec Deck", "butterfly": "Pec Deck", "pectoral": "Pec Deck",
+    "chest press": "Chest Press",
+
+    # --- DORSO ---
+    "lat machine": "Lat Machine", "lat presa larga": "Lat Machine", "lat": "Lat Machine",
+    "lat machine alternative": "Lat Machine Alternative",
+    "pulley stretta": "Close Pulley", "pulley presa stretta": "Close Pulley",
+    "pulley larga": "Wide Pulley", "pulley presa larga": "Wide Pulley",
+    "pulley sa": "SA Pulley", "pulley mono": "SA Pulley", "pulley single arm": "SA Pulley",
+    "t-bar": "T-Bar", "tbar": "T-Bar", "t bar": "T-Bar",
+    "machine t-bar": "Machine T-Bar", "t-bar macch": "Machine T-Bar",
+    "pullover": "Pullover", "pullover cavo": "Pullover",
+    "sa pulldown": "SA Cable Pulldown", "single arm pulldown": "SA Cable Pulldown", "pulldown cavo": "SA Cable Pulldown",
+    "sa machine pulldown": "SA Machine Pulldown", "pulldown macch": "SA Machine Pulldown",
+    "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
+
+    # --- SPALLE ---
+    "lr": "LR", "alzate laterali": "LR", "lateral raise": "LR",
+    "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
+    "shoulder press": "Machine Press", "press macch": "Machine Press",
+    "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
+
+    # --- GAMBE ---
+    "squat": "Squat", "back squat": "Squat",
+    "pressa": "Leg Press 45", "leg press": "Leg Press 45", "pressa 45": "Leg Press 45",
+    "hack squat": "Hack Squat", "hack": "Hack Squat",
+    "sissy": "Sissy Squat", "sissy squat": "Sissy Squat",
+    "rdl": "RDL", "stacchi rumeni": "RDL", "rumeni": "RDL",
+    "stacco gambe tese": "Stiff Leg Deadlift", "sldl": "Stiff Leg Deadlift",
+    "deadlift": "Deadlift", "stacco": "Deadlift", "stacco terra": "Deadlift",
+    "leg curl": "Leg Curl", "leg curl sdraiato": "Leg Curl",
+    "leg ext": "Leg Extension", "leg extension": "Leg Extension",
+
+    # --- BRACCIA (Bicipiti) ---
+    "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl",
+    "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
+    "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
+    "preacher": "Preacher Curl", "scott": "Preacher Curl", "panca scott": "Preacher Curl",
+
+    # --- BRACCIA (Tricipiti) ---
+    "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
+    "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
+    "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
+    "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
+    "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps"
+}
+
+SORTED_HARD_MAP_KEYS = sorted(HARD_MAP.keys(), key=len, reverse=True)
+
 def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercise]:
     name_part = raw_name.split('|')[0]
     raw_clean = re.sub(r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione)', '', name_part).lower().strip()
@@ -124,71 +189,9 @@ def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercis
         if ex.name.lower() == raw_clean:
             return ex
 
-    hard_map = {
-        # --- PETTO ---
-        "flat db bench": "Flat DB Bench",
-        "spinte db": "Flat DB Bench", "spinte manubri": "Flat DB Bench", "panca piana db": "Flat DB Bench",
-        "spinte 20": "20 DB Bench", "spinte db 20": "20 DB Bench", "spinte manubri 20": "20 DB Bench",
-        "spinte 32": "32 DB Bench", "spinte db 32": "32 DB Bench", "spinte manubri 32": "32 DB Bench",
-        "spinte 45": "45 DB Bench", "spinte db 45": "45 DB Bench", "spinte manubri 45": "45 DB Bench",
-        "panca piana": "Flat Barbell Bench", "panca piana bil": "Flat Barbell Bench",
-        "panca 20": "20 Barbell Bench", "panca 32": "32 Barbell Bench", "panca 45": "45 Barbell Bench",
-        "sm piana": "Flat SM Bench", "sm 20": "20 SM Bench", "20 sm": "20 SM Bench", "sm 32": "32 SM Bench", "32 sm": "32 SM Bench", "sm 45": "45 SM Bench", "45 sm": "45 SM Bench",
-        "sm press 30": "30 SM Press", "smith 30": "30 SM Press",
-        "croci db": "DB Flies", "croci manubri": "DB Flies",
-        "croci cavo basso": "Low Cable Flies", "croci basse": "Low Cable Flies",
-        "croci cavo alto": "High Cable Flies", "croci alte": "High Cable Flies",
-        "croci incl": "Incl Cable Flies", "croci cavo incl": "Incl Cable Flies",
-        "pec dec": "Pec Deck", "butterfly": "Pec Deck", "pectoral": "Pec Deck",
-        "chest press": "Chest Press",
-
-        # --- DORSO ---
-        "lat machine": "Lat Machine", "lat presa larga": "Lat Machine", "lat": "Lat Machine",
-        "lat machine alternative": "Lat Machine Alternative",
-        "pulley stretta": "Close Pulley", "pulley presa stretta": "Close Pulley",
-        "pulley larga": "Wide Pulley", "pulley presa larga": "Wide Pulley",
-        "pulley sa": "SA Pulley", "pulley mono": "SA Pulley", "pulley single arm": "SA Pulley",
-        "t-bar": "T-Bar", "tbar": "T-Bar", "t bar": "T-Bar",
-        "machine t-bar": "Machine T-Bar", "t-bar macch": "Machine T-Bar",
-        "pullover": "Pullover", "pullover cavo": "Pullover",
-        "sa pulldown": "SA Cable Pulldown", "single arm pulldown": "SA Cable Pulldown", "pulldown cavo": "SA Cable Pulldown",
-        "sa machine pulldown": "SA Machine Pulldown", "pulldown macch": "SA Machine Pulldown",
-        "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
-
-        # --- SPALLE ---
-        "lr": "LR", "alzate laterali": "LR", "lateral raise": "LR",
-        "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
-        "shoulder press": "Machine Press", "press macch": "Machine Press",
-        "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
-
-        # --- GAMBE ---
-        "squat": "Squat", "back squat": "Squat",
-        "pressa": "Leg Press 45", "leg press": "Leg Press 45", "pressa 45": "Leg Press 45",
-        "hack squat": "Hack Squat", "hack": "Hack Squat",
-        "sissy": "Sissy Squat", "sissy squat": "Sissy Squat",
-        "rdl": "RDL", "stacchi rumeni": "RDL", "rumeni": "RDL",
-        "stacco gambe tese": "Stiff Leg Deadlift", "sldl": "Stiff Leg Deadlift",
-        "deadlift": "Deadlift", "stacco": "Deadlift", "stacco terra": "Deadlift",
-        "leg curl": "Leg Curl", "leg curl sdraiato": "Leg Curl",
-        "leg ext": "Leg Extension", "leg extension": "Leg Extension",
-
-        # --- BRACCIA (Bicipiti) ---
-        "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl",
-        "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
-        "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
-        "preacher": "Preacher Curl", "scott": "Preacher Curl", "panca scott": "Preacher Curl",
-
-        # --- BRACCIA (Tricipiti) ---
-        "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
-        "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
-        "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
-        "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
-        "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps"
-    }
-
-    for key in sorted(hard_map.keys(), key=len, reverse=True):
+    for key in SORTED_HARD_MAP_KEYS:
         if key in raw_clean:
-            return next((e for e in exercises if e.name == hard_map[key]), None)
+            return next((e for e in exercises if e.name == HARD_MAP[key]), None)
 
     names = [e.name for e in exercises]
     matches = get_close_matches(raw_clean, names, n=1, cutoff=0.4)
@@ -258,14 +261,14 @@ def calculate_set_tuts(base_reps: int, assisted_reps: int, partial_reps: int, rp
 
 def calculate_set_fatigue(base_reps: int, assisted_reps: int, partial_reps: int, rpe: float,
                           concentric: float, shortening_pause: float, eccentric: float, lengthening_pause: float,
-                          fatigue: float, load_coeff: float) -> float:
-    tuts = calculate_set_tuts(base_reps, assisted_reps, partial_reps, rpe, concentric, shortening_pause, eccentric, lengthening_pause)
+                          fatigue: float, load_coeff: float, tuts: Optional[List[float]] = None) -> float:
+    actual_tuts = tuts if tuts is not None else calculate_set_tuts(base_reps, assisted_reps, partial_reps, rpe, concentric, shortening_pause, eccentric, lengthening_pause)
     total_fat = 0.0
     
     # 1. Base reps
     for j in range(base_reps):
-        if j >= len(tuts): break
-        rep_tut = tuts[j]
+        if j >= len(actual_tuts): break
+        rep_tut = actual_tuts[j]
         if rpe > 0:
             rir = (10.0 - rpe) + (base_reps - 1 - j)
             rep_rpe = max(0.0, 10.0 - rir)
@@ -277,8 +280,8 @@ def calculate_set_fatigue(base_reps: int, assisted_reps: int, partial_reps: int,
     # 2. Assisted reps
     for j in range(assisted_reps):
         idx = base_reps + j
-        if idx >= len(tuts): break
-        rep_tut = tuts[idx]
+        if idx >= len(actual_tuts): break
+        rep_tut = actual_tuts[idx]
         rep_rpe = 7.0
         rpe_mult = 1.1 ** (rep_rpe - 7.5)
         total_fat += rep_tut * rpe_mult * fatigue * load_coeff * COEFF_ASSISTED
@@ -286,8 +289,8 @@ def calculate_set_fatigue(base_reps: int, assisted_reps: int, partial_reps: int,
     # 3. Partial reps
     for j in range(partial_reps):
         idx = base_reps + assisted_reps + j
-        if idx >= len(tuts): break
-        rep_tut = tuts[idx]
+        if idx >= len(actual_tuts): break
+        rep_tut = actual_tuts[idx]
         rep_rpe = 7.5
         rpe_mult = 1.0
         total_fat += rep_tut * rpe_mult * fatigue * load_coeff * (COEFF_PARTIAL / 0.5)
@@ -432,10 +435,10 @@ def analyze_workout_log(log_text: str, exercises: List[Exercise]) -> List[Workou
                         if load_str:
                             loads = [float(x) for x in load_str.split('/') if x]
                             prev_sets = current_exercise.weeks[-1].sets
-                            parsed_sets = [SetData(load=loads[i] if i < len(loads) else loads[-1], base_reps=s.base_reps, assisted_reps=s.assisted_reps, partial_reps=s.partial_reps, rpe=s.rpe) for i, s in enumerate(prev_sets)]
+                            parsed_sets = [SetData(load=loads[i] if i < len(loads) else loads[-1], base_reps=s.base_reps, assisted_reps=s.assisted_reps, partial_reps=s.partial_reps, rpe=s.rpe, tuts=list(s.tuts)) for i, s in enumerate(prev_sets)]
                     
                     for s in parsed_sets:
-                        tuts = calculate_set_tuts(
+                        tuts = s.tuts if s.tuts else calculate_set_tuts(
                             base_reps=s.base_reps,
                             assisted_reps=s.assisted_reps,
                             partial_reps=s.partial_reps,
@@ -445,6 +448,7 @@ def analyze_workout_log(log_text: str, exercises: List[Exercise]) -> List[Workou
                             eccentric=current_exercise.eccentric,
                             lengthening_pause=current_exercise.lengthening_pause
                         )
+                        s.tuts = tuts
                         s.total_tut = sum(tuts)
                         s.effective_tut = sum(tuts[-5:])
                     
@@ -497,7 +501,8 @@ def calculate_metrics(workout_data: List[WorkoutExercise], target_session: Optio
                     eccentric=w_ex.eccentric,
                     lengthening_pause=w_ex.lengthening_pause,
                     fatigue=ex.fatigue,
-                    load_coeff=ex.load_coeff
+                    load_coeff=ex.load_coeff,
+                    tuts=s.tuts
                 )
                 total_fat += set_fat * distr_sum
                 total_tut += s.total_tut * distr_sum
