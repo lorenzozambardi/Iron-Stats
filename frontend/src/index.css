@@ -1443,3 +1443,472 @@ h1, h2, h3, h4, h5, h6 {
   padding: 8px 0;
 }
 
+.chart-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.control-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* --- Mobile specific overrides requested by User --- */
+.mobile-burger-btn {
+  display: none;
+}
+.mobile-close-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* 1. Remove logo, title, and version */
+  .brand { 
+    display: none !important; 
+  }
+  
+  /* 2. Lateral menu styling */
+  .mobile-burger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 0;
+    pointer-events: auto !important;
+  }
+  .burger-icon {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .burger-icon div {
+    width: 24px;
+    height: 2px;
+    background: var(--text-primary);
+    border-radius: 2px;
+  }
+
+  .tab-nav {
+    position: fixed;
+    top: 0;
+    left: -250px;
+    width: 250px;
+    height: 100vh;
+    background: var(--bg-secondary);
+    flex-direction: column;
+    padding: 60px 20px 20px 20px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+    border-radius: 0;
+    align-items: flex-start;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    pointer-events: auto !important;
+  }
+  .tab-nav.mobile-open {
+    left: 0;
+  }
+  .mobile-close-btn {
+    display: block;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .tab-nav-highlight {
+    display: none !important;
+  }
+  .app-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    position: sticky !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 12px !important;
+    background: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    border-radius: 0 !important;
+    z-index: 200 !important;
+    pointer-events: auto !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+  }
+  
+  .tab-btn {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+  }
+
+  /* Remove outer containers and reduce spacing */
+  .app-container {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  .app-header {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+  }
+  .main-workspace {
+    gap: 0 !important;
+  }
+  .glass-card {
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .glass-card-body {
+    padding: 8px !important;
+  }
+  
+  /* 3. Split view mode: preview top, editable text bottom */
+  .editor-split-container.mode-split {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .editor-split-container.mode-split .editor-panel {
+    border-right: none !important;
+    padding-right: 0 !important;
+    border-top: 1px solid var(--border-color) !important;
+    padding-top: 8px !important;
+    grid-row: 2;
+  }
+  .editor-split-container.mode-split .preview-panel {
+    grid-row: 1;
+  }
+  .preview-container {
+    padding: 0 !important;
+  }
+
+  /* 4 & 5. Smaller font, Google Pixel 6a standard font (Roboto/sans-serif) */
+  .editor-textarea, .editor-line-numbers {
+    font-size: 0.95rem !important;
+    font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  }
+  
+  .logbook-preview-content, .logbook-preview-content * {
+    font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  }
+  
+  /* Remove blue selection tap highlight globally on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: none !important; /* Firefox */
+  }
+  
+  /* Remove scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* --- Editor & Menu Header Alignment & Controls --- */
+  .editor-control-bar {
+    display: none !important;
+  }
+
+  .mobile-header-editor-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .mobile-header-editor-controls .editor-mode-toggles {
+    display: flex !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    padding: 2px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  .mobile-header-editor-controls .mode-toggle-btn {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary) !important;
+    padding: 6px 10px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all var(--transition-fast) !important;
+  }
+
+  .mobile-header-editor-controls .mode-toggle-btn.active {
+    background: var(--accent-primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px var(--accent-primary-glow) !important;
+  }
+
+  .mobile-header-editor-controls .btn-save {
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: var(--accent-primary) !important;
+    border: none !important;
+    color: white !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 8px var(--accent-primary-glow) !important;
+    min-width: auto !important;
+    height: 32px !important;
+    width: 36px !important;
+  }
+
+  /* --- Mobile Lateral Menu Controls --- */
+  .desktop-only { display: none !important; }
+  .tab-nav > .header-controls {
+    display: flex !important;
+    position: static !important;
+    margin-top: auto !important; /* Pushes them to the bottom of the open menu */
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 0 10px !important;
+    gap: 16px !important;
+  }
+  .tab-nav > .header-controls .program-selector-container {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 8px 12px !important;
+    border-radius: 12px !important;
+    width: calc(100% - 20px) !important;
+    box-sizing: border-box !important;
+  }
+
+  .tab-nav > .header-controls .program-select {
+    flex: 1 !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-primary) !important;
+    font-size: 0.9rem !important;
+    padding: 4px !important;
+    outline: none !important;
+  }
+
+  .tab-nav > .header-controls .status-badge {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    width: calc(100% - 20px) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Scale down Dashboard elements */
+  .metrics-summary-grid {
+    gap: 8px !important;
+  }
+  .metric-summary-card {
+    padding: 10px 12px !important;
+    min-width: 130px !important; 
+    flex: 1 1 calc(50% - 8px) !important;
+  }
+  .metric-value {
+    font-size: 1.3rem !important;
+  }
+  .metric-label {
+    font-size: 0.7rem !important;
+  }
+  
+  /* Dashboard Filter Box adjustments */
+  .select-control {
+    min-width: auto !important;
+    width: auto !important;
+    padding: 6px 24px 6px 8px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Plot container scaling */
+  .chart-container {
+    padding: 10px !important;
+    gap: 8px !important;
+    max-width: 420px !important;
+    width: 95% !important;
+    margin: 0 auto 10px auto !important;
+    box-sizing: border-box !important;
+  }
+  .chart-title {
+    font-size: 0.82rem !important;
+  }
+  .dashboard-chart-wrapper {
+    height: 130px !important;
+  }
+  .muscle-list {
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow: visible !important;
+  }
+  .recharts-cartesian-axis-tick-value {
+    font-size: 7.5px !important;
+  }
+  .recharts-legend-item-text {
+    font-size: 8px !important;
+  }
+  .muscle-row-name, .muscle-row-value {
+    font-size: 0.75rem !important;
+  }
+  .muscle-row {
+    padding: 4px 0 !important;
+  }
+  .select-control.select-small {
+    font-size: 0.75rem !important;
+    height: 26px !important;
+    padding: 2px 24px 2px 6px !important;
+    min-width: 120px !important;
+  }
+
+  /* Mobile Dropdown Stacking inside Chart Header */
+  .chart-controls-wrapper {
+    display: grid !important;
+    grid-template-columns: 60px 1fr !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin-top: 6px !important;
+  }
+  .chart-controls-wrapper .control-label {
+    grid-column: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    font-size: 0.72rem !important;
+    color: var(--text-muted) !important;
+  }
+  .chart-controls-wrapper select {
+    grid-column: 2 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .chart-trending-icon {
+    display: none !important;
+  }
+
+  /* Live Preview 4-Columns for Weeks on Mobile styled as Session Set Bubbles */
+  .preview-weeks-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+  }
+  .preview-week-column {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 3px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    text-align: center !important;
+  }
+  .preview-week-column.active {
+    background: rgba(6, 182, 212, 0.08) !important;
+    border-color: rgba(6, 182, 212, 0.45) !important;
+  }
+  .preview-week-header {
+    font-size: 0.65rem !important;
+    color: var(--text-muted) !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08) !important;
+    padding-bottom: 2px !important;
+    margin-bottom: 0px !important;
+    text-align: center !important;
+    font-weight: 500 !important;
+  }
+  .preview-sets-list {
+    gap: 2px !important;
+  }
+  .preview-set-row {
+    display: block !important;
+    text-align: center !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.6rem !important;
+    padding: 1px 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+  }
+  .preview-set-row:not(:last-child) {
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.05) !important;
+  }
+  .preview-set-row.dropset {
+    display: flex !important;
+    flex-direction: column !important;
+    text-align: center !important;
+    border-bottom: none !important;
+    background: rgba(239, 68, 68, 0.05) !important;
+    border-radius: 4px !important;
+    padding: 3px !important;
+  }
+  .preview-no-sets {
+    font-size: 0.6rem !important;
+    color: var(--text-muted) !important;
+  }
+
+  /* Reduced preview exercise card vertical spacing & inline headers */
+  .preview-exercise-card {
+    padding: 8px !important;
+    gap: 6px !important;
+    border-radius: 8px !important;
+  }
+  .preview-exercise-header {
+    margin-bottom: 2px !important;
+  }
+  .preview-exercise-info {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .preview-exercise-info h3 {
+    font-size: 0.95rem !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+  }
+  .preview-badges {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin: 0 !important;
+  }
+  .preview-badges .badge {
+    padding: 2px 6px !important;
+    font-size: 0.65rem !important;
+    border-radius: 4px !important;
+  }
+
+  /* Prevent Horizontal Scrolling globally on mobile */
+  html, body, #root, .app-container, .main-workspace, .glass-card-body {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  .chart-container {
+    overflow: hidden !important;
+  }
+}

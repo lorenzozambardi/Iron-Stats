@@ -1,0 +1,694 @@
+[
+  {
+    "name": "Squat",
+    "muscles_distr": {
+      "Quadriceps": 0.5,
+      "Glutes": 0.3,
+      "Adductors": 0.1,
+      "Erectors": 0.1
+    },
+    "fatigue": 9.5,
+    "load_coeff": 0.1,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Leg Press 45",
+    "muscles_distr": {
+      "Quadriceps": 0.6,
+      "Glutes": 0.3,
+      "Adductors": 0.1
+    },
+    "fatigue": 8.0,
+    "load_coeff": 0.3,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Sissy Squat",
+    "muscles_distr": {
+      "Quadriceps": 1
+    },
+    "fatigue": 5.0,
+    "load_coeff": 0.7,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "RDL",
+    "muscles_distr": {
+      "Hamstrings": 0.6,
+      "Glutes": 0.3,
+      "Erectors": 0.1
+    },
+    "fatigue": 8.5,
+    "load_coeff": 0.3,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Leg Curl",
+    "muscles_distr": {
+      "Hamstrings": 1
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Leg Extension",
+    "muscles_distr": {
+      "Quadriceps": 1
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Stiff Leg Deadlift",
+    "muscles_distr": {
+      "Hamstrings": 0.7,
+      "Glutes": 0.2,
+      "Erectors": 0.1
+    },
+    "fatigue": 9.0,
+    "load_coeff": 0.25,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Deadlift",
+    "muscles_distr": {
+      "Glutes": 0.4,
+      "Hamstrings": 0.3,
+      "Erectors": 0.2,
+      "Latissimus Dorsi": 0.1
+    },
+    "fatigue": 10.0,
+    "load_coeff": 0.1,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Hack Squat",
+    "muscles_distr": {
+      "Quadriceps": 0.7,
+      "Glutes": 0.3
+    },
+    "fatigue": 8.5,
+    "load_coeff": 0.3,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Flat Barbell Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.7,
+      "Clavicular Head": 0.1,
+      "Anterior Deltoid": 0.1,
+      "Lateral Head": 0.1
+    },
+    "fatigue": 8.0,
+    "load_coeff": 0.4,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "20 Barbell Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.6,
+      "Clavicular Head": 0.2,
+      "Anterior Deltoid": 0.1,
+      "Lateral Head": 0.1
+    },
+    "fatigue": 7.8,
+    "load_coeff": 0.42,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "32 Barbell Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.4,
+      "Clavicular Head": 0.4,
+      "Anterior Deltoid": 0.1,
+      "Lateral Head": 0.1
+    },
+    "fatigue": 7.6,
+    "load_coeff": 0.45,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "45 Barbell Bench",
+    "muscles_distr": {
+      "Clavicular Head": 0.6,
+      "Sternal Head": 0.2,
+      "Anterior Deltoid": 0.2
+    },
+    "fatigue": 7.5,
+    "load_coeff": 0.5,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Flat DB Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.75,
+      "Clavicular Head": 0.1,
+      "Anterior Deltoid": 0.15
+    },
+    "fatigue": 7.0,
+    "load_coeff": 0.5,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "20 DB Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.6,
+      "Clavicular Head": 0.3,
+      "Anterior Deltoid": 0.1
+    },
+    "fatigue": 6.8,
+    "load_coeff": 0.52,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "32 DB Bench",
+    "muscles_distr": {
+      "Clavicular Head": 0.5,
+      "Sternal Head": 0.3,
+      "Anterior Deltoid": 0.2
+    },
+    "fatigue": 6.8,
+    "load_coeff": 0.55,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "45 DB Bench",
+    "muscles_distr": {
+      "Clavicular Head": 0.7,
+      "Sternal Head": 0.1,
+      "Anterior Deltoid": 0.2
+    },
+    "fatigue": 6.5,
+    "load_coeff": 0.6,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Chest Press",
+    "muscles_distr": {
+      "Sternal Head": 0.7,
+      "Clavicular Head": 0.2,
+      "Anterior Deltoid": 0.1
+    },
+    "fatigue": 6.0,
+    "load_coeff": 0.6,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Flat SM Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.7,
+      "Clavicular Head": 0.15,
+      "Anterior Deltoid": 0.15
+    },
+    "fatigue": 6.5,
+    "load_coeff": 0.5,
+    "load_multiplier": 2.0,
+    "load_offset": 20.0,
+    "is_isolation": false
+  },
+  {
+    "name": "20 SM Bench",
+    "muscles_distr": {
+      "Sternal Head": 0.6,
+      "Clavicular Head": 0.25,
+      "Anterior Deltoid": 0.15
+    },
+    "fatigue": 6.4,
+    "load_coeff": 0.52,
+    "load_multiplier": 2.0,
+    "load_offset": 20.0,
+    "is_isolation": false
+  },
+  {
+    "name": "32 SM Bench",
+    "muscles_distr": {
+      "Clavicular Head": 0.5,
+      "Sternal Head": 0.3,
+      "Anterior Deltoid": 0.2
+    },
+    "fatigue": 6.3,
+    "load_coeff": 0.55,
+    "load_multiplier": 2.0,
+    "load_offset": 20.0,
+    "is_isolation": false
+  },
+  {
+    "name": "45 SM Bench",
+    "muscles_distr": {
+      "Clavicular Head": 0.65,
+      "Sternal Head": 0.15,
+      "Anterior Deltoid": 0.2
+    },
+    "fatigue": 6.2,
+    "load_coeff": 0.6,
+    "load_multiplier": 2.0,
+    "load_offset": 20.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Pec Deck",
+    "muscles_distr": {
+      "Sternal Head": 0.8,
+      "Clavicular Head": 0.2
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "DB Flies",
+    "muscles_distr": {
+      "Sternal Head": 0.7,
+      "Clavicular Head": 0.3
+    },
+    "fatigue": 4.5,
+    "load_coeff": 0.75,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "High Cable Flies",
+    "muscles_distr": {
+      "Sternal Head": 0.8,
+      "Clavicular Head": 0.2
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Low Cable Flies",
+    "muscles_distr": {
+      "Clavicular Head": 0.8,
+      "Sternal Head": 0.2
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "30 SM Press",
+    "muscles_distr": {
+      "Clavicular Head": 0.5,
+      "Sternal Head": 0.3,
+      "Anterior Deltoid": 0.2
+    },
+    "fatigue": 6.3,
+    "load_coeff": 0.55,
+    "load_multiplier": 2.0,
+    "load_offset": 20.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Incl Cable Flies",
+    "muscles_distr": {
+      "Clavicular Head": 0.8,
+      "Sternal Head": 0.2
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Lat Machine",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.7,
+      "Upper and Mid Trapezius": 0.1,
+      "Lower Trapezius and Rhomboids": 0.1,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 6.0,
+    "load_coeff": 0.6,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Lat Machine Alternative",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.8,
+      "Upper and Mid Trapezius": 0.05,
+      "Lower Trapezius and Rhomboids": 0.05,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 6.0,
+    "load_coeff": 0.6,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Wide Pulley",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.4,
+      "Upper and Mid Trapezius": 0.3,
+      "Lower Trapezius and Rhomboids": 0.2,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 6.5,
+    "load_coeff": 0.55,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Close Pulley",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.6,
+      "Lower Trapezius and Rhomboids": 0.2,
+      "Upper and Mid Trapezius": 0.1,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 6.0,
+    "load_coeff": 0.6,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "SA Pulley",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.7,
+      "Lower Trapezius and Rhomboids": 0.2,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 5.5,
+    "load_coeff": 0.7,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "T-Bar",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.4,
+      "Upper and Mid Trapezius": 0.3,
+      "Lower Trapezius and Rhomboids": 0.2,
+      "Erectors": 0.1
+    },
+    "fatigue": 8.0,
+    "load_coeff": 0.35,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Machine T-Bar",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.4,
+      "Upper and Mid Trapezius": 0.3,
+      "Lower Trapezius and Rhomboids": 0.3
+    },
+    "fatigue": 6.5,
+    "load_coeff": 0.55,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Pullover",
+    "muscles_distr": {
+      "Latissimus Dorsi": 1
+    },
+    "fatigue": 4.5,
+    "load_coeff": 0.75,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "SA Cable Pulldown",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.9,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 4.5,
+    "load_coeff": 0.75,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "SA Machine Pulldown",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.9,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 5.0,
+    "load_coeff": 0.7,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Chin-Ups",
+    "muscles_distr": {
+      "Latissimus Dorsi": 0.4,
+      "Biceps Brachii": 0.5,
+      "Lower Trapezius and Rhomboids": 0.1
+    },
+    "fatigue": 7.5,
+    "load_coeff": 0.45,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "LR",
+    "muscles_distr": {
+      "Lateral Deltoid": 0.9,
+      "Upper and Mid Trapezius": 0.1
+    },
+    "fatigue": 3.0,
+    "load_coeff": 0.9,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "LRC",
+    "muscles_distr": {
+      "Lateral Deltoid": 0.9,
+      "Upper and Mid Trapezius": 0.1
+    },
+    "fatigue": 3.0,
+    "load_coeff": 0.9,
+    "load_multiplier": 0.5,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Machine Press",
+    "muscles_distr": {
+      "Anterior Deltoid": 0.7,
+      "Lateral Deltoid": 0.1,
+      "Clavicular Head": 0.1,
+      "Lateral Head": 0.1
+    },
+    "fatigue": 6.5,
+    "load_coeff": 0.55,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Shoulder Extra-Rotations",
+    "muscles_distr": {
+      "Rotator Cuff": 1
+    },
+    "fatigue": 2.0,
+    "load_coeff": 1.0,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "45 Incl Curl",
+    "muscles_distr": {
+      "Biceps Brachii": 0.8,
+      "Brachialis": 0.1,
+      "Brachioradialis": 0.1
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.85,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "49 Incl Curl",
+    "muscles_distr": {
+      "Biceps Brachii": 0.8,
+      "Brachialis": 0.1,
+      "Brachioradialis": 0.1
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.85,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "DB Hammer",
+    "muscles_distr": {
+      "Brachioradialis": 0.5,
+      "Brachialis": 0.4,
+      "Biceps Brachii": 0.1
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.85,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Preacher Curl",
+    "muscles_distr": {
+      "Brachialis": 0.6,
+      "Biceps Brachii": 0.4
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Cable French Press",
+    "muscles_distr": {
+      "Long Head": 0.7,
+      "Lateral Head": 0.15,
+      "Medial Head": 0.15
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 0.5,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Incl Cable Pushdown",
+    "muscles_distr": {
+      "Lateral Head": 0.4,
+      "Medial Head": 0.4,
+      "Long Head": 0.2
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.85,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Bench 54 Pushdown",
+    "muscles_distr": {
+      "Lateral Head": 0.4,
+      "Medial Head": 0.4,
+      "Long Head": 0.2
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.85,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Low Cable Triceps",
+    "muscles_distr": {
+      "Long Head": 0.8,
+      "Medial Head": 0.1,
+      "Lateral Head": 0.1
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.85,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Bench 54 Triceps",
+    "muscles_distr": {
+      "Long Head": 0.7,
+      "Lateral Head": 0.15,
+      "Medial Head": 0.15
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "EZ-Bar Curl",
+    "muscles_distr": {
+      "Biceps Brachii": 0.6,
+      "Brachioradialis": 0.25,
+      "Brachialis": 0.15
+    },
+    "fatigue": 5.0,
+    "load_coeff": 0.7,
+    "load_multiplier": 2.0,
+    "load_offset": 8.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Bayesian Curl SA",
+    "muscles_distr": {
+      "Biceps Brachii": 0.8,
+      "Brachioradialis": 0.1,
+      "Brachialis": 0.1
+    },
+    "fatigue": 3.0,
+    "load_coeff": 0.9,
+    "load_multiplier": 0.5,
+    "load_offset": 0.0,
+    "is_isolation": true
+  }
+]

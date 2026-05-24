@@ -13,7 +13,10 @@ import {
   TrendingUp,
   Edit,
   Trash2,
-  Info
+  Info,
+  Pencil,
+  Eye,
+  Columns
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -75,8 +78,9 @@ const groupSets = (sets) => {
 };
 
 // A beautiful custom rendered live preview of the parsed logbook contents
-function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex }) {
+function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode }) {
   const scrollAnimRef = useRef(null);
+  const [expandedExerciseName, setExpandedExerciseName] = useState(null);
 
   useEffect(() => {
     if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
@@ -151,20 +155,65 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                   key={exIdx} 
                   id={`preview-ex-${ex.startLine}`}
                   className={`preview-exercise-card ${isActive ? 'active' : ''}`}
+                  style={{ cursor: (editorMode === 'preview' && ex.exercise_obj) ? 'pointer' : 'default' }}
+                  onClick={() => {
+                    if (editorMode === 'preview' && ex.exercise_obj) {
+                      setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
+                    }
+                  }}
                 >
                   <div className="preview-exercise-header">
                     <div className="preview-exercise-info">
                       <h3>{ex.exercise_obj ? ex.exercise_obj.name : ex.raw_name}</h3>
                       <div className="preview-badges">
-                        <span className="badge">⏱️ {formatRestTime(ex.rest_seconds)} rest</span>
+                        <span className="badge">{formatRestTime(ex.rest_seconds)} rest</span>
                         {ex.exercise_obj && (
                           <span className="badge muscle">
                             {MUSCLES[Object.keys(ex.exercise_obj.muscles_distr)[0]] || Object.keys(ex.exercise_obj.muscles_distr)[0]}
                           </span>
                         )}
+                        {editorMode === 'preview' && ex.exercise_obj && (
+                          <span 
+                            className="badge info-btn" 
+                            style={{ cursor: 'pointer', border: '1px solid rgba(99, 102, 241, 0.4)', background: 'rgba(99, 102, 241, 0.05)', color: 'var(--accent-primary)' }}
+                          >
+                            {expandedExerciseName === ex.exercise_obj.name ? 'Hide Info' : 'Show Info'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Render Expanded Info under header if expanded */}
+                  {editorMode === 'preview' && ex.exercise_obj && expandedExerciseName === ex.exercise_obj.name && (
+                    <div style={{ 
+                      marginTop: '4px', 
+                      marginBottom: '12px', 
+                      padding: '10px', 
+                      background: 'rgba(0,0,0,0.2)', 
+                      borderRadius: '8px', 
+                      border: '1px solid var(--border-color)', 
+                      fontSize: '0.75rem',
+                      textAlign: 'left'
+                    }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '6px', marginBottom: '8px' }}>
+                        <div><span style={{ color: 'var(--text-muted)' }}>Fatigue:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.fatigue}</strong></div>
+                        <div><span style={{ color: 'var(--text-muted)' }}>Load Coeff:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_coeff}</strong></div>
+                        <div><span style={{ color: 'var(--text-muted)' }}>Multiplier:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_multiplier}x</strong></div>
+                        <div><span style={{ color: 'var(--text-muted)' }}>Offset:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_offset}kg</strong></div>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Muscle Distribution:</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {Object.entries(ex.exercise_obj.muscles_distr).map(([muscle, pct]) => (
+                            <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.65rem', padding: '2px 6px' }}>
+                              {muscle}: <strong>{Math.round(pct * 100)}%</strong>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="preview-weeks-grid">
                     {ex.weeks.map(wk => {
@@ -187,6 +236,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                                             <span className="preview-set-reps">×{s.base_reps + s.assisted_reps}</span>
                                             {s.partial_reps > 0 && <span className="preview-set-partial" style={{ fontSize: '0.6rem' }}>+{s.partial_reps}p</span>}
                                             {s.assisted_reps > 0 && <span className="preview-set-assisted" style={{ fontSize: '0.6rem' }}>({s.assisted_reps}a)</span>}
+                                            {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '2px' }}>@{s.rpe}</span>}
                                           </span>
                                         </React.Fragment>
                                       ))}
@@ -198,9 +248,10 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                                 return (
                                   <div key={gIdx} className="preview-set-row">
                                     <span className="preview-set-weight">{s.load}kg</span>
-                                    <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
+                                    <span className="preview-set-reps"> × {s.base_reps + s.assisted_reps}</span>
                                     {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
                                     {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
+                                    {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '3px' }}>@{s.rpe}</span>}
                                   </div>
                                 );
                               }
@@ -646,6 +697,7 @@ export default function App() {
   const [muscleMetric, setMuscleMetric] = useState('effective');
   const [progressionExercise, setProgressionExercise] = useState('all_metrics');
   const [overallChartMetric, setOverallChartMetric] = useState('Volume');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Dynamic sliding highlight for Navbar
   const tabNavRef = useRef(null);
@@ -1753,8 +1805,48 @@ export default function App() {
           <span className="badge">v1.0.0</span>
         </div>
 
+        <button className="mobile-burger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+          <div className="burger-icon">
+            <div />
+            <div />
+          </div>
+        </button>
+
+        {/* Render editor controls in the header on mobile ONLY */}
+        {activeTab === 'editor' && (
+          <div className="mobile-header-editor-controls">
+            <div className="editor-mode-toggles">
+              <button 
+                className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}
+                onClick={() => setEditorMode('edit')}
+                title="Edit"
+              >
+                <Pencil size={16} />
+              </button>
+              <button 
+                className={`mode-toggle-btn ${editorMode === 'preview' ? 'active' : ''}`}
+                onClick={() => setEditorMode('preview')}
+                title="Preview"
+              >
+                <Eye size={16} />
+              </button>
+              <button 
+                className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
+                onClick={() => setEditorMode('split')}
+                title="Split View"
+              >
+                <Columns size={16} />
+              </button>
+            </div>
+            <button className="btn btn-primary btn-save" onClick={() => saveLogbookContent(logbookText)} title="Save">
+              <Save size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Tab Selection */}
-        <div className="tab-nav" ref={tabNavRef} style={{ position: 'relative' }}>
+        <div className={`tab-nav ${isMobileMenuOpen ? 'mobile-open' : ''}`} ref={tabNavRef}>
+          <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)}>×</button>
           <div 
             className="tab-nav-highlight" 
             style={{
@@ -1775,36 +1867,72 @@ export default function App() {
           />
           <button 
             className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('editor'); setSelectedSession(null); }}
+            onClick={() => { setActiveTab('editor'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Edit size={16} /> Editor
           </button>
           <button 
             className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('dashboard'); setSelectedSession(null); }}
+            onClick={() => { setActiveTab('dashboard'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <BarChart3 size={16} /> Dashboard
           </button>
           <button 
             className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('sessions'); }}
+            onClick={() => { setActiveTab('sessions'); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <BookOpen size={16} /> Sessions
           </button>
           <button 
             className={`tab-btn ${activeTab === 'db' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('db'); setSelectedSession(null); }}
+            onClick={() => { setActiveTab('db'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Search size={16} /> Exercise DB
           </button>
+
+          {/* Header Controls inside lateral menu for Mobile */}
+          <div className="header-controls">
+            {/* Program Selector */}
+            <div className="program-selector-container">
+              <span className="program-label">Program:</span>
+              <select 
+                className="program-select"
+                value={currentProgram}
+                onChange={(e) => handleProgramChange(e.target.value)}
+              >
+                {programs.map(prog => (
+                  <option key={prog} value={prog}>
+                    {prog}
+                  </option>
+                ))}
+              </select>
+              <button 
+                className="btn-icon-small" 
+                onClick={() => setShowNewProgramModal(true)}
+                title="Create New Program"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+
+            {/* Sync Indicator */}
+            <div className="status-badge">
+              <div className={`status-dot ${syncStatus}`}></div>
+              <span>
+                {syncStatus === 'syncing' ? 'Syncing...' : 
+                 syncStatus === 'error' ? 'Sync Error' : 
+                 syncStatus === 'saved' ? 'Synced with PC' : 'Offline'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Header Controls */}
-        <div className="header-controls">
+        {/* Header Controls (Desktop) */}
+        <div className="header-controls desktop-only">
           {/* Program Selector */}
           <div className="program-selector-container">
             <span className="program-label">Program:</span>
@@ -1943,6 +2071,7 @@ export default function App() {
                       workoutData={workoutData} 
                       activeExerciseStartLine={activeExerciseStartLine}
                       activeWeekLineIndex={activeWeekLineIndex}
+                      editorMode={editorMode}
                     />
                   </div>
                 </div>
@@ -1983,7 +2112,7 @@ export default function App() {
                           else if (compareProgram) loadCompareProgram(compareProgram);
                         }}
                       >
-                        ⚡ Compare Programs
+                        Compare Programs
                       </button>
                       {compareMode && (
                         <>
@@ -2186,14 +2315,14 @@ export default function App() {
                         {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                       </div>
 
-                      {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(totalTonnage, compareTotalTonnage)],
-                        ['Effective Tonnage', 'effective-tonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(totalEffectiveTonnage, compareTotalEffectiveTonnage)],
-                        ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(totalVolume, compareTotalVolume)],
-                        ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(totalEffectiveReps, compareTotalEffReps)],
-                        ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(totalSets, compareTotalSets)],
-                        ['TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(totalTut, compareTotalTut)],
-                        ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(totalEffectiveTut, compareTotalEffectiveTut)],
-                        ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(totalFatigue, compareTotalFatigue)]
+                      {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(compareTotalTonnage, totalTonnage)],
+                        ['Effective Tonnage', 'effective-tonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveTonnage, totalEffectiveTonnage)],
+                        ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
+                        ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(compareTotalEffReps, totalEffectiveReps)],
+                        ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
+                        ['TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
+                        ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
+                        ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
                       ].map(([label, cls, valA, valB, d]) => (
                         <React.Fragment key={label}>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
@@ -2205,7 +2334,7 @@ export default function App() {
                               </span>
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
-                            {d && <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {currentProgram === compareProgram ? 'Selection B' : compareProgram}</span>}
+                            <span className="metric-trend">{currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}</span>
                           </div>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
                             <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2216,7 +2345,11 @@ export default function App() {
                               </span>
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
-                            <span className="metric-trend">{currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}</span>
+                            {d ? (
+                              <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {currentProgram === compareProgram ? 'Selection A' : currentProgram}</span>
+                            ) : (
+                              <span className="metric-trend">{currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}</span>
+                            )}
                           </div>
                         </React.Fragment>
                       ))}
@@ -2330,24 +2463,24 @@ export default function App() {
                               : 'Weekly Progression')
                             : `Exercise Strength Trend — ${progressionExercise}`}
                         </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Analyze:</span>
+                        <div className="chart-controls-wrapper">
+                          <span className="control-label">Analyze:</span>
                           <select 
                             className="select-control select-small"
                             value={progressionExercise}
                             onChange={(e) => setProgressionExercise(e.target.value)}
                             style={{ minWidth: '160px', padding: '4px 24px 4px 10px', fontSize: '0.75rem', height: '28px' }}
                           >
-                            <option value="all_metrics">📊 Overall Program Metrics</option>
+                            <option value="all_metrics">Overall Program Metrics</option>
                             <optgroup label="Exercises">
                               {uniqueExerciseNames.map(ex => (
-                                <option key={ex} value={ex}>🏋️ {ex}</option>
+                                <option key={ex} value={ex}>{ex}</option>
                               ))}
                             </optgroup>
                           </select>
                           {progressionExercise === 'all_metrics' && (
                             <>
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '4px' }}>Metric:</span>
+                              <span className="control-label">Metric:</span>
                               <select
                                 className="select-control select-small"
                                 value={overallChartMetric}
@@ -2365,10 +2498,10 @@ export default function App() {
                               </select>
                             </>
                           )}
-                          <TrendingUp size={15} color="var(--accent-primary)" style={{ opacity: 0.8 }} />
+                          <TrendingUp size={15} color="var(--accent-primary)" className="chart-trending-icon" style={{ opacity: 0.8 }} />
                         </div>
                       </div>
-                      <div style={{ width: '100%', height: 260 }}>
+                      <div className="dashboard-chart-wrapper" style={{ width: '100%', height: 260 }}>
                         <ResponsiveContainer>
                           {progressionExercise === 'all_metrics' ? (
                             <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
