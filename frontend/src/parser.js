@@ -245,6 +245,7 @@ export function parseRepToken(repStr, loads, dropsetId = null) {
       const effBase = Math.min(base, Math.max(0, rpe - 4.0));
       const effectiveReps = effBase + (assisted * COEFF_ASSISTED) + (partial * COEFF_PARTIAL);
       const effectiveRepsCustom = effectiveReps;
+      const totalReps = base + (assisted * COEFF_ASSISTED) + (partial * COEFF_PARTIAL);
       
       setsOut.push({
         load,
@@ -254,6 +255,7 @@ export function parseRepToken(repStr, loads, dropsetId = null) {
         rpe,
         effectiveReps,
         effectiveRepsCustom,
+        totalReps,
         ...(dropsetId ? { dropsetId } : {})
       });
     }
@@ -473,11 +475,13 @@ export function parseLogbook(logText, exercises) {
                 const load = idx < loads.length ? loads[idx] : loads[loads.length - 1];
                 const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
                 const effectiveReps = effBase + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
+                const totalReps = s.base_reps + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
                 return {
                   ...s,
                   load,
                   effectiveReps,
-                  effectiveRepsCustom: effectiveReps
+                  effectiveRepsCustom: effectiveReps,
+                  totalReps
                 };
               });
             }
@@ -575,6 +579,7 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
       
       let vol = 0.0;
       let ton = 0.0;
+      let effTon = 0.0;
       let totalFat = 0.0;
       let customEffSum = 0.0;
       let totalTut = 0.0;
@@ -582,11 +587,12 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
       let sets = 0.0;
       
       for (const s of wData.sets) {
-        const effReps = s.effectiveReps * distrSum;
-        vol += s.base_reps * distrSum;
+        const reps = s.totalReps !== undefined ? s.totalReps : (s.base_reps + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
+        vol += reps * distrSum;
         
         const actualLoad = (s.load * ex.load_multiplier) + ex.load_offset;
-        ton += actualLoad * effReps;
+        ton += actualLoad * reps * distrSum;
+        effTon += actualLoad * s.effectiveReps * distrSum;
         
         const setFat = calculateSetFatigue(
           s.base_reps,
@@ -619,6 +625,7 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
           week: wData.week_num,
           volume: vol,
           tonnage: ton,
+          effectiveTonnage: effTon,
           fatigue: totalFat,
           effectiveRepsCustom: customEffSum,
           totalTut,

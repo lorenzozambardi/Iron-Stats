@@ -289,6 +289,15 @@ const renderTonnageTooltip = () => (
   </div>
 );
 
+const renderEffectiveTonnageTooltip = () => (
+  <div className="info-tooltip" style={{ textAlign: 'left' }}>
+    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-effective-tonnage)', fontSize: '0.8rem' }}>Effective Tonnage</div>
+    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+      Sums the weight lifted adjusted for leverage, distribution, and hypertrophy-stimulative effective repetitions
+    </div>
+  </div>
+);
+
 const renderEffectiveRepsTooltip = () => (
   <div className="info-tooltip" style={{ textAlign: 'left' }}>
     <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--accent-secondary)', fontSize: '0.8rem' }}>Effective Reps</div>
@@ -300,7 +309,7 @@ const renderEffectiveRepsTooltip = () => (
 
 const renderTutTooltip = () => (
   <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-tut)', fontSize: '0.8rem' }}>Total TUT</div>
+    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-tut)', fontSize: '0.8rem' }}>TUT</div>
     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
       Cumulative time under tension for all repetitions
     </div>
@@ -340,6 +349,8 @@ const renderMetricTooltip = (cls) => {
       return renderVolumeTooltip();
     case 'tonnage':
       return renderTonnageTooltip();
+    case 'effective-tonnage':
+      return renderEffectiveTonnageTooltip();
     case 'effective':
       return renderEffectiveRepsTooltip();
     case 'tut':
@@ -358,7 +369,7 @@ const renderMetricTooltip = (cls) => {
 const MetricDetailsPage = ({ metric, onBack }) => {
   const getMetricData = () => {
     switch (metric) {
-case 'volume':
+      case 'volume':
         return {
           title: 'Total Volume',
           subtitle: 'Weighted effective repetitions',
@@ -383,10 +394,11 @@ case 'volume':
           title: 'Total Tonnage',
           subtitle: 'Load and leverage adjusted volume',
           color: 'var(--color-tonnage)',
-          description: 'Tonnage measures the absolute workload moved, adjusted for machine leverage, mechanical offset, effective repetition type weightings, and muscle load distribution.',
+          description: 'Tonnage measures the absolute workload moved, adjusted for machine leverage, mechanical offset, repetition type weightings, and muscle load distribution.',
           formulas: [
-            '\\text{Tonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m',
-            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}'
+            '\\text{Tonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{TotReps}_s \\cdot D_m',
+            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
+            '\\text{TotReps}_s = R_{\\text{base}, s} + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
           ],
           variables: [
             { symbol: '\\text{Tonnage}', desc: 'The total kilograms moved, scaled by target muscle distribution.' },
@@ -394,10 +406,32 @@ case 'volume':
             { symbol: 'L_{\\text{raw}, s}', desc: 'The raw weight entered in the logbook (e.g. 100 kg).' },
             { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (e.g., 1.0 for free weights, 0.7 for leg press).' },
             { symbol: 'O_{\\text{offset}}', desc: 'Bodyweight offset or platform weight adjustment.' },
-            { symbol: '\\text{effReps}_s', desc: 'Weighted effective repetitions: R_base + 0.5 * R_assisted + 0.33 * R_partial.' },
+            { symbol: '\\text{TotReps}_s', desc: 'Weighted repetitions count of set s: R_base + 0.5 * R_assisted + 0.33 * R_partial.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 effective reps, targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nTonnage = 140 kg * 10 reps * 0.8 = 1,120 kg for Quads.'
+          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 total reps (e.g. 8 base reps + 4 partial reps = 9.32 reps), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nTonnage = 140 kg * 9.32 reps * 0.8 = 1,043.8 kg for Quads.'
+        };
+      case 'effective-tonnage':
+        return {
+          title: 'Effective Tonnage',
+          subtitle: 'Stimulative load and leverage adjusted volume',
+          color: 'var(--color-effective-tonnage)',
+          description: 'Effective Tonnage measures the total hypertrophy-stimulative workload moved, adjusted for machine leverage, mechanical offset, repetition type weightings, and muscle distribution.',
+          formulas: [
+            '\\text{EffTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m',
+            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
+            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+          ],
+          variables: [
+            { symbol: '\\text{EffTonnage}', desc: 'The stimulative kilograms moved, scaled by target muscle distribution.' },
+            { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
+            { symbol: 'L_{\\text{raw}, s}', desc: 'The raw weight entered in the logbook (e.g. 100 kg).' },
+            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (e.g., 1.0 for free weights, 0.7 for leg press).' },
+            { symbol: 'O_{\\text{offset}}', desc: 'Bodyweight offset or platform weight adjustment.' },
+            { symbol: '\\text{effReps}_s', desc: 'Weighted effective repetitions: min(R_base, max(0, RPE - 4.0)) + 0.5 * R_assisted + 0.33 * R_partial.' },
+            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
+          ],
+          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 reps, where 2 are assisted (leaving 8 unassisted base reps) and 3 are partial reps, at RPE 9.0 (logged as 10(2)+3@9), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nEffective reps = min(8, 9.0 - 4.0) + (2 * 0.5) + (3 * 0.33) = 5.0 + 1.0 + 0.99 = 6.99 reps.\nEffective Tonnage = 140 kg * 6.99 reps * 0.8 = 782.88 kg for Quads.'
         };
       case 'effective':
         return {
@@ -422,26 +456,26 @@ case 'volume':
         };
       case 'tut':
         return {
-          title: 'Total Time Under Tension (TUT)',
+          title: 'Time Under Tension (TUT)',
           subtitle: 'Total duration under load',
           color: 'var(--color-tut)',
           description: 'Measures the cumulative time (in seconds) the muscle spends contracting against load, accounting for tempo-specific phases and physiological velocity slowdown under fatigue.',
           formulas: [
-            '\\text{TUT}_{\\text{total}} = \\sum_{s \\in \\text{Sets}} T_{\\text{set}, s} \\cdot D_m',
-            'T_{\\text{set}, s} = \\sum_{i=1}^{R_{\\text{base}}} T_{\\text{base}, i} + R_{\\text{assist}} \\cdot T_{\\text{assist}} + R_{\\text{partial}} \\cdot T_{\\text{partial}}',
+            '\\text{TUT} = \\sum_{s \\in \\text{Sets}} T_{\\text{set}, s} \\cdot D_m',
+            'T_{\\text{set}, s} = \\sum_{i=1}^{R_{\\text{base}, s}} T_{\\text{base}, i} + R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}',
             'T_{\\text{base}, i} = C + \\text{slowdown}_i + P_{\\text{short}} + E + P_{\\text{long}}',
             'T_{\\text{assist}} = C + P_{\\text{short}} + E + P_{\\text{long}} \\quad T_{\\text{partial}} = 0.5 \\cdot T_{\\text{assist}}'
           ],
           variables: [
-            { symbol: '\\text{TUT}_{\\text{total}}', desc: 'Total accumulated duration in seconds for target muscle.' },
+            { symbol: '\\text{TUT}', desc: 'Total accumulated duration in seconds for target muscle.' },
             { symbol: 'T_{\\text{set}, s}', desc: 'Total time in seconds calculated for set s.' },
             { symbol: 'T_{\\text{base}, i}', desc: 'Calculated duration for base repetition index i.' },
-            { symbol: 'C, E', desc: 'Concentric and Eccentric tempo durations (e.g. 4s concentric, 2s eccentric).' },
+            { symbol: 'C, E', desc: 'Concentric and Eccentric tempo durations (e.g. 2s concentric, 4s eccentric).' },
             { symbol: 'P_{\\text{short}}, P_{\\text{long}}', desc: 'Pause durations at maximum shortening (peak contraction) and maximum lengthening (stretch).' },
             { symbol: '\\text{slowdown}_i', desc: 'Physiological slowdown added to concentric phase as reps approach failure (scales based on set fatigue and RPE).' },
             { symbol: 'T_{\\text{assist}}, T_{\\text{partial}}', desc: 'Time assigned to assisted repetitions (standard tempo, no slowdown) and partial repetitions (50% of assisted tempo).' }
           ],
-          example: 'A set of 6 reps at 4-0-2-0 tempo (4s eccentric, 0s pause, 2s concentric, 0s pause):\nEach base rep takes: C (2) + E (4) + slowdown. Assuming a moderate RPE (slowdown aggregates ~2s over the set), the set TUT is approximately: (6 * 6s) + 2s = 38 seconds.'
+          example: 'A set of 6 reps at 2-0-4-0 tempo (2s concentric, 0s pause, 4s eccentric, 0s pause):\nEach base rep takes: C (2) + E (4) + slowdown. Assuming a moderate RPE (slowdown aggregates ~2s over the set), the set TUT is approximately: (6 * 6s) + 2s = 38 seconds.'
         };
       case 'effective-tut':
         return {
@@ -450,9 +484,9 @@ case 'volume':
           color: 'var(--color-effective-tut)',
           description: 'Isolates and aggregates the time under tension specifically for the effective repetitions of each set. Unassisted base reps are counted based on proximity to failure (RPE - 4), while all assisted and partial reps are fully included.',
           formulas: [
-            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}} - N_s)}^{R_{\\text{base}} - 1} T_{\\text{base}, i} + T_{\\text{extended}, s} \\right) \\cdot D_m',
-            'N_s = \\text{round}(\\min(R_{\\text{base}}, \\max(0.0, \\text{RPE}_s - 4.0)))',
-            'T_{\\text{extended}, s} = \\sum T_{\\text{assisted}} + \\sum T_{\\text{partial}}'
+            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}, s} - N_s)}^{R_{\\text{base}, s} - 1} T_{\\text{base}, i} + T_{\\text{extended}, s} \\right) \\cdot D_m',
+            'N_s = \\text{round}(\\min(R_{\\text{base}, s}, \\max(0.0, \\text{RPE}_s - 4.0)))',
+            'T_{\\text{extended}, s} = R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}'
           ],
           variables: [
             { symbol: '\\text{TUT}_{\\text{eff}}', desc: 'Total duration in seconds spent under high mechanical tension.' },
@@ -472,8 +506,8 @@ case 'volume':
           formulas: [
             '\\text{Fatigue} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i} T_i \\cdot 1.1^{R_i - 7.5} \\cdot F_e \\cdot L_c \\cdot K_i \\right) \\cdot D_m',
             '\\text{Base Rep } i: R_i = \\max(0, 10 - \\text{rir}_i), \\; K_i = 1.0',
-            '\\text{Assisted Rep } i: R_a = 7.0 \\implies M_a \\approx 0.95, \\; K_a = 0.5',
-            '\\text{Partial Rep } i: R_p = 7.5 \\implies M_p = 1.0, \\; K_p = 0.66'
+            '\\text{Assisted Rep } i: R_i = 7.0 \\implies 1.1^{R_i - 7.5} \\approx 0.95, \\; K_i = 0.5',
+            '\\text{Partial Rep } i: R_i = 7.5 \\implies 1.1^{R_i - 7.5} = 1.0, \\; K_i = 0.66'
           ],
           variables: [
             { symbol: '\\text{Fatigue}', desc: 'Accumulated fatigue units for the targeted muscles.' },
@@ -1350,9 +1384,10 @@ export default function App() {
         week: `W${week}`,
         Volume: parseFloat(weeklyData.reduce((s, d) => s + d.volume, 0).toFixed(1)),
         Tonnage: parseFloat(weeklyData.reduce((s, d) => s + d.tonnage, 0).toFixed(1)),
+        EffectiveTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTonnage || 0), 0).toFixed(1)),
         Fatigue: parseFloat(weeklyData.reduce((s, d) => s + d.fatigue, 0).toFixed(1)),
         EffectiveRepsCustom: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveRepsCustom || 0), 0).toFixed(1)),
-        TotalTut: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
+        Tut: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
         EffectiveTut: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTut || 0), 0).toFixed(1)),
         Sets: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
       };
@@ -1381,9 +1416,10 @@ export default function App() {
         week: `W${week}`,
         Volume_B: parseFloat(weeklyData.reduce((s, d) => s + d.volume, 0).toFixed(1)),
         Tonnage_B: parseFloat(weeklyData.reduce((s, d) => s + d.tonnage, 0).toFixed(1)),
+        EffectiveTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTonnage || 0), 0).toFixed(1)),
         Fatigue_B: parseFloat(weeklyData.reduce((s, d) => s + d.fatigue, 0).toFixed(1)),
         EffectiveRepsCustom_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveRepsCustom || 0), 0).toFixed(1)),
-        TotalTut_B: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
+        Tut_B: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
         EffectiveTut_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTut || 0), 0).toFixed(1)),
         Sets_B: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
       };
@@ -1464,18 +1500,20 @@ export default function App() {
   // Overall totals (filtered)
   const totalVolume = metricsByWeek.reduce((sum, m) => sum + m.Volume, 0);
   const totalTonnage = metricsByWeek.reduce((sum, m) => sum + m.Tonnage, 0);
+  const totalEffectiveTonnage = metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage || 0), 0);
   const totalFatigue = metricsByWeek.reduce((sum, m) => sum + m.Fatigue, 0);
   const totalEffectiveReps = metricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom || 0), 0);
-  const totalTut = metricsByWeek.reduce((sum, m) => sum + (m.TotalTut || 0), 0);
+  const totalTut = metricsByWeek.reduce((sum, m) => sum + (m.Tut || 0), 0);
   const totalEffectiveTut = metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut || 0), 0);
   const totalSets = metricsByWeek.reduce((sum, m) => sum + (m.Sets || 0), 0);
 
   // Compare totals
   const compareTotalVolume = compareMetricsByWeek.reduce((sum, m) => sum + (m.Volume_B || 0), 0);
   const compareTotalTonnage = compareMetricsByWeek.reduce((sum, m) => sum + (m.Tonnage_B || 0), 0);
+  const compareTotalEffectiveTonnage = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage_B || 0), 0);
   const compareTotalFatigue = compareMetricsByWeek.reduce((sum, m) => sum + (m.Fatigue_B || 0), 0);
   const compareTotalEffReps = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom_B || 0), 0);
-  const compareTotalTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.TotalTut_B || 0), 0);
+  const compareTotalTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.Tut_B || 0), 0);
   const compareTotalEffectiveTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut_B || 0), 0);
   const compareTotalSets = compareMetricsByWeek.reduce((sum, m) => sum + (m.Sets_B || 0), 0);
 
@@ -1483,10 +1521,11 @@ export default function App() {
     switch (metric) {
       case 'Volume': return { name: 'Volume', unit: 'reps' };
       case 'Tonnage': return { name: 'Tonnage', unit: 'kg' };
+      case 'EffectiveTonnage': return { name: 'Effective Tonnage', unit: 'kg' };
       case 'Fatigue': return { name: 'Neuromuscular Fatigue', unit: 'units' };
       case 'EffectiveRepsCustom': return { name: 'Effective Reps', unit: 'reps' };
       case 'EffectiveTut': return { name: 'Effective TUT', unit: 's' };
-      case 'TotalTut': return { name: 'Total TUT', unit: 's' };
+      case 'Tut': return { name: 'TUT', unit: 's' };
       case 'Sets': return { name: 'Sets', unit: '' };
       default: return { name: metric, unit: '' };
     }
@@ -1496,10 +1535,11 @@ export default function App() {
     switch (metric) {
       case 'Volume': return 'var(--color-volume)';
       case 'Tonnage': return 'var(--color-tonnage)';
+      case 'EffectiveTonnage': return 'var(--color-effective-tonnage)';
       case 'Fatigue': return 'var(--color-fatigue)';
       case 'EffectiveRepsCustom': return 'var(--accent-secondary)';
       case 'EffectiveTut': return 'var(--color-effective-tut)';
-      case 'TotalTut': return 'var(--color-tut)';
+      case 'Tut': return 'var(--color-tut)';
       case 'Sets': return 'var(--color-sets)';
       default: return 'var(--accent-primary)';
     }
@@ -1509,10 +1549,11 @@ export default function App() {
     switch (metric) {
       case 'Volume': return '#a855f7'; // Purple
       case 'Tonnage': return 'var(--accent-secondary)'; // Lavender/Secondary Accent
+      case 'EffectiveTonnage': return '#fda4af'; // Rose/Light pink
       case 'Fatigue': return 'var(--color-tut)'; // Violet
       case 'EffectiveRepsCustom': return 'var(--color-effective-tut)'; // Pink
       case 'EffectiveTut': return 'var(--color-volume)'; // Amber
-      case 'TotalTut': return 'var(--color-tonnage)'; // Emerald
+      case 'Tut': return 'var(--color-tonnage)'; // Emerald
       case 'Sets': return 'var(--color-fatigue)'; // Rose
       default: return 'var(--accent-secondary)';
     }
@@ -1582,10 +1623,10 @@ export default function App() {
         let totalVol = 0;
         let totalTon = 0;
         w.sets.forEach(s => {
-          const effReps = s.effectiveReps || 0;
-          totalVol += effReps;
+          const reps = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
+          totalVol += reps;
           const actualLoad = (s.load * loadMult) + loadOffset;
-          totalTon += actualLoad * effReps;
+          totalTon += actualLoad * reps;
         });
         res[`W${w.week_num}`] = {
           [`Tonnage${suffix}`]: parseFloat(totalTon.toFixed(1)),
@@ -2146,10 +2187,11 @@ export default function App() {
                       </div>
 
                       {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(totalTonnage, compareTotalTonnage)],
+                        ['Effective Tonnage', 'effective-tonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(totalEffectiveTonnage, compareTotalEffectiveTonnage)],
                         ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(totalVolume, compareTotalVolume)],
                         ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(totalEffectiveReps, compareTotalEffReps)],
                         ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(totalSets, compareTotalSets)],
-                        ['Total TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(totalTut, compareTotalTut)],
+                        ['TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(totalTut, compareTotalTut)],
                         ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(totalEffectiveTut, compareTotalEffectiveTut)],
                         ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(totalFatigue, compareTotalFatigue)]
                       ].map(([label, cls, valA, valB, d]) => (
@@ -2180,7 +2222,6 @@ export default function App() {
                       ))}
                     </div>
                   ) : (
-                    // Normal summary cards
                     <div className="metrics-summary-grid">
                       <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); setActiveTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2207,6 +2248,17 @@ export default function App() {
                         <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Load-adjusted</span>
                       </div>
+                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); setActiveTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Effective Tonnage
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderEffectiveTonnageTooltip()}
+                          </span>
+                        </span>
+                        <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
+                        <span className="metric-trend">Stimulative load</span>
+                      </div>
                       <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); setActiveTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective Reps
@@ -2231,7 +2283,7 @@ export default function App() {
                       </div>
                       <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); setActiveTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Total TUT
+                          TUT
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
                             {renderTutTooltip()}
@@ -2304,10 +2356,11 @@ export default function App() {
                               >
                                 <option value="Volume">Volume</option>
                                 <option value="Tonnage">Tonnage</option>
+                                <option value="EffectiveTonnage">Effective Tonnage</option>
                                 <option value="Fatigue">Fatigue</option>
                                 <option value="EffectiveRepsCustom">Effective Reps</option>
                                 <option value="EffectiveTut">Effective TUT</option>
-                                <option value="TotalTut">Total TUT</option>
+                                <option value="Tut">TUT</option>
                                 <option value="Sets">Sets</option>
                               </select>
                             </>

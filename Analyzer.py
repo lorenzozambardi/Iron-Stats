@@ -101,6 +101,10 @@ class SetData:
         eff_base = min(float(self.base_reps), max(0.0, self.rpe - 4.0))
         return eff_base + (self.assisted_reps * COEFF_ASSISTED) + (self.partial_reps * COEFF_PARTIAL)
 
+    @property
+    def total_reps(self) -> float:
+        return float(self.base_reps) + (self.assisted_reps * COEFF_ASSISTED) + (self.partial_reps * COEFF_PARTIAL)
+
 @dataclass
 class WeekData:
     week_num: int
@@ -182,9 +186,23 @@ HARD_MAP = {
 
 SORTED_HARD_MAP_KEYS = sorted(HARD_MAP.keys(), key=len, reverse=True)
 
+# Precompiled regular expressions for performance optimization
+RE_CLEAN_EXERCISE = re.compile(
+    r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione)'
+)
+RE_REST_TIME = re.compile(r'\|\s*(?:(\d+)\')?(?:(\d+)")?\s*(?:\||$)')
+RE_TEMPO_COMMENT = re.compile(r'\b(\d+)-(\d+)-(\d+)-(\d+)\b')
+RE_REP_TOKEN = re.compile(r'(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?')
+RE_OLD_PREFIX = re.compile(r'(?i)old\s+')
+RE_LOG_LINE_SHORT = re.compile(r'^[\d\.\(\)\+@]+$')
+RE_DOT_SPLIT = re.compile(r'(?<!\.)\.(?!\.)')
+RE_OVERRIDE = re.compile(r'^override:\s*([^|]+)\|\s*(.*)$', re.IGNORECASE)
+RE_DIGITS = re.compile(r'\d+')
+RE_LOG_LINE_LONG = re.compile(r'^[\d\.\(\)\+\/@]+$', re.IGNORECASE)
+
 def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercise]:
     name_part = raw_name.split('|')[0]
-    raw_clean = re.sub(r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione)', '', name_part).lower().strip()
+    raw_clean = RE_CLEAN_EXERCISE.sub('', name_part).lower().strip()
     
     for ex in exercises:
         if ex.name.lower() == raw_clean:
@@ -201,7 +219,7 @@ def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercis
     return None
 
 def parse_rest_time(line: str) -> int:
-    match = re.search(r'\|\s*(?:(\d+)\')?(?:(\d+)")?\s*(?:\||$)', line)
+    match = RE_REST_TIME.search(line)
     if match and (match.group(1) or match.group(2)):
         m = int(match.group(1)) if match.group(1) else 0
         s = int(match.group(2)) if match.group(2) else 0
@@ -210,7 +228,7 @@ def parse_rest_time(line: str) -> int:
 
 def parse_tempo_from_comment(comment: str) -> tuple[float, float, float, float]:
     comment_clean = comment.strip()
-    match = re.search(r'\b(\d+)-(\d+)-(\d+)-(\d+)\b', comment_clean)
+    match = RE_TEMPO_COMMENT.search(comment_clean)
     if match:
         return (
             float(match.group(1)),
@@ -304,7 +322,7 @@ def parse_rep_token(rep_str: str, loads: List[float]) -> List[SetData]:
     for i, rp in enumerate(rep_parts):
         if not rp.strip(): continue
         load = loads[i] if i < len(loads) else loads[-1]
-        match = re.match(r'(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?', rp.strip())
+        match = RE_REP_TOKEN.match(rp.strip())
         if match:
             base = int(match.group(1))
             assisted = int(match.group(2)) if match.group(2) else 0
@@ -316,11 +334,11 @@ def parse_rep_token(rep_str: str, loads: List[float]) -> List[SetData]:
     return sets_out
 
 def parse_line(line: str) -> List[SetData]:
-    line = re.sub(r'(?i)old\s+', '', line).strip()
+    line = RE_OLD_PREFIX.sub('', line).strip()
     line = line.replace(" ", "")
     if not line: return []
 
-    if re.match(r'^[\d\.\(\)\+@]+$', line) and '..' not in line:
+    if RE_LOG_LINE_SHORT.match(line) and '..' not in line:
         tokens = line.split('.')
         sets = []
         for t in tokens:
@@ -333,12 +351,12 @@ def parse_line(line: str) -> List[SetData]:
         if len(parts) == 2:
             loads_part, reps_part = parts[0], parts[1]
             if '.' in reps_part and '..' in loads_part:
-                if re.match(r'^[\d\.\(\)\+@]+$', reps_part):
+                if RE_LOG_LINE_SHORT.match(reps_part):
                     loads_part = loads_part.replace('..', '/')
                     reps_part = reps_part.replace('.', '/')
                     line = f"{loads_part}..{reps_part}"
 
-    tokens = re.split(r'(?<!\.)\.(?!\.)', line)
+    tokens = RE_DOT_SPLIT.split(line)
     current_loads = [0.0]
     parsed_sets = []
 
@@ -373,7 +391,7 @@ def analyze_workout_log(log_text: str, exercises: List[Exercise]) -> List[Workou
     # Parse overrides first
     for line in lines:
         if line.lower().startswith('override:'):
-            match = re.match(r'^override:\s*([^|]+)\|\s*(.*)$', line, re.IGNORECASE)
+            match = RE_OVERRIDE.match(line)
             if match:
                 ex_name = match.group(1).strip()
                 prop_str = match.group(2).strip()
@@ -422,13 +440,13 @@ def analyze_workout_log(log_text: str, exercises: List[Exercise]) -> List[Workou
     for line in lines:
         try:
             if line.startswith('#'):
-                match = re.search(r'\d+', line)
+                match = RE_DIGITS.search(line)
                 if match: current_session = int(match.group())
                 continue
             if line.lower().startswith('override:'):
                 continue
                 
-            if '..' in line or re.match(r'^[\d\.\(\)\+\/@]+$', line.replace("old", "").replace(" ", "").strip(), re.IGNORECASE):
+            if '..' in line or RE_LOG_LINE_LONG.match(line.replace("old", "").replace(" ", "").strip()):
                 if current_exercise:
                     parsed_sets = parse_line(line)
                     if not parsed_sets and '..' in line and current_exercise.weeks:
@@ -491,12 +509,14 @@ def calculate_metrics(workout_data: List[WorkoutExercise], target_session: Optio
 
         for w_data in w_ex.weeks:
             if target_week and w_data.week_num != target_week: continue
-            vol, ton, total_fat, total_tut, effective_tut, sets_count = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            vol, ton, eff_ton, total_fat, total_tut, effective_tut, sets_count = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             for s in w_data.sets:
+                tot_reps = s.total_reps * distr_sum
                 eff_reps = s.effective_reps * distr_sum
-                vol += s.base_reps * distr_sum
+                vol += tot_reps
                 actual_load = (s.load * ex.load_multiplier) + ex.load_offset
-                ton += actual_load * eff_reps
+                ton += actual_load * tot_reps
+                eff_ton += actual_load * eff_reps
                 set_fat = calculate_set_fatigue(
                     base_reps=s.base_reps,
                     assisted_reps=s.assisted_reps,
@@ -521,8 +541,9 @@ def calculate_metrics(workout_data: List[WorkoutExercise], target_session: Optio
                     "Week": w_data.week_num,
                     "Volume": vol,
                     "Tonnage": ton,
+                    "Eff Tonnage": eff_ton,
                     "Fatigue": total_fat,
-                    "Total TUT": total_tut,
+                    "TUT": total_tut,
                     "Eff TUT": effective_tut,
                     "Sets": sets_count
                 })
@@ -536,9 +557,9 @@ if __name__ == "__main__":
     if not raw_log.strip(): sys.exit("No input.")
     parsed = analyze_workout_log(raw_log, exercises_list)
     metrics = calculate_metrics(parsed, args.session, args.week, args.macro, args.sub)
-    print(f"\n{'Session':<10} | {'Exercise':<25} | {'Week':<10} | {'Volume':<10} | {'Tonnage':<15} | {'Fatigue':<15} | {'Total TUT':<12} | {'Eff TUT':<12} | {'Sets':<10}\n" + "-" * 148)
-    tv, tt, tf, ttut, etut, tsets = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    print(f"\n{'Session':<10} | {'Exercise':<25} | {'Week':<10} | {'Volume':<10} | {'Tonnage':<15} | {'Eff Tonnage':<15} | {'Fatigue':<15} | {'TUT':<12} | {'Eff TUT':<12} | {'Sets':<10}\n" + "-" * 166)
+    tv, tt, tet, tf, ttut, etut, tsets = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     for m in metrics:
-        tv += m["Volume"]; tt += m["Tonnage"]; tf += m["Fatigue"]; ttut += m["Total TUT"]; etut += m["Eff TUT"]; tsets += m["Sets"]
-        print(f"{m['Session']:<10} | {m['Name']:<25} | {m['Week']:<10} | {m['Volume']:<10.2f} | {m['Tonnage']:<15.2f} | {m['Fatigue']:<15.2f} | {m['Total TUT']:<12.1f} | {m['Eff TUT']:<12.1f} | {m['Sets']:<10.2f}")
-    print("-" * 148 + f"\n{'TOTAL':<10} | {'':<25} | {'':<10} | {tv:<10.2f} | {tt:<15.2f} | {tf:<15.2f} | {ttut:<12.1f} | {etut:<12.1f} | {tsets:<10.2f}")
+        tv += m["Volume"]; tt += m["Tonnage"]; tet += m["Eff Tonnage"]; tf += m["Fatigue"]; ttut += m["TUT"]; etut += m["Eff TUT"]; tsets += m["Sets"]
+        print(f"{m['Session']:<10} | {m['Name']:<25} | {m['Week']:<10} | {m['Volume']:<10.2f} | {m['Tonnage']:<15.2f} | {m['Eff Tonnage']:<15.2f} | {m['Fatigue']:<15.2f} | {m['TUT']:<12.1f} | {m['Eff TUT']:<12.1f} | {m['Sets']:<10.2f}")
+    print("-" * 166 + f"\n{'TOTAL':<10} | {'':<25} | {'':<10} | {tv:<10.2f} | {tt:<15.2f} | {tet:<15.2f} | {tf:<15.2f} | {ttut:<12.1f} | {etut:<12.1f} | {tsets:<10.2f}")
