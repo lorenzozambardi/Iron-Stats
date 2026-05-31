@@ -16,7 +16,13 @@ import {
   Info,
   Pencil,
   Eye,
-  Columns
+  Columns,
+  FolderOpen,
+  Folder,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  Sliders
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -34,6 +40,7 @@ import {
   MUSCLES,
   getExercisesWithOverrides
 } from './parser';
+import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 
 // Helper to format rest times using ' for minutes and " for seconds, avoiding fractions
 const formatRestTime = (seconds) => {
@@ -248,7 +255,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                                 return (
                                   <div key={gIdx} className="preview-set-row">
                                     <span className="preview-set-weight">{s.load}kg</span>
-                                    <span className="preview-set-reps"> × {s.base_reps + s.assisted_reps}</span>
+                                    <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
                                     {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
                                     {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
                                     {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '3px' }}>@{s.rpe}</span>}
@@ -699,6 +706,37 @@ export default function App() {
   const [overallChartMetric, setOverallChartMetric] = useState('Volume');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Storage folder settings (mobile)
+  const [showStorageSettings, setShowStorageSettings] = useState(false);
+  const initCfg = getStorageConfig();
+  const [pendingDirType, setPendingDirType] = useState(initCfg.dirType);
+  const [pendingSubfolder, setPendingSubfolder] = useState(initCfg.subfolder);
+
+  const applyStorageConfig = () => {
+    setStorageConfig(pendingDirType, pendingSubfolder);
+    window.location.reload();
+  };
+
+  const [storagePickError, setStoragePickError] = useState('');
+  const handlePickFolder = async () => {
+    setStoragePickError('');
+    try {
+      await pickDirectory(); // saves URI to localStorage
+      window.location.reload();
+    } catch (e) {
+      if (e.message !== 'Folder selection cancelled') {
+        setStoragePickError(e.message || 'Could not pick folder');
+      }
+    }
+  };
+
+  const handleResetStorage = () => {
+    setStorageConfig('documents', 'Algorithmic Bodybuilding');
+    setPendingDirType('documents');
+    setPendingSubfolder('Algorithmic Bodybuilding');
+    window.location.reload();
+  };
+
   // Dynamic sliding highlight for Navbar
   const tabNavRef = useRef(null);
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
@@ -747,7 +785,7 @@ export default function App() {
   }, [logbookText, exercisesDb]);
 
   // Programs State
-  const [currentProgram, setCurrentProgram] = useState('S1M3');
+  const [currentProgram, setCurrentProgram] = useState(() => localStorage.getItem('lastSelectedProgram') || 'S1M3');
   const [programs, setPrograms] = useState(['S1M3']);
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
@@ -811,11 +849,15 @@ export default function App() {
       .then(progs => {
         if (progs && progs.length > 0) {
           setPrograms(progs);
-          const defaultProg = progs.includes('S1M3') ? 'S1M3' : progs[0];
+          const savedProg = localStorage.getItem('lastSelectedProgram');
+          const defaultProg = savedProg && progs.includes(savedProg)
+            ? savedProg
+            : (progs.includes('S1M3') ? 'S1M3' : progs[0]);
           setCurrentProgram(defaultProg);
           return fetch(`/api/logbook?program=${defaultProg}`);
         } else {
-          return fetch('/api/logbook?program=S1M3');
+          const defaultProg = localStorage.getItem('lastSelectedProgram') || 'S1M3';
+          return fetch(`/api/logbook?program=${defaultProg}`);
         }
       })
       .then(res => {
@@ -889,6 +931,7 @@ export default function App() {
       .then(text => {
         setLogbookText(text);
         setCurrentProgram(progName);
+        localStorage.setItem('lastSelectedProgram', progName); // Save program selection
         setSyncStatus('saved');
         setSyncError('');
       })
@@ -1507,9 +1550,11 @@ export default function App() {
             if (dashMuscleMacro !== 'all' && MUSCLES[subMuscle] !== dashMuscleMacro) return;
             if (dashMuscleSubgroup !== 'all' && subMuscle !== dashMuscleSubgroup) return;
             const macro = MUSCLES[subMuscle] || 'Other';
-            let metricValue = s.effectiveReps;
+            let metricValue = 0;
             if (muscleMetric === 'effective') {
               metricValue = s.effectiveRepsCustom || 0;
+            } else if (muscleMetric === 'volume') {
+              metricValue = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
             } else if (muscleMetric === 'sets') {
               metricValue = 1.0;
             }
@@ -1923,10 +1968,108 @@ export default function App() {
             <div className="status-badge">
               <div className={`status-dot ${syncStatus}`}></div>
               <span>
-                {syncStatus === 'syncing' ? 'Syncing...' : 
-                 syncStatus === 'error' ? 'Sync Error' : 
-                 syncStatus === 'saved' ? 'Synced with PC' : 'Offline'}
+                {syncStatus === 'syncing' ? 'Saving...' :
+                 syncStatus === 'error' ? 'Sync Error' :
+                 syncStatus === 'saved' ? `Synced with ${currentProgram}.md` : 'Offline'}
               </span>
+            </div>
+
+            {/* Storage Folder Settings */}
+            <div className="storage-settings-container">
+              <button
+                className="storage-toggle-btn"
+                onClick={() => setShowStorageSettings(s => !s)}
+              >
+                <FolderOpen size={16} className="icon-folder" />
+                <span style={{ flex: 1 }}>Storage Folder</span>
+                {showStorageSettings ? (
+                  <ChevronUp size={14} className="storage-chevron" />
+                ) : (
+                  <ChevronDown size={14} className="storage-chevron" />
+                )}
+              </button>
+
+              {showStorageSettings && (() => {
+                const cfg = getStorageConfig();
+                const isCustom = cfg.dirType === 'custom' && cfg.safUri;
+                return (
+                  <div className="storage-panel">
+
+                    {/* Current folder status */}
+                    <div className={`storage-status-card ${isCustom ? 'custom' : ''}`}>
+                      <div className="storage-status-title">
+                        <Folder size={12} />
+                        <span>Current Folder</span>
+                      </div>
+                      <div className="storage-status-path">
+                        {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
+                      </div>
+                    </div>
+
+                    {/* Primary action: pick any folder */}
+                    <button className="storage-primary-btn" onClick={handlePickFolder}>
+                      <FolderOpen size={18} />
+                      <span>Pick Any Folder</span>
+                    </button>
+
+                    {storagePickError && (
+                      <div className="storage-error-alert">
+                        <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                        <span>{storagePickError}</span>
+                      </div>
+                    )}
+
+                    {isCustom && (
+                      <button className="storage-reset-btn" onClick={handleResetStorage}>
+                        <RotateCcw size={14} />
+                        <span>Reset to Default</span>
+                      </button>
+                    )}
+
+                    {/* Divider */}
+                    <div className="storage-fallback-section">
+                      <div className="storage-divider-title">
+                        <Sliders size={12} />
+                        <span>Use standard</span>
+                      </div>
+
+                      <div className="storage-form-group">
+                        <label className="storage-form-label">Location Type</label>
+                        <select
+                          className="storage-select"
+                          value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
+                          onChange={e => setPendingDirType(e.target.value)}
+                        >
+                          <option value="documents">📁 Public Documents (PC sync)</option>
+                          <option value="data">🔒 Private App Storage</option>
+                        </select>
+                      </div>
+
+                      <div className="storage-form-group">
+                        <label className="storage-form-label">Subfolder Name</label>
+                        <input
+                          type="text"
+                          className="storage-input"
+                          value={pendingSubfolder}
+                          onChange={e => setPendingSubfolder(e.target.value)}
+                          placeholder="e.g. Algorithmic Bodybuilding"
+                        />
+                        <div className="storage-path-preview">
+                          {pendingDirType === 'data'
+                            ? `App private storage/${pendingSubfolder || '(root)'}`
+                            : `Documents/${pendingSubfolder || '(root)'}`}
+                        </div>
+                      </div>
+
+                      <button className="storage-apply-btn" onClick={applyStorageConfig}>
+                        <RefreshCw size={14} />
+                        <span>Apply &amp; Refresh</span>
+                      </button>
+                    </div>
+
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2592,7 +2735,7 @@ export default function App() {
                           onChange={(e) => setMuscleMetric(e.target.value)}
                         >
                           <option value="effective">Effective Reps</option>
-                          <option value="volume">Std Volume</option>
+                          <option value="volume">Volume</option>
                           <option value="sets">Sets</option>
                         </select>
                       </div>
@@ -2830,7 +2973,7 @@ export default function App() {
                                       return (
                                         <div key={gIdx} style={{ margin: '2px 0', borderBottom: gIdx < grouped.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none', paddingBottom: '4px', paddingTop: '4px' }}>
                                           <span className="set-bubble-load">{s.load}kg</span>
-                                          <span className="set-bubble-reps"> x {s.base_reps + s.assisted_reps}</span>
+                                          <span className="set-bubble-reps">x {s.base_reps + s.assisted_reps}</span>
                                           {s.partial_reps > 0 && <span style={{ color: 'var(--color-volume)', fontSize: '0.7rem' }}>+{s.partial_reps}p</span>}
                                           {s.assisted_reps > 0 && <span style={{ color: 'var(--accent-secondary)', fontSize: '0.7rem' }}>({s.assisted_reps}a)</span>}
                                           <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.7rem', marginLeft: '6px' }}>@{s.rpe}</span>

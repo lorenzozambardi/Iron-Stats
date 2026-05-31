@@ -13,6 +13,12 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- Seamless Status and Navigation Bars blending with dark mode background -->
+        <item name="android:windowBackground">#080b11</item>
+        <item name="android:statusBarColor">#080b11</item>
+        <item name="android:navigationBarColor">#080b11</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
 
