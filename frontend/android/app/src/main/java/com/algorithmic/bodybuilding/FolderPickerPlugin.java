@@ -137,7 +137,10 @@ public class FolderPickerPlugin extends Plugin {
 
             DocumentFile file = dir.findFile(filename);
             if (file == null) {
-                String mimeType = filename.endsWith(".json") ? "application/json" : "text/plain";
+                String mimeType = "application/octet-stream";
+                if (filename.endsWith(".json")) {
+                    mimeType = "application/json";
+                }
                 file = dir.createFile(mimeType, filename);
             }
             if (file == null) { call.reject("Failed to create file: " + filename); return; }
