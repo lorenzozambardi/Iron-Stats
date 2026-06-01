@@ -7,7 +7,8 @@ export const MUSCLES = {
   "Anterior Deltoid": "Shoulders", "Lateral Deltoid": "Shoulders", "Posterior Deltoid": "Shoulders",
   "Rotator Cuff": "Shoulders", "Quadriceps": "Legs", "Hamstrings": "Legs", "Glutes": "Legs",
   "Adductors": "Legs", "Calves": "Legs", "Biceps Brachii": "Biceps", "Brachialis": "Biceps",
-  "Brachioradialis": "Biceps", "Long Head": "Triceps", "Lateral Head": "Triceps", "Medial Head": "Triceps"
+  "Brachioradialis": "Biceps", "Long Head": "Triceps", "Lateral Head": "Triceps", "Medial Head": "Triceps",
+  "Abdominals": "Core"
 };
 
 // Parse overrides from program markdown and clone/modify exercises list
@@ -167,7 +168,11 @@ const HARD_MAP = {
   "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
   "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
   "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
-  "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps"
+  "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps",
+
+  // --- ADDOME ---
+  "dragon flag": "Dragon Flag Raises", "dragon flag raises": "Dragon Flag Raises",
+  "hanging leg": "Hanging Leg Raises", "hanging leg raises": "Hanging Leg Raises", "leg raises": "Hanging Leg Raises"
 };
 
 const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.length);

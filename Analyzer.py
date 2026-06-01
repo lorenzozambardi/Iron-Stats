@@ -25,7 +25,8 @@ MUSCLES = {
     "Anterior Deltoid": "Shoulders", "Lateral Deltoid": "Shoulders", "Posterior Deltoid": "Shoulders",
     "Rotator Cuff": "Shoulders", "Quadriceps": "Legs", "Hamstrings": "Legs", "Glutes": "Legs",
     "Adductors": "Legs", "Calves": "Legs", "Biceps Brachii": "Biceps", "Brachialis": "Biceps",
-    "Brachioradialis": "Biceps", "Long Head": "Triceps", "Lateral Head": "Triceps", "Medial Head": "Triceps"
+    "Brachioradialis": "Biceps", "Long Head": "Triceps", "Lateral Head": "Triceps", "Medial Head": "Triceps",
+    "Abdominals": "Core"
 }
 
 exercises_list = [
@@ -82,7 +83,9 @@ exercises_list = [
     Exercise("Low Cable Triceps", {"Long Head": 0.8, "Medial Head": 0.1, "Lateral Head": 0.1}, 3.5, 0.85, is_isolation=True),
     Exercise("Bench 54 Triceps", {"Long Head": 0.7, "Lateral Head": 0.15, "Medial Head": 0.15}, 4.0, 0.80, is_isolation=True),
     Exercise("EZ-Bar Curl", {"Biceps Brachii": 0.6, "Brachioradialis": 0.25, "Brachialis": 0.15}, 5.0, 0.70, load_multiplier=2.0, load_offset=8.0, is_isolation=True),
-    Exercise("Bayesian Curl SA", {"Biceps Brachii": 0.8, "Brachioradialis": 0.1, "Brachialis": 0.1}, 3.0, 0.90, load_multiplier=0.5, is_isolation=True)
+    Exercise("Bayesian Curl SA", {"Biceps Brachii": 0.8, "Brachioradialis": 0.1, "Brachialis": 0.1}, 3.0, 0.90, load_multiplier=0.5, is_isolation=True),
+    Exercise("Dragon Flag Raises", {"Abdominals": 1.0}, 4.0, 0.80, is_isolation=True),
+    Exercise("Hanging Leg Raises", {"Abdominals": 1.0}, 4.0, 0.80, is_isolation=True)
 ]
 
 @dataclass
@@ -181,7 +184,11 @@ HARD_MAP = {
     "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
     "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
     "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
-    "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps"
+    "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps",
+    
+    # --- ADDOME ---
+    "dragon flag": "Dragon Flag Raises", "dragon flag raises": "Dragon Flag Raises",
+    "hanging leg": "Hanging Leg Raises", "hanging leg raises": "Hanging Leg Raises", "leg raises": "Hanging Leg Raises"
 }
 
 SORTED_HARD_MAP_KEYS = sorted(HARD_MAP.keys(), key=len, reverse=True)
