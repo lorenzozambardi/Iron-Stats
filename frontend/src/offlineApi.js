@@ -143,7 +143,7 @@ window.fetch = async (input, init) => {
     } else if (method === 'POST') {
       try {
         const data     = JSON.parse(init.body);
-        const name     = data.name.replace(/[^a-zA-Z0-9_-]/g, '');
+        const name     = data.name.replace(/[^a-zA-Z0-9_\- ()]/g, '');
         const filename = `${name}.md`;
         const template = `# 1\nLat machine | 3' |\n90..9+2.7+2\n`;
 
@@ -174,7 +174,7 @@ window.fetch = async (input, init) => {
   // ── /api/logbook ───────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/logbook') {
     const programName = urlObj.searchParams.get('program') || 'S1M3';
-    const cleanName   = programName.replace(/[^a-zA-Z0-9_-]/g, '');
+    const cleanName   = programName.replace(/[^a-zA-Z0-9_\- ()]/g, '');
     const filename    = `${cleanName}.md`;
 
     if (method === 'GET') {
