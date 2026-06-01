@@ -47,18 +47,15 @@ jobs:
       - name: Rename APK
         run: mv frontend/android/app/build/outputs/apk/debug/app-debug.apk Algorithmic-Bodybuilding.apk
 
-      - name: Update Latest Release Tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -f latest
-          git push -f origin latest
+      - name: Get Short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "Latest Update"
-          body: "This is the latest automatic build of the Algorithmic Bodybuilding app."
+          tag_name: build-${{ steps.vars.outputs.sha_short }}
+          name: "Update: ${{ steps.vars.outputs.sha_short }}"
+          body: "Automatic APK build for commit ${{ steps.vars.outputs.sha_short }}."
           files: Algorithmic-Bodybuilding.apk
           make_latest: "true"
