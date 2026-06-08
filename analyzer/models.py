@@ -301,6 +301,14 @@ exercises_list = [
         is_isolation=True,
     ),
     Exercise(
+        "LR 49",
+        {"Lateral Deltoid": 0.95, "Upper and Mid Trapezius": 0.05},
+        3.0,
+        0.90,
+        load_multiplier=2.0,
+        is_isolation=True,
+    ),
+    Exercise(
         "LRC",
         {"Lateral Deltoid": 0.9, "Upper and Mid Trapezius": 0.1},
         3.0,

@@ -96,6 +96,8 @@ HARD_MAP = {
     "trazioni": "Chin-Ups",
     # --- SPALLE ---
     "lr": "LR",
+    "lr 49": "LR 49",
+    "alzate laterali 49": "LR 49",
     "alzate laterali": "LR",
     "lateral raise": "LR",
     "lrc": "LRC",
