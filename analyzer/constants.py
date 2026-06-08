@@ -140,6 +140,10 @@ HARD_MAP = {
     "preacher": "Preacher Curl",
     "scott": "Preacher Curl",
     "panca scott": "Preacher Curl",
+    "biceps curl db reverse scott bench": "Reverse Scott DB Curl",
+    "reverse scott db curl": "Reverse Scott DB Curl",
+    "spider curl db": "Reverse Scott DB Curl",
+    "spider curl manubri": "Reverse Scott DB Curl",
     # --- BRACCIA (Tricipiti) ---
     "fr pr c": "Cable French Press",
     "french press cavo": "Cable French Press",

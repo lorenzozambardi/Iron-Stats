@@ -362,6 +362,14 @@ exercises_list = [
         is_isolation=True,
     ),
     Exercise(
+        "Reverse Scott DB Curl",
+        {"Biceps Brachii": 0.8, "Brachialis": 0.1, "Brachioradialis": 0.1},
+        4.0,
+        0.80,
+        load_multiplier=2.0,
+        is_isolation=True,
+    ),
+    Exercise(
         "Cable French Press",
         {"Long Head": 0.7, "Lateral Head": 0.15, "Medial Head": 0.15},
         4.0,
