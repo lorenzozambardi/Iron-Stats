@@ -1,5 +1,30 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
+import numpy as np
+
+
+@dataclass
+class BezierProfile:
+    y0: float
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+    y3: float
+    magnitude: float
+
+    def get_curve(self, resolution: int = 50) -> np.ndarray:
+        t = np.linspace(0, 1, resolution)
+        x = 3 * (1-t)**2 * t * self.x1 + 3 * (1-t) * t**2 * self.x2 + t**3
+        y = (1-t)**3 * self.y0 + 3 * (1-t)**2 * t * self.y1 + 3 * (1-t) * t**2 * self.y2 + t**3 * self.y3
+        
+        dx = np.diff(x)
+        y_avg = (y[:-1] + y[1:]) / 2
+        area = np.sum(y_avg * dx)
+        
+        if area > 0:
+            return y * (self.magnitude / area)
+        return np.zeros_like(y)
 
 from .constants import COEFF_ASSISTED, COEFF_PARTIAL
 
@@ -7,12 +32,33 @@ from .constants import COEFF_ASSISTED, COEFF_PARTIAL
 @dataclass
 class Exercise:
     name: str
-    muscles_distr: Dict[str, float]
+    muscles_distr: Dict[str, Any]
     fatigue: float
     load_coeff: float
     load_multiplier: float = 1.0
     load_offset: float = 0.0
     is_isolation: bool = False
+
+    def __post_init__(self):
+        new_distr = {}
+        for m, val in self.muscles_distr.items():
+            if isinstance(val, (int, float)):
+                new_distr[m] = BezierProfile(1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, 0.66, 1.0, 1.0, float(val))
+            elif isinstance(val, dict):
+                new_distr[m] = BezierProfile(1.0, 0.33, 1.0, 0.66, 1.0, 1.0, float(val.get("beta", 1.0)),
+                    float(val.get("magnitude", 0.0))
+                )
+            elif isinstance(val, BezierProfile):
+                new_distr[m] = val
+        self.muscles_distr = new_distr
+        
+        # Enforce rule: sum of magnitudes must be 1.0
+        total_mag = sum(tp.magnitude for tp in self.muscles_distr.values())
+        if total_mag > 0 and abs(total_mag - 1.0) > 1e-4:
+            # Normalize to exactly 1.0
+            for tp in self.muscles_distr.values():
+                tp.magnitude = round(tp.magnitude / total_mag, 4)
+
 
 
 exercises_list = [

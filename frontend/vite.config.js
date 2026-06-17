@@ -16,7 +16,7 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           const urlObj = new URL(req.url, 'http://localhost');
-          const analyzerPath = path.resolve(__dirname, '../Analyzer.py');
+          const analyzerPath = path.resolve(__dirname, '../analyzer/models.py');
           const parentDir = path.resolve(__dirname, '../');
 
           if (urlObj.pathname === '/api/logbook') {
@@ -122,7 +122,9 @@ export default defineConfig({
                     const match = trimmed.match(/Exercise\(\s*"([^"]+)"\s*,\s*({[^}]+})\s*,\s*([\d.]+)\s*,\s*([\d.]+)(.*)\)/);
                     if (match) {
                       const name = match[1];
-                      const musclesJson = match[2].replace(/'/g, '"');
+                      let musclesJson = match[2].replace(/'/g, '"');
+                      // Convert BezierProfile(y0, x1, y1, x2, y2, y3, m) back to JSON object string for frontend
+                      musclesJson = musclesJson.replace(/BezierProfile\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '{"y0": $1, "x1": $2, "y1": $3, "x2": $4, "y2": $5, "y3": $6, "magnitude": $7}');
                       const muscles = JSON.parse(musclesJson);
                       const fatigue = parseFloat(match[3]);
                       const load_coeff = parseFloat(match[4]);
@@ -162,7 +164,7 @@ export default defineConfig({
               }
             } else {
               res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-              res.end('Analyzer.py not found');
+              res.end('models.py not found');
             }
             return;
           }
@@ -178,7 +180,7 @@ export default defineConfig({
                 }
 
                 if (!fs.existsSync(analyzerPath)) {
-                  throw new Error('Analyzer.py not found');
+                  throw new Error('models.py not found');
                 }
                 const content = fs.readFileSync(analyzerPath, 'utf-8');
 
@@ -192,7 +194,13 @@ export default defineConfig({
                   const is_isolation = !!ex.is_isolation;
 
                   const musclesEntries = Object.entries(ex.muscles_distr)
-                    .map(([m, p]) => `"${m}": ${p}`)
+                    .map(([m, p]) => {
+                      if (typeof p === 'object') {
+                        return `"${m}": BezierProfile(${p.y0 ?? 1}, ${p.x1 ?? 0.33}, ${p.y1 ?? 1}, ${p.x2 ?? 0.66}, ${p.y2 ?? 1}, ${p.y3 ?? 1}, ${p.magnitude || 0})`;
+                      } else {
+                        return `"${m}": BezierProfile(1.0, 0.33, 1.0, 0.66, 1.0, 1.0, ${(parseFloat(p) / 100).toFixed(2)})`;
+                      }
+                    })
                     .join(', ');
                   const musclesStr = `{${musclesEntries}}`;
 
@@ -215,13 +223,13 @@ export default defineConfig({
                 const startToken = 'exercises_list = [';
                 const startIndex = content.indexOf(startToken);
                 if (startIndex === -1) {
-                  throw new Error('Could not find exercises_list declaration in Analyzer.py');
+                  throw new Error('Could not find exercises_list declaration in models.py');
                 }
 
                 const endToken = '\n]';
                 const endIndex = content.indexOf(endToken, startIndex);
                 if (endIndex === -1) {
-                  throw new Error('Could not find end of exercises_list in Analyzer.py');
+                  throw new Error('Could not find end of exercises_list in models.py');
                 }
 
                 const before = content.substring(0, startIndex);

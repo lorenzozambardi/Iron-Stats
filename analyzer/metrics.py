@@ -133,19 +133,26 @@ def calculate_metrics(
             continue
         if target_sub and target_sub not in ex.muscles_distr:
             continue
-        distr_sum = (
-            ex.muscles_distr.get(target_sub, 0.0)
-            if target_sub
-            else (
-                sum(
-                    val
-                    for m, val in ex.muscles_distr.items()
-                    if MUSCLES.get(m) == target_macro
-                )
-                if target_macro
-                else 1.0
+        import numpy as np
+        
+        def get_auc(tp):
+            if isinstance(tp, (int, float)):
+                return float(tp)
+            if hasattr(tp, "get_curve"):
+                curve = tp.get_curve(100)
+                return np.trapz(curve, dx=0.01)
+            return 0.0
+
+        if target_sub:
+            distr_sum = get_auc(ex.muscles_distr.get(target_sub, 0.0))
+        elif target_macro:
+            distr_sum = sum(
+                get_auc(val)
+                for m, val in ex.muscles_distr.items()
+                if MUSCLES.get(m) == target_macro
             )
-        )
+        else:
+            distr_sum = 1.0
 
         for w_data in w_ex.weeks:
             if target_week and w_data.week_num != target_week:

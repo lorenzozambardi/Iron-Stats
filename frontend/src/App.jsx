@@ -22,18 +22,11 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Sliders
+  Sliders,
+  Activity
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  CartesianGrid,
-  Legend
-} from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import BezierEditor from './BezierEditor';
 import { 
   parseLogbook, 
   calculateMetrics, 
@@ -53,6 +46,48 @@ const formatRestTime = (seconds) => {
   } else {
     return `${s}"`;
   }
+};
+
+const solveBezierY = (targetX, y0, x1, y1, x2, y2, y3) => {
+  if (targetX === 0) return y0;
+  if (targetX === 1) return y3;
+  
+  let lower = 0;
+  let upper = 1;
+  let t = 0.5;
+  for (let i = 0; i < 15; i++) {
+    const x = 3 * Math.pow(1 - t, 2) * t * x1 + 3 * (1 - t) * Math.pow(t, 2) * x2 + Math.pow(t, 3);
+    if (Math.abs(x - targetX) < 0.001) break;
+    if (x < targetX) lower = t;
+    else upper = t;
+    t = (lower + upper) / 2;
+  }
+  return Math.pow(1 - t, 3) * y0 + 3 * Math.pow(1 - t, 2) * t * y1 + 3 * (1 - t) * Math.pow(t, 2) * y2 + Math.pow(t, 3) * y3;
+};
+
+const getBezierCurveData = (musclesDistrList, resolution = 50) => {
+  const data = [];
+  for (let i = 0; i <= resolution; i++) {
+    data.push({ x: i / resolution });
+  }
+
+  musclesDistrList.forEach((m) => {
+    const y0 = m.y0 ?? 1.0;
+    const x1 = m.x1 ?? 0.33;
+    const y1 = m.y1 ?? 1.0;
+    const x2 = m.x2 ?? 0.66;
+    const y2 = m.y2 ?? 1.0;
+    const y3 = m.y3 ?? 1.0;
+    const magnitude = parseFloat(m.percentage) / 100.0;
+    
+    for (let i = 0; i <= resolution; i++) {
+      const x = i / resolution;
+      const y = solveBezierY(x, y0, x1, y1, x2, y2, y3);
+      data[i][m.name] = y * magnitude;
+    }
+  });
+  
+  return data;
 };
 
 // Helper to group consecutive sets sharing the same dropsetId
@@ -214,7 +249,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {Object.entries(ex.exercise_obj.muscles_distr).map(([muscle, pct]) => (
                             <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.65rem', padding: '2px 6px' }}>
-                              {muscle}: <strong>{Math.round(pct * 100)}%</strong>
+                              {muscle}: <strong>{Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%</strong>
                             </span>
                           ))}
                         </div>
@@ -790,7 +825,7 @@ export default function App() {
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [newProgramError, setNewProgramError] = useState('');
-  const [editorMode, setEditorMode] = useState('split'); // 'edit', 'preview', 'split'
+  const [editorMode, setEditorMode] = useState(window.innerWidth <= 768 ? 'edit' : 'split'); // 'edit', 'preview', 'split'
 
   // Exercise CRUD State
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -806,6 +841,7 @@ export default function App() {
     muscles: []
   });
   const [exerciseError, setExerciseError] = useState('');
+  const [editingCurveIndex, setEditingCurveIndex] = useState(null);
 
   const currentHasOverride = useMemo(() => {
     if (!editingOriginalName) return false;
@@ -1015,7 +1051,13 @@ export default function App() {
       is_isolation: !!ex.is_isolation,
       muscles: Object.entries(ex.muscles_distr).map(([m, p]) => ({
         name: m,
-        percentage: Math.round(p * 100)
+        percentage: typeof p === 'number' ? Math.round(p * 100) : Math.round((p.magnitude || 0) * 100),
+        y0: typeof p === 'number' ? 1.0 : (p.y0 ?? 1.0),
+        x1: typeof p === 'number' ? 0.33 : (p.x1 ?? 0.33),
+        y1: typeof p === 'number' ? 1.0 : (p.y1 ?? 1.0),
+        x2: typeof p === 'number' ? 0.66 : (p.x2 ?? 0.66),
+        y2: typeof p === 'number' ? 1.0 : (p.y2 ?? 1.0),
+        y3: typeof p === 'number' ? 1.0 : (p.y3 ?? 1.0)
       }))
     });
     setExerciseError('');
@@ -1048,7 +1090,15 @@ export default function App() {
 
     const musclesDistr = {};
     exerciseForm.muscles.forEach(m => {
-      musclesDistr[m.name] = parseFloat((m.percentage / 100).toFixed(3));
+      musclesDistr[m.name] = {
+        y0: m.y0 ?? 1.0,
+        x1: m.x1 ?? 0.33,
+        y1: m.y1 ?? 1.0,
+        x2: m.x2 ?? 0.66,
+        y2: m.y2 ?? 1.0,
+        y3: m.y3 ?? 1.0,
+        magnitude: parseFloat((m.percentage / 100).toFixed(3))
+      };
     });
 
     const savedExercise = {
@@ -1144,7 +1194,15 @@ export default function App() {
 
     const musclesDistr = {};
     exerciseForm.muscles.forEach(m => {
-      musclesDistr[m.name] = parseFloat((m.percentage / 100).toFixed(3));
+      musclesDistr[m.name] = {
+        y0: m.y0 ?? 1.0,
+        x1: m.x1 ?? 0.33,
+        y1: m.y1 ?? 1.0,
+        x2: m.x2 ?? 0.66,
+        y2: m.y2 ?? 1.0,
+        y3: m.y3 ?? 1.0,
+        magnitude: parseFloat((m.percentage / 100).toFixed(3))
+      };
     });
 
     const fatigue = parseFloat(exerciseForm.fatigue);
@@ -1558,7 +1616,8 @@ export default function App() {
             } else if (muscleMetric === 'sets') {
               metricValue = 1.0;
             }
-            const vol = metricValue * distr;
+            const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
+            const vol = metricValue * distrVal;
             if (!distributions[macro]) distributions[macro] = { total: 0, subMuscles: {} };
             distributions[macro].total += vol;
             if (!distributions[macro].subMuscles[subMuscle]) distributions[macro].subMuscles[subMuscle] = 0;
@@ -1593,6 +1652,82 @@ export default function App() {
     if (!macroObj) return [];
     return macroObj.subMuscles;
   }, [compareMuscleData, dashMuscleMacro]);
+
+  const cumulativeCurveData = useMemo(() => {
+    const topMuscles = displayMuscleData.slice(0, 6).map(m => m.name);
+    if (topMuscles.length === 0) return [];
+
+    const resolution = 50;
+    const data = [];
+    for (let i = 0; i <= resolution; i++) {
+      const x = i / resolution;
+      const pt = { rom: x };
+      topMuscles.forEach(m => pt[m] = 0);
+      data.push(pt);
+    }
+
+    dashFilteredData.forEach(wEx => {
+      const ex = activeExercises.find(e => e.name === wEx.name) || wEx.exercise_obj;
+      if (!ex) return;
+      
+      wEx.weeks.forEach(wData => {
+        if (dashFilterWeek !== 'all' && wData.week_num !== parseInt(dashFilterWeek, 10)) return;
+        if (dashFilterWeek === 'all' && wData.week_num !== Math.max(...wEx.weeks.map(w => w.week_num))) return;
+        
+        wData.sets.forEach(s => {
+            Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
+              const macro = MUSCLES[subMuscle] || 'Other';
+              const isMacroView = dashMuscleMacro === 'all';
+              const targetMuscle = isMacroView ? macro : subMuscle;
+              
+              if (topMuscles.includes(targetMuscle)) {
+                let metricValue = 0;
+                if (muscleMetric === 'effective') {
+                  metricValue = s.effectiveRepsCustom || 0;
+                } else if (muscleMetric === 'volume') {
+                  metricValue = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
+                } else if (muscleMetric === 'sets') {
+                  metricValue = 1.0;
+                }
+                
+                const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
+                const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
+                const x1 = typeof distr === 'object' ? (distr.x1 ?? 0.33) : 0.33;
+                const y1 = typeof distr === 'object' ? (distr.y1 ?? 1.0) : 1.0;
+                const x2 = typeof distr === 'object' ? (distr.x2 ?? 0.66) : 0.66;
+                const y2 = typeof distr === 'object' ? (distr.y2 ?? 1.0) : 1.0;
+                const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
+                const magnitude = distrVal;
+                
+                const rawY = [];
+                let areaSum = 0;
+                for (let i = 0; i <= resolution; i++) {
+                  const x = i / resolution;
+                  const y = solveBezierY(x, y0, x1, y1, x2, y2, y3);
+                  rawY.push(y);
+                  areaSum += y;
+                }
+                const area = areaSum / resolution;
+                const factor = area > 0 ? (magnitude / area) : 0;
+                
+                for (let i = 0; i <= resolution; i++) {
+                  const pointVal = rawY[i] * factor;
+                  data[i][targetMuscle] += (pointVal * metricValue);
+                }
+              }
+            });
+          });
+        });
+      });
+
+    data.forEach(pt => {
+      topMuscles.forEach(m => {
+        pt[m] = parseFloat(pt[m].toFixed(2));
+      });
+    });
+
+    return data;
+  }, [dashFilteredData, dashFilterWeek, dashMuscleMacro, muscleMetric, activeExercises, displayMuscleData]);
 
   // Overall totals (filtered)
   const totalVolume = metricsByWeek.reduce((sum, m) => sum + m.Volume, 0);
@@ -2793,6 +2928,56 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Cumulative Tension Curves Chart */}
+                    <div className="chart-container" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
+                      <div className="chart-header">
+                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Cumulative Tension Profiles <Activity size={14} color="var(--accent-primary)" />
+                        </span>
+                      </div>
+                      <div style={{ height: '300px', width: '100%', marginTop: '10px' }}>
+                        {cumulativeCurveData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                              <XAxis 
+                                dataKey="rom" 
+                                stroke="var(--text-muted)" 
+                                fontSize={10} 
+                                tickFormatter={(val) => `${Math.round(val * 100)}%`}
+                              />
+                              <YAxis stroke="var(--text-muted)" fontSize={10} />
+                              <Tooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} 
+                                labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
+                                formatter={(val) => parseFloat(val).toFixed(1)}
+                              />
+                              <Legend fontSize={10} wrapperStyle={{ paddingTop: '10px' }} />
+                              {displayMuscleData.slice(0, 6).map((m, idx) => {
+                                const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+                                return (
+                                  <Line 
+                                    key={m.name} 
+                                    type="monotone" 
+                                    dataKey={m.name} 
+                                    name={m.name}
+                                    stroke={colors[idx % colors.length]} 
+                                    strokeWidth={2.5} 
+                                    dot={false}
+                                    activeDot={{ r: 4 }} 
+                                  />
+                                );
+                              })}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No data available for the current selection.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
 
                 </div>
@@ -2817,12 +3002,13 @@ export default function App() {
                           const wEx = sessExercises.find(e => e.exercise_obj && e.exercise_obj.name === d.name);
                           if (wEx && wEx.exercise_obj) {
                             Object.entries(wEx.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
+                              const pctVal = typeof pct === 'number' ? pct : (pct?.magnitude || 0);
                               const main = MUSCLES[sub];
                               if (main) {
                                 if (!muscleEffReps[main]) {
                                   muscleEffReps[main] = 0;
                                 }
-                                muscleEffReps[main] += (d.effectiveRepsCustom || 0) * pct;
+                                muscleEffReps[main] += (d.effectiveRepsCustom || 0) * pctVal;
                               }
                             });
                           }
@@ -2931,8 +3117,8 @@ export default function App() {
                                 <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Muscle Distribution:</span>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                   {Object.entries(wEx.exercise_obj.muscles_distr).map(([muscle, pct]) => (
-                                    <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-                                      {muscle}: <strong>{Math.round(pct * 100)}%</strong>
+                                    <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.65rem', padding: '2px 6px' }}>
+                                      {muscle}: <strong>{Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%</strong>
                                     </span>
                                   ))}
                                 </div>
@@ -3056,7 +3242,7 @@ export default function App() {
                         <div className="ex-card-muscle-badges">
                           {Object.entries(ex.muscles_distr).map(([muscle, pct]) => (
                             <span key={muscle} className="badge muscle">
-                              {muscle} ({Math.round(pct * 100)}%)
+                              {muscle} ({Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%)
                             </span>
                           ))}
                         </div>
@@ -3218,64 +3404,109 @@ export default function App() {
                   Muscle Distribution
                 </span>
                 
+                {exerciseForm.muscles.length > 0 && (
+                  <div style={{ width: '100%', height: 160, marginBottom: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 10px 0 0' }}>
+                    <ResponsiveContainer>
+                      <LineChart data={getBezierCurveData(exerciseForm.muscles)}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="x" type="number" domain={[0, 1]} tickCount={5} stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => val === 0 ? 'Stretch' : val === 1 ? 'Contract' : val} />
+                        <YAxis stroke="var(--text-muted)" fontSize={10} width={30} domain={[0, 1]} tickFormatter={(v) => Math.round(v*100)} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />
+                        {exerciseForm.muscles.map((m, i) => {
+                           const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+                           return <Line key={m.name} type="monotone" dataKey={m.name} stroke={colors[i % colors.length]} dot={false} strokeWidth={2} name={m.name} />;
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                
                 {exerciseForm.muscles.length === 0 ? (
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: '8px 0' }}>
                     No muscle groups assigned yet. Select a muscle below to add it.
                   </p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {exerciseForm.muscles.map((m, index) => (
-                      <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ flex: '1 1 120px', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.name}>
-                          {m.name}
-                        </span>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          className="muscle-slider"
-                          value={m.percentage}
-                          onChange={(e) => {
-                            const updated = [...exerciseForm.muscles];
-                            updated[index] = { ...m, percentage: parseInt(e.target.value) || 0 };
-                            setExerciseForm({ ...exerciseForm, muscles: updated });
-                            setExerciseError('');
-                          }}
-                          style={{ flex: '2 2 120px', accentColor: 'var(--accent-primary)', height: '6px', cursor: 'pointer' }}
-                        />
-                        <span style={{ width: '40px', fontSize: '0.8rem', textAlign: 'right', fontWeight: 600 }}>
-                          {m.percentage}%
-                        </span>
-                        <button
-                          type="button"
-                          className="btn-icon-small"
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
-                            width: '20px',
-                            height: '20px',
-                            fontSize: '0.75rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 0
-                          }}
-                          onClick={() => {
-                            const updated = exerciseForm.muscles.filter((_, i) => i !== index);
-                            setExerciseForm({ ...exerciseForm, muscles: updated });
-                            setExerciseError('');
-                          }}
-                        >
-                          ×
-                        </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {exerciseForm.muscles.map((m, index) => {
+                      const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+                      const dotColor = colors[index % colors.length];
+                      return (
+                      <div key={m.name} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: dotColor }}></span>
+                            {m.name}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-icon-small"
+                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => {
+                              const updated = exerciseForm.muscles.filter((_, i) => i !== index);
+                              setExerciseForm({ ...exerciseForm, muscles: updated });
+                              setExerciseError('');
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                          <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'flex-end' }}>
+                            <button 
+                              type="button" 
+                              className="btn btn-outline" 
+                              style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                              onClick={() => setEditingCurveIndex(index)}
+                            >
+                              <Sliders size={14} style={{ marginRight: '6px' }} />
+                              Scolpisci Curva
+                            </button>
+                          </div>
+                          <div>
+                            <label className="modal-label" style={{ fontSize: '0.7rem' }}>Magnitude (%)</label>
+                            <input type="number" className="modal-input" min="0" max="100" step="1" value={m.percentage} onChange={(e) => {
+                              const updated = [...exerciseForm.muscles];
+                              updated[index] = { ...m, percentage: parseInt(e.target.value) || 0 };
+                              setExerciseForm({ ...exerciseForm, muscles: updated });
+                            }} style={{ padding: '4px 8px', fontSize: '0.8rem' }} />
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                    )})}
+                  </div>
+                )}
+                
+                {editingCurveIndex !== null && (
+                  <div style={{ marginTop: '20px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                        Curva di Tensione: {exerciseForm.muscles[editingCurveIndex]?.name}
+                      </h4>
+                      <button 
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+                        onClick={() => setEditingCurveIndex(null)}
+                      >
+                        Fatto
+                      </button>
+                    </div>
+                    <BezierEditor 
+                      value={exerciseForm.muscles[editingCurveIndex] || {}}
+                      onChange={(newCurve) => {
+                        const updated = [...exerciseForm.muscles];
+                        updated[editingCurveIndex] = { ...updated[editingCurveIndex], ...newCurve };
+                        setExerciseForm({ ...exerciseForm, muscles: updated });
+                      }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', textAlign: 'center' }}>
+                      Trascina i punti arancioni per impostare la tensione iniziale e finale.<br/>
+                      Trascina le maniglie blu per modificare l'accelerazione della resistenza.
+                    </p>
                   </div>
                 )}
 
-                {/* Fuzzy search input to add a muscle */}
-                {Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m)).length > 0 && (() => {
+                {editingCurveIndex === null && Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m)).length > 0 && (() => {
                   const available = Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m));
                   const scored = muscleSearch
                     ? available
@@ -3298,7 +3529,7 @@ export default function App() {
                     const defaultPct = Math.max(0, 100 - currentSum);
                     setExerciseForm({
                       ...exerciseForm,
-                      muscles: [...exerciseForm.muscles, { name, percentage: defaultPct }]
+                      muscles: [...exerciseForm.muscles, { name, percentage: defaultPct, y0: 1, x1: 0.33, y1: 1, x2: 0.66, y2: 1, y3: 1 }]
                     });
                     setExerciseError('');
                     setMuscleSearch('');

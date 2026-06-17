@@ -570,13 +570,19 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
     if (targetSub && !(targetSub in ex.muscles_distr)) continue;
 
     // Determine distribution coefficient
+    const getMagnitude = (val) => {
+      if (typeof val === 'number') return val;
+      if (val && typeof val.magnitude === 'number') return val.magnitude;
+      return 0.0;
+    };
+
     let distrSum = 1.0;
     if (targetSub) {
-      distrSum = ex.muscles_distr[targetSub] || 0.0;
+      distrSum = getMagnitude(ex.muscles_distr[targetSub]);
     } else if (targetMacro) {
       distrSum = Object.entries(ex.muscles_distr)
         .filter(([sub]) => MUSCLES[sub] === targetMacro)
-        .reduce((sum, [, val]) => sum + val, 0.0);
+        .reduce((sum, [, val]) => sum + getMagnitude(val), 0.0);
     }
 
     for (const wData of wEx.weeks) {
