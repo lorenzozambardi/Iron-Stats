@@ -5,17 +5,22 @@ import numpy as np
 
 @dataclass
 class BezierProfile:
+    x0: float
     y0: float
     x1: float
     y1: float
     x2: float
     y2: float
+    x3: float
     y3: float
     magnitude: float
 
     def get_curve(self, resolution: int = 50) -> np.ndarray:
         t = np.linspace(0, 1, resolution)
-        x = 3 * (1-t)**2 * t * self.x1 + 3 * (1-t) * t**2 * self.x2 + t**3
+        # Scale t to x domain [x0, x3]
+        x_span = self.x3 - self.x0
+        if x_span == 0: x_span = 1.0
+        x = self.x0 + x_span * (3 * (1-t)**2 * t * self.x1 + 3 * (1-t) * t**2 * self.x2 + t**3)
         y = (1-t)**3 * self.y0 + 3 * (1-t)**2 * t * self.y1 + 3 * (1-t) * t**2 * self.y2 + t**3 * self.y3
         
         dx = np.diff(x)
@@ -43,9 +48,17 @@ class Exercise:
         new_distr = {}
         for m, val in self.muscles_distr.items():
             if isinstance(val, (int, float)):
-                new_distr[m] = BezierProfile(1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, 0.66, 1.0, 1.0, float(val))
+                new_distr[m] = BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, float(val))
             elif isinstance(val, dict):
-                new_distr[m] = BezierProfile(1.0, 0.33, 1.0, 0.66, 1.0, 1.0, float(val.get("beta", 1.0)),
+                new_distr[m] = BezierProfile(
+                    float(val.get("x0", 0.0)),
+                    float(val.get("y0", 1.0)),
+                    float(val.get("x1", 0.33)),
+                    float(val.get("y1", 1.0)),
+                    float(val.get("x2", 0.66)),
+                    float(val.get("y2", 1.0)),
+                    float(val.get("x3", 1.0)),
+                    float(val.get("y3", 1.0)),
                     float(val.get("magnitude", 0.0))
                 )
             elif isinstance(val, BezierProfile):
@@ -62,12 +75,7 @@ class Exercise:
 
 
 exercises_list = [
-    Exercise(
-        "Squat",
-        {"Quadriceps": 0.5, "Glutes": 0.3, "Adductors": 0.1, "Erectors": 0.1},
-        9.5,
-        0.10,
-    ),
+    Exercise("Squat", {"Quadriceps": BezierProfile(0.1, 1.0, 0.4, 0.9, 0.7, 0.5, 0.9, 0.1, 0.45), "Gluteus Maximus": BezierProfile(0.2, 1.0, 0.5, 0.9, 0.7, 0.5, 0.9, 0.1, 0.35), "Adductors": BezierProfile(0.2, 1.0, 0.4, 0.8, 0.6, 0.4, 0.9, 0.0, 0.15), "Erectors": BezierProfile(0.2, 0.8, 0.4, 0.7, 0.7, 0.5, 0.9, 0.2, 0.05)}, 9.5, 0.10),
     Exercise(
         "Leg Press 45", {"Quadriceps": 0.6, "Glutes": 0.3, "Adductors": 0.1}, 8.0, 0.30
     ),

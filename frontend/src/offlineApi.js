@@ -90,26 +90,43 @@ window.fetch = async (input, init) => {
   const { dirType, dir, safUri } = getStorageConfig();
   const isCustom = dirType === 'custom' && safUri;
 
+  if (urlObj.pathname === '/api/exercises/reset') {
+    if (method === 'POST') {
+      try {
+        if (isCustom) {
+          await FolderPicker.writeFile({ uri: safUri, filename: 'exercises_v6.json', data: JSON.stringify(defaultExercises) });
+        } else {
+          await Filesystem.writeFile({ path: filePath('exercises_v6.json'), data: JSON.stringify(defaultExercises), directory: dir, encoding: Encoding.UTF8 });
+        }
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+  }
+
   // ── /api/exercises ────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/exercises') {
     if (method === 'GET') {
       try {
-        if (isCustom) {
-          const res = await FolderPicker.readFile({ uri: safUri, filename: 'exercises.json' });
-          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
-        } else {
-          const res = await Filesystem.readFile({ path: filePath('exercises.json'), directory: dir, encoding: Encoding.UTF8 });
-          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        if (!isCustom) {
+          // ALWAYS return fresh default exercises when using the default preset.
+          const defaultStr = JSON.stringify(defaultExercises);
+          return new Response(defaultStr, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
+
+        // Only read from file if it is a custom program
+        const res = await FolderPicker.readFile({ uri: safUri, filename: 'exercises_v6.json' });
+        return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
         return new Response(JSON.stringify(defaultExercises), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
     } else if (method === 'POST') {
       try {
         if (isCustom) {
-          await FolderPicker.writeFile({ uri: safUri, filename: 'exercises.json', data: init.body });
+          await FolderPicker.writeFile({ uri: safUri, filename: 'exercises_v6.json', data: init.body });
         } else {
-          await Filesystem.writeFile({ path: filePath('exercises.json'), data: init.body, directory: dir, encoding: Encoding.UTF8 });
+          await Filesystem.writeFile({ path: filePath('exercises_v6.json'), data: init.body, directory: dir, encoding: Encoding.UTF8 });
         }
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {

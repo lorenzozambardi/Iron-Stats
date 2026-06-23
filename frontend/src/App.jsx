@@ -35,697 +35,10 @@ import {
 } from './parser';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 
-// Helper to format rest times using ' for minutes and " for seconds, avoiding fractions
-const formatRestTime = (seconds) => {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m > 0 && s > 0) {
-    return `${m}'${s}"`;
-  } else if (m > 0) {
-    return `${m}'`;
-  } else {
-    return `${s}"`;
-  }
-};
-
-const solveBezierY = (targetX, y0, x1, y1, x2, y2, y3) => {
-  if (targetX === 0) return y0;
-  if (targetX === 1) return y3;
-  
-  let lower = 0;
-  let upper = 1;
-  let t = 0.5;
-  for (let i = 0; i < 15; i++) {
-    const x = 3 * Math.pow(1 - t, 2) * t * x1 + 3 * (1 - t) * Math.pow(t, 2) * x2 + Math.pow(t, 3);
-    if (Math.abs(x - targetX) < 0.001) break;
-    if (x < targetX) lower = t;
-    else upper = t;
-    t = (lower + upper) / 2;
-  }
-  return Math.pow(1 - t, 3) * y0 + 3 * Math.pow(1 - t, 2) * t * y1 + 3 * (1 - t) * Math.pow(t, 2) * y2 + Math.pow(t, 3) * y3;
-};
-
-const getBezierCurveData = (musclesDistrList, resolution = 50) => {
-  const data = [];
-  for (let i = 0; i <= resolution; i++) {
-    data.push({ x: i / resolution });
-  }
-
-  musclesDistrList.forEach((m) => {
-    const y0 = m.y0 ?? 1.0;
-    const x1 = m.x1 ?? 0.33;
-    const y1 = m.y1 ?? 1.0;
-    const x2 = m.x2 ?? 0.66;
-    const y2 = m.y2 ?? 1.0;
-    const y3 = m.y3 ?? 1.0;
-    const magnitude = parseFloat(m.percentage) / 100.0;
-    
-    for (let i = 0; i <= resolution; i++) {
-      const x = i / resolution;
-      const y = solveBezierY(x, y0, x1, y1, x2, y2, y3);
-      data[i][m.name] = y * magnitude;
-    }
-  });
-  
-  return data;
-};
-
-// Helper to group consecutive sets sharing the same dropsetId
-const groupSets = (sets) => {
-  if (!sets) return [];
-  const groups = [];
-  let currentGroup = null;
-
-  for (const s of sets) {
-    if (s.dropsetId) {
-      if (currentGroup && currentGroup.isDropset && currentGroup.dropsetId === s.dropsetId) {
-        currentGroup.sets.push(s);
-      } else {
-        currentGroup = {
-          isDropset: true,
-          dropsetId: s.dropsetId,
-          sets: [s]
-        };
-        groups.push(currentGroup);
-      }
-    } else {
-      currentGroup = {
-        isDropset: false,
-        set: s
-      };
-      groups.push(currentGroup);
-    }
-  }
-  return groups;
-};
-
-// A beautiful custom rendered live preview of the parsed logbook contents
-function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode }) {
-  const scrollAnimRef = useRef(null);
-  const [expandedExerciseName, setExpandedExerciseName] = useState(null);
-
-  useEffect(() => {
-    if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
-      const element = document.getElementById(`preview-ex-${activeExerciseStartLine}`);
-      if (element) {
-        const container = element.closest('.preview-container');
-        if (container) {
-          const elementRect = element.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const targetY = container.scrollTop + (elementRect.top - containerRect.top);
-          
-          if (scrollAnimRef.current) {
-            cancelAnimationFrame(scrollAnimRef.current);
-          }
-
-          const startY = container.scrollTop;
-          const difference = targetY - startY;
-          const duration = 200; // 200ms is the sweet spot for quintic ease-out
-          const startTime = performance.now();
-
-          const step = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Cubic Bezier-equivalent curve: easeOutQuint (cubic-bezier(0.23, 1, 0.32, 1))
-            const ease = 1 - Math.pow(1 - progress, 5);
-            container.scrollTop = startY + difference * ease;
-            if (progress < 1) {
-              scrollAnimRef.current = requestAnimationFrame(step);
-            } else {
-              scrollAnimRef.current = null;
-            }
-          };
-          scrollAnimRef.current = requestAnimationFrame(step);
-        }
-      }
-    }
-    return () => {
-      if (scrollAnimRef.current) {
-        cancelAnimationFrame(scrollAnimRef.current);
-      }
-    };
-  }, [activeExerciseStartLine]);
-
-  if (!workoutData || workoutData.length === 0) {
-    return (
-      <div className="preview-empty">
-        <p>No content to preview yet. Start typing your logbook sessions!</p>
-      </div>
-    );
-  }
-
-  // Group by session
-  const sessions = {};
-  workoutData.forEach(ex => {
-    if (!sessions[ex.session]) {
-      sessions[ex.session] = [];
-    }
-    sessions[ex.session].push(ex);
-  });
-
-  return (
-    <div className="logbook-preview-content">
-      {Object.entries(sessions).map(([sessNum, exercises]) => (
-        <div key={sessNum} className="preview-session-group">
-          <h2 className="preview-session-title">Session {sessNum}</h2>
-          
-          <div className="preview-exercises-list">
-            {exercises.map((ex, exIdx) => {
-              const isActive = activeExerciseStartLine === ex.startLine;
-              return (
-                <div 
-                  key={exIdx} 
-                  id={`preview-ex-${ex.startLine}`}
-                  className={`preview-exercise-card ${isActive ? 'active' : ''}`}
-                  style={{ cursor: (editorMode === 'preview' && ex.exercise_obj) ? 'pointer' : 'default' }}
-                  onClick={() => {
-                    if (editorMode === 'preview' && ex.exercise_obj) {
-                      setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
-                    }
-                  }}
-                >
-                  <div className="preview-exercise-header">
-                    <div className="preview-exercise-info">
-                      <h3>{ex.exercise_obj ? ex.exercise_obj.name : ex.raw_name}</h3>
-                      <div className="preview-badges">
-                        <span className="badge">{formatRestTime(ex.rest_seconds)} rest</span>
-                        {ex.exercise_obj && (
-                          <span className="badge muscle">
-                            {MUSCLES[Object.keys(ex.exercise_obj.muscles_distr)[0]] || Object.keys(ex.exercise_obj.muscles_distr)[0]}
-                          </span>
-                        )}
-                        {editorMode === 'preview' && ex.exercise_obj && (
-                          <span 
-                            className="badge info-btn" 
-                            style={{ cursor: 'pointer', border: '1px solid rgba(99, 102, 241, 0.4)', background: 'rgba(99, 102, 241, 0.05)', color: 'var(--accent-primary)' }}
-                          >
-                            {expandedExerciseName === ex.exercise_obj.name ? 'Hide Info' : 'Show Info'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Render Expanded Info under header if expanded */}
-                  {editorMode === 'preview' && ex.exercise_obj && expandedExerciseName === ex.exercise_obj.name && (
-                    <div style={{ 
-                      marginTop: '4px', 
-                      marginBottom: '12px', 
-                      padding: '10px', 
-                      background: 'rgba(0,0,0,0.2)', 
-                      borderRadius: '8px', 
-                      border: '1px solid var(--border-color)', 
-                      fontSize: '0.75rem',
-                      textAlign: 'left'
-                    }} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '6px', marginBottom: '8px' }}>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Fatigue:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.fatigue}</strong></div>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Load Coeff:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_coeff}</strong></div>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Multiplier:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_multiplier}x</strong></div>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Offset:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_offset}kg</strong></div>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Muscle Distribution:</span>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {Object.entries(ex.exercise_obj.muscles_distr).map(([muscle, pct]) => (
-                            <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.65rem', padding: '2px 6px' }}>
-                              {muscle}: <strong>{Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%</strong>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="preview-weeks-grid">
-                    {ex.weeks.map(wk => {
-                      const isWeekActive = activeWeekLineIndex === wk.lineIndex;
-                      return (
-                        <div key={wk.week_num} className={`preview-week-column ${isWeekActive ? 'active' : ''}`}>
-                          <div className="preview-week-header">W{wk.week_num}</div>
-                          <div className="preview-sets-list">
-                            {groupSets(wk.sets).map((g, gIdx) => {
-                              if (g.isDropset) {
-                                return (
-                                  <div key={gIdx} className="preview-set-row dropset" style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '4px', padding: '3px' }}>
-                                    <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: 'rgba(239, 68, 68, 0.8)', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid rgba(239, 68, 68, 0.1)', paddingBottom: '1px', marginBottom: '2px' }}>Dropset</div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px' }}>
-                                      {g.sets.map((s, sIdx) => (
-                                        <React.Fragment key={sIdx}>
-                                          {sIdx > 0 && <span style={{ color: 'rgba(239, 68, 68, 0.4)', fontSize: '0.65rem' }}>➔</span>}
-                                          <span style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
-                                            <span className="preview-set-weight">{s.load}</span>
-                                            <span className="preview-set-reps">×{s.base_reps + s.assisted_reps}</span>
-                                            {s.partial_reps > 0 && <span className="preview-set-partial" style={{ fontSize: '0.6rem' }}>+{s.partial_reps}p</span>}
-                                            {s.assisted_reps > 0 && <span className="preview-set-assisted" style={{ fontSize: '0.6rem' }}>({s.assisted_reps}a)</span>}
-                                            {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '2px' }}>@{s.rpe}</span>}
-                                          </span>
-                                        </React.Fragment>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              } else {
-                                const s = g.set;
-                                return (
-                                  <div key={gIdx} className="preview-set-row">
-                                    <span className="preview-set-weight">{s.load}kg</span>
-                                    <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
-                                    {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
-                                    {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
-                                    {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '3px' }}>@{s.rpe}</span>}
-                                  </div>
-                                );
-                              }
-                            })}
-                            {wk.sets.length === 0 && (
-                              <div className="preview-no-sets">-</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-let katexPromise = null;
-const loadKatex = () => {
-  if (!katexPromise) {
-    katexPromise = import('katex').then((module) => module.default || module);
-  }
-  return katexPromise;
-};
-
-const Latex = ({ math, block = false }) => {
-  const [html, setHtml] = useState(math);
-
-  useEffect(() => {
-    let active = true;
-    loadKatex().then((katex) => {
-      if (!active) return;
-      try {
-        const rendered = katex.renderToString(math, {
-          displayMode: block,
-          throwOnError: false
-        });
-        setHtml(rendered);
-      } catch (err) {
-        console.error("KaTeX rendering error:", err);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [math, block]);
-
-  return <span dangerouslySetInnerHTML={{ __html: html }} />;
-};
-
-const MathBlock = ({ children, color }) => (
-  <div style={{
-    background: 'rgba(0, 0, 0, 0.4)',
-    padding: '10px 12px',
-    borderRadius: '8px',
-    margin: '8px 0 12px 0',
-    borderLeft: `3px solid ${color}`,
-    color: '#f8fafc',
-    lineHeight: '1.5',
-    overflowX: 'auto'
-  }}>
-    {children}
-  </div>
-);
-
-const renderVolumeTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-volume)', fontSize: '0.8rem' }}>Volume</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the repetitions of all sets
-    </div>
-  </div>
-);
-
-const renderTonnageTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-tonnage)', fontSize: '0.8rem' }}>Tonnage</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the weight lifted per set adjusted for leverage and distribution
-    </div>
-  </div>
-);
-
-const renderEffectiveTonnageTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-effective-tonnage)', fontSize: '0.8rem' }}>Effective Tonnage</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the weight lifted adjusted for leverage, distribution, and hypertrophy-stimulative effective repetitions
-    </div>
-  </div>
-);
-
-const renderEffectiveRepsTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--accent-secondary)', fontSize: '0.8rem' }}>Effective Reps</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the final, most stimulative repetitions of each set
-    </div>
-  </div>
-);
-
-const renderTutTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-tut)', fontSize: '0.8rem' }}>TUT</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Cumulative time under tension for all repetitions
-    </div>
-  </div>
-);
-
-const renderEffectiveTutTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-effective-tut)', fontSize: '0.8rem' }}>Effective TUT</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the time under tension for the effective repetitions of each set
-    </div>
-  </div>
-);
-
-const renderFatigueTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-fatigue)', fontSize: '0.8rem' }}>Accumulated Fatigue</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Tracks cumulative neuromuscular fatigue per repetition
-    </div>
-  </div>
-);
-
-const renderSetsTooltip = () => (
-  <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-sets)', fontSize: '0.8rem' }}>Sets</div>
-    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-      Sums the total number of sets performed
-    </div>
-  </div>
-);
-
-const renderMetricTooltip = (cls) => {
-  switch (cls) {
-    case 'volume':
-      return renderVolumeTooltip();
-    case 'tonnage':
-      return renderTonnageTooltip();
-    case 'effective-tonnage':
-      return renderEffectiveTonnageTooltip();
-    case 'effective':
-      return renderEffectiveRepsTooltip();
-    case 'tut':
-      return renderTutTooltip();
-    case 'effective-tut':
-      return renderEffectiveTutTooltip();
-    case 'fatigue':
-      return renderFatigueTooltip();
-    case 'sets':
-      return renderSetsTooltip();
-    default:
-      return null;
-  }
-};
-
-const MetricDetailsPage = ({ metric, onBack }) => {
-  const getMetricData = () => {
-    switch (metric) {
-      case 'volume':
-        return {
-          title: 'Total Volume',
-          subtitle: 'Weighted effective repetitions',
-          color: 'var(--color-volume)',
-          description: 'Volume measures the total stimulative muscular workload of your exercises. It sums your base repetitions alongside weighted contributions from assisted and partial repetitions, scaled by the target muscle group distribution.',
-          formulas: [
-            '\\text{Volume} = \\sum_{s \\in \\text{Sets}} \\text{TotReps}_s \\cdot D_m',
-            '\\text{TotReps}_s = R_{\\text{base}, s} + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
-          ],
-          variables: [
-            { symbol: '\\text{Volume}', desc: 'The accumulated workload credit assigned to a target muscle group.' },
-            { symbol: '\\text{TotReps}_s', desc: 'The effective rep count of set s, combining base, assisted, and partial repetitions.' },
-            { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
-            { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
-            { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
-          ],
-          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, targeting Quads (Dm = 1.0):\nBase reps = 8.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Volume for that set is (8.0 + 1.0 + 0.99) * 1.0 = 9.99 reps.'
-        };
-      case 'tonnage':
-        return {
-          title: 'Total Tonnage',
-          subtitle: 'Load and leverage adjusted volume',
-          color: 'var(--color-tonnage)',
-          description: 'Tonnage measures the absolute workload moved, adjusted for machine leverage, mechanical offset, repetition type weightings, and muscle load distribution.',
-          formulas: [
-            '\\text{Tonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{TotReps}_s \\cdot D_m',
-            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
-            '\\text{TotReps}_s = R_{\\text{base}, s} + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
-          ],
-          variables: [
-            { symbol: '\\text{Tonnage}', desc: 'The total kilograms moved, scaled by target muscle distribution.' },
-            { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
-            { symbol: 'L_{\\text{raw}, s}', desc: 'The raw weight entered in the logbook (e.g. 100 kg).' },
-            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (e.g., 1.0 for free weights, 0.7 for leg press).' },
-            { symbol: 'O_{\\text{offset}}', desc: 'Bodyweight offset or platform weight adjustment.' },
-            { symbol: '\\text{TotReps}_s', desc: 'Weighted repetitions count of set s: R_base + 0.5 * R_assisted + 0.33 * R_partial.' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
-          ],
-          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 total reps (e.g. 8 base reps + 4 partial reps = 9.32 reps), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nTonnage = 140 kg * 9.32 reps * 0.8 = 1,043.8 kg for Quads.'
-        };
-      case 'effective-tonnage':
-        return {
-          title: 'Effective Tonnage',
-          subtitle: 'Stimulative load and leverage adjusted volume',
-          color: 'var(--color-effective-tonnage)',
-          description: 'Effective Tonnage measures the total hypertrophy-stimulative workload moved, adjusted for machine leverage, mechanical offset, repetition type weightings, and muscle distribution.',
-          formulas: [
-            '\\text{EffTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m',
-            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
-            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
-          ],
-          variables: [
-            { symbol: '\\text{EffTonnage}', desc: 'The stimulative kilograms moved, scaled by target muscle distribution.' },
-            { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
-            { symbol: 'L_{\\text{raw}, s}', desc: 'The raw weight entered in the logbook (e.g. 100 kg).' },
-            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (e.g., 1.0 for free weights, 0.7 for leg press).' },
-            { symbol: 'O_{\\text{offset}}', desc: 'Bodyweight offset or platform weight adjustment.' },
-            { symbol: '\\text{effReps}_s', desc: 'Weighted effective repetitions: min(R_base, max(0, RPE - 4.0)) + 0.5 * R_assisted + 0.33 * R_partial.' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
-          ],
-          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 reps, where 2 are assisted (leaving 8 unassisted base reps) and 3 are partial reps, at RPE 9.0 (logged as 10(2)+3@9), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nEffective reps = min(8, 9.0 - 4.0) + (2 * 0.5) + (3 * 0.33) = 5.0 + 1.0 + 0.99 = 6.99 reps.\nEffective Tonnage = 140 kg * 6.99 reps * 0.8 = 782.88 kg for Quads.'
-        };
-      case 'effective':
-        return {
-          title: 'Effective Reps',
-          subtitle: 'Hypertrophy-stimulative repetitions',
-          color: 'var(--accent-secondary)',
-          description: 'Effective reps count stimulative repetitions in a set. The base reps are determined by proximity to failure (measured by RPE), where base effective reps = RPE - 4. Assisted and partial reps are also included and weighted (assisted reps at 0.5, partial reps at 0.33).',
-          formulas: [
-            '\\text{EffReps} = \\sum_{s \\in \\text{Sets}} \\text{effReps}_s \\cdot D_m',
-            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
-          ],
-          variables: [
-            { symbol: '\\text{EffReps}', desc: 'Total hypertrophy-stimulative repetitions for a target muscle group.' },
-            { symbol: '\\text{effReps}_s', desc: 'Effective repetitions count of set s.' },
-            { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
-            { symbol: '\\text{RPE}_s', desc: 'Rate of Perceived Exertion of set s (representing proximity to failure).' },
-            { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
-            { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
-          ],
-          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, taken to RPE 9.0 (logged as 10(2)+3@9) targeting Quads (Dm = 1.0):\nBase reps = 8. Base effective reps = min(8, 9.0 - 4.0) = 5.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Effective Reps for that set = 5.0 + 1.0 + 0.99 = 6.99 reps.'
-        };
-      case 'tut':
-        return {
-          title: 'Time Under Tension (TUT)',
-          subtitle: 'Total duration under load',
-          color: 'var(--color-tut)',
-          description: 'Measures the cumulative time (in seconds) the muscle spends contracting against load, accounting for tempo-specific phases and physiological velocity slowdown under fatigue.',
-          formulas: [
-            '\\text{TUT} = \\sum_{s \\in \\text{Sets}} T_{\\text{set}, s} \\cdot D_m',
-            'T_{\\text{set}, s} = \\sum_{i=1}^{R_{\\text{base}, s}} T_{\\text{base}, i} + R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}',
-            'T_{\\text{base}, i} = C + \\text{slowdown}_i + P_{\\text{short}} + E + P_{\\text{long}}',
-            'T_{\\text{assist}} = C + P_{\\text{short}} + E + P_{\\text{long}} \\quad T_{\\text{partial}} = 0.5 \\cdot T_{\\text{assist}}'
-          ],
-          variables: [
-            { symbol: '\\text{TUT}', desc: 'Total accumulated duration in seconds for target muscle.' },
-            { symbol: 'T_{\\text{set}, s}', desc: 'Total time in seconds calculated for set s.' },
-            { symbol: 'T_{\\text{base}, i}', desc: 'Calculated duration for base repetition index i.' },
-            { symbol: 'C, E', desc: 'Concentric and Eccentric tempo durations (e.g. 2s concentric, 4s eccentric).' },
-            { symbol: 'P_{\\text{short}}, P_{\\text{long}}', desc: 'Pause durations at maximum shortening (peak contraction) and maximum lengthening (stretch).' },
-            { symbol: '\\text{slowdown}_i', desc: 'Physiological slowdown added to concentric phase as reps approach failure (scales based on set fatigue and RPE).' },
-            { symbol: 'T_{\\text{assist}}, T_{\\text{partial}}', desc: 'Time assigned to assisted repetitions (standard tempo, no slowdown) and partial repetitions (50% of assisted tempo).' }
-          ],
-          example: 'A set of 6 reps at 2-0-4-0 tempo (2s concentric, 0s pause, 4s eccentric, 0s pause):\nEach base rep takes: C (2) + E (4) + slowdown. Assuming a moderate RPE (slowdown aggregates ~2s over the set), the set TUT is approximately: (6 * 6s) + 2s = 38 seconds.'
-        };
-      case 'effective-tut':
-        return {
-          title: 'Effective TUT',
-          subtitle: 'Duration under stimulative tension',
-          color: 'var(--color-effective-tut)',
-          description: 'Isolates and aggregates the time under tension specifically for the effective repetitions of each set. Unassisted base reps are counted based on proximity to failure (RPE - 4), while all assisted and partial reps are fully included.',
-          formulas: [
-            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}, s} - N_s)}^{R_{\\text{base}, s} - 1} T_{\\text{base}, i} + T_{\\text{extended}, s} \\right) \\cdot D_m',
-            'N_s = \\text{round}(\\min(R_{\\text{base}, s}, \\max(0.0, \\text{RPE}_s - 4.0)))',
-            'T_{\\text{extended}, s} = R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}'
-          ],
-          variables: [
-            { symbol: '\\text{TUT}_{\\text{eff}}', desc: 'Total duration in seconds spent under high mechanical tension.' },
-            { symbol: 'N_s', desc: 'The rounded count of effective unassisted base repetitions in set s.' },
-            { symbol: 'T_{\\text{base}, i}', desc: 'Duration of base repetition i, including the fatigue slowdown.' },
-            { symbol: 'T_{\\text{extended}, s}', desc: 'Total duration of assisted and partial reps in set s.' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
-          ],
-          example: 'If a set has 8 base reps, 2 assisted reps, and 3 partial reps taken to RPE 9.0:\nEffective base reps count (N) = round(min(8, 9.0 - 4.0)) = 5 reps. Thus, only the final 5 base reps (reps 4 to 8) contribute to the base TUT, and 100% of all assisted and partial reps contribute to the extended TUT.\nEffective TUT = (sum of last 5 base reps TUT) + (all assisted reps TUT) + (all partial reps TUT).'
-        };
-      case 'fatigue':
-        return {
-          title: 'Accumulated Fatigue',
-          subtitle: 'Rep-level neuromuscular fatigue model',
-          color: 'var(--color-fatigue)',
-          description: 'An advanced model tracking accumulated fatigue per repetition. Fatigue scales exponentially with proximity to failure (RPE) and linearly with repetition duration (TUT), accounting for exercise profile and rep types.',
-          formulas: [
-            '\\text{Fatigue} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i} T_i \\cdot 1.1^{R_i - 7.5} \\cdot F_e \\cdot L_c \\cdot K_i \\right) \\cdot D_m',
-            '\\text{Base Rep } i: R_i = \\max(0, 10 - \\text{rir}_i), \\; K_i = 1.0',
-            '\\text{Assisted Rep } i: R_i = 7.0 \\implies 1.1^{R_i - 7.5} \\approx 0.95, \\; K_i = 0.5',
-            '\\text{Partial Rep } i: R_i = 7.5 \\implies 1.1^{R_i - 7.5} = 1.0, \\; K_i = 0.66'
-          ],
-          variables: [
-            { symbol: '\\text{Fatigue}', desc: 'Accumulated fatigue units for the targeted muscles.' },
-            { symbol: 'T_i', desc: 'Duration of repetition i (seconds).' },
-            { symbol: 'R_i', desc: 'RPE equivalent score for rep i (increases from early reps to the final rep).' },
-            { symbol: '1.1^{R_i - 7.5}', desc: 'Exponential multiplier penalizing high-intensity reps close to failure.' },
-            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (0 to 10) representing systemic and joint stress.' },
-            { symbol: 'L_c', desc: 'Load coefficient representing intensity weight profile.' },
-            { symbol: 'K_i', desc: 'Repetition type penalty factor: base = 1.0, assisted = 0.5, partial = 0.66.' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
-          ],
-          example: 'A high-fatigue movement like Squats (Fe = 8.5) taken to failure (RPE 10) will generate exponentially higher fatigue values on its final repetitions compared to a low-fatigue movement like Tricep Pushdowns (Fe = 2.0) done with 2 reps in reserve.'
-        };
-      case 'sets':
-        return {
-          title: 'Total Sets',
-          subtitle: 'Set count scaled by muscle distribution',
-          color: 'var(--color-sets)',
-          description: 'Sets calculates the cumulative number of sets performed. Rather than treating all sets equally across all muscle groups, it weights each set based on the target muscle distribution coefficient (D_m) of the exercise. For example, a set targeting a primary muscle group counts as 1.0 sets, while targeting a secondary muscle group counts proportionally (e.g. 0.5 sets).',
-          formulas: [
-            '\\text{Sets} = \\sum_{s \\in \\text{Sets}} 1.0 \\cdot D_m'
-          ],
-          variables: [
-            { symbol: '\\text{Sets}', desc: 'The accumulated sets credit assigned to a target muscle group.' },
-            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient (from 0.0 to 1.0).' }
-          ],
-          example: 'If you perform 4 sets of Squats targeting Quads at 100% (D_m = 1.0) and Glutes at 50% (D_m = 0.5):\n- Quads: 4 sets * 1.0 = 4.0 sets\n- Glutes: 4 sets * 0.5 = 2.0 sets'
-        };
-      default:
-        return null;
-    }
-  };
-
-  const data = getMetricData();
-  if (!data) return <div>Metric not found</div>;
-
-  return (
-    <div style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>
-      {/* Back Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <button 
-          onClick={onBack}
-          className="btn btn-secondary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }}
-        >
-          &larr; Back to Dashboard
-        </button>
-      </div>
-
-      {/* Main card */}
-      <div className="glass-card" style={{ borderLeft: `4px solid ${data.color}`, padding: '24px', borderRadius: '16px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <span className="badge" style={{ backgroundColor: `${data.color}15`, color: data.color, fontWeight: '600', textTransform: 'uppercase', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '4px', border: `1px solid ${data.color}30` }}>
-            Math Calculation details
-          </span>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: '700', margin: '12px 0 4px 0', color: 'var(--text-primary)' }}>
-            {data.title}
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-            {data.subtitle}
-          </p>
-        </div>
-
-        <p style={{ lineHeight: '1.6', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px' }}>
-          {data.description}
-        </p>
-
-        {/* Formulas Block */}
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '10px', color: data.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Mathematical Formula
-          </h3>
-          <MathBlock color={data.color}>
-            {data.formulas.map((f, idx) => (
-              <React.Fragment key={idx}>
-                {idx > 0 && <div style={{ margin: '12px 0' }} />}
-                <Latex block math={f} />
-              </React.Fragment>
-            ))}
-          </MathBlock>
-        </div>
-
-        {/* Variables Table */}
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '10px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Variables Breakdown
-          </h3>
-          <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', width: '25%', color: 'var(--text-muted)', fontWeight: '600' }}>Symbol</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--text-muted)', fontWeight: '600' }}>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.variables.map((v, idx) => (
-                  <tr key={idx} style={{ borderBottom: idx === data.variables.length - 1 ? 'none' : '1px solid var(--border-color)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: '600', color: data.color }}>
-                      <Latex math={v.symbol} />
-                    </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                      {v.desc}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Practical Example */}
-        <div>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '10px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Step-by-Step Example
-          </h3>
-          <div style={{ padding: '14px 16px', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.82rem', lineHeight: '1.5', color: 'var(--text-secondary)', whiteSpace: 'pre-line', fontFamily: 'var(--font-mono)' }}>
-            {data.example}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
+import LogbookPreview from './components/LogbookPreview';
+import MetricDetailsPage from './components/MetricDetails';
+import { renderMetricTooltip } from './components/Tooltips';
+import { solveBezierY, getBezierCurveData } from './components/helpers';
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
@@ -1052,11 +365,13 @@ export default function App() {
       muscles: Object.entries(ex.muscles_distr).map(([m, p]) => ({
         name: m,
         percentage: typeof p === 'number' ? Math.round(p * 100) : Math.round((p.magnitude || 0) * 100),
+        x0: typeof p === 'number' ? 0.0 : (p.x0 ?? 0.0),
         y0: typeof p === 'number' ? 1.0 : (p.y0 ?? 1.0),
         x1: typeof p === 'number' ? 0.33 : (p.x1 ?? 0.33),
         y1: typeof p === 'number' ? 1.0 : (p.y1 ?? 1.0),
         x2: typeof p === 'number' ? 0.66 : (p.x2 ?? 0.66),
         y2: typeof p === 'number' ? 1.0 : (p.y2 ?? 1.0),
+        x3: typeof p === 'number' ? 1.0 : (p.x3 ?? 1.0),
         y3: typeof p === 'number' ? 1.0 : (p.y3 ?? 1.0)
       }))
     });
@@ -1091,11 +406,13 @@ export default function App() {
     const musclesDistr = {};
     exerciseForm.muscles.forEach(m => {
       musclesDistr[m.name] = {
+        x0: m.x0 ?? 0.0,
         y0: m.y0 ?? 1.0,
         x1: m.x1 ?? 0.33,
         y1: m.y1 ?? 1.0,
         x2: m.x2 ?? 0.66,
         y2: m.y2 ?? 1.0,
+        x3: m.x3 ?? 1.0,
         y3: m.y3 ?? 1.0,
         magnitude: parseFloat((m.percentage / 100).toFixed(3))
       };
@@ -1691,11 +1008,13 @@ export default function App() {
                 }
                 
                 const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
+                const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
                 const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
                 const x1 = typeof distr === 'object' ? (distr.x1 ?? 0.33) : 0.33;
                 const y1 = typeof distr === 'object' ? (distr.y1 ?? 1.0) : 1.0;
                 const x2 = typeof distr === 'object' ? (distr.x2 ?? 0.66) : 0.66;
                 const y2 = typeof distr === 'object' ? (distr.y2 ?? 1.0) : 1.0;
+                const x3 = typeof distr === 'object' ? (distr.x3 ?? 1.0) : 1.0;
                 const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
                 const magnitude = distrVal;
                 
@@ -1703,7 +1022,7 @@ export default function App() {
                 let areaSum = 0;
                 for (let i = 0; i <= resolution; i++) {
                   const x = i / resolution;
-                  const y = solveBezierY(x, y0, x1, y1, x2, y2, y3);
+                  const y = solveBezierY(x, x0, y0, x1, y1, x2, y2, x3, y3);
                   rawY.push(y);
                   areaSum += y;
                 }
@@ -2639,7 +1958,7 @@ export default function App() {
                           Volume
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderVolumeTooltip()}
+                            {renderMetricTooltip('volume')}
                           </span>
                         </span>
                         <span className="metric-value">{totalVolume.toLocaleString()} reps</span>
@@ -2653,7 +1972,7 @@ export default function App() {
                           Tonnage
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderTonnageTooltip()}
+                            {renderMetricTooltip('tonnage')}
                           </span>
                         </span>
                         <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
@@ -2664,7 +1983,7 @@ export default function App() {
                           Effective Tonnage
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderEffectiveTonnageTooltip()}
+                            {renderMetricTooltip('effective-tonnage')}
                           </span>
                         </span>
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
@@ -2675,7 +1994,7 @@ export default function App() {
                           Effective Reps
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderEffectiveRepsTooltip()}
+                            {renderMetricTooltip('effective')}
                           </span>
                         </span>
                         <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
@@ -2686,7 +2005,7 @@ export default function App() {
                           Sets
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderSetsTooltip()}
+                            {renderMetricTooltip('sets')}
                           </span>
                         </span>
                         <span className="metric-value">{totalSets.toLocaleString()} sets</span>
@@ -2697,7 +2016,7 @@ export default function App() {
                           TUT
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderTutTooltip()}
+                            {renderMetricTooltip('tut')}
                           </span>
                         </span>
                         <span className="metric-value">{totalTut.toLocaleString()}s</span>
@@ -2708,7 +2027,7 @@ export default function App() {
                           Effective TUT
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderEffectiveTutTooltip()}
+                            {renderMetricTooltip('effective-tut')}
                           </span>
                         </span>
                         <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
@@ -2719,7 +2038,7 @@ export default function App() {
                           Accumulated Fatigue
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderFatigueTooltip()}
+                            {renderMetricTooltip('fatigue')}
                           </span>
                         </span>
                         <span className="metric-value">{totalFatigue.toLocaleString()}</span>
@@ -3529,7 +2848,7 @@ export default function App() {
                     const defaultPct = Math.max(0, 100 - currentSum);
                     setExerciseForm({
                       ...exerciseForm,
-                      muscles: [...exerciseForm.muscles, { name, percentage: defaultPct, y0: 1, x1: 0.33, y1: 1, x2: 0.66, y2: 1, y3: 1 }]
+                      muscles: [...exerciseForm.muscles, { name, percentage: defaultPct, x0: 0, y0: 1, x1: 0.33, y1: 1, x2: 0.66, y2: 1, x3: 1, y3: 1 }]
                     });
                     setExerciseError('');
                     setMuscleSearch('');

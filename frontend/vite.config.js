@@ -104,55 +104,55 @@ export default defineConfig({
             if (fs.existsSync(analyzerPath)) {
               try {
                 const content = fs.readFileSync(analyzerPath, 'utf-8');
-                const lines = content.split('\n');
+                const startIndex = content.indexOf('exercises_list = [');
+                const endIndex = content.indexOf('\n]', startIndex);
+                const listContent = content.substring(startIndex, endIndex);
+
                 const exercises = [];
-                let insideList = false;
+                const regex = /Exercise\(\s*"([^"]+)"\s*,\s*({[^{}]*(?:{[^{}]*}[^{}]*)*})\s*,\s*([\d.]+)\s*,\s*([\d.]+)(.*?)\)/gs;
 
-                for (let line of lines) {
-                  const trimmed = line.trim();
-                  if (trimmed.includes('exercises_list = [')) {
-                    insideList = true;
-                    continue;
-                  }
-                  if (insideList && trimmed.startsWith(']')) {
-                    insideList = false;
-                    continue;
-                  }
-                  if (insideList) {
-                    const match = trimmed.match(/Exercise\(\s*"([^"]+)"\s*,\s*({[^}]+})\s*,\s*([\d.]+)\s*,\s*([\d.]+)(.*)\)/);
-                    if (match) {
-                      const name = match[1];
-                      let musclesJson = match[2].replace(/'/g, '"');
-                      // Convert BezierProfile(y0, x1, y1, x2, y2, y3, m) back to JSON object string for frontend
-                      musclesJson = musclesJson.replace(/BezierProfile\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '{"y0": $1, "x1": $2, "y1": $3, "x2": $4, "y2": $5, "y3": $6, "magnitude": $7}');
-                      const muscles = JSON.parse(musclesJson);
-                      const fatigue = parseFloat(match[3]);
-                      const load_coeff = parseFloat(match[4]);
-                      const extra = match[5];
+                let match;
+                while ((match = regex.exec(listContent)) !== null) {
+                  const name = match[1];
+                  let musclesJson = match[2].replace(/'/g, '"');
+                  // Remove trailing commas to make it valid JSON
+                  musclesJson = musclesJson.replace(/,\s*}/g, '}');
+                  
+                  try {
+                    // Convert BezierProfile(x0, y0, x1, y1, x2, y2, x3, y3, m) back to JSON object string for frontend
+                    musclesJson = musclesJson.replace(/BezierProfile\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '{"x0": $1, "y0": $2, "x1": $3, "y1": $4, "x2": $5, "y2": $6, "x3": $7, "y3": $8, "magnitude": $9}');
+                    // Handle the legacy 7-argument version just in case
+                    musclesJson = musclesJson.replace(/BezierProfile\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '{"x0": 0.0, "y0": $1, "x1": $2, "y1": $3, "x2": $4, "y2": $5, "x3": 1.0, "y3": $6, "magnitude": $7}');
+                    
+                    const muscles = JSON.parse(musclesJson);
+                    const fatigue = parseFloat(match[3]);
+                    const load_coeff = parseFloat(match[4]);
+                    const extra = match[5];
 
-                      let load_multiplier = 1.0;
-                      let load_offset = 0.0;
-                      let is_isolation = false;
+                    let load_multiplier = 1.0;
+                    let load_offset = 0.0;
+                    let is_isolation = false;
 
-                      const multMatch = extra.match(/load_multiplier\s*=\s*([\d.]+)/);
-                      if (multMatch) load_multiplier = parseFloat(multMatch[1]);
+                    const multMatch = extra.match(/load_multiplier\s*=\s*([\d.]+)/);
+                    if (multMatch) load_multiplier = parseFloat(multMatch[1]);
 
-                      const offsetMatch = extra.match(/load_offset\s*=\s*([\d.]+)/);
-                      if (offsetMatch) load_offset = parseFloat(offsetMatch[1]);
+                    const offsetMatch = extra.match(/load_offset\s*=\s*([\d.]+)/);
+                    if (offsetMatch) load_offset = parseFloat(offsetMatch[1]);
 
-                      const isoMatch = extra.match(/is_isolation\s*=\s*(True|False)/);
-                      if (isoMatch) is_isolation = isoMatch[1] === 'True';
+                    const isoMatch = extra.match(/is_isolation\s*=\s*(True|False)/);
+                    if (isoMatch) is_isolation = isoMatch[1] === 'True';
 
-                      exercises.push({
-                        name,
-                        muscles_distr: muscles,
-                        fatigue,
-                        load_coeff,
-                        load_multiplier,
-                        load_offset,
-                        is_isolation
-                      });
-                    }
+                    exercises.push({
+                      name,
+                      muscles_distr: muscles,
+                      fatigue,
+                      load_coeff,
+                      load_multiplier,
+                      load_offset,
+                      is_isolation
+                    });
+                  } catch(e) {
+                    console.error("Failed to parse exercise", name, e);
                   }
                 }
 
@@ -195,11 +195,11 @@ export default defineConfig({
 
                   const musclesEntries = Object.entries(ex.muscles_distr)
                     .map(([m, p]) => {
-                      if (typeof p === 'object') {
-                        return `"${m}": BezierProfile(${p.y0 ?? 1}, ${p.x1 ?? 0.33}, ${p.y1 ?? 1}, ${p.x2 ?? 0.66}, ${p.y2 ?? 1}, ${p.y3 ?? 1}, ${p.magnitude || 0})`;
-                      } else {
-                        return `"${m}": BezierProfile(1.0, 0.33, 1.0, 0.66, 1.0, 1.0, ${(parseFloat(p) / 100).toFixed(2)})`;
-                      }
+                        if (typeof p === 'object') {
+                          return `"${m}": BezierProfile(${p.x0 ?? 0}, ${p.y0 ?? 1}, ${p.x1 ?? 0.33}, ${p.y1 ?? 1}, ${p.x2 ?? 0.66}, ${p.y2 ?? 1}, ${p.x3 ?? 1}, ${p.y3 ?? 1}, ${p.magnitude || 0})`;
+                        } else {
+                          return `"${m}": BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, ${(parseFloat(p) / 100).toFixed(2)})`;
+                        }
                     })
                     .join(', ');
                   const musclesStr = `{${musclesEntries}}`;

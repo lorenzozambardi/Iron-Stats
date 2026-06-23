@@ -3,24 +3,48 @@
     "name": "Squat",
     "muscles_distr": {
       "Quadriceps": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.5
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.4,
+        "y1": 0.9,
+        "x2": 0.7,
+        "y2": 0.5,
+        "x3": 0.9,
+        "y3": 0.1,
+        "magnitude": 0.45
       },
-      "Glutes": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+      "Gluteus Maximus": {
+        "x0": 0.2,
+        "y0": 1.0,
+        "x1": 0.5,
+        "y1": 0.9,
+        "x2": 0.7,
+        "y2": 0.5,
+        "x3": 0.9,
+        "y3": 0.1,
+        "magnitude": 0.35
       },
       "Adductors": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.2,
+        "y0": 1.0,
+        "x1": 0.4,
+        "y1": 0.8,
+        "x2": 0.6,
+        "y2": 0.4,
+        "x3": 0.9,
+        "y3": 0.0,
+        "magnitude": 0.15
       },
       "Erectors": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.2,
+        "y0": 0.8,
+        "x1": 0.4,
+        "y1": 0.7,
+        "x2": 0.7,
+        "y2": 0.5,
+        "x3": 0.9,
+        "y3": 0.2,
+        "magnitude": 0.05
       }
     },
     "fatigue": 9.5,
