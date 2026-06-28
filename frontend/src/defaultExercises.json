@@ -5,45 +5,45 @@
       "Quadriceps": {
         "x0": 0.1,
         "y0": 1.0,
-        "x1": 0.4,
+        "x1": 0.33,
         "y1": 0.9,
-        "x2": 0.7,
+        "x2": 0.66,
         "y2": 0.5,
         "x3": 0.9,
         "y3": 0.1,
         "magnitude": 0.45
       },
-      "Gluteus Maximus": {
-        "x0": 0.2,
+      "Glutes": {
+        "x0": 0.1,
         "y0": 1.0,
-        "x1": 0.5,
+        "x1": 0.33,
         "y1": 0.9,
-        "x2": 0.7,
+        "x2": 0.66,
         "y2": 0.5,
-        "x3": 0.9,
+        "x3": 0.8,
         "y3": 0.1,
         "magnitude": 0.35
       },
       "Adductors": {
         "x0": 0.2,
         "y0": 1.0,
-        "x1": 0.4,
-        "y1": 0.8,
-        "x2": 0.6,
-        "y2": 0.4,
-        "x3": 0.9,
-        "y3": 0.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.7,
+        "y3": 0.1,
         "magnitude": 0.15
       },
       "Erectors": {
-        "x0": 0.2,
-        "y0": 0.8,
-        "x1": 0.4,
-        "y1": 0.7,
-        "x2": 0.7,
+        "x0": 0.4,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
         "y2": 0.5,
-        "x3": 0.9,
-        "y3": 0.2,
+        "x3": 0.6,
+        "y3": 0.1,
         "magnitude": 0.05
       }
     },
@@ -57,19 +57,48 @@
     "name": "Leg Press 45",
     "muscles_distr": {
       "Quadriceps": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.9,
+        "y3": 0.1,
+        "magnitude": 0.45
       },
       "Glutes": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.35
       },
       "Adductors": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.2,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.7,
+        "y3": 0.1,
+        "magnitude": 0.15
+      },
+      "Erectors": {
+        "x0": 0.4,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.6,
+        "y3": 0.1,
+        "magnitude": 0.05
       }
     },
     "fatigue": 8.0,
@@ -82,9 +111,15 @@
     "name": "Sissy Squat",
     "muscles_distr": {
       "Quadriceps": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 1
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.9,
+        "y3": 0.1,
+        "magnitude": 1.0
       }
     },
     "fatigue": 5.0,
@@ -94,126 +129,28 @@
     "is_isolation": true
   },
   {
-    "name": "RDL",
-    "muscles_distr": {
-      "Hamstrings": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
-      },
-      "Glutes": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
-      },
-      "Erectors": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      }
-    },
-    "fatigue": 8.5,
-    "load_coeff": 0.3,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": false
-  },
-  {
-    "name": "Leg Curl",
-    "muscles_distr": {
-      "Hamstrings": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 1
-      }
-    },
-    "fatigue": 4.0,
-    "load_coeff": 0.8,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": true
-  },
-  {
-    "name": "Leg Extension",
-    "muscles_distr": {
-      "Quadriceps": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 1
-      }
-    },
-    "fatigue": 4.0,
-    "load_coeff": 0.8,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": true
-  },
-  {
-    "name": "Stiff Leg Deadlift",
-    "muscles_distr": {
-      "Hamstrings": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
-      },
-      "Glutes": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
-      },
-      "Erectors": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      }
-    },
-    "fatigue": 9.0,
-    "load_coeff": 0.25,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": false
-  },
-  {
-    "name": "Deadlift",
-    "muscles_distr": {
-      "Glutes": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.4
-      },
-      "Hamstrings": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
-      },
-      "Erectors": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
-      },
-      "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      }
-    },
-    "fatigue": 10.0,
-    "load_coeff": 0.1,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": false
-  },
-  {
     "name": "Hack Squat",
     "muscles_distr": {
       "Quadriceps": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.9,
+        "y3": 0.1,
         "magnitude": 0.7
       },
       "Glutes": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.3
       }
     },
@@ -227,23 +164,69 @@
     "name": "Flat Barbell Bench",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.1
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.15
       },
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
         "magnitude": 0.1
       }
     },
@@ -257,23 +240,69 @@
     "name": "20 Barbell Bench",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
-      },
-      "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.1
       },
+      "Anterior Deltoid": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.15
+      },
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
         "magnitude": 0.1
       }
     },
@@ -286,24 +315,70 @@
   {
     "name": "32 Barbell Bench",
     "muscles_distr": {
-      "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+      "Clavicular Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.4
       },
-      "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.4
+      "Sternal Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
       },
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
         "magnitude": 0.1
       }
     },
@@ -317,19 +392,70 @@
     "name": "45 Barbell Bench",
     "muscles_distr": {
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.4
       },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 7.5,
@@ -342,19 +468,70 @@
     "name": "Flat DB Bench",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.75
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.1
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.15
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 7.0,
@@ -367,18 +544,69 @@
     "name": "20 DB Bench",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.1
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.15
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
         "magnitude": 0.1
       }
     },
@@ -392,19 +620,70 @@
     "name": "32 DB Bench",
     "muscles_distr": {
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.5
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.4
       },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 6.8,
@@ -417,19 +696,70 @@
     "name": "45 DB Bench",
     "muscles_distr": {
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.4
       },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 6.5,
@@ -442,18 +772,69 @@
     "name": "Chest Press",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.1
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.15
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
         "magnitude": 0.1
       }
     },
@@ -467,19 +848,70 @@
     "name": "Flat SM Bench",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.15
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.1
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.15
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 6.5,
@@ -492,19 +924,70 @@
     "name": "20 SM Bench",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.5
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.25
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.1
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.15
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 6.4,
@@ -517,19 +1000,70 @@
     "name": "32 SM Bench",
     "muscles_distr": {
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.5
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.4
       },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 6.3,
@@ -542,19 +1076,70 @@
     "name": "45 SM Bench",
     "muscles_distr": {
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.65
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.4
       },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.15
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
       },
       "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
     "fatigue": 6.2,
@@ -564,20 +1149,334 @@
     "is_isolation": false
   },
   {
-    "name": "Pec Deck",
+    "name": "30 SM Press",
     "muscles_distr": {
-      "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
-      },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.4
+      },
+      "Sternal Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
         "magnitude": 0.2
+      },
+      "Anterior Deltoid": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.2
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
       }
     },
-    "fatigue": 3.5,
+    "fatigue": 6.3,
+    "load_coeff": 0.55,
+    "load_multiplier": 2.0,
+    "load_offset": 20.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Machine Press",
+    "muscles_distr": {
+      "Anterior Deltoid": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.6
+      },
+      "Lateral Deltoid": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Clavicular Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 0.8,
+        "y3": 0.1,
+        "magnitude": 0.1
+      },
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.05
+      },
+      "Medial Head": {
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.5,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 6.5,
+    "load_coeff": 0.55,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "RDL",
+    "muscles_distr": {
+      "Hamstrings": {
+        "x0": 0.0,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.7,
+        "y3": 0.1,
+        "magnitude": 0.6
+      },
+      "Glutes": {
+        "x0": 0.2,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.3
+      },
+      "Erectors": {
+        "x0": 0.4,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.6,
+        "y3": 0.1,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 8.5,
+    "load_coeff": 0.3,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Stiff Leg Deadlift",
+    "muscles_distr": {
+      "Hamstrings": {
+        "x0": 0.0,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.7,
+        "y3": 0.1,
+        "magnitude": 0.6
+      },
+      "Glutes": {
+        "x0": 0.2,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.3
+      },
+      "Erectors": {
+        "x0": 0.4,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.6,
+        "y3": 0.1,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 9.0,
+    "load_coeff": 0.25,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Deadlift",
+    "muscles_distr": {
+      "Glutes": {
+        "x0": 0.2,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 1.0,
+        "y3": 0.1,
+        "magnitude": 0.4
+      },
+      "Hamstrings": {
+        "x0": 0.0,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.7,
+        "y3": 0.1,
+        "magnitude": 0.3
+      },
+      "Erectors": {
+        "x0": 0.4,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.6,
+        "y3": 0.1,
+        "magnitude": 0.2
+      },
+      "Latissimus Dorsi": {
+        "x0": 0.4,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.6,
+        "y3": 0.1,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 10.0,
+    "load_coeff": 0.1,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": false
+  },
+  {
+    "name": "Leg Curl",
+    "muscles_distr": {
+      "Hamstrings": {
+        "x0": 0.1,
+        "y0": 0.5,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.9,
+        "y3": 0.3,
+        "magnitude": 1.0
+      }
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Leg Extension",
+    "muscles_distr": {
+      "Quadriceps": {
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.7,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.9,
+        "magnitude": 1.0
+      }
+    },
+    "fatigue": 4.0,
     "load_coeff": 0.8,
     "load_multiplier": 1.0,
     "load_offset": 0.0,
@@ -587,13 +1486,25 @@
     "name": "DB Flies",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.0,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.7,
+        "x2": 0.66,
+        "y2": 0.2,
+        "x3": 0.7,
+        "y3": 0.0,
         "magnitude": 0.7
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.0,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.7,
+        "x2": 0.66,
+        "y2": 0.2,
+        "x3": 0.7,
+        "y3": 0.0,
         "magnitude": 0.3
       }
     },
@@ -604,17 +1515,61 @@
     "is_isolation": true
   },
   {
+    "name": "Pec Deck",
+    "muscles_distr": {
+      "Sternal Head": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.7
+      },
+      "Clavicular Head": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.3
+      }
+    },
+    "fatigue": 3.5,
+    "load_coeff": 0.8,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
     "name": "High Cable Flies",
     "muscles_distr": {
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.7
       },
       "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.3
       }
     },
     "fatigue": 3.5,
@@ -626,15 +1581,27 @@
   {
     "name": "Low Cable Flies",
     "muscles_distr": {
-      "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
-      },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.7
+      },
+      "Clavicular Head": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.3
       }
     },
     "fatigue": 3.5,
@@ -644,42 +1611,29 @@
     "is_isolation": true
   },
   {
-    "name": "30 SM Press",
-    "muscles_distr": {
-      "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.5
-      },
-      "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
-      },
-      "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
-      }
-    },
-    "fatigue": 6.3,
-    "load_coeff": 0.55,
-    "load_multiplier": 2.0,
-    "load_offset": 20.0,
-    "is_isolation": false
-  },
-  {
     "name": "Incl Cable Flies",
     "muscles_distr": {
-      "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
-      },
       "Sternal Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.7
+      },
+      "Clavicular Head": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.3
       }
     },
     "fatigue": 3.5,
@@ -692,24 +1646,70 @@
     "name": "Lat Machine",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.6
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.1
       },
       "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.1
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
         "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 6.0,
@@ -722,24 +1722,70 @@
     "name": "Lat Machine Alternative",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.6
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.05
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.1
       },
       "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.05
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.1
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
         "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 6.0,
@@ -752,24 +1798,70 @@
     "name": "Wide Pulley",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.4
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
       },
       "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.2
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
         "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 6.5,
@@ -782,24 +1874,70 @@
     "name": "Close Pulley",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
-      },
-      "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.2
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.4
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
+      },
+      "Lower Trapezius and Rhomboids": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
         "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 6.0,
@@ -812,19 +1950,70 @@
     "name": "SA Pulley",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.4
+      },
+      "Upper and Mid Trapezius": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
       },
       "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.2
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
         "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 5.5,
@@ -837,24 +2026,70 @@
     "name": "T-Bar",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.4
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
-      },
-      "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.2
       },
-      "Erectors": {
-        "alpha": 1.0,
-        "beta": 1.0,
+      "Lower Trapezius and Rhomboids": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
+      },
+      "Biceps Brachii": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
         "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 8.0,
@@ -867,19 +2102,70 @@
     "name": "Machine T-Bar",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.4
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
       },
       "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.3
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.2
+      },
+      "Biceps Brachii": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
+      },
+      "Brachioradialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.05
       }
     },
     "fatigue": 6.5,
@@ -889,32 +2175,29 @@
     "is_isolation": false
   },
   {
-    "name": "Pullover",
-    "muscles_distr": {
-      "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 1
-      }
-    },
-    "fatigue": 4.5,
-    "load_coeff": 0.75,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": true
-  },
-  {
     "name": "SA Cable Pulldown",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.9
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.8
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.2
       }
     },
     "fatigue": 4.5,
@@ -927,14 +2210,26 @@
     "name": "SA Machine Pulldown",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.9
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
+        "magnitude": 0.8
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.2
       }
     },
     "fatigue": 5.0,
@@ -947,18 +2242,47 @@
     "name": "Chin-Ups",
     "muscles_distr": {
       "Latissimus Dorsi": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.4
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.5
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.4
+      },
+      "Brachialis": {
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 0.8,
+        "y3": 1.0,
+        "magnitude": 0.1
       },
       "Lower Trapezius and Rhomboids": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.4,
+        "x1": 0.33,
+        "y1": 0.6,
+        "x2": 0.66,
+        "y2": 0.9,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 0.1
       }
     },
@@ -969,16 +2293,81 @@
     "is_isolation": false
   },
   {
+    "name": "Pullover",
+    "muscles_distr": {
+      "Latissimus Dorsi": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.5,
+        "y3": 0.8,
+        "magnitude": 1.0
+      }
+    },
+    "fatigue": 4.5,
+    "load_coeff": 0.75,
+    "load_multiplier": 1.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
     "name": "LR",
     "muscles_distr": {
       "Lateral Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.0,
+        "x1": 0.33,
+        "y1": 0.3,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
         "magnitude": 0.9
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.2,
+        "y0": 0.0,
+        "x1": 0.33,
+        "y1": 0.3,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 3.0,
+    "load_coeff": 0.9,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "LR 49",
+    "muscles_distr": {
+      "Lateral Deltoid": {
+        "x0": 0.2,
+        "y0": 0.0,
+        "x1": 0.33,
+        "y1": 0.3,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
+        "magnitude": 0.9
+      },
+      "Upper and Mid Trapezius": {
+        "x0": 0.2,
+        "y0": 0.0,
+        "x1": 0.33,
+        "y1": 0.3,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
         "magnitude": 0.1
       }
     },
@@ -992,13 +2381,25 @@
     "name": "LRC",
     "muscles_distr": {
       "Lateral Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
         "magnitude": 0.9
       },
       "Upper and Mid Trapezius": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
         "magnitude": 0.1
       }
     },
@@ -1009,42 +2410,18 @@
     "is_isolation": true
   },
   {
-    "name": "Machine Press",
-    "muscles_distr": {
-      "Anterior Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.7
-      },
-      "Lateral Deltoid": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      },
-      "Clavicular Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      },
-      "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      }
-    },
-    "fatigue": 6.5,
-    "load_coeff": 0.55,
-    "load_multiplier": 1.0,
-    "load_offset": 0.0,
-    "is_isolation": false
-  },
-  {
     "name": "Shoulder Extra-Rotations",
     "muscles_distr": {
       "Rotator Cuff": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 1
+        "x0": 0.1,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.8,
+        "magnitude": 1.0
       }
     },
     "fatigue": 2.0,
@@ -1057,18 +2434,36 @@
     "name": "45 Incl Curl",
     "muscles_distr": {
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.8
       },
       "Brachialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.1
       },
       "Brachioradialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.1
       }
     },
@@ -1082,18 +2477,36 @@
     "name": "49 Incl Curl",
     "muscles_distr": {
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.8
       },
       "Brachialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.1
       },
       "Brachioradialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.1
       }
     },
@@ -1106,19 +2519,37 @@
   {
     "name": "DB Hammer",
     "muscles_distr": {
-      "Brachioradialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.5
+      "Biceps Brachii": {
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
+        "magnitude": 0.8
       },
       "Brachialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.4
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
+        "magnitude": 0.1
       },
-      "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+      "Brachioradialis": {
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
         "magnitude": 0.1
       }
     },
@@ -1129,16 +2560,71 @@
     "is_isolation": true
   },
   {
+    "name": "EZ-Bar Curl",
+    "muscles_distr": {
+      "Biceps Brachii": {
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
+        "magnitude": 0.8
+      },
+      "Brachialis": {
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
+        "magnitude": 0.1
+      },
+      "Brachioradialis": {
+        "x0": 0.1,
+        "y0": 0.3,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 0.9,
+        "y3": 0.4,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 5.0,
+    "load_coeff": 0.7,
+    "load_multiplier": 2.0,
+    "load_offset": 8.0,
+    "is_isolation": true
+  },
+  {
     "name": "Preacher Curl",
     "muscles_distr": {
       "Brachialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.9,
+        "y3": 0.1,
         "magnitude": 0.6
       },
       "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.9,
+        "y3": 0.1,
         "magnitude": 0.4
       }
     },
@@ -1149,21 +2635,125 @@
     "is_isolation": true
   },
   {
+    "name": "Reverse Scott DB Curl",
+    "muscles_distr": {
+      "Biceps Brachii": {
+        "x0": 0.1,
+        "y0": 0.1,
+        "x1": 0.33,
+        "y1": 0.4,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
+        "magnitude": 0.8
+      },
+      "Brachialis": {
+        "x0": 0.1,
+        "y0": 0.1,
+        "x1": 0.33,
+        "y1": 0.4,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
+        "magnitude": 0.1
+      },
+      "Brachioradialis": {
+        "x0": 0.1,
+        "y0": 0.1,
+        "x1": 0.33,
+        "y1": 0.4,
+        "x2": 0.66,
+        "y2": 0.8,
+        "x3": 0.9,
+        "y3": 1.0,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 4.0,
+    "load_coeff": 0.8,
+    "load_multiplier": 2.0,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
+    "name": "Bayesian Curl SA",
+    "muscles_distr": {
+      "Biceps Brachii": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.8
+      },
+      "Brachioradialis": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.1
+      },
+      "Brachialis": {
+        "x0": 0.0,
+        "y0": 0.8,
+        "x1": 0.33,
+        "y1": 1.0,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.8,
+        "magnitude": 0.1
+      }
+    },
+    "fatigue": 3.0,
+    "load_coeff": 0.9,
+    "load_multiplier": 0.5,
+    "load_offset": 0.0,
+    "is_isolation": true
+  },
+  {
     "name": "Cable French Press",
     "muscles_distr": {
       "Long Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.6,
+        "x3": 1.0,
+        "y3": 0.3,
         "magnitude": 0.7
       },
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.6,
+        "x3": 1.0,
+        "y3": 0.3,
         "magnitude": 0.15
       },
       "Medial Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.6,
+        "x3": 1.0,
+        "y3": 0.3,
         "magnitude": 0.15
       }
     },
@@ -1177,18 +2767,36 @@
     "name": "Incl Cable Pushdown",
     "muscles_distr": {
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
         "magnitude": 0.4
       },
       "Medial Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
         "magnitude": 0.4
       },
       "Long Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
         "magnitude": 0.2
       }
     },
@@ -1202,18 +2810,36 @@
     "name": "Bench 54 Pushdown",
     "muscles_distr": {
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
         "magnitude": 0.4
       },
       "Medial Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
         "magnitude": 0.4
       },
       "Long Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
         "magnitude": 0.2
       }
     },
@@ -1226,20 +2852,38 @@
   {
     "name": "Low Cable Triceps",
     "muscles_distr": {
-      "Long Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
+      "Lateral Head": {
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
+        "magnitude": 0.4
       },
       "Medial Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
+        "magnitude": 0.4
       },
-      "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
+      "Long Head": {
+        "x0": 0.1,
+        "y0": 0.6,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 1.0,
+        "x3": 1.0,
+        "y3": 0.9,
+        "magnitude": 0.2
       }
     },
     "fatigue": 3.5,
@@ -1252,18 +2896,36 @@
     "name": "Bench 54 Triceps",
     "muscles_distr": {
       "Long Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.6,
+        "x3": 1.0,
+        "y3": 0.3,
         "magnitude": 0.7
       },
       "Lateral Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.6,
+        "x3": 1.0,
+        "y3": 0.3,
         "magnitude": 0.15
       },
       "Medial Head": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.1,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.9,
+        "x2": 0.66,
+        "y2": 0.6,
+        "x3": 1.0,
+        "y3": 0.3,
         "magnitude": 0.15
       }
     },
@@ -1274,61 +2936,17 @@
     "is_isolation": true
   },
   {
-    "name": "EZ-Bar Curl",
-    "muscles_distr": {
-      "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.6
-      },
-      "Brachioradialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.25
-      },
-      "Brachialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.15
-      }
-    },
-    "fatigue": 5.0,
-    "load_coeff": 0.7,
-    "load_multiplier": 2.0,
-    "load_offset": 8.0,
-    "is_isolation": true
-  },
-  {
-    "name": "Bayesian Curl SA",
-    "muscles_distr": {
-      "Biceps Brachii": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.8
-      },
-      "Brachioradialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      },
-      "Brachialis": {
-        "alpha": 1.0,
-        "beta": 1.0,
-        "magnitude": 0.1
-      }
-    },
-    "fatigue": 3.0,
-    "load_coeff": 0.9,
-    "load_multiplier": 0.5,
-    "load_offset": 0.0,
-    "is_isolation": true
-  },
-  {
     "name": "Dragon Flag Raises",
     "muscles_distr": {
       "Abdominals": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.0,
+        "y0": 1.0,
+        "x1": 0.33,
+        "y1": 0.8,
+        "x2": 0.66,
+        "y2": 0.4,
+        "x3": 0.8,
+        "y3": 0.2,
         "magnitude": 1.0
       }
     },
@@ -1342,8 +2960,14 @@
     "name": "Hanging Leg Raises",
     "muscles_distr": {
       "Abdominals": {
-        "alpha": 1.0,
-        "beta": 1.0,
+        "x0": 0.3,
+        "y0": 0.0,
+        "x1": 0.33,
+        "y1": 0.3,
+        "x2": 0.66,
+        "y2": 0.7,
+        "x3": 1.0,
+        "y3": 1.0,
         "magnitude": 1.0
       }
     },
