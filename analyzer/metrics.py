@@ -4,6 +4,8 @@ from .constants import COEFF_ASSISTED, COEFF_PARTIAL, MUSCLES
 from .models import WorkoutExercise
 
 
+import numpy as np
+
 def calculate_set_tuts(
     base_reps: int,
     assisted_reps: int,
@@ -13,41 +15,27 @@ def calculate_set_tuts(
     shortening_pause: float,
     eccentric: float,
     lengthening_pause: float,
-) -> List[float]:
-    tuts = []
+) -> Union[List[float], np.ndarray]:
+    if (base_reps + assisted_reps + partial_reps) == 0:
+        return np.array([])
 
-    # 1. Base reps
-    for j in range(base_reps):
+    base_tuts = np.array([])
+    if base_reps > 0:
+        j = np.arange(base_reps)
         rir = (10.0 - rpe) + (base_reps - 1 - j)
-        if rir >= 5.0:
-            slowdown = 0.0
-        elif rir >= 4.0:
-            slowdown = 0.15
-        elif rir >= 3.0:
-            slowdown = 0.35
-        elif rir >= 2.0:
-            slowdown = 0.60
-        elif rir >= 1.0:
-            slowdown = 1.00
-        else:
-            slowdown = 1.60
+        slowdown = np.zeros(base_reps)
+        slowdown[rir < 1.0] = 1.60
+        slowdown[(rir >= 1.0) & (rir < 2.0)] = 1.00
+        slowdown[(rir >= 2.0) & (rir < 3.0)] = 0.60
+        slowdown[(rir >= 3.0) & (rir < 4.0)] = 0.35
+        slowdown[(rir >= 4.0) & (rir < 5.0)] = 0.15
+        base_tuts = concentric + slowdown + shortening_pause + eccentric + lengthening_pause
 
-        rep_tut = (
-            (concentric + slowdown) + shortening_pause + eccentric + lengthening_pause
-        )
-        tuts.append(rep_tut)
+    base_rep_tut = concentric + shortening_pause + eccentric + lengthening_pause
+    ass_tuts = np.full(assisted_reps, base_rep_tut) if assisted_reps > 0 else np.array([])
+    part_tuts = np.full(partial_reps, 0.5 * base_rep_tut) if partial_reps > 0 else np.array([])
 
-    # 2. Assisted reps
-    for j in range(assisted_reps):
-        rep_tut = concentric + shortening_pause + eccentric + lengthening_pause
-        tuts.append(rep_tut)
-
-    # 3. Partial reps
-    for j in range(partial_reps):
-        rep_tut = 0.5 * (concentric + shortening_pause + eccentric + lengthening_pause)
-        tuts.append(rep_tut)
-
-    return tuts
+    return np.concatenate([base_tuts, ass_tuts, part_tuts])
 
 
 def calculate_set_fatigue(
@@ -61,11 +49,11 @@ def calculate_set_fatigue(
     lengthening_pause: float,
     fatigue: float,
     load_coeff: float,
-    tuts: Optional[List[float]] = None,
+    tuts: Optional[Union[List[float], np.ndarray]] = None,
 ) -> float:
     actual_tuts = (
-        tuts
-        if tuts is not None
+        np.asarray(tuts)
+        if tuts is not None and len(tuts) > 0
         else calculate_set_tuts(
             base_reps,
             assisted_reps,
@@ -77,42 +65,34 @@ def calculate_set_fatigue(
             lengthening_pause,
         )
     )
+    
     total_fat = 0.0
 
-    # 1. Base reps
-    for j in range(base_reps):
-        if j >= len(actual_tuts):
-            break
-        rep_tut = actual_tuts[j]
+    if base_reps > 0 and len(actual_tuts) > 0:
+        n_base = min(base_reps, len(actual_tuts))
+        j = np.arange(n_base)
         if rpe > 0:
             rir = (10.0 - rpe) + (base_reps - 1 - j)
-            rep_rpe = max(0.0, 10.0 - rir)
-            rpe_mult = (1.1 ** (rep_rpe - 7.5)) if rep_rpe > 0 else 1.0
+            rep_rpe = np.maximum(0.0, 10.0 - rir)
+            rpe_mult = np.where(rep_rpe > 0, 1.1 ** (rep_rpe - 7.5), 1.0)
         else:
-            rpe_mult = 1.0
-        total_fat += rep_tut * rpe_mult * fatigue * load_coeff
+            rpe_mult = np.ones(n_base)
+        
+        total_fat += np.sum(actual_tuts[:n_base] * rpe_mult) * fatigue * load_coeff
 
-    # 2. Assisted reps
-    for j in range(assisted_reps):
-        idx = base_reps + j
-        if idx >= len(actual_tuts):
-            break
-        rep_tut = actual_tuts[idx]
+    if assisted_reps > 0 and len(actual_tuts) > base_reps:
+        n_ass = min(assisted_reps, len(actual_tuts) - base_reps)
         rep_rpe = 7.0
         rpe_mult = 1.1 ** (rep_rpe - 7.5)
-        total_fat += rep_tut * rpe_mult * fatigue * load_coeff * COEFF_ASSISTED
+        total_fat += np.sum(actual_tuts[base_reps : base_reps + n_ass]) * rpe_mult * fatigue * load_coeff * COEFF_ASSISTED
 
-    # 3. Partial reps
-    for j in range(partial_reps):
-        idx = base_reps + assisted_reps + j
-        if idx >= len(actual_tuts):
-            break
-        rep_tut = actual_tuts[idx]
-        rep_rpe = 7.5
+    if partial_reps > 0 and len(actual_tuts) > base_reps + assisted_reps:
+        start_idx = base_reps + assisted_reps
+        n_part = min(partial_reps, len(actual_tuts) - start_idx)
         rpe_mult = 1.0
-        total_fat += rep_tut * rpe_mult * fatigue * load_coeff * (COEFF_PARTIAL / 0.5)
+        total_fat += np.sum(actual_tuts[start_idx : start_idx + n_part]) * rpe_mult * fatigue * load_coeff * (COEFF_PARTIAL / 0.5)
 
-    return total_fat
+    return float(total_fat)
 
 
 def calculate_metrics(
@@ -157,40 +137,42 @@ def calculate_metrics(
         for w_data in w_ex.weeks:
             if target_week and w_data.week_num != target_week:
                 continue
-            vol, ton, eff_ton, total_fat, total_tut, effective_tut, sets_count = (
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-            )
-            for s in w_data.sets:
-                tot_reps = s.total_reps * distr_sum
-                eff_reps = s.effective_reps * distr_sum
-                vol += tot_reps
-                actual_load = (s.load * ex.load_multiplier) + ex.load_offset
-                ton += actual_load * tot_reps
-                eff_ton += actual_load * eff_reps
-                set_fat = calculate_set_fatigue(
-                    base_reps=s.base_reps,
-                    assisted_reps=s.assisted_reps,
-                    partial_reps=s.partial_reps,
-                    rpe=s.rpe,
-                    concentric=w_ex.concentric,
-                    shortening_pause=w_ex.shortening_pause,
-                    eccentric=w_ex.eccentric,
-                    lengthening_pause=w_ex.lengthening_pause,
-                    fatigue=ex.fatigue,
-                    load_coeff=ex.load_coeff,
-                    tuts=s.tuts,
-                )
-                total_fat += set_fat * distr_sum
-                total_tut += s.total_tut * distr_sum
-                effective_tut += s.effective_tut * distr_sum
-                sets_count += 1.0 * distr_sum
+            
+            if not w_data.sets:
+                continue
+
+            n_sets = len(w_data.sets)
+            tot_reps_arr = np.array([s.total_reps for s in w_data.sets]) * distr_sum
+            eff_reps_arr = np.array([s.effective_reps for s in w_data.sets]) * distr_sum
+            actual_load_arr = np.array([(s.load * ex.load_multiplier) + ex.load_offset for s in w_data.sets])
+            
+            vol = float(np.sum(tot_reps_arr))
+            
             if vol > 0:
+                ton = float(np.sum(actual_load_arr * tot_reps_arr))
+                eff_ton = float(np.sum(actual_load_arr * eff_reps_arr))
+                
+                total_fat = sum(
+                    calculate_set_fatigue(
+                        base_reps=s.base_reps,
+                        assisted_reps=s.assisted_reps,
+                        partial_reps=s.partial_reps,
+                        rpe=s.rpe,
+                        concentric=w_ex.concentric,
+                        shortening_pause=w_ex.shortening_pause,
+                        eccentric=w_ex.eccentric,
+                        lengthening_pause=w_ex.lengthening_pause,
+                        fatigue=ex.fatigue,
+                        load_coeff=ex.load_coeff,
+                        tuts=s.tuts,
+                    )
+                    for s in w_data.sets
+                ) * distr_sum
+                
+                total_tut = sum(s.total_tut for s in w_data.sets) * distr_sum
+                effective_tut = sum(s.effective_tut for s in w_data.sets) * distr_sum
+                sets_count = n_sets * distr_sum
+                
                 results.append(
                     {
                         "Session": w_ex.session,

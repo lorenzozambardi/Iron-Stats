@@ -1,0 +1,96 @@
+# 1
+
+20 SM Bench | 3' | 1-1-3-1, ultime mezze rep
+42..6+2.35..6+2
+
+Low Cable Flies | 2' | 1-0-2-1, ultime mezze rep
+30..6+2.25..6+2
+
+Lat Machine Alternative | 2'30" | 1-1-3-1
+135..6+3
+
+Machine Shoulder Press | 2'30" | 1-0-2-1, ultime mezze rep
+85..6+2.75..6+2
+
+LRC | 1'30" | 1-0-1-0, ultime mezze rep
+30..6+2.25..6+2.20..6+2
+
+Cable French Press | 2' | 1-1-3-0
+65..6+2
+
+# 2
+
+Squat | 3' | 1-1-2-1, ultime mezze rep
+130..6+4.120..6+4
+
+Sissy Squat | 2'30" | 1-1-2-1
+140..6
+
+Leg Extension | 2'30" | 1-0-2-0
+65..6+3
+
+LRC | 1'30" | 1-0-1-0, ultime mezze rep
+30..6+2.25..6+2
+
+Preacher Curl | 2' | 1-0-2-0
+20..6.16..6
+
+DB Hammer | 1'30" | 1-0-2-0, ultime mezze rep
+20..6+2
+
+# 3
+
+Machine T-Bar | 2'40" | 1-1-2-1, ultime mezze rep
+80..6+2.70..6+2
+
+Lat Machine | 2'30" | 1-1-3-1, ultime mezze rep
+115..6+2.105..6+2
+
+SA Cable Pulldown | 2' | 1-1-3-1, ultime mezze rep
+130..6+3.115..6+3
+
+49 Incl Curl | 2' | 1-0-2-0, ultime mezze rep
+18..6+2.16..6+2.14..6+2
+
+Dragon Flag Raises | 2' | 1-0-1-0
+90..6.80..6
+
+# 4
+
+45 SM Bench | 2'40" | 1-1-3-1, ultime mezze rep
+37..6+4.32..6+4
+
+DB Flies | 2' | 1-1-2-1, ultime mezze rep
+28..6+2.24..6+2.20..6+2
+
+Pec Deck | 2' | 1-1-2-1
+75..6
+
+LR | 1'30" | 1-0-1-0, ultime mezze rep
+27..6+2.22..6+2.20..6+2
+
+Bench 54 Pushdown | 2' | 1-0-3-0, ultime mezze rep
+40..6+4.35..6+4
+
+Cable French Press | 1'30" | 1-0-3-0, ultime mezze rep
+60..6+2
+
+# 5
+
+RDL | 3' | 1-0-2-1, ultime mezze rep
+170..6+4.160..6+4
+
+Leg Curl | 2' | 1-0-2-1, ultime mezze rep
+60..6+3
+
+Close Pulley | 2'30" | 1-1-2-1, ultime mezze rep
+85..6+2.75..6+2
+
+Low Cable Triceps | 2' | 1-0-3-0, ultime mezze rep
+45..6+4.35..6+4
+
+Hanging Leg Raises | 2' | 1-0-1-0
+40..6.35..6
+
+Pullover | 2' | 1-1-2-1
+75..6.65..6

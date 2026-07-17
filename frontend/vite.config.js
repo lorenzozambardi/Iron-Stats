@@ -17,12 +17,12 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           const urlObj = new URL(req.url, 'http://localhost');
           const analyzerPath = path.resolve(__dirname, '../analyzer/models.py');
-          const parentDir = path.resolve(__dirname, '../');
+          const examplesDir = path.resolve(__dirname, '../examples');
 
           if (urlObj.pathname === '/api/logbook') {
             const programName = urlObj.searchParams.get('program') || 'S1M3';
             const cleanProgramName = programName.replace(/[^a-zA-Z0-9_-]/g, '');
-            const logbookPath = path.resolve(parentDir, `${cleanProgramName}.md`);
+            const logbookPath = path.resolve(examplesDir, `${cleanProgramName}.md`);
 
             if (req.method === 'GET') {
               if (fs.existsSync(logbookPath)) {
@@ -53,7 +53,7 @@ export default defineConfig({
           if (urlObj.pathname === '/api/programs') {
             if (req.method === 'GET') {
               try {
-                const files = fs.readdirSync(parentDir);
+                const files = fs.readdirSync(examplesDir);
                 const programs = files
                   .filter(file => file.endsWith('.md'))
                   .map(file => path.basename(file, '.md'))
@@ -78,16 +78,16 @@ export default defineConfig({
                     res.end(JSON.stringify({ error: 'Invalid program name' }));
                     return;
                   }
-                  const newPath = path.resolve(parentDir, `${name}.md`);
+                  const newPath = path.resolve(examplesDir, `${name}.md`);
                   if (fs.existsSync(newPath)) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Program already exists' }));
                     return;
                   }
                   
-                  // Default skeleton template for a new program
-                  const defaultTemplate = `# 1\nLat machine | 3' |\n90..9+2.7+2\n`;
-                  fs.writeFileSync(newPath, defaultTemplate, 'utf-8');
+                  // Template from request or default
+                  const fileContent = data.content || `# 1\nLat machine | 3' |\n90..9+2.7+2\n`;
+                  fs.writeFileSync(newPath, fileContent, 'utf-8');
                   
                   res.writeHead(200, { 'Content-Type': 'application/json' });
                   res.end(JSON.stringify({ success: true, name }));
@@ -242,6 +242,47 @@ export default defineConfig({
                 res.end(JSON.stringify({ success: true }));
               } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            });
+            return;
+          }
+
+          if (urlObj.pathname === '/api/generate' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', () => {
+              try {
+                const config = JSON.parse(body);
+                const { exec } = require('child_process');
+                
+                // Escape JSON string for command line
+                const configStr = JSON.stringify(config).replace(/'/g, "'\\''");
+                const command = `python3 -m analyzer.solver --config '${configStr}'`;
+                
+                const cwd = path.resolve(__dirname, '..');
+                
+                exec(command, { cwd }, (error, stdout, stderr) => {
+                  if (error) {
+                    console.error("Solver error:", error);
+                    console.error("Solver stderr:", stderr);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: error.message, stderr }));
+                    return;
+                  }
+                  
+                  try {
+                    const result = JSON.parse(stdout);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(result));
+                  } catch (e) {
+                    console.error("Failed to parse solver output:", e);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: "Invalid JSON from solver", stdout, stderr }));
+                  }
+                });
+              } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
               }
             });

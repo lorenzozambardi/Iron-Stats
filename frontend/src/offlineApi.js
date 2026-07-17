@@ -1,5 +1,5 @@
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin, Capacitor } from '@capacitor/core';
 import defaultExercises from './defaultExercises.json';
 import { defaultLogbook } from './defaultLogbook.js';
 
@@ -84,6 +84,7 @@ window.fetch = async (input, init) => {
   else if (input instanceof Request) urlStr = input.url;
 
   if (!urlStr.includes('/api/')) return originalFetch(input, init);
+  if (!Capacitor.isNativePlatform()) return originalFetch(input, init);
 
   const urlObj  = new URL(urlStr, 'http://localhost');
   const method  = init?.method || 'GET';

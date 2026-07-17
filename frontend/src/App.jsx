@@ -9,7 +9,7 @@ import {
   Plus, 
   AlertCircle, 
   RotateCcw,
-  Sparkles,
+  Bot,
   TrendingUp,
   Edit,
   Trash2,
@@ -38,7 +38,9 @@ import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.
 import LogbookPreview from './components/LogbookPreview';
 import MetricDetailsPage from './components/MetricDetails';
 import { renderMetricTooltip } from './components/Tooltips';
+import { formatRestTime, groupSets } from './components/helpers';
 import { solveBezierY, getBezierCurveData } from './components/helpers';
+import GeneratorConfig from './components/GeneratorConfig';
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
@@ -53,6 +55,52 @@ export default function App() {
   const [progressionExercise, setProgressionExercise] = useState('all_metrics');
   const [overallChartMetric, setOverallChartMetric] = useState('Volume');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Swipe navigation state
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    if (window.innerWidth > 768) return; // Only on mobile
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const diffX = touchEndX - touchStartX.current;
+    const diffY = touchEndY - touchStartY.current;
+    
+    // Require a horizontal swipe (X diff > 2x Y diff) and at least 60px distance
+    if (Math.abs(diffX) > Math.abs(diffY) * 2 && Math.abs(diffX) > 60) {
+      const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
+      const currentIndex = tabOrder.indexOf(activeTab);
+      
+      if (currentIndex !== -1) {
+        if (diffX > 0) {
+          // Swipe right: go to previous tab
+          if (currentIndex > 0) {
+            setActiveTab(tabOrder[currentIndex - 1]);
+            setSelectedSession(null);
+          }
+        } else {
+          // Swipe left: go to next tab
+          if (currentIndex < tabOrder.length - 1) {
+            setActiveTab(tabOrder[currentIndex + 1]);
+            setSelectedSession(null);
+          }
+        }
+      }
+    }
+    
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
 
   // Storage folder settings (mobile)
   const [showStorageSettings, setShowStorageSettings] = useState(false);
@@ -998,13 +1046,20 @@ export default function App() {
               const targetMuscle = isMacroView ? macro : subMuscle;
               
               if (topMuscles.includes(targetMuscle)) {
-                let metricValue = 0;
+                let baseMetricValue = 0;
+                let partialMetricValue = 0;
+                
                 if (muscleMetric === 'effective') {
-                  metricValue = s.effectiveRepsCustom || 0;
+                  const rpe = s.rpe !== undefined ? s.rpe : 9.0;
+                  const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
+                  baseMetricValue = effBase + (s.assisted_reps || 0) * 0.5;
+                  partialMetricValue = s.partial_reps || 0;
                 } else if (muscleMetric === 'volume') {
-                  metricValue = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
+                  baseMetricValue = (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
+                  partialMetricValue = s.partial_reps || 0;
                 } else if (muscleMetric === 'sets') {
-                  metricValue = 1.0;
+                  baseMetricValue = 1.0;
+                  partialMetricValue = 0;
                 }
                 
                 const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
@@ -1030,8 +1085,15 @@ export default function App() {
                 const factor = area > 0 ? (magnitude / area) : 0;
                 
                 for (let i = 0; i <= resolution; i++) {
+                  const x = i / resolution;
                   const pointVal = rawY[i] * factor;
-                  data[i][targetMuscle] += (pointVal * metricValue);
+                  
+                  let activeMetricValue = baseMetricValue;
+                  if (x <= 0.3333) {
+                    activeMetricValue += partialMetricValue;
+                  }
+                  
+                  data[i][targetMuscle] += (pointVal * activeMetricValue);
                 }
               }
             });
@@ -1295,13 +1357,11 @@ export default function App() {
     : activeExercises;
 
   return (
-    <div className="app-container">
+    <div className="app-container" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Header */}
       <header className="app-header">
         <div className="brand">
-          <Dumbbell size={24} color="#f43f5e" />
-          <h1>Algorithmic Bodybuilding</h1>
-          <span className="badge">v1.0.0</span>
+          <h1>Algorithmic<br/>Bodybuilding</h1>
         </div>
 
         <button className="mobile-burger-btn" onClick={() => setIsMobileMenuOpen(true)}>
@@ -1379,18 +1439,18 @@ export default function App() {
             <BarChart3 size={16} /> Dashboard
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('sessions'); setIsMobileMenuOpen(false); }}
-            style={{ zIndex: 1, position: 'relative' }}
-          >
-            <BookOpen size={16} /> Sessions
-          </button>
-          <button 
             className={`tab-btn ${activeTab === 'db' ? 'active' : ''}`}
             onClick={() => { setActiveTab('db'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Search size={16} /> Exercise DB
+          </button>
+          <button 
+            className={`tab-btn flex items-center gap-2 ${activeTab === 'generator' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('generator'); setIsMobileMenuOpen(false); }}
+            style={{ zIndex: 1, position: 'relative' }}
+          >
+            <Bot size={16} /> Generator
           </button>
 
           {/* Header Controls inside lateral menu for Mobile */}
@@ -1685,8 +1745,8 @@ export default function App() {
           <>
             {/* TAB CONTENT: DASHBOARD */}
             {activeTab === 'dashboard' && (
-              <div className="glass-card main-content-card">
-                <div className="glass-card-body">
+              <div className="main-content-card" style={{ overflow: 'hidden' }}>
+                <div className="glass-card-body" style={{ padding: '4px 8px 20px 8px' }}>
 
                   {/* ── Dashboard Filter Bar ── */}
                   <div style={{
@@ -2099,7 +2159,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="dashboard-chart-wrapper" style={{ width: '100%', height: 260 }}>
-                        <ResponsiveContainer>
+                        <ResponsiveContainer width="99%">
                           {progressionExercise === 'all_metrics' ? (
                             <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -2181,7 +2241,7 @@ export default function App() {
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {dashMuscleMacro !== 'all' 
                             ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Sets` : `${dashMuscleMacro} Sub-group Volume`)
-                            : (muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume')} <Sparkles size={14} color="var(--accent-primary)" />
+                            : (muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume')}
                         </span>
                         <select
                           className="select-control select-small"
@@ -2249,14 +2309,14 @@ export default function App() {
 
                     {/* Cumulative Tension Curves Chart */}
                     <div className="chart-container" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
-                      <div className="chart-header">
-                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Cumulative Tension Profiles <Activity size={14} color="var(--accent-primary)" />
+                      <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); setActiveTab('metric-details'); }}>
+                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
+                          Tension Profiles
                         </span>
                       </div>
                       <div style={{ height: '300px', width: '100%', marginTop: '10px' }}>
                         {cumulativeCurveData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height="100%">
+                          <ResponsiveContainer width="99%" height="100%">
                             <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                               <XAxis 
@@ -2303,201 +2363,15 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB CONTENT: SESSIONS VIEW */}
-            {activeTab === 'sessions' && (
-              <div className="tab-workspace-flat">
-                {selectedSession === null ? (
-                  <>
-                    <div className="session-cards-grid">
-                      {sessionsList.map(sessNum => {
-                        const sessExercises = workoutData.filter(d => d.session === sessNum);
-                        const latestWeek = Math.max(...sessExercises.flatMap(e => e.weeks.map(w => w.week_num)), 1);
-                        const latestWeeklyData = calculateMetrics(workoutData, sessNum, latestWeek, null, null);
-                        const latestEffReps = latestWeeklyData.reduce((sum, d) => sum + (d.effectiveRepsCustom || 0), 0);
-                        
-                        // Calculate effective reps per main muscle group in this session for the latest week
-                        const muscleEffReps = {};
-                        latestWeeklyData.forEach(d => {
-                          const wEx = sessExercises.find(e => e.exercise_obj && e.exercise_obj.name === d.name);
-                          if (wEx && wEx.exercise_obj) {
-                            Object.entries(wEx.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
-                              const pctVal = typeof pct === 'number' ? pct : (pct?.magnitude || 0);
-                              const main = MUSCLES[sub];
-                              if (main) {
-                                if (!muscleEffReps[main]) {
-                                  muscleEffReps[main] = 0;
-                                }
-                                muscleEffReps[main] += (d.effectiveRepsCustom || 0) * pctVal;
-                              }
-                            });
-                          }
-                        });
-
-                        // Only include main muscle groups with at least 10 effective reps
-                        const qualifyingMuscles = Object.entries(muscleEffReps)
-                          .filter(([, reps]) => reps >= 10)
-                          .map(([main]) => main);
-                        const musclesStr = qualifyingMuscles.length > 0 ? qualifyingMuscles.sort().join(', ') : 'None';
-
-                        return (
-                          <div 
-                            className="session-card" 
-                            key={sessNum}
-                            onClick={() => setSelectedSession(sessNum)}
-                          >
-                            <span className="session-card-num">Session {sessNum}</span>
-                            <div className="session-card-details">
-                              <span>{sessExercises.length} Exercises</span>
-                              <span>{latestEffReps.toFixed(0)} Effective Reps (W{latestWeek})</span>
-                              <span style={{ marginTop: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                <strong>Muscles:</strong> {musclesStr}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Quick helper for empty sessions */}
-                    {sessionsList.length === 0 && (
-                      <div className="empty-state">
-                        <AlertCircle size={48} />
-                        <h3>No sessions found</h3>
-                        <p>Go to the Editor tab to create your training logs.</p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div>
-                    <div className="session-detail-header">
-                      <button className="btn" onClick={() => setSelectedSession(null)}>
-                        &larr; Back to Sessions
-                      </button>
-                      <h2>Session {selectedSession}</h2>
-                    </div>
-
-                    {/* Exercises inside the selected session */}
-                    {workoutData
-                      .filter(d => d.session === selectedSession)
-                      .map((wEx, idx) => (
-                        <div className="exercise-row-item" key={idx}>
-                          <div 
-                            className="exercise-row-header"
-                            style={{ cursor: wEx.exercise_obj ? 'pointer' : 'default' }}
-                            onClick={() => {
-                              if (wEx.exercise_obj) {
-                                setExpandedExercise(expandedExercise === wEx.exercise_obj.name ? null : wEx.exercise_obj.name);
-                              }
-                            }}
-                          >
-                            <div>
-                              <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {wEx.exercise_obj ? wEx.exercise_obj.name : wEx.raw_name}
-                                {wEx.exercise_obj && (
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 'normal', border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '4px', padding: '1px 6px', marginLeft: '8px', background: 'rgba(99, 102, 241, 0.05)' }}>
-                                    {expandedExercise === wEx.exercise_obj.name ? 'Hide Info' : 'Show Info'}
-                                  </span>
-                                )}
-                              </h3>
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                {wEx.exercise_obj && (
-                                  <span className="badge muscle">
-                                    {MUSCLES[Object.keys(wEx.exercise_obj.muscles_distr)[0]] || Object.keys(wEx.exercise_obj.muscles_distr)[0]}
-                                  </span>
-                                )}
-                                <span className="badge">{formatRestTime(wEx.rest_seconds)} rest</span>
-                                {wEx.concentric !== undefined && (
-                                  <span className="badge" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', color: 'var(--color-tut)' }}>
-                                    Tempo: {wEx.concentric}-{wEx.shortening_pause}-{wEx.eccentric}-{wEx.lengthening_pause}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Exercise database details expanded */}
-                          {wEx.exercise_obj && expandedExercise === wEx.exercise_obj.name && (
-                            <div style={{ 
-                              marginTop: '4px', 
-                              marginBottom: '16px', 
-                              padding: '12px', 
-                              background: 'rgba(0,0,0,0.2)', 
-                              borderRadius: '8px', 
-                              border: '1px solid var(--border-color)', 
-                              fontSize: '0.8rem' 
-                            }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '8px' }}>
-                                <div><span style={{ color: 'var(--text-muted)' }}>Fatigue:</span> <strong style={{ color: 'var(--text-primary)' }}>{wEx.exercise_obj.fatigue}</strong></div>
-                                <div><span style={{ color: 'var(--text-muted)' }}>Load Coeff:</span> <strong style={{ color: 'var(--text-primary)' }}>{wEx.exercise_obj.load_coeff}</strong></div>
-                                <div><span style={{ color: 'var(--text-muted)' }}>Multiplier:</span> <strong style={{ color: 'var(--text-primary)' }}>{wEx.exercise_obj.load_multiplier}x</strong></div>
-                                <div><span style={{ color: 'var(--text-muted)' }}>Offset:</span> <strong style={{ color: 'var(--text-primary)' }}>{wEx.exercise_obj.load_offset}kg</strong></div>
-                              </div>
-                              <div>
-                                <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Muscle Distribution:</span>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                  {Object.entries(wEx.exercise_obj.muscles_distr).map(([muscle, pct]) => (
-                                    <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.65rem', padding: '2px 6px' }}>
-                                      {muscle}: <strong>{Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%</strong>
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Weekly set breakdown for this exercise */}
-                          <div className="exercise-sets-list">
-                            {wEx.weeks.map(wk => {
-                              const grouped = groupSets(wk.sets);
-                              return (
-                                <div className="set-bubble" key={wk.week_num}>
-                                  <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginBottom: '4px' }}>Week {wk.week_num}</div>
-                                  {grouped.map((g, gIdx) => {
-                                    if (g.isDropset) {
-                                      return (
-                                        <div key={gIdx} className="set-bubble-dropset" style={{ margin: '6px 0', padding: '6px', background: 'rgba(239, 68, 68, 0.04)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '6px', textAlign: 'center' }}>
-                                          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', tracking: '0.05em', color: 'rgba(239, 68, 68, 0.8)', marginBottom: '4px', fontWeight: 'bold' }}>Dropset</div>
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '3px' }}>
-                                            {g.sets.map((s, sIdx) => (
-                                              <React.Fragment key={sIdx}>
-                                                {sIdx > 0 && <span style={{ color: 'rgba(239, 68, 68, 0.4)', fontSize: '0.7rem' }}>➔</span>}
-                                                <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
-                                                  <span className="set-bubble-load">{s.load}kg</span>
-                                                  <span className="set-bubble-reps">×{s.base_reps + s.assisted_reps}</span>
-                                                  {s.partial_reps > 0 && <span style={{ color: 'var(--color-volume)', fontSize: '0.65rem' }}>+{s.partial_reps}p</span>}
-                                                  {s.assisted_reps > 0 && <span style={{ color: 'var(--accent-secondary)', fontSize: '0.65rem' }}>({s.assisted_reps}a)</span>}
-                                                  <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.65rem', marginLeft: '3px' }}>@{s.rpe}</span>
-                                                </span>
-                                              </React.Fragment>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                    } else {
-                                      const s = g.set;
-                                      return (
-                                        <div key={gIdx} style={{ margin: '2px 0', borderBottom: gIdx < grouped.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none', paddingBottom: '4px', paddingTop: '4px' }}>
-                                          <span className="set-bubble-load">{s.load}kg</span>
-                                          <span className="set-bubble-reps">x {s.base_reps + s.assisted_reps}</span>
-                                          {s.partial_reps > 0 && <span style={{ color: 'var(--color-volume)', fontSize: '0.7rem' }}>+{s.partial_reps}p</span>}
-                                          {s.assisted_reps > 0 && <span style={{ color: 'var(--accent-secondary)', fontSize: '0.7rem' }}>({s.assisted_reps}a)</span>}
-                                          <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.7rem', marginLeft: '6px' }}>@{s.rpe}</span>
-                                        </div>
-                                      );
-                                    }
-                                  })}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
+            {/* TAB CONTENT: GENERATOR */}
+            {activeTab === 'generator' && (
+              <div className="tab-workspace-flat" style={{ height: 'calc(100vh - 80px)', padding: '20px' }}>
+                <GeneratorConfig />
               </div>
             )}
 
             {/* TAB CONTENT: EXERCISE DATABASE */}
+
             {activeTab === 'db' && (
               <div className="tab-workspace-flat" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="filters-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -2725,7 +2599,7 @@ export default function App() {
                 
                 {exerciseForm.muscles.length > 0 && (
                   <div style={{ width: '100%', height: 160, marginBottom: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 10px 0 0' }}>
-                    <ResponsiveContainer>
+                    <ResponsiveContainer width="99%">
                       <LineChart data={getBezierCurveData(exerciseForm.muscles)}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                         <XAxis dataKey="x" type="number" domain={[0, 1]} tickCount={5} stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => val === 0 ? 'Stretch' : val === 1 ? 'Contract' : val} />
@@ -2972,6 +2846,35 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="mobile-bottom-nav">
+        <button 
+          className={`bottom-nav-btn ${activeTab === 'editor' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('editor'); setSelectedSession(null); }}
+        >
+          <Edit size={20} />
+        </button>
+        <button 
+          className={`bottom-nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('dashboard'); setSelectedSession(null); }}
+        >
+          <BarChart3 size={20} />
+        </button>
+        <button 
+          className={`bottom-nav-btn ${activeTab === 'db' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('db'); setSelectedSession(null); }}
+        >
+          <Search size={20} />
+        </button>
+        <button 
+          className={`bottom-nav-btn ${activeTab === 'generator' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('generator'); }}
+        >
+          <Bot size={20} />
+        </button>
+      </div>
+
     </div>
   );
 }

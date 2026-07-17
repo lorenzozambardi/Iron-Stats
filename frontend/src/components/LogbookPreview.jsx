@@ -67,9 +67,44 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
 
   return (
     <div className="logbook-preview-content">
-      {Object.entries(sessions).map(([sessNum, exercises]) => (
-        <div key={sessNum} className="preview-session-group">
-          <h2 className="preview-session-title">Session {sessNum}</h2>
+      {Object.entries(sessions).map(([sessNum, exercises]) => {
+        // Calculate session metrics for the latest week
+        const latestWeek = Math.max(...exercises.flatMap(e => e.weeks.map(w => w.week_num)), 1);
+        let totalEffReps = 0;
+        const muscleEffReps = {};
+
+        exercises.forEach(ex => {
+          const wk = ex.weeks.find(w => w.week_num === latestWeek);
+          if (wk && ex.exercise_obj) {
+            let exEffReps = 0;
+            wk.sets.forEach(s => { exEffReps += (s.effectiveRepsCustom || 0); });
+            totalEffReps += exEffReps;
+            
+            Object.entries(ex.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
+              const pctVal = typeof pct === 'number' ? pct : (pct?.magnitude || 0);
+              const main = MUSCLES[sub];
+              if (main) {
+                muscleEffReps[main] = (muscleEffReps[main] || 0) + (exEffReps * pctVal);
+              }
+            });
+          }
+        });
+
+        const qualifyingMuscles = Object.entries(muscleEffReps)
+          .filter(([, reps]) => reps >= 10)
+          .map(([main]) => main).sort();
+        const musclesStr = qualifyingMuscles.length > 0 ? qualifyingMuscles.join(', ') : 'None';
+
+        return (
+          <div key={sessNum} className="preview-session-group">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', borderLeft: '3px solid var(--accent-primary)' }}>
+              <h2 className="preview-session-title" style={{ margin: 0, paddingBottom: 0, borderBottom: 'none' }}>Session {sessNum}</h2>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                <span><strong>{exercises.length}</strong> Exercises</span>
+                <span><strong>{totalEffReps.toFixed(0)}</strong> Eff. Reps (W{latestWeek})</span>
+                <span><strong>Muscles:</strong> {musclesStr}</span>
+              </div>
+            </div>
           
           <div className="preview-exercises-list">
             {exercises.map((ex, exIdx) => {
@@ -94,6 +129,11 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                         {ex.exercise_obj && (
                           <span className="badge muscle">
                             {MUSCLES[Object.keys(ex.exercise_obj.muscles_distr)[0]] || Object.keys(ex.exercise_obj.muscles_distr)[0]}
+                          </span>
+                        )}
+                        {ex.concentric !== undefined && (
+                          <span className="badge" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', color: 'var(--color-tut)' }}>
+                            Tempo: {ex.concentric}-{ex.shortening_pause}-{ex.eccentric}-{ex.lengthening_pause}
                           </span>
                         )}
                         {editorMode === 'preview' && ex.exercise_obj && (
@@ -193,7 +233,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
             })}
           </div>
         </div>
-      ))}
+      )})}
     </div>
   );
 }
