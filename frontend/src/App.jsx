@@ -46,6 +46,7 @@ import GeneratorConfig from './components/GeneratorConfig';
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
+  const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
   const [exercisesDb, setExercisesDb] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [expandedExercise, setExpandedExercise] = useState(null);
@@ -109,6 +110,13 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedLogbookText(logbookText);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [logbookText]);
 
   // Swipeable views container ref
   const swipeContainerRef = useRef(null);
@@ -282,8 +290,8 @@ export default function App() {
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
 
   const activeExercises = useMemo(() => {
-    return getExercisesWithOverrides(logbookText, exercisesDb);
-  }, [logbookText, exercisesDb]);
+    return getExercisesWithOverrides(debouncedLogbookText, exercisesDb);
+  }, [debouncedLogbookText, exercisesDb]);
 
   // Programs State
   const [currentProgram, setCurrentProgram] = useState(() => localStorage.getItem('lastSelectedProgram') || 'S1M3');
@@ -368,6 +376,7 @@ export default function App() {
       })
       .then(text => {
         setLogbookText(text);
+        setDebouncedLogbookText(text);
         setSyncStatus('saved');
       })
       .catch(err => {
@@ -378,11 +387,11 @@ export default function App() {
 
   // Parse logbook text whenever it changes or the exercises DB updates
   const workoutData = useMemo(() => {
-    if (logbookText && exercisesDb.length > 0) {
-      return parseLogbook(logbookText, exercisesDb);
+    if (debouncedLogbookText && exercisesDb.length > 0) {
+      return parseLogbook(debouncedLogbookText, exercisesDb);
     }
     return [];
-  }, [logbookText, exercisesDb]);
+  }, [debouncedLogbookText, exercisesDb]);
 
   // Cursor Tracking State for scroll sync
   const [activeCursorLine, setActiveCursorLine] = useState(null);
@@ -432,6 +441,7 @@ export default function App() {
       })
       .then(text => {
         setLogbookText(text);
+        setDebouncedLogbookText(text);
         setCurrentProgram(progName);
         localStorage.setItem('lastSelectedProgram', progName); // Save program selection
         setSyncStatus('saved');

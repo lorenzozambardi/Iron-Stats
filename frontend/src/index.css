@@ -363,7 +363,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-color);
   border-radius: var(--button-radius);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .btn:hover {
@@ -482,7 +482,7 @@ h1, h2, h3, h4, h5, h6 {
 .tab-btn.active svg {
   color: var(--accent-primary) !important;
   filter: drop-shadow(0 0 5px rgba(99, 102, 241, 0.7));
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 /* Autocomplete suggestion popup */
@@ -678,7 +678,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 18px;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -774,7 +774,7 @@ h1, h2, h3, h4, h5, h6 {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a5b4fc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
@@ -832,7 +832,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--card-radius);
   padding: 20px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -962,7 +962,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 6px 16px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .mode-toggle-btn:hover {
@@ -1069,7 +1069,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: all var(--transition-normal);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .preview-exercise-card.active {
@@ -1110,7 +1110,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: all var(--transition-normal);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .preview-week-column.active {
@@ -1205,7 +1205,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 4px 10px 4px 14px;
   border-radius: 99px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   flex-shrink: 0;
 }
 
@@ -1235,7 +1235,7 @@ h1, h2, h3, h4, h5, h6 {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a5b4fc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 4px center;
@@ -1261,7 +1261,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .btn-icon-small:hover {
@@ -1775,7 +1775,7 @@ h1, h2, h3, h4, h5, h6 {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    transition: all var(--transition-fast) !important;
+    transition: background-color , color , border-color , opacity , transform , box-shadow ;
   }
 
   .mobile-header-editor-controls .mode-toggle-btn.active {
@@ -2114,7 +2114,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 8px;
   text-align: left;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -2178,7 +2178,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-left: 3px solid var(--text-muted);
   font-size: 0.72rem;
-  transition: all 0.25s ease;
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .storage-status-card.custom {
@@ -2230,7 +2230,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   letter-spacing: 0.02em;
 }
 
@@ -2258,7 +2258,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.2s ease;
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .storage-reset-btn:hover {
@@ -2319,7 +2319,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   outline: none;
   font-family: var(--font-sans);
-  transition: all 0.2s ease;
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   cursor: pointer;
 }
 
@@ -2340,7 +2340,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   outline: none;
   font-family: var(--font-sans);
-  transition: all 0.2s ease;
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .storage-input:focus {
@@ -2376,7 +2376,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.2s ease;
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -2459,7 +2459,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #10b981;
   border: 1px solid rgba(16, 185, 129, 0.3);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color , color , border-color , opacity , transform , box-shadow ;
 }
 
 .btn-save-circle:hover, .btn-save-circle:active {
