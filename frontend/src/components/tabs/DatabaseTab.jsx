@@ -9,54 +9,111 @@ const DatabaseTab = React.memo(({
   handleOpenAddExercise, 
   handleOpenEditExercise, 
   debouncedLogbookText, 
-  currentProgram 
+  currentProgram,
+  exerciseSearch,
+  setExerciseSearch
 }) => {
-  const [exerciseSearch, setExerciseSearch] = useState('');
 
   // Filters for exercise DB (fuzzy, always returns best matches)
   const filteredExercises = useMemo(() => {
-    if (!exerciseSearch) return activeExercises;
+    if (!exerciseSearch.trim()) return activeExercises;
+    const lowerSearch = exerciseSearch.toLowerCase();
     return activeExercises
       .map(ex => {
-        const nameScore = fuzzyScore(exerciseSearch, ex.name);
-        const bestScore = Math.max(
-          nameScore,
-          ...Object.keys(ex.muscles_distr).map(m => fuzzyScore(exerciseSearch, m))
-        );
-        return { ex, score: bestScore };
+        let maxMuscleMatch = 0;
+        Object.keys(ex.muscles_distr).forEach(m => {
+          maxMuscleMatch = Math.max(maxMuscleMatch, fuzzyScore(lowerSearch, m));
+        });
+        const nameMatch = fuzzyScore(lowerSearch, ex.name);
+        return { ex, score: Math.max(nameMatch, maxMuscleMatch) };
       })
-      .filter(x => x.score >= 0)
+      .filter(x => x.score > 0.3)
       .sort((a, b) => b.score - a.score)
       .map(x => x.ex);
   }, [exerciseSearch, activeExercises]);
 
+  const overriddenExercisesSet = useMemo(() => {
+    const overrides = new Set();
+    const lines = debouncedLogbookText.split('\n');
+    for (const line of lines) {
+      if (line.toLowerCase().startsWith('override: ')) {
+        const parts = line.split('|');
+        if (parts.length >= 2) {
+          const exName = parts[0].substring(10).trim().toLowerCase();
+          overrides.add(exName);
+        }
+      }
+    }
+    return overrides;
+  }, [debouncedLogbookText]);
+
   return (
-    <div className={`swipe-view ${activeTab === 'db' ? 'active-desktop' : ''}`} id="view-db">
-      {(isMobile || activeTab === 'db') && (
-        <div className="tab-workspace-flat" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="filters-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <div className={`swipe-view ${activeTab === 'db' ? 'active-desktop' : ''}`} id="view-db" style={{ position: 'relative' }}>
+      {/* Mobile Database Controls (floating inside the swipe view) */}
+      {isMobile && (
+        <div id="mobile-header-db-controls" style={{ 
+          position: 'absolute', 
+          top: '18px', 
+          left: '70px',
+          right: '12px', 
+          zIndex: 50, 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          pointerEvents: 'none' 
+        }}>
+          <div className="search-pill-container" style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '99px', border: '1px solid var(--border-color)', padding: '0 12px', flex: 1, height: '44px', pointerEvents: 'auto' }}>
             <Search size={16} color="var(--text-muted)" />
             <input 
               type="text" 
-              className="select-control"
-              style={{ flex: 1, padding: '8px 12px' }}
-              placeholder="Search exercises by name or muscle group..."
+              placeholder="Search exercises" 
               value={exerciseSearch}
               onChange={(e) => setExerciseSearch(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', marginLeft: '8px', fontSize: '0.9rem', flex: 1, width: '100%', height: '100%' }}
             />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Showing {filteredExercises.length} of {activeExercises.length}
-            </span>
-            <button 
-              className="btn btn-primary" 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.8rem', height: '36px' }}
-              onClick={handleOpenAddExercise}
-            >
-              <Plus size={14} /> Add Exercise
-            </button>
           </div>
+          <button 
+            onClick={handleOpenAddExercise} 
+            style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--accent-primary)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.3), 0 0 12px rgba(99, 102, 241, 0.4)', pointerEvents: 'auto' }}
+          >
+            <Plus size={20} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
 
-          <div className="exercise-db-grid" style={{ flex: 1, overflowY: 'auto' }}>
+      {(isMobile || activeTab === 'db') && (
+        <div className="db-tab-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {!isMobile && (
+            <div className="filters-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Search size={16} color="var(--text-muted)" />
+              <input 
+                type="text" 
+                className="select-control"
+                style={{ flex: 1, padding: '8px 12px' }}
+                placeholder="Search exercises by name or muscle group..."
+                value={exerciseSearch}
+                onChange={(e) => setExerciseSearch(e.target.value)}
+              />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Showing {filteredExercises.length} of {activeExercises.length}
+              </span>
+              <button 
+                className="btn btn-primary" 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.8rem', height: '36px' }}
+                onClick={handleOpenAddExercise}
+              >
+                <Plus size={14} /> Add Exercise
+              </button>
+            </div>
+          )}
+
+          {isMobile && (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '6px', marginTop: '-12px', marginBottom: '-8px' }}>
+              Showing {filteredExercises.length} of {activeExercises.length}
+            </div>
+          )}
+
+          <div className="exercise-db-grid" style={{ flex: 1, overflowY: 'auto', paddingBottom: '100px' }}>
             {filteredExercises.map(ex => (
               <div 
                 className="exercise-db-card" 
@@ -67,7 +124,7 @@ const DatabaseTab = React.memo(({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '4px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <h4 className="ex-card-title" style={{ margin: 0, wordBreak: 'break-word', fontSize: '0.95rem' }}>{ex.name}</h4>
-                      {debouncedLogbookText.split('\n').some(line => line.toLowerCase().startsWith(`override: ${ex.name.toLowerCase()} |`)) && (
+                      {overriddenExercisesSet.has(ex.name.toLowerCase()) && (
                           <span style={{ 
                             background: 'rgba(99, 102, 241, 0.15)', 
                             color: '#818cf8', 

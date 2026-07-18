@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
-import { Settings, Target, BookOpen, Sliders, Activity, Scale, Play, Save } from 'lucide-react';
+import { Settings, Target, BookOpen, Sliders, Activity, Scale, Play, Save, Bot } from 'lucide-react';
 import { MUSCLES } from '../parser';
 
 const MACRO_MUSCLES = Array.from(new Set(Object.values(MUSCLES))).sort();
+
+const MACRO_SUB_MAP = {};
+Object.entries(MUSCLES).forEach(([sub, macro]) => {
+  if (!MACRO_SUB_MAP[macro]) MACRO_SUB_MAP[macro] = [];
+  MACRO_SUB_MAP[macro].push(sub);
+});
 
 const CURVE_OPTIONS = [
   { id: 'constant', label: 'Costante (Piatta)' },
@@ -15,7 +20,17 @@ const CURVE_OPTIONS = [
   { id: 'linear', label: 'Lineare Decrescente' }
 ];
 
-export default function GeneratorConfig() {
+export default function GeneratorConfig({ isMobile }) {
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+        <Bot size={48} color="var(--accent-primary)" style={{ marginBottom: '16px' }} />
+        <h2 style={{ color: 'var(--text-primary)', marginBottom: '12px' }}>Generator Mobile</h2>
+        <p>Work in progress...<br />Please use the desktop version for now.</p>
+      </div>
+    );
+  }
+
   const [markdownContent, setMarkdownContent] = useState('');
 
   // Form State
@@ -56,7 +71,7 @@ export default function GeneratorConfig() {
     return normalized;
   };
   
-  const normalizedWeights = calculateSoftmax(weights);
+  const normalizedWeights = useMemo(() => calculateSoftmax(weights), [weights]);
 
   const [targets, setTargets] = useState({
     vol: 100,
@@ -70,11 +85,6 @@ export default function GeneratorConfig() {
     return initial;
   });
 
-  const MACRO_SUB_MAP = {};
-  Object.entries(MUSCLES).forEach(([sub, macro]) => {
-    if (!MACRO_SUB_MAP[macro]) MACRO_SUB_MAP[macro] = [];
-    MACRO_SUB_MAP[macro].push(sub);
-  });
 
   const [volumeDist, setVolumeDist] = useState(() => {
     const initial = { macros: {}, subs: {} };
@@ -425,7 +435,7 @@ export default function GeneratorConfig() {
         </div>
 
         {rightTab === 'info' && (
-          <div className="markdown-content" style={{ flex: '1', overflowY: 'auto', lineHeight: '1.6', fontSize: '0.9rem', color: '#d1d1d6', paddingRight: '10px' }}>
+          <div className="markdown-content" style={{ flex: '1', overflowY: 'auto', lineHeight: '1.6', fontSize: '0.9rem', color: '#d1d1d6', paddingRight: '10px', paddingBottom: '100px' }}>
             {markdownContent ? (
               <ReactMarkdown
                 remarkPlugins={[remarkMath]}

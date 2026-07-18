@@ -38,8 +38,11 @@ const DashboardTab = ({
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
 
 
-  // Calculated Metrics
-  const sessionsList = Array.from(new Set(workoutData.map(d => d.session))).sort((a, b) => a - b);
+  // Calculated Metrics — memoized to avoid recomputing on every render
+  const sessionsList = useMemo(
+    () => Array.from(new Set(workoutData.map(d => d.session))).sort((a, b) => a - b),
+    [workoutData]
+  );
 
   // Helper: load a comparison program and parse it
   const loadCompareProgram = (progName) => {
@@ -342,25 +345,33 @@ const DashboardTab = ({
     return data;
   }, [dashFilteredData, dashFilterWeek, dashMuscleMacro, muscleMetric, activeExercises, displayMuscleData]);
 
-  // Overall totals (filtered)
-  const totalVolume = metricsByWeek.reduce((sum, m) => sum + m.Volume, 0);
-  const totalTonnage = metricsByWeek.reduce((sum, m) => sum + m.Tonnage, 0);
-  const totalEffectiveTonnage = metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage || 0), 0);
-  const totalFatigue = metricsByWeek.reduce((sum, m) => sum + m.Fatigue, 0);
-  const totalEffectiveReps = metricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom || 0), 0);
-  const totalTut = metricsByWeek.reduce((sum, m) => sum + (m.Tut || 0), 0);
-  const totalEffectiveTut = metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut || 0), 0);
-  const totalSets = metricsByWeek.reduce((sum, m) => sum + (m.Sets || 0), 0);
+  // Overall totals (filtered) — consolidated into a single useMemo
+  const mainTotals = useMemo(() => ({
+    totalVolume: metricsByWeek.reduce((sum, m) => sum + m.Volume, 0),
+    totalTonnage: metricsByWeek.reduce((sum, m) => sum + m.Tonnage, 0),
+    totalEffectiveTonnage: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage || 0), 0),
+    totalFatigue: metricsByWeek.reduce((sum, m) => sum + m.Fatigue, 0),
+    totalEffectiveReps: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom || 0), 0),
+    totalTut: metricsByWeek.reduce((sum, m) => sum + (m.Tut || 0), 0),
+    totalEffectiveTut: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut || 0), 0),
+    totalSets: metricsByWeek.reduce((sum, m) => sum + (m.Sets || 0), 0),
+  }), [metricsByWeek]);
 
-  // Compare totals
-  const compareTotalVolume = compareMetricsByWeek.reduce((sum, m) => sum + (m.Volume_B || 0), 0);
-  const compareTotalTonnage = compareMetricsByWeek.reduce((sum, m) => sum + (m.Tonnage_B || 0), 0);
-  const compareTotalEffectiveTonnage = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage_B || 0), 0);
-  const compareTotalFatigue = compareMetricsByWeek.reduce((sum, m) => sum + (m.Fatigue_B || 0), 0);
-  const compareTotalEffReps = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom_B || 0), 0);
-  const compareTotalTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.Tut_B || 0), 0);
-  const compareTotalEffectiveTut = compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut_B || 0), 0);
-  const compareTotalSets = compareMetricsByWeek.reduce((sum, m) => sum + (m.Sets_B || 0), 0);
+  const compareTotals = useMemo(() => ({
+    compareTotalVolume: compareMetricsByWeek.reduce((sum, m) => sum + (m.Volume_B || 0), 0),
+    compareTotalTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.Tonnage_B || 0), 0),
+    compareTotalEffectiveTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage_B || 0), 0),
+    compareTotalFatigue: compareMetricsByWeek.reduce((sum, m) => sum + (m.Fatigue_B || 0), 0),
+    compareTotalEffReps: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom_B || 0), 0),
+    compareTotalTut: compareMetricsByWeek.reduce((sum, m) => sum + (m.Tut_B || 0), 0),
+    compareTotalEffectiveTut: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut_B || 0), 0),
+    compareTotalSets: compareMetricsByWeek.reduce((sum, m) => sum + (m.Sets_B || 0), 0),
+  }), [compareMetricsByWeek]);
+
+  const { totalVolume, totalTonnage, totalEffectiveTonnage, totalFatigue,
+    totalEffectiveReps, totalTut, totalEffectiveTut, totalSets } = mainTotals;
+  const { compareTotalVolume, compareTotalTonnage, compareTotalEffectiveTonnage, compareTotalFatigue,
+    compareTotalEffReps, compareTotalTut, compareTotalEffectiveTut, compareTotalSets } = compareTotals;
 
   const getMetricLabelAndUnit = (metric) => {
     switch (metric) {
@@ -975,46 +986,61 @@ const DashboardTab = ({
                         </div>
                       </div>
                       <div className="dashboard-chart-wrapper" style={{ width: '100%', height: 260 }}>
-                        <ResponsiveContainer width="99%">
-                          {progressionExercise === 'all_metrics' ? (
-                            <LineChart data={compareMode ? mergedChartData : metricsByWeek}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                              <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
-                              <YAxis 
-                                stroke={getMetricColor(overallChartMetric)} 
-                                fontSize={11} 
-                                domain={overallChartBoundsSelected}
-                                tickFormatter={(val) => typeof val === 'number' ? (val % 1 === 0 ? val.toLocaleString() : val.toFixed(1)) : val}
-                                label={{ 
-                                  value: `${getMetricLabelAndUnit(overallChartMetric).name}${getMetricLabelAndUnit(overallChartMetric).unit ? ` (${getMetricLabelAndUnit(overallChartMetric).unit})` : ''}`, 
-                                  angle: -90, 
-                                  position: 'insideLeft', 
-                                  style: { fill: 'var(--text-muted)', fontSize: 9 } 
-                                }}
-                              />
-                              <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
-                              <Legend fontSize={10} />
-                              <Line 
-                                type="monotone" 
-                                dataKey={overallChartMetric} 
-                                stroke={getMetricColor(overallChartMetric)} 
-                                strokeWidth={3} 
-                                activeDot={{ r: 6 }} 
-                                name={compareMode ? `${getMetricLabelAndUnit(overallChartMetric).name} — Selection A` : `${getMetricLabelAndUnit(overallChartMetric).name}${getMetricLabelAndUnit(overallChartMetric).unit ? ` (${getMetricLabelAndUnit(overallChartMetric).unit})` : ''}`} 
-                              />
-                              {compareMode && compareProgram && (
-                                <Line 
-                                  type="monotone" 
-                                  dataKey={`${overallChartMetric}_B`} 
-                                  stroke={getMetricColorB(overallChartMetric)} 
-                                  strokeWidth={2} 
-                                  strokeDasharray="6 3" 
-                                  activeDot={{ r: 5 }} 
-                                  name={`${getMetricLabelAndUnit(overallChartMetric).name} — Selection B`} 
+                        <ResponsiveContainer width="100%" height="100%">
+                          {progressionExercise === 'all_metrics' ? (() => {
+                            const overallMetricInfo = getMetricLabelAndUnit(overallChartMetric);
+                            const nameStr = `${overallMetricInfo.name}${overallMetricInfo.unit ? ` (${overallMetricInfo.unit})` : ''}`;
+                            return (
+                              <LineChart data={compareMode ? mergedChartData : metricsByWeek} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="Week" stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => `W${val}`} />
+                                <YAxis 
+                                  yAxisId="main"
+                                  stroke="var(--text-muted)" 
+                                  fontSize={10} 
+                                  domain={overallChartBoundsSelected}
+                                  tickFormatter={(val) => Math.round(val)}
+                                  label={{ 
+                                    value: nameStr, 
+                                    angle: -90, 
+                                    position: 'insideLeft', 
+                                    style: { fill: 'var(--text-muted)', fontSize: '10px', textAnchor: 'middle' } 
+                                  }}
                                 />
-                              )}
-                            </LineChart>
-                          ) : (
+                                <Tooltip content={(props) => renderMetricTooltip(props, 'overall')} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                                {compareMode && <Legend wrapperStyle={{ fontSize: '11px' }} />}
+                                
+                                <Line 
+                                  yAxisId="main"
+                                  type="monotone" 
+                                  dataKey={overallChartMetric} 
+                                  stroke={getMetricColor(overallChartMetric)} 
+                                  strokeWidth={3}
+                                  dot={{ fill: 'var(--bg-secondary)', stroke: getMetricColor(overallChartMetric), strokeWidth: 2, r: 4 }}
+                                  activeDot={{ r: 6, fill: getMetricColor(overallChartMetric), stroke: '#fff', strokeWidth: 2 }}
+                                  name={compareMode ? `${overallMetricInfo.name} — Selection A` : nameStr} 
+                                  connectNulls={true}
+                                  animationDuration={400}
+                                />
+                                
+                                {compareMode && (
+                                  <Line 
+                                    yAxisId="main"
+                                    type="monotone" 
+                                    dataKey={`${overallChartMetric}_B`} 
+                                    stroke={getMetricColorB(overallChartMetric)} 
+                                    strokeWidth={3}
+                                    strokeDasharray="4 4"
+                                    dot={{ fill: 'var(--bg-secondary)', stroke: getMetricColorB(overallChartMetric), strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, fill: getMetricColorB(overallChartMetric), stroke: '#fff', strokeWidth: 2 }}
+                                    name={`${overallMetricInfo.name} — Selection B`} 
+                                    connectNulls={true}
+                                    animationDuration={400}
+                                  />
+                                )}
+                              </LineChart>
+                            );
+                          })() : (
                             <LineChart data={exerciseChartData}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                               <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={11} />
@@ -1133,7 +1159,6 @@ const DashboardTab = ({
                       <div style={{ height: '300px', width: '100%', marginTop: '10px' }}>
                         {cumulativeCurveData.length > 0 ? (
                           <ResponsiveContainer width="99%" height="100%">
-                            {(isMobile || activeTab === 'analytics') ? (
                             <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                               <XAxis 
@@ -1165,7 +1190,6 @@ const DashboardTab = ({
                                 );
                               })}
                             </LineChart>
-                            ) : null}
                           </ResponsiveContainer>
                         ) : (
                           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>

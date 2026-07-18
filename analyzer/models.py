@@ -131,7 +131,7 @@ exercises_list = [
     Exercise("Bench 54 Pushdown", {"Lateral Head": BezierProfile(0.1, 0.6, 0.33, 0.8, 0.66, 1, 1, 0.9, 0.4), "Medial Head": BezierProfile(0.1, 0.6, 0.33, 0.8, 0.66, 1, 1, 0.9, 0.4), "Long Head": BezierProfile(0.1, 0.6, 0.33, 0.8, 0.66, 1, 1, 0.9, 0.2)}, 3.5, 0.85, is_isolation=True),
     Exercise("Low Cable Triceps", {"Lateral Head": BezierProfile(0.1, 0.6, 0.33, 0.8, 0.66, 1, 1, 0.9, 0.4), "Medial Head": BezierProfile(0.1, 0.6, 0.33, 0.8, 0.66, 1, 1, 0.9, 0.4), "Long Head": BezierProfile(0.1, 0.6, 0.33, 0.8, 0.66, 1, 1, 0.9, 0.2)}, 3.5, 0.85, is_isolation=True),
     Exercise("Bench 54 Triceps", {"Long Head": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.6, 1, 0.3, 0.7), "Lateral Head": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.6, 1, 0.3, 0.15), "Medial Head": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.6, 1, 0.3, 0.15)}, 4.0, 0.80, is_isolation=True),
-    Exercise("Dragon Flag Raises", {"Abdominals": BezierProfile(0, 1, 0.33, 0.8, 0.66, 0.4, 0.8, 0.2, 1)}, 4.0, 0.80, is_isolation=True),
+    Exercise("Dragon Flag Raises", {"Abdominals": BezierProfile(0, 1, 0.33, 0.8, 0.66, 0.4, 1, 0, 1)}, 4.0, 0.80, is_isolation=True),
     Exercise("Hanging Leg Raises", {"Abdominals": BezierProfile(0.3, 0, 0.33, 0.3, 0.66, 0.7, 1, 1, 1)}, 4.0, 0.80, is_isolation=True),
     Exercise("Seated Calf Raises", {"Calves": BezierProfile(0, 0.5998605728149414, 0.2826495830829327, 0.8564872741699219, 0.6553915170522836, 0.9615234375, 1, 1, 1)}, 3.0, 0.80, load_offset=20.0, is_isolation=True)
 ]

@@ -2,13 +2,47 @@ export const COEFF_ASSISTED = 0.5;
 export const COEFF_PARTIAL = 0.33;
 
 export const MUSCLES = {
-  "Clavicular Head": "Chest", "Sternal Head": "Chest", "Latissimus Dorsi": "Back",
-  "Upper and Mid Trapezius": "Back", "Lower Trapezius and Rhomboids": "Back", "Erectors": "Back",
+  // --- Chest ---
+  "Clavicular Head": "Chest", "Sternal Head": "Chest", "Costal Head": "Chest",
+  "Pectoralis Minor": "Chest", "Pectoralis Major": "Chest", "Serratus Anterior": "Chest",
+  "Lower Pectoralis": "Chest",
+
+  // --- Back ---
+  "Latissimus Dorsi": "Back", "Latissimus Dorsi Iliac": "Back", "Latissimus Dorsi Lumbar": "Back",
+  "Latissimus Dorsi Thoracic": "Back", "Teres Major": "Back", "Upper Trapezius": "Back",
+  "Mid Trapezius": "Back", "Lower Trapezius": "Back", "Rhomboids": "Back", "Erectors": "Back",
+  "Erector Spinae": "Back", "Upper and Mid Trapezius": "Back", "Lower Trapezius and Rhomboids": "Back",
+
+  // --- Shoulders ---
   "Anterior Deltoid": "Shoulders", "Lateral Deltoid": "Shoulders", "Posterior Deltoid": "Shoulders",
-  "Rotator Cuff": "Shoulders", "Quadriceps": "Legs", "Hamstrings": "Legs", "Glutes": "Legs",
-  "Adductors": "Legs", "Calves": "Legs", "Biceps Brachii": "Biceps", "Brachialis": "Biceps",
-  "Brachioradialis": "Biceps", "Long Head": "Triceps", "Lateral Head": "Triceps", "Medial Head": "Triceps",
-  "Abdominals": "Core"
+  "Supraspinatus": "Shoulders", "Infraspinatus": "Shoulders", "Teres Minor": "Shoulders",
+  "Subscapularis": "Shoulders", "Rotator Cuff": "Shoulders",
+
+  // --- Legs ---
+  "Quadriceps": "Legs", "Rectus Femoris": "Legs", "Vastus Lateralis": "Legs",
+  "Vastus Medialis": "Legs", "Vastus Intermedius": "Legs", "Hamstrings": "Legs",
+  "Biceps Femoris": "Legs", "Semitendinosus": "Legs", "Semimembranosus": "Legs",
+  "Glutes": "Legs", "Gluteus Maximus": "Legs", "Gluteus Medius": "Legs", "Gluteus Minimus": "Legs",
+  "Adductors": "Legs", "Sartorius": "Legs", "Tensor Fasciae Latae": "Legs", "Gracilis": "Legs",
+  "Pectineus": "Legs", "Iliopsoas": "Legs", "Calves": "Legs", "Gastrocnemius": "Legs",
+  "Soleus": "Legs", "Tibialis Anterior": "Legs", "Plantaris": "Legs", "Popliteus": "Legs",
+
+  // --- Biceps ---
+  "Biceps Brachii": "Biceps", "Biceps Brachii Long Head": "Biceps", "Biceps Brachii Short Head": "Biceps",
+  "Brachialis": "Biceps", "Brachioradialis": "Biceps", "Coracobrachialis": "Biceps",
+
+  // --- Triceps ---
+  "Long Head": "Triceps", "Lateral Head": "Triceps", "Medial Head": "Triceps",
+
+  // --- Forearms ---
+  "Wrist Flexors": "Forearms", "Wrist Extensors": "Forearms",
+
+  // --- Core ---
+  "Abdominals": "Core", "Rectus Abdominis": "Core", "Obliques": "Core",
+  "Transversus Abdominis": "Core",
+
+  // --- Neck ---
+  "Neck Flexors": "Neck", "Neck Extensors": "Neck",
 };
 
 // Parse overrides from program markdown and clone/modify exercises list

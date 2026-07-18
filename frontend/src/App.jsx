@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import 'katex/dist/katex.min.css';
 import { 
   BookOpen, 
@@ -25,7 +25,8 @@ import {
   Sliders,
   Activity,
   Undo2,
-  Redo2
+  Redo2,
+  Settings
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import BezierEditor from './BezierEditor';
@@ -40,23 +41,116 @@ import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.
 import LogbookPreview from './components/LogbookPreview';
 import MetricDetailsPage from './components/MetricDetails';
 import { renderMetricTooltip } from './components/Tooltips';
-import { formatRestTime, groupSets, fuzzyScore } from './components/helpers';
-import { solveBezierY, getBezierCurveData } from './components/helpers';
-import GeneratorConfig from './components/GeneratorConfig';
+import { formatRestTime, groupSets, fuzzyScore, solveBezierY, getBezierCurveData } from './components/helpers';
+const GeneratorConfig = lazy(() => import('./components/GeneratorConfig'));
 import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
+
+const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
   const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
   const [exercisesDb, setExercisesDb] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
-  const [expandedExercise, setExpandedExercise] = useState(null);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
-  const [muscleSearch, setMuscleSearch] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [muscleSearch, setMuscleSearch] = useState('');
+  const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
+
+  const APP_PALETTES = [
+    { id: 'red', color: '#ef4444', glow: 'rgba(239, 68, 68, 0.25)', label: 'Red' },
+    { id: 'rose', color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.25)', label: 'Rose' },
+    { id: 'pink', color: '#ec4899', glow: 'rgba(236, 72, 153, 0.25)', label: 'Pink' },
+    { id: 'orange', color: '#f97316', glow: 'rgba(249, 115, 22, 0.25)', label: 'Orange' },
+    { id: 'amber', color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.25)', label: 'Amber' },
+    { id: 'yellow', color: '#eab308', glow: 'rgba(234, 179, 8, 0.25)', label: 'Yellow' },
+    { id: 'lime', color: '#84cc16', glow: 'rgba(132, 204, 22, 0.25)', label: 'Lime' },
+    { id: 'emerald', color: '#10b981', glow: 'rgba(16, 185, 129, 0.25)', label: 'Emerald' },
+    { id: 'teal', color: '#14b8a6', glow: 'rgba(20, 184, 166, 0.25)', label: 'Teal' },
+    { id: 'cyan', color: '#06b6d4', glow: 'rgba(6, 182, 212, 0.25)', label: 'Cyan' },
+    { id: 'sky', color: '#0ea5e9', glow: 'rgba(14, 165, 233, 0.25)', label: 'Sky' },
+    { id: 'indigo', color: '#6366f1', glow: 'rgba(99, 102, 241, 0.25)', label: 'Indigo' },
+    { id: 'violet', color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.25)', label: 'Violet' },
+    { id: 'fuchsia', color: '#d946ef', glow: 'rgba(217, 70, 239, 0.25)', label: 'Fuchsia' },
+    { id: 'slate', color: '#64748b', glow: 'rgba(100, 116, 139, 0.25)', label: 'Slate' }
+  ];
+
+  const hexToRgba = (hex, alpha) => {
+    let r = 0, g = 0, b = 0;
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+      r = parseInt(hex.substring(1, 3), 16);
+      g = parseInt(hex.substring(3, 5), 16);
+      b = parseInt(hex.substring(5, 7), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const BG_PALETTES = [
+    { id: 'black', primary: '#000000', label: 'Pure Black' },
+    { id: 'darkest', primary: '#050505', label: 'Darkest' },
+    { id: 'dark', primary: '#0a0a0a', label: 'Dark' },
+    { id: 'zinc', primary: '#111111', label: 'Zinc' },
+    { id: 'charcoal', primary: '#18181b', label: 'Charcoal' }
+  ];
+
+  const SEC_PALETTES = [
+    { id: 'black', color: '#000000', glass: 'rgba(0, 0, 0, 0.6)', glassActive: 'rgba(0, 0, 0, 0.85)', label: 'Pure Black' },
+    { id: 'darkest', color: '#09090b', glass: 'rgba(9, 9, 11, 0.6)', glassActive: 'rgba(9, 9, 11, 0.85)', label: 'Darkest' },
+    { id: 'dark', color: '#18181b', glass: 'rgba(24, 24, 27, 0.6)', glassActive: 'rgba(24, 24, 27, 0.85)', label: 'Dark' },
+    { id: 'zinc', color: '#27272a', glass: 'rgba(39, 39, 42, 0.6)', glassActive: 'rgba(39, 39, 42, 0.85)', label: 'Zinc' },
+    { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
+  ];
+
+  const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
+  const [secPalette, setSecPalette] = useState(() => localStorage.getItem('sec-palette') || 'darkest');
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const p = APP_PALETTES.find(x => x.id === appPalette);
+    if (p) {
+      root.style.setProperty('--accent-primary', p.color);
+      root.style.setProperty('--accent-primary-glow', p.glow);
+      localStorage.setItem('app-palette', appPalette);
+    }
+    
+    let primaryBg = '#000000';
+    if (bgPalette.startsWith('#')) primaryBg = bgPalette;
+    else {
+      const b = BG_PALETTES.find(x => x.id === bgPalette);
+      if (b) primaryBg = b.primary;
+    }
+    root.style.setProperty('--bg-primary', primaryBg);
+    localStorage.setItem('bg-palette', bgPalette);
+
+    let secBg = '#111111', secGlass = 'rgba(17,17,17,0.6)', secGlassActive = 'rgba(17,17,17,0.85)';
+    if (secPalette.startsWith('#')) {
+      secBg = secPalette;
+      secGlass = hexToRgba(secPalette, 0.6);
+      secGlassActive = hexToRgba(secPalette, 0.85);
+    } else {
+      const s = SEC_PALETTES.find(x => x.id === secPalette);
+      if (s) {
+        secBg = s.color;
+        secGlass = s.glass;
+        secGlassActive = s.glassActive;
+      }
+    }
+    root.style.setProperty('--bg-secondary', secBg);
+    root.style.setProperty('--bg-glass', secGlass);
+    root.style.setProperty('--bg-glass-active', secGlassActive);
+    localStorage.setItem('sec-palette', secPalette);
+  }, [appPalette, bgPalette, secPalette]);
 
   // History State for Undo/Redo
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -109,6 +203,54 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Hide bottom nav when virtual keyboard is open on mobile.
+  // Uses focusin for open detection, and visualViewport resize for close detection
+  // (handles Android back button which closes keyboard without removing focus).
+  useEffect(() => {
+    const initialHeight = window.innerHeight;
+
+    const getNav = () => document.querySelector('.mobile-bottom-nav');
+
+    const onFocusIn = (e) => {
+      if (e.target.matches('input, textarea, [contenteditable]')) {
+        const nav = getNav();
+        if (nav) nav.classList.add('keyboard-open');
+      }
+    };
+
+    const onFocusOut = () => {
+      setTimeout(() => {
+        const focused = document.activeElement;
+        const isInput = focused && focused.matches('input, textarea, [contenteditable]');
+        if (!isInput) {
+          const nav = getNav();
+          if (nav) nav.classList.remove('keyboard-open');
+        }
+      }, 100);
+    };
+
+    // Detect keyboard close via back button (focus stays but keyboard disappears)
+    const onViewportResize = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      // If viewport height returns close to initial, keyboard has closed
+      if (vv.height >= initialHeight * 0.9) {
+        const nav = getNav();
+        if (nav) nav.classList.remove('keyboard-open');
+      }
+    };
+
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+    window.visualViewport?.addEventListener('resize', onViewportResize);
+
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+      window.visualViewport?.removeEventListener('resize', onViewportResize);
+    };
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedLogbookText(logbookText);
@@ -123,7 +265,7 @@ export default function App() {
   const isScrollingToTab = useRef(false);
   const scrollTabTimeout = useRef(null);
 
-  const handleScroll = (e) => {
+  const handleScroll = useCallback((e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
     if (isScrollingToTab.current) return; // Ignore programmatic scrolls to prevent transition conflicts
     
@@ -160,7 +302,7 @@ export default function App() {
         }
       }
     }, 100); // Wait 100ms after last scroll event before triggering full React re-render
-  };
+  }, [activeTab]);
 
   // Helper to scroll to tab programmatically
   const scrollToTab = useCallback((tabName) => {
@@ -192,11 +334,7 @@ export default function App() {
           });
         }
         
-        // Immediately show/hide editor header controls
-        const headerControls = document.getElementById('mobile-header-editor-controls');
-        if (headerControls) {
-          headerControls.style.display = targetName === 'editor' ? 'flex' : 'none';
-        }
+        // Header controls visibility is managed naturally by swipe view layout
 
         // Execute physical scroll immediately
         swipeContainerRef.current.scrollTo({
@@ -215,6 +353,19 @@ export default function App() {
 
   // Storage folder settings (mobile)
   const [showStorageSettings, setShowStorageSettings] = useState(false);
+  const [isStorageClosing, setIsStorageClosing] = useState(false);
+
+  const toggleStorageSettings = () => {
+    if (showStorageSettings) {
+      setIsStorageClosing(true);
+      setTimeout(() => {
+        setShowStorageSettings(false);
+        setIsStorageClosing(false);
+      }, 250);
+    } else {
+      setShowStorageSettings(true);
+    }
+  };
   const initCfg = getStorageConfig();
   const [pendingDirType, setPendingDirType] = useState(initCfg.dirType);
   const [pendingSubfolder, setPendingSubfolder] = useState(initCfg.subfolder);
@@ -246,7 +397,6 @@ export default function App() {
 
   // Dynamic sliding highlight for Navbar
   const tabNavRef = useRef(null);
-  const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
   const updateNavbarHighlight = useCallback(() => {
     if (!tabNavRef.current) return;
@@ -314,7 +464,7 @@ export default function App() {
   // UI Status State
   const [syncStatus, setSyncStatus] = useState('saved'); // 'saved', 'syncing', 'error'
   const [syncError, setSyncError] = useState('');
-  const [saveTimeout, setSaveTimeout] = useState(null);
+  const saveTimeoutRef = useRef(null); // useRef instead of useState to avoid re-render on debounce
 
   // Autocomplete State
   const [suggestions, setSuggestions] = useState([]);
@@ -439,8 +589,8 @@ export default function App() {
 
   // Handle program switching with auto-flush
   const handleProgramChange = (progName) => {
-    if (syncStatus === 'syncing' && saveTimeout) {
-      clearTimeout(saveTimeout);
+    if (syncStatus === 'syncing' && saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
       saveLogbookContent(logbookText, currentProgram);
     }
     loadProgram(progName);
@@ -764,11 +914,10 @@ export default function App() {
     setActiveCursorLine(lineNum);
 
     // Debounce saving
-    if (saveTimeout) clearTimeout(saveTimeout);
-    const timeout = setTimeout(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
       saveLogbookContent(newText, currentProgram);
     }, 1500);
-    setSaveTimeout(timeout);
 
     // Handle autocomplete triggers
     handleAutocomplete(e);
@@ -875,54 +1024,22 @@ export default function App() {
     }
   };
 
-  // Helper: Append template to editor
-  // eslint-disable-next-line no-unused-vars
-  const insertTemplate = (type) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    let template = '';
-    if (type === 'session') {
-      const nextSession = Math.max(...workoutData.map(d => d.session), 0) + 1;
-      template = `\n# ${nextSession}\nNew Exercise | 2' | \n20..10.10.10\n`;
-    } else if (type === 'exercise') {
-      template = `\nNew Exercise | 2' | \n20..10.10.10\n`;
-    }
-
-    const val = logbookText;
-    const start = textarea.selectionStart;
-    const before = val.substring(0, start);
-    const after = val.substring(start);
-    const newText = before + template + after;
-
-    setLogbookText(newText);
-    saveLogbookContent(newText);
-
-    setTimeout(() => {
-      textarea.focus();
-      const pos = start + template.length;
-      textarea.setSelectionRange(pos, pos);
-    }, 50);
-  };
 
   return (
     <div className="app-container">
       {/* Header */}
       <header className="app-header">
-        <div className="brand">
-          <h1>Algorithmic<br/>Bodybuilding</h1>
-        </div>
-
-        <button className="mobile-burger-btn" onClick={() => setIsMobileMenuOpen(true)}>
-          <div className="burger-icon">
-            <div />
-            <div />
-          </div>
+        <button className="mobile-burger-btn" style={{ pointerEvents: 'auto' }} onClick={() => setShowMobileSettings(true)}>
+          <Settings size={22} color="var(--text-primary)" strokeWidth={1.5} />
         </button>
 
+        <div className="brand" style={{ pointerEvents: 'auto' }}>
+          <h1 style={{ textAlign: 'right' }}>Algorithmic<br/>Bodybuilding</h1>
+        </div>
+
         {/* Tab Selection */}
-        <div className={`tab-nav ${isMobileMenuOpen ? 'mobile-open' : ''}`} ref={tabNavRef}>
-          <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)}>×</button>
+        <div className={`tab-nav ${showMobileSettings ? 'mobile-open' : ''}`} ref={tabNavRef}>
+          <button className="mobile-close-btn" onClick={() => setShowMobileSettings(false)}>×</button>
           <div 
             className="tab-nav-highlight" 
             style={{
@@ -943,28 +1060,28 @@ export default function App() {
           />
           <button 
             className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
-            onClick={() => { scrollToTab('editor'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('editor'); setSelectedSession(null); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Edit size={16} /> Editor
           </button>
           <button 
             className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => { scrollToTab('dashboard'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('dashboard'); setSelectedSession(null); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <BarChart3 size={16} /> Dashboard
           </button>
           <button 
             className={`tab-btn ${activeTab === 'db' ? 'active' : ''}`}
-            onClick={() => { scrollToTab('db'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('db'); setSelectedSession(null); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Search size={16} /> Exercise DB
           </button>
           <button 
             className={`tab-btn flex items-center gap-2 ${activeTab === 'generator' ? 'active' : ''}`}
-            onClick={() => { scrollToTab('generator'); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('generator'); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Bot size={16} /> Generator
@@ -972,6 +1089,94 @@ export default function App() {
 
           {/* Header Controls inside lateral menu for Mobile */}
           <div className="header-controls">
+            {/* Palette Settings */}
+            <div className="palette-settings-container" style={{ width: '100%', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Theme Color</div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                  {APP_PALETTES.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setAppPalette(p.id)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: p.color,
+                        border: appPalette === p.id ? '2px solid white' : '2px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      title={p.label}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Background Color</div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                  {BG_PALETTES.map(b => (
+                    <button
+                      key={b.id}
+                      onClick={() => setBgPalette(b.id)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: b.primary,
+                        border: bgPalette === b.id ? '2px solid white' : '2px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      title={b.label}
+                    />
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#</span>
+                    <input 
+                      type="text" 
+                      value={bgPalette.startsWith('#') ? bgPalette.substring(1) : ''}
+                      onChange={(e) => setBgPalette('#' + e.target.value)}
+                      placeholder="hex"
+                      style={{ width: '50px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}
+                      maxLength={6}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Secondary Color</div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                  {SEC_PALETTES.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSecPalette(s.id)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: s.color,
+                        border: secPalette === s.id ? '2px solid white' : '2px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      title={s.label}
+                    />
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#</span>
+                    <input 
+                      type="text" 
+                      value={secPalette.startsWith('#') ? secPalette.substring(1) : ''}
+                      onChange={(e) => setSecPalette('#' + e.target.value)}
+                      placeholder="hex"
+                      style={{ width: '50px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}
+                      maxLength={6}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Program Selector */}
             <div className="program-selector-container">
               <span className="program-label">Program:</span>
@@ -1004,27 +1209,22 @@ export default function App() {
                  syncStatus === 'saved' ? `Synced with ${currentProgram}.md` : 'Offline'}
               </span>
             </div>
-
             {/* Storage Folder Settings */}
             <div className="storage-settings-container">
               <button
                 className="storage-toggle-btn"
-                onClick={() => setShowStorageSettings(s => !s)}
+                onClick={toggleStorageSettings}
               >
                 <FolderOpen size={16} className="icon-folder" />
                 <span style={{ flex: 1 }}>Storage Folder</span>
-                {showStorageSettings ? (
-                  <ChevronUp size={14} className="storage-chevron" />
-                ) : (
-                  <ChevronDown size={14} className="storage-chevron" />
-                )}
+                <ChevronDown size={14} className={`storage-chevron${showStorageSettings ? ' open' : ''}`} />
               </button>
 
-              {showStorageSettings && (() => {
+              {(showStorageSettings || isStorageClosing) && (() => {
                 const cfg = getStorageConfig();
                 const isCustom = cfg.dirType === 'custom' && cfg.safUri;
                 return (
-                  <div className="storage-panel">
+                  <div className={`storage-panel${isStorageClosing ? ' closing' : ''}`}>
 
                     {/* Current folder status */}
                     <div className={`storage-status-card ${isCustom ? 'custom' : ''}`}>
@@ -1134,10 +1334,90 @@ export default function App() {
           <div className="status-badge">
             <div className={`status-dot ${syncStatus}`}></div>
             <span>
-              {syncStatus === 'saved' && `Synced with ${currentProgram}.md`}
-              {syncStatus === 'syncing' && 'Saving changes...'}
-              {syncStatus === 'error' && 'Sync Error'}
+              {syncStatus === 'syncing' ? 'Saving...' :
+               syncStatus === 'error' ? 'Sync Error' :
+               syncStatus === 'saved' ? `Synced with ${currentProgram}.md` : 'Offline'}
             </span>
+          </div>
+
+          {/* Desktop Palette Selectors */}
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginLeft: '16px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', maxWidth: '140px' }}>
+              {APP_PALETTES.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setAppPalette(p.id)}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: p.color,
+                    border: appPalette === p.id ? '2px solid white' : '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  title={`Theme: ${p.label}`}
+                />
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {BG_PALETTES.map(b => (
+                <button
+                  key={b.id}
+                  onClick={() => setBgPalette(b.id)}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: b.primary,
+                    border: bgPalette === b.id ? '2px solid white' : '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  title={`Background: ${b.label}`}
+                />
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>#</span>
+                <input 
+                  type="text" 
+                  value={bgPalette.startsWith('#') ? bgPalette.substring(1) : ''}
+                  onChange={(e) => setBgPalette('#' + e.target.value)}
+                  placeholder="hex"
+                  style={{ width: '40px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.7rem', outline: 'none' }}
+                  maxLength={6}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {SEC_PALETTES.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setSecPalette(s.id)}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: s.color,
+                    border: secPalette === s.id ? '2px solid white' : '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  title={`Secondary: ${s.label}`}
+                />
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>#</span>
+                <input 
+                  type="text" 
+                  value={secPalette.startsWith('#') ? secPalette.substring(1) : ''}
+                  onChange={(e) => setSecPalette('#' + e.target.value)}
+                  placeholder="hex"
+                  style={{ width: '40px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.7rem', outline: 'none' }}
+                  maxLength={6}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -1166,7 +1446,7 @@ export default function App() {
           {isMobile && (
             <div id="mobile-header-editor-controls" style={{ 
               position: 'absolute', 
-              top: '12px', 
+              top: '18px', 
               right: '12px', 
               zIndex: 50, 
               display: 'flex', 
@@ -1325,12 +1605,16 @@ export default function App() {
           handleOpenEditExercise={handleOpenEditExercise}
           debouncedLogbookText={debouncedLogbookText}
           currentProgram={currentProgram}
+          exerciseSearch={exerciseSearch}
+          setExerciseSearch={setExerciseSearch}
         />
         {/* TAB CONTENT: GENERATOR */}
         <div className={`swipe-view ${activeTab === 'generator' ? 'active-desktop' : ''}`} id="view-generator">
           {(isMobile || activeTab === 'generator') && (
           <div className="tab-workspace-flat" style={{ height: 'calc(100vh - 80px)', padding: '20px' }}>
-            <GeneratorConfig />
+            <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--text-muted)' }}>Loading Generator...</div>}>
+              <GeneratorConfig isMobile={isMobile} />
+            </Suspense>
           </div>
           )}
         </div>
@@ -1495,8 +1779,7 @@ export default function App() {
                         <YAxis stroke="var(--text-muted)" fontSize={10} width={30} domain={[0, 1]} tickFormatter={(v) => Math.round(v*100)} />
                         <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />
                         {exerciseForm.muscles.map((m, i) => {
-                           const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
-                           return <Line key={m.name} type="monotone" dataKey={m.name} stroke={colors[i % colors.length]} dot={false} strokeWidth={2} name={m.name} />;
+                           return <Line key={m.name} type="monotone" dataKey={m.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} name={m.name} />;
                         })}
                       </LineChart>
                     </ResponsiveContainer>
@@ -1510,8 +1793,7 @@ export default function App() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {exerciseForm.muscles.map((m, index) => {
-                      const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
-                      const dotColor = colors[index % colors.length];
+                      const dotColor = CHART_COLORS[index % CHART_COLORS.length];
                       return (
                       <div key={m.name} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1696,6 +1978,11 @@ export default function App() {
               {exerciseError && <div className="modal-error" style={{ marginTop: '4px' }}>{exerciseError}</div>}
 
             </div>
+            {(() => {
+              const muscleSum = exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0);
+              const isInvalid = muscleSum !== 100;
+              const disabledStyle = { opacity: isInvalid ? 0.6 : 1, cursor: isInvalid ? 'not-allowed' : 'pointer' };
+              return (
             <div className="modal-actions">
               {currentHasOverride && (
                 <button
@@ -1712,32 +1999,29 @@ export default function App() {
               <button
                 className="btn btn-primary"
                 onClick={handleSaveExerciseForProgramOnly}
-                disabled={exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100}
-                style={{
-                  opacity: exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100 ? 0.6 : 1,
-                  cursor: exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100 ? 'not-allowed' : 'pointer'
-                }}
+                disabled={isInvalid}
+                style={disabledStyle}
               >
                 Save for {currentProgram} Only
               </button>
               <button
                 className="btn btn-success-solid"
                 onClick={handleSaveExercise}
-                disabled={exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100}
-                style={{
-                  opacity: exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100 ? 0.6 : 1,
-                  cursor: exerciseForm.muscles.reduce((sum, m) => sum + m.percentage, 0) !== 100 ? 'not-allowed' : 'pointer'
-                }}
+                disabled={isInvalid}
+                style={disabledStyle}
               >
                 Save Globally
               </button>
             </div>
+              );
+            })()}
           </div>
         </div>
       )}
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="mobile-bottom-nav">
+      {(!isMobile || !showMobileSettings) && (
+        <div className="mobile-bottom-nav">
         <div 
           className="mobile-bottom-nav-indicator" 
           ref={bottomNavIndicatorRef}
@@ -1767,8 +2051,8 @@ export default function App() {
         >
           <Bot size={20} />
         </button>
-      </div>
-
+        </div>
+      )}
     </div>
   );
 }

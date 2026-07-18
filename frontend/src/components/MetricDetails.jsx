@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Latex, MathBlock } from './MathComponents';
 
 const TensionProfileExplainer = () => {
@@ -196,9 +196,19 @@ const TensionProfileExplainer = () => {
   );
 };
 
-const MetricDetailsPage = ({ metric, onBack }) => {
+export default function MetricDetailsPage({ metric, onBack }) {
+  // Keep track of the last valid metric so it doesn't say "not found" during the exit animation
+  const lastValidMetric = useRef(metric);
+  useEffect(() => {
+    if (metric) {
+      lastValidMetric.current = metric;
+    }
+  }, [metric]);
+
+  const activeMetric = metric || lastValidMetric.current;
+
   const getMetricData = () => {
-    switch (metric) {
+    switch (activeMetric) {
       case 'volume':
         return {
           title: 'Total Volume',
@@ -267,7 +277,7 @@ const MetricDetailsPage = ({ metric, onBack }) => {
         return {
           title: 'Effective Reps',
           subtitle: 'Hypertrophy-stimulative repetitions',
-          color: 'var(--accent-secondary)',
+          color: 'var(--color-effective-volume)',
           description: 'Effective reps count stimulative repetitions in a set. The base reps are determined by proximity to failure (measured by RPE), where base effective reps = RPE - 4. Assisted and partial reps are also included and weighted (assisted reps at 0.5, partial reps at 0.33).',
           formulas: [
             '\\text{EffReps} = \\sum_{s \\in \\text{Sets}} \\text{effReps}_s \\cdot D_m',
@@ -382,7 +392,7 @@ const MetricDetailsPage = ({ metric, onBack }) => {
   if (!data) return <div>Metric not found</div>;
 
   return (
-    <div style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>
+    <div style={{ padding: '80px 16px 100px 16px', color: 'var(--text-primary)' }}>
       {/* Back Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
         <button 
@@ -476,5 +486,3 @@ const MetricDetailsPage = ({ metric, onBack }) => {
   );
 };
 
-
-export default MetricDetailsPage;

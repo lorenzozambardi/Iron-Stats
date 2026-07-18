@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 
 const BezierEditor = ({ value, onChange }) => {
   // value is { y0, x1, y1, x2, y2, y3 }
@@ -22,6 +22,9 @@ const BezierEditor = ({ value, onChange }) => {
     setDragging(point);
   };
 
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
+
   const handlePointerMove = (e) => {
     if (!dragging || !svgRef.current) return;
     e.preventDefault();
@@ -37,7 +40,13 @@ const BezierEditor = ({ value, onChange }) => {
     const newX = fromSvgX(svgX);
     const newY = fromSvgY(svgY);
     
-    const nextVal = { ...value };
+    const currentVal = valueRef.current;
+    const p0 = { x: currentVal.x0 ?? 0, y: currentVal.y0 ?? 1 };
+    const p1 = { x: currentVal.x1 ?? 0.33, y: currentVal.y1 ?? 1 };
+    const p2 = { x: currentVal.x2 ?? 0.66, y: currentVal.y2 ?? 1 };
+    const p3 = { x: currentVal.x3 ?? 1, y: currentVal.y3 ?? 1 };
+    
+    const nextVal = { ...currentVal };
     
     if (dragging === 'p0') {
       nextVal.x0 = Math.min(newX, p3.x);
@@ -77,46 +86,53 @@ const BezierEditor = ({ value, onChange }) => {
         window.removeEventListener('touchend', handlePointerUp);
       };
     }
-  }, [dragging, value, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging]);
 
-  const p0 = { x: value.x0 ?? 0, y: value.y0 ?? 1 };
-  const p1 = { x: value.x1 ?? 0.33, y: value.y1 ?? 1 };
-  const p2 = { x: value.x2 ?? 0.66, y: value.y2 ?? 1 };
-  const p3 = { x: value.x3 ?? 1, y: value.y3 ?? 1 };
+  const { p0, p1, p2, p3 } = useMemo(() => ({
+    p0: { x: value.x0 ?? 0, y: value.y0 ?? 1 },
+    p1: { x: value.x1 ?? 0.33, y: value.y1 ?? 1 },
+    p2: { x: value.x2 ?? 0.66, y: value.y2 ?? 1 },
+    p3: { x: value.x3 ?? 1, y: value.y3 ?? 1 }
+  }), [value.x0, value.y0, value.x1, value.y1, value.x2, value.y2, value.x3, value.y3]);
 
-  const pathD = `M ${toSvgX(p0.x)} ${toSvgY(p0.y)} C ${toSvgX(p1.x)} ${toSvgY(p1.y)}, ${toSvgX(p2.x)} ${toSvgY(p2.y)}, ${toSvgX(p3.x)} ${toSvgY(p3.y)}`;
+  const { pathD, normalizedPathD } = useMemo(() => {
+    const rawPath = `M ${toSvgX(p0.x)} ${toSvgY(p0.y)} C ${toSvgX(p1.x)} ${toSvgY(p1.y)}, ${toSvgX(p2.x)} ${toSvgY(p2.y)}, ${toSvgX(p3.x)} ${toSvgY(p3.y)}`;
 
-  let maxY = 0;
-  const resolution = 50;
-  for (let i = 0; i <= resolution; i++) {
-    const t = i / resolution;
-    const y = Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * Math.pow(t, 2) * p2.y + Math.pow(t, 3) * p3.y;
-    if (y > maxY) maxY = y;
-  }
-
-  let normalizedPathD = '';
-  if (maxY > 0) {
+    let maxY = 0;
+    const resolution = 50;
     for (let i = 0; i <= resolution; i++) {
       const t = i / resolution;
-      const x = Math.pow(1 - t, 3) * p0.x + 3 * Math.pow(1 - t, 2) * t * p1.x + 3 * (1 - t) * Math.pow(t, 2) * p2.x + Math.pow(t, 3) * p3.x;
       const y = Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * Math.pow(t, 2) * p2.y + Math.pow(t, 3) * p3.y;
-      
-      const nx = toSvgX(x);
-      const ny = toSvgY(y / maxY);
-      
-      if (i === 0) {
-        normalizedPathD += `M ${toSvgX(0)} ${toSvgY(0)} L ${nx} ${toSvgY(0)} L ${nx} ${ny} `;
-      } else {
-        normalizedPathD += `L ${nx} ${ny} `;
-      }
-      
-      if (i === resolution) {
-        normalizedPathD += `L ${nx} ${toSvgY(0)} L ${toSvgX(1)} ${toSvgY(0)}`;
-      }
+      if (y > maxY) maxY = y;
     }
-  } else {
-    normalizedPathD = `M ${toSvgX(0)} ${toSvgY(0)} L ${toSvgX(1)} ${toSvgY(0)}`;
-  }
+
+    let normPath = '';
+    if (maxY > 0) {
+      for (let i = 0; i <= resolution; i++) {
+        const t = i / resolution;
+        const x = Math.pow(1 - t, 3) * p0.x + 3 * Math.pow(1 - t, 2) * t * p1.x + 3 * (1 - t) * Math.pow(t, 2) * p2.x + Math.pow(t, 3) * p3.x;
+        const y = Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * Math.pow(t, 2) * p2.y + Math.pow(t, 3) * p3.y;
+        
+        const nx = toSvgX(x);
+        const ny = toSvgY(y / maxY);
+        
+        if (i === 0) {
+          normPath += `M ${toSvgX(0)} ${toSvgY(0)} L ${nx} ${toSvgY(0)} L ${nx} ${ny} `;
+        } else {
+          normPath += `L ${nx} ${ny} `;
+        }
+        
+        if (i === resolution) {
+          normPath += `L ${nx} ${toSvgY(0)} L ${toSvgX(1)} ${toSvgY(0)}`;
+        }
+      }
+    } else {
+      normPath = `M ${toSvgX(0)} ${toSvgY(0)} L ${toSvgX(1)} ${toSvgY(0)}`;
+    }
+    
+    return { pathD: rawPath, normalizedPathD: normPath };
+  }, [p0, p1, p2, p3]);
 
   return (
     <div style={{ position: 'relative', width: '300px', height: '200px', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border-accent)', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MUSCLES } from '../constants';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MUSCLES } from '../parser';
 import { formatRestTime, groupSets } from './helpers';
 
 function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode }) {
@@ -14,7 +14,8 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
         if (container) {
           const elementRect = element.getBoundingClientRect();
           const containerRect = container.getBoundingClientRect();
-          const targetY = container.scrollTop + (elementRect.top - containerRect.top);
+          const offset = 68; // 12px (spazio sopra) + 44px (altezza pillola: 36px + 4px padding x2) + 12px (spazio sotto)
+          const targetY = Math.max(0, container.scrollTop + (elementRect.top - containerRect.top) - offset);
           
           if (scrollAnimRef.current) {
             cancelAnimationFrame(scrollAnimRef.current);
@@ -48,6 +49,42 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
     };
   }, [activeExerciseStartLine]);
 
+  // Group by session — memoized to avoid recomputing on every editor keystroke
+  const sessionsWithMeta = useMemo(() => {
+    const sessions = {};
+    if (!workoutData) return [];
+    workoutData.forEach(ex => {
+      if (!sessions[ex.session]) sessions[ex.session] = [];
+      sessions[ex.session].push(ex);
+    });
+
+    return Object.entries(sessions).map(([sessNum, exercises]) => {
+      const latestWeek = Math.max(...exercises.flatMap(e => e.weeks.map(w => w.week_num)), 1);
+      let totalEffReps = 0;
+      const muscleEffReps = {};
+
+      exercises.forEach(ex => {
+        const wk = ex.weeks.find(w => w.week_num === latestWeek);
+        if (wk && ex.exercise_obj) {
+          let exEffReps = 0;
+          wk.sets.forEach(s => { exEffReps += (s.effectiveRepsCustom || 0); });
+          totalEffReps += exEffReps;
+          Object.entries(ex.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
+            const pctVal = typeof pct === 'number' ? pct : (pct?.magnitude || 0);
+            const main = MUSCLES[sub];
+            if (main) muscleEffReps[main] = (muscleEffReps[main] || 0) + (exEffReps * pctVal);
+          });
+        }
+      });
+
+      const qualifyingMuscles = Object.entries(muscleEffReps)
+        .filter(([, reps]) => reps >= 10).map(([main]) => main).sort();
+      const musclesStr = qualifyingMuscles.length > 0 ? qualifyingMuscles.join(', ') : 'None';
+
+      return { sessNum, exercises, latestWeek, totalEffReps, musclesStr };
+    });
+  }, [workoutData]);
+
   if (!workoutData || workoutData.length === 0) {
     return (
       <div className="preview-empty">
@@ -56,45 +93,9 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
     );
   }
 
-  // Group by session
-  const sessions = {};
-  workoutData.forEach(ex => {
-    if (!sessions[ex.session]) {
-      sessions[ex.session] = [];
-    }
-    sessions[ex.session].push(ex);
-  });
-
   return (
     <div className="logbook-preview-content">
-      {Object.entries(sessions).map(([sessNum, exercises]) => {
-        // Calculate session metrics for the latest week
-        const latestWeek = Math.max(...exercises.flatMap(e => e.weeks.map(w => w.week_num)), 1);
-        let totalEffReps = 0;
-        const muscleEffReps = {};
-
-        exercises.forEach(ex => {
-          const wk = ex.weeks.find(w => w.week_num === latestWeek);
-          if (wk && ex.exercise_obj) {
-            let exEffReps = 0;
-            wk.sets.forEach(s => { exEffReps += (s.effectiveRepsCustom || 0); });
-            totalEffReps += exEffReps;
-            
-            Object.entries(ex.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
-              const pctVal = typeof pct === 'number' ? pct : (pct?.magnitude || 0);
-              const main = MUSCLES[sub];
-              if (main) {
-                muscleEffReps[main] = (muscleEffReps[main] || 0) + (exEffReps * pctVal);
-              }
-            });
-          }
-        });
-
-        const qualifyingMuscles = Object.entries(muscleEffReps)
-          .filter(([, reps]) => reps >= 10)
-          .map(([main]) => main).sort();
-        const musclesStr = qualifyingMuscles.length > 0 ? qualifyingMuscles.join(', ') : 'None';
-
+      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, musclesStr }) => {
         return (
           <div key={sessNum} className="preview-session-group">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', borderLeft: '3px solid var(--accent-primary)' }}>
