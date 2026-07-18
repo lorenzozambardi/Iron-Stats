@@ -905,30 +905,6 @@ export default function App() {
     }, 50);
   };
 
-  // Has any filter active?
-  const hasAnyFilter = dashFilterSession !== 'all' || dashFilterWeek !== 'all' ||
-    cmpFilterSession !== 'all' || cmpFilterWeek !== 'all' ||
-    dashMuscleMacro !== 'all';
-
-
-
-  // Filters for exercise DB (fuzzy, always returns best matches)
-  const filteredExercises = exerciseSearch
-    ? activeExercises
-        .map(ex => {
-          const nameScore = fuzzyScore(exerciseSearch, ex.name);
-          const muscleScore = Math.max(
-            0,
-            ...Object.keys(ex.muscles_distr).map(m => fuzzyScore(exerciseSearch, m))
-          );
-          const best = Math.max(nameScore, muscleScore);
-          return { ex, score: best };
-        })
-        .filter(({ score }) => score >= 0)
-        .sort((a, b) => b.score - a.score)
-        .map(({ ex }) => ex)
-    : activeExercises;
-
   return (
     <div className="app-container">
       {/* Header */}
