@@ -192,12 +192,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .swipe-view {
   min-width: 100%;
+  max-width: 100%;
   flex-shrink: 0;
   scroll-snap-align: start;
   height: 100%;
   overflow-y: auto; /* Allow internal vertical scrolling */
+  overflow-x: hidden; /* Prevent horizontal scrolling inside the view */
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 @media (min-width: 769px) {
@@ -1039,8 +1042,6 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 1.4rem;
   color: var(--accent-primary);
   font-family: var(--font-display);
-  border-left: 4px solid var(--accent-primary);
-  padding-left: 12px;
   margin-bottom: 4px;
 }
 
@@ -1242,6 +1243,9 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-color);
@@ -1551,7 +1555,7 @@ h1, h2, h3, h4, h5, h6 {
     display: none !important; 
   }
   
-  /* 2. Lateral menu styling */
+  /* Removed duplicated block */
   .mobile-burger-btn {
     display: flex;
     align-items: center;
@@ -1566,10 +1570,10 @@ h1, h2, h3, h4, h5, h6 {
   .burger-icon {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
   .burger-icon div {
-    width: 24px;
+    width: 18px;
     height: 2px;
     background: var(--text-primary);
     border-radius: 2px;
@@ -1615,20 +1619,32 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: row !important;
     align-items: center !important;
     justify-content: space-between !important;
-    position: sticky !important;
+    position: fixed !important;
     top: 0;
     left: 0;
     width: 100% !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    padding: 0 12px !important;
-    background: var(--bg-secondary) !important;
-    border-bottom: 1px solid var(--border-color) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 12px !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
     border-radius: 0 !important;
     z-index: 200 !important;
-    pointer-events: auto !important;
+    pointer-events: none !important;
     box-sizing: border-box !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: none !important;
+  }
+  
+  .mobile-burger-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #0f1420 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+    pointer-events: auto !important;
   }
   
   .tab-nav .tab-btn {
@@ -1641,14 +1657,15 @@ h1, h2, h3, h4, h5, h6 {
     gap: 0 !important;
   }
   
-  /* Ensure content can be scrolled above the floating pill */
+  /* Ensure content can be scrolled above the floating pill and starts below top buttons */
   .tab-workspace-flat, 
   .glass-card-body, 
   .preview-container, 
   .editor-textarea,
   .config-pane,
   .docs-pane {
-    padding-bottom: 90px !important;
+    padding-top: 68px !important;
+    padding-bottom: 76px !important;
   }
   .app-header {
     border-radius: 0 !important;
@@ -1665,7 +1682,8 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: none !important;
   }
   .glass-card-body {
-    padding: 8px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
   
   /* 3. Split view mode: preview top, editable text bottom */
@@ -1686,13 +1704,19 @@ h1, h2, h3, h4, h5, h6 {
     grid-row: 1;
   }
   .preview-container {
-    padding: 0 !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
   }
 
   /* 4 & 5. Smaller font, Google Pixel 6a standard font (Roboto/sans-serif) */
   .editor-textarea, .editor-line-numbers {
     font-size: 0.95rem !important;
     font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  }
+  
+  .editor-textarea {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
   }
   
   .logbook-preview-content, .logbook-preview-content * {
@@ -1772,6 +1796,7 @@ h1, h2, h3, h4, h5, h6 {
     display: flex !important;
     position: static !important;
     margin-top: auto !important; /* Pushes them to the bottom of the open menu */
+    margin-bottom: 80px !important; /* Lift to avoid bottom nav pill */
     width: 100% !important;
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -1820,6 +1845,19 @@ h1, h2, h3, h4, h5, h6 {
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
+  .mobile-bottom-nav-indicator {
+    position: absolute;
+    left: 6px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    box-shadow: 0 4px 12px var(--accent-primary-glow);
+    z-index: 1;
+    pointer-events: none;
+    will-change: transform;
+  }
+
   .bottom-nav-btn {
     background: transparent;
     border: none;
@@ -1831,17 +1869,18 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    z-index: 2;
+    position: relative;
+  }
+  
+  .bottom-nav-btn svg {
+    transition: none !important;
   }
 
-  .bottom-nav-btn:hover {
-    color: var(--text-primary);
-  }
+
 
   .bottom-nav-btn.active {
-    background: var(--accent-primary); /* Violet */
     color: #fff;
-    box-shadow: 0 4px 12px var(--accent-primary-glow);
   }
 
   .tab-nav > .header-controls .status-badge {
@@ -2347,3 +2386,80 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(0);
 }
 
+/* Mobile Editor Pill Nav */
+.mobile-editor-pill-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f1420; /* solid dark */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px;
+  border-radius: 99px; /* Pill */
+  gap: 2px;
+  width: max-content;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  margin-left: auto; /* push to the right */
+  position: relative;
+  pointer-events: auto !important;
+}
+
+.mobile-editor-mode-indicator {
+  position: absolute;
+  left: 4px; /* matches padding */
+  width: 36px; /* match button width */
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 4px 12px var(--accent-primary-glow);
+  z-index: 1;
+  pointer-events: none;
+  transition: transform 0.25s ease;
+  will-change: transform;
+}
+
+.mode-pill-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  z-index: 2;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.mode-pill-btn.active {
+  color: #fff;
+}
+
+.pill-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255,255,255,0.1);
+  margin: 0 4px;
+}
+
+.btn-save-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.15); /* A subtle green for save */
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-save-circle:hover, .btn-save-circle:active {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}

@@ -23,7 +23,9 @@ import {
   ChevronUp,
   RefreshCw,
   Sliders,
-  Activity
+  Activity,
+  Undo2,
+  Redo2
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import BezierEditor from './BezierEditor';
@@ -57,6 +59,51 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
+  // History State for Undo/Redo
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const textHistoryRef = useRef(['']);
+  const isUndoRedoAction = useRef(false);
+  const textHistoryTimeoutRef = useRef(null);
+
+  useEffect(() => {
+     if (isUndoRedoAction.current) {
+        isUndoRedoAction.current = false;
+        return;
+     }
+     
+     if (textHistoryTimeoutRef.current) clearTimeout(textHistoryTimeoutRef.current);
+     textHistoryTimeoutRef.current = setTimeout(() => {
+         if (historyIndex < textHistoryRef.current.length - 1) {
+            textHistoryRef.current = textHistoryRef.current.slice(0, historyIndex + 1);
+         }
+         if (textHistoryRef.current[textHistoryRef.current.length - 1] !== logbookText) {
+            textHistoryRef.current.push(logbookText);
+            if (textHistoryRef.current.length > 50) {
+               textHistoryRef.current.shift();
+            }
+            setHistoryIndex(textHistoryRef.current.length - 1);
+         }
+     }, 500);
+  }, [logbookText, historyIndex]);
+
+  const handleUndo = useCallback(() => {
+     if (historyIndex > 0) {
+        isUndoRedoAction.current = true;
+        const newIndex = historyIndex - 1;
+        setLogbookText(textHistoryRef.current[newIndex]);
+        setHistoryIndex(newIndex);
+     }
+  }, [historyIndex]);
+
+  const handleRedo = useCallback(() => {
+     if (historyIndex < textHistoryRef.current.length - 1) {
+        isUndoRedoAction.current = true;
+        const newIndex = historyIndex + 1;
+        setLogbookText(textHistoryRef.current[newIndex]);
+        setHistoryIndex(newIndex);
+     }
+  }, [historyIndex]);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -65,42 +112,96 @@ export default function App() {
 
   // Swipeable views container ref
   const swipeContainerRef = useRef(null);
+  const bottomNavIndicatorRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+  const isScrollingToTab = useRef(false);
+  const scrollTabTimeout = useRef(null);
 
   const handleScroll = (e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
+    if (isScrollingToTab.current) return; // Ignore programmatic scrolls to prevent transition conflicts
+    
     const container = e.target;
     const scrollLeft = container.scrollLeft;
     const width = container.clientWidth;
     if (width === 0) return;
     
-    // Calculate which tab is mostly visible
-    const index = Math.round(scrollLeft / width);
-    const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
-    if (index >= 0 && index < tabOrder.length) {
-      const currentTab = tabOrder[index];
-      if (activeTab !== currentTab && activeTab !== 'metric-details') {
-        setActiveTab(currentTab);
-      } else if (activeTab === 'metric-details' && currentTab !== 'dashboard') {
-         // If we are on metric-details and scroll away from dashboard, update activeTab
-         setActiveTab(currentTab);
-         setSelectedMetricDetail(null);
-      }
+    const exactIndex = scrollLeft / width;
+    
+    // Dynamically track the finger
+    if (bottomNavIndicatorRef.current) {
+      bottomNavIndicatorRef.current.style.transition = 'none'; // Ensure no transition during swipe
+      bottomNavIndicatorRef.current.style.transform = `translateX(${exactIndex * 52}px)`;
     }
+    
+    // Debounce the heavy state update to prevent lag during the swipe
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      // Calculate which tab is mostly visible
+      const index = Math.round(exactIndex);
+      const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
+      if (index >= 0 && index < tabOrder.length) {
+        const currentTab = tabOrder[index];
+        if (activeTab !== currentTab && activeTab !== 'metric-details') {
+          setActiveTab(currentTab);
+        } else if (activeTab === 'metric-details' && currentTab !== 'dashboard') {
+           // If we are on metric-details and scroll away from dashboard, update activeTab
+           setActiveTab(currentTab);
+           setSelectedMetricDetail(null);
+        }
+      }
+    }, 100); // Wait 100ms after last scroll event before triggering full React re-render
   };
 
   // Helper to scroll to tab programmatically
   const scrollToTab = useCallback((tabName) => {
-    setActiveTab(tabName);
     if (swipeContainerRef.current) {
       const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
       // If we go to metric-details, scroll to dashboard
       const targetName = tabName === 'metric-details' ? 'dashboard' : tabName;
       const index = tabOrder.indexOf(targetName);
       if (index !== -1) {
+        // We use behavior: 'auto' to jump instantly
+        isScrollingToTab.current = true;
+        if (scrollTabTimeout.current) clearTimeout(scrollTabTimeout.current);
+        scrollTabTimeout.current = setTimeout(() => {
+          isScrollingToTab.current = false;
+        }, 50); // clear flag quickly since it's instant
+        
+        if (bottomNavIndicatorRef.current) {
+          bottomNavIndicatorRef.current.style.transition = 'none'; // Instant
+          bottomNavIndicatorRef.current.style.transform = `translateX(${index * 52}px)`;
+        }
+        
+        // Immediately update icon colors via DOM to prevent lag from deferred React state
+        const navContainer = document.querySelector('.mobile-bottom-nav');
+        if (navContainer) {
+          const btns = navContainer.querySelectorAll('.bottom-nav-btn');
+          btns.forEach((btn, i) => {
+            if (i === index) btn.classList.add('active');
+            else btn.classList.remove('active');
+          });
+        }
+        
+        // Immediately show/hide editor header controls
+        const headerControls = document.getElementById('mobile-header-editor-controls');
+        if (headerControls) {
+          headerControls.style.display = targetName === 'editor' ? 'flex' : 'none';
+        }
+
+        // Execute physical scroll immediately
         swipeContainerRef.current.scrollTo({
           left: index * swipeContainerRef.current.clientWidth,
-          behavior: 'smooth'
+          behavior: 'auto'
         });
+        
+        // Defer the heavy React state update so it doesn't block the browser from painting the jump
+        setTimeout(() => {
+          setActiveTab(tabName);
+        }, 0);
       }
     }
   }, []);
@@ -1375,35 +1476,38 @@ export default function App() {
           </div>
         </button>
 
-        {/* Render editor controls in the header on mobile ONLY */}
-        {activeTab === 'editor' && (
-          <div className="mobile-header-editor-controls">
-            <div className="editor-mode-toggles">
+        {/* Editor Controls on the Right */}
+        {isMobile && (
+          <div id="mobile-header-editor-controls" style={{ display: activeTab === 'editor' ? 'flex' : 'none', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+            {/* Undo / Redo */}
+            <div className="mobile-editor-pill-nav" style={{ margin: 0, padding: '4px' }}>
               <button 
-                className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}
-                onClick={() => setEditorMode('edit')}
-                title="Edit"
+                 className="mode-pill-btn" 
+                 onClick={handleUndo} 
+                 disabled={historyIndex === 0}
+                 style={{ opacity: historyIndex === 0 ? 0.3 : 1 }}
               >
-                <Pencil size={16} />
+                <Undo2 size={18} />
               </button>
               <button 
-                className={`mode-toggle-btn ${editorMode === 'preview' ? 'active' : ''}`}
-                onClick={() => setEditorMode('preview')}
-                title="Preview"
+                 className="mode-pill-btn" 
+                 onClick={handleRedo} 
+                 disabled={historyIndex === textHistoryRef.current.length - 1}
+                 style={{ opacity: historyIndex === textHistoryRef.current.length - 1 ? 0.3 : 1 }}
               >
-                <Eye size={16} />
-              </button>
-              <button 
-                className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
-                onClick={() => setEditorMode('split')}
-                title="Split View"
-              >
-                <Columns size={16} />
+                <Redo2 size={18} />
               </button>
             </div>
-            <button className="btn btn-primary btn-save" onClick={() => saveLogbookContent(logbookText)} title="Save">
-              <Save size={16} />
-            </button>
+
+            {/* Mobile Editor Mode Toggles Pill */}
+            <div className="mobile-editor-pill-nav" style={{ marginLeft: 0 }}>
+               <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
+               <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
+               <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
+               <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+               <div className="pill-divider"></div>
+               <button className="btn-save-circle" onClick={() => saveLogbookContent(logbookText)}><Save size={18} /></button>
+            </div>
           </div>
         )}
 
@@ -2035,6 +2139,17 @@ export default function App() {
                           {dashFilterWeek !== 'all' ? ` · Week ${dashFilterWeek}` : ''}
                         </span>
                       </div>
+                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); scrollToTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Effective Reps
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderMetricTooltip('effective')}
+                          </span>
+                        </span>
+                        <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
+                        <span className="metric-trend">Stimulative reps</span>
+                      </div>
                       <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Tonnage
@@ -2057,28 +2172,6 @@ export default function App() {
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative load</span>
                       </div>
-                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); scrollToTab('metric-details'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Effective Reps
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('effective')}
-                          </span>
-                        </span>
-                        <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
-                        <span className="metric-trend">Stimulative reps</span>
-                      </div>
-                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); scrollToTab('metric-details'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Sets
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('sets')}
-                          </span>
-                        </span>
-                        <span className="metric-value">{totalSets.toLocaleString()} sets</span>
-                        <span className="metric-trend">Total sets performed</span>
-                      </div>
                       <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           TUT
@@ -2100,6 +2193,17 @@ export default function App() {
                         </span>
                         <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
                         <span className="metric-trend">Stimulative TUT</span>
+                      </div>
+                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); scrollToTab('metric-details'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Sets
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderMetricTooltip('sets')}
+                          </span>
+                        </span>
+                        <span className="metric-value">{totalSets.toLocaleString()} sets</span>
+                        <span className="metric-trend">Total sets performed</span>
                       </div>
                       <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2862,6 +2966,11 @@ export default function App() {
 
       {/* Mobile Bottom Navigation Bar */}
       <div className="mobile-bottom-nav">
+        <div 
+          className="mobile-bottom-nav-indicator" 
+          ref={bottomNavIndicatorRef}
+          style={{ transform: `translateX(${['editor', 'dashboard', 'db', 'generator'].indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab) * 52}px)` }} 
+        />
         <button 
           className={`bottom-nav-btn ${activeTab === 'editor' ? 'active' : ''}`}
           onClick={() => { scrollToTab('editor'); setSelectedSession(null); }}
