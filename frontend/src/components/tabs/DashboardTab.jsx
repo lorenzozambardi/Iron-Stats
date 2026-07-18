@@ -548,6 +548,9 @@ const DashboardTab = ({
     setDashMuscleMacro('all'); setDashMuscleSubgroup('all');
   };
 
+  const hasAnyFilter = dashFilterSession !== 'all' || dashFilterWeek !== 'all' ||
+    cmpFilterSession !== 'all' || cmpFilterWeek !== 'all' ||
+    dashMuscleMacro !== 'all';
 
   return (
     <>
