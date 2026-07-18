@@ -1476,41 +1476,6 @@ export default function App() {
           </div>
         </button>
 
-        {/* Editor Controls on the Right */}
-        {isMobile && (
-          <div id="mobile-header-editor-controls" style={{ display: activeTab === 'editor' ? 'flex' : 'none', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
-            {/* Undo / Redo */}
-            <div className="mobile-editor-pill-nav" style={{ margin: 0, padding: '4px' }}>
-              <button 
-                 className="mode-pill-btn" 
-                 onClick={handleUndo} 
-                 disabled={historyIndex === 0}
-                 style={{ opacity: historyIndex === 0 ? 0.3 : 1 }}
-              >
-                <Undo2 size={18} />
-              </button>
-              <button 
-                 className="mode-pill-btn" 
-                 onClick={handleRedo} 
-                 disabled={historyIndex === textHistoryRef.current.length - 1}
-                 style={{ opacity: historyIndex === textHistoryRef.current.length - 1 ? 0.3 : 1 }}
-              >
-                <Redo2 size={18} />
-              </button>
-            </div>
-
-            {/* Mobile Editor Mode Toggles Pill */}
-            <div className="mobile-editor-pill-nav" style={{ marginLeft: 0 }}>
-               <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
-               <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
-               <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
-               <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
-               <div className="pill-divider"></div>
-               <button className="btn-save-circle" onClick={() => saveLogbookContent(logbookText)}><Save size={18} /></button>
-            </div>
-          </div>
-        )}
-
         {/* Tab Selection */}
         <div className={`tab-nav ${isMobileMenuOpen ? 'mobile-open' : ''}`} ref={tabNavRef}>
           <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)}>×</button>
@@ -1751,7 +1716,51 @@ export default function App() {
         <div className="swipe-views-container" ref={swipeContainerRef} onScroll={handleScroll}>
         
         {/* Full-Page Editor Tab */}
-        <div className={`swipe-view ${activeTab === 'editor' ? 'active-desktop' : ''}`} id="view-editor">
+        <div className={`swipe-view ${activeTab === 'editor' ? 'active-desktop' : ''}`} id="view-editor" style={{ position: 'relative' }}>
+          
+          {/* Mobile Editor Controls (floating inside the swipe view) */}
+          {isMobile && (
+            <div id="mobile-header-editor-controls" style={{ 
+              position: 'absolute', 
+              top: '12px', 
+              right: '12px', 
+              zIndex: 50, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              pointerEvents: 'none' 
+            }}>
+              {/* Undo / Redo */}
+              <div className="mobile-editor-pill-nav" style={{ margin: 0, padding: '4px', pointerEvents: 'auto' }}>
+                <button 
+                   className="mode-pill-btn" 
+                   onClick={handleUndo} 
+                   disabled={historyIndex === 0}
+                   style={{ opacity: historyIndex === 0 ? 0.3 : 1 }}
+                >
+                  <Undo2 size={18} />
+                </button>
+                <button 
+                   className="mode-pill-btn" 
+                   onClick={handleRedo} 
+                   disabled={historyIndex === textHistoryRef.current.length - 1}
+                   style={{ opacity: historyIndex === textHistoryRef.current.length - 1 ? 0.3 : 1 }}
+                >
+                  <Redo2 size={18} />
+                </button>
+              </div>
+
+              {/* Mobile Editor Mode Toggles Pill */}
+              <div className="mobile-editor-pill-nav" style={{ marginLeft: 0, pointerEvents: 'auto' }}>
+                 <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
+                 <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
+                 <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
+                 <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                 <div className="pill-divider"></div>
+                 <button className="btn-save-circle" onClick={() => saveLogbookContent(logbookText)}><Save size={18} /></button>
+              </div>
+            </div>
+          )}
           {(isMobile || activeTab === 'editor') && (
           <div className="editor-tab-workspace">
             {/* Editor Sub-Header */}
