@@ -55,52 +55,56 @@ export default function App() {
   const [progressionExercise, setProgressionExercise] = useState('all_metrics');
   const [overallChartMetric, setOverallChartMetric] = useState('Volume');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  // Swipe navigation state
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  const handleTouchStart = (e) => {
-    if (e.touches.length !== 1) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
+  // Swipeable views container ref
+  const swipeContainerRef = useRef(null);
 
-  const handleTouchEnd = (e) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    if (window.innerWidth > 768) return; // Only on mobile
-
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
+  const handleScroll = (e) => {
+    if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
+    const container = e.target;
+    const scrollLeft = container.scrollLeft;
+    const width = container.clientWidth;
+    if (width === 0) return;
     
-    const diffX = touchEndX - touchStartX.current;
-    const diffY = touchEndY - touchStartY.current;
-    
-    // Require a horizontal swipe (X diff > 2x Y diff) and at least 60px distance
-    if (Math.abs(diffX) > Math.abs(diffY) * 2 && Math.abs(diffX) > 60) {
-      const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
-      const currentIndex = tabOrder.indexOf(activeTab);
-      
-      if (currentIndex !== -1) {
-        if (diffX > 0) {
-          // Swipe right: go to previous tab
-          if (currentIndex > 0) {
-            setActiveTab(tabOrder[currentIndex - 1]);
-            setSelectedSession(null);
-          }
-        } else {
-          // Swipe left: go to next tab
-          if (currentIndex < tabOrder.length - 1) {
-            setActiveTab(tabOrder[currentIndex + 1]);
-            setSelectedSession(null);
-          }
-        }
+    // Calculate which tab is mostly visible
+    const index = Math.round(scrollLeft / width);
+    const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
+    if (index >= 0 && index < tabOrder.length) {
+      const currentTab = tabOrder[index];
+      if (activeTab !== currentTab && activeTab !== 'metric-details') {
+        setActiveTab(currentTab);
+      } else if (activeTab === 'metric-details' && currentTab !== 'dashboard') {
+         // If we are on metric-details and scroll away from dashboard, update activeTab
+         setActiveTab(currentTab);
+         setSelectedMetricDetail(null);
       }
     }
-    
-    touchStartX.current = null;
-    touchStartY.current = null;
   };
+
+  // Helper to scroll to tab programmatically
+  const scrollToTab = useCallback((tabName) => {
+    setActiveTab(tabName);
+    if (swipeContainerRef.current) {
+      const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
+      // If we go to metric-details, scroll to dashboard
+      const targetName = tabName === 'metric-details' ? 'dashboard' : tabName;
+      const index = tabOrder.indexOf(targetName);
+      if (index !== -1) {
+        swipeContainerRef.current.scrollTo({
+          left: index * swipeContainerRef.current.clientWidth,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, []);
+
 
   // Storage folder settings (mobile)
   const [showStorageSettings, setShowStorageSettings] = useState(false);
@@ -1357,7 +1361,7 @@ export default function App() {
     : activeExercises;
 
   return (
-    <div className="app-container" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="app-container">
       {/* Header */}
       <header className="app-header">
         <div className="brand">
@@ -1426,28 +1430,28 @@ export default function App() {
           />
           <button 
             className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('editor'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('editor'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Edit size={16} /> Editor
           </button>
           <button 
             className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('dashboard'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('dashboard'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <BarChart3 size={16} /> Dashboard
           </button>
           <button 
             className={`tab-btn ${activeTab === 'db' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('db'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('db'); setSelectedSession(null); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Search size={16} /> Exercise DB
           </button>
           <button 
             className={`tab-btn flex items-center gap-2 ${activeTab === 'generator' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('generator'); setIsMobileMenuOpen(false); }}
+            onClick={() => { scrollToTab('generator'); setIsMobileMenuOpen(false); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
             <Bot size={16} /> Generator
@@ -1640,9 +1644,11 @@ export default function App() {
 
       {/* Workspace Area */}
       <div className="main-workspace">
+        <div className="swipe-views-container" ref={swipeContainerRef} onScroll={handleScroll}>
         
         {/* Full-Page Editor Tab */}
-        {activeTab === 'editor' ? (
+        <div className={`swipe-view ${activeTab === 'editor' ? 'active-desktop' : ''}`} id="view-editor">
+          {(isMobile || activeTab === 'editor') && (
           <div className="editor-tab-workspace">
             {/* Editor Sub-Header */}
             <div className="editor-control-bar">
@@ -1736,16 +1742,18 @@ export default function App() {
 
             </div>
           </div>
-        ) : activeTab === 'metric-details' ? (
-          <MetricDetailsPage 
-            metric={selectedMetricDetail} 
-            onBack={() => { setActiveTab('dashboard'); setSelectedMetricDetail(null); }} 
-          />
-        ) : (
-          <>
-            {/* TAB CONTENT: DASHBOARD */}
-            {activeTab === 'dashboard' && (
-              <div className="main-content-card" style={{ overflow: 'hidden' }}>
+          )}
+        </div>
+
+        {/* DASHBOARD VIEW */}
+        <div className={`swipe-view ${activeTab === 'dashboard' || activeTab === 'metric-details' ? 'active-desktop' : ''}`} id="view-dashboard">
+          {activeTab === 'metric-details' ? (
+            <MetricDetailsPage 
+              metric={selectedMetricDetail} 
+              onBack={() => { scrollToTab('dashboard'); setSelectedMetricDetail(null); }} 
+            />
+          ) : (isMobile || activeTab === 'dashboard') ? (
+            <div className="main-content-card" style={{ overflow: 'hidden' }}>
                 <div className="glass-card-body" style={{ padding: '4px 8px 20px 8px' }}>
 
                   {/* ── Dashboard Filter Bar ── */}
@@ -1982,7 +1990,7 @@ export default function App() {
                         ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
                       ].map(([label, cls, valA, valB, d]) => (
                         <React.Fragment key={label}>
-                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
+                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); scrollToTab('metric-details'); }}>
                             <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {label}
                               <span className="info-icon-wrapper">
@@ -1993,7 +2001,7 @@ export default function App() {
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
                             <span className="metric-trend">{currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}</span>
                           </div>
-                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); setActiveTab('metric-details'); }}>
+                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); scrollToTab('metric-details'); }}>
                             <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {label}
                               <span className="info-icon-wrapper">
@@ -2013,7 +2021,7 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="metrics-summary-grid">
-                      <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Volume
                           <span className="info-icon-wrapper">
@@ -2027,7 +2035,7 @@ export default function App() {
                           {dashFilterWeek !== 'all' ? ` · Week ${dashFilterWeek}` : ''}
                         </span>
                       </div>
-                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Tonnage
                           <span className="info-icon-wrapper">
@@ -2038,7 +2046,7 @@ export default function App() {
                         <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Load-adjusted</span>
                       </div>
-                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective Tonnage
                           <span className="info-icon-wrapper">
@@ -2049,7 +2057,7 @@ export default function App() {
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative load</span>
                       </div>
-                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective Reps
                           <span className="info-icon-wrapper">
@@ -2060,7 +2068,7 @@ export default function App() {
                         <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
                         <span className="metric-trend">Stimulative reps</span>
                       </div>
-                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Sets
                           <span className="info-icon-wrapper">
@@ -2071,7 +2079,7 @@ export default function App() {
                         <span className="metric-value">{totalSets.toLocaleString()} sets</span>
                         <span className="metric-trend">Total sets performed</span>
                       </div>
-                      <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           TUT
                           <span className="info-icon-wrapper">
@@ -2082,7 +2090,7 @@ export default function App() {
                         <span className="metric-value">{totalTut.toLocaleString()}s</span>
                         <span className="metric-trend">Time under tension</span>
                       </div>
-                      <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective TUT
                           <span className="info-icon-wrapper">
@@ -2093,7 +2101,7 @@ export default function App() {
                         <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
                         <span className="metric-trend">Stimulative TUT</span>
                       </div>
-                      <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); setActiveTab('metric-details'); }}>
+                      <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); scrollToTab('metric-details'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Accumulated Fatigue
                           <span className="info-icon-wrapper">
@@ -2309,7 +2317,7 @@ export default function App() {
 
                     {/* Cumulative Tension Curves Chart */}
                     <div className="chart-container" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
-                      <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); setActiveTab('metric-details'); }}>
+                      <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); scrollToTab('metric-details'); }}>
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
                           Tension Profiles
                         </span>
@@ -2317,6 +2325,7 @@ export default function App() {
                       <div style={{ height: '300px', width: '100%', marginTop: '10px' }}>
                         {cumulativeCurveData.length > 0 ? (
                           <ResponsiveContainer width="99%" height="100%">
+                            {(isMobile || activeTab === 'analytics') ? (
                             <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                               <XAxis 
@@ -2348,6 +2357,7 @@ export default function App() {
                                 );
                               })}
                             </LineChart>
+                            ) : null}
                           </ResponsiveContainer>
                         ) : (
                           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -2361,19 +2371,12 @@ export default function App() {
 
                 </div>
               </div>
-            )}
-
-            {/* TAB CONTENT: GENERATOR */}
-            {activeTab === 'generator' && (
-              <div className="tab-workspace-flat" style={{ height: 'calc(100vh - 80px)', padding: '20px' }}>
-                <GeneratorConfig />
-              </div>
-            )}
-
-            {/* TAB CONTENT: EXERCISE DATABASE */}
-
-            {activeTab === 'db' && (
-              <div className="tab-workspace-flat" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            ) : null}
+        </div>
+        {/* TAB CONTENT: EXERCISE DATABASE */}
+        <div className={`swipe-view ${activeTab === 'db' ? 'active-desktop' : ''}`} id="view-db">
+          {(isMobile || activeTab === 'db') && (
+          <div className="tab-workspace-flat" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="filters-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Search size={16} color="var(--text-muted)" />
                   <input 
@@ -2445,9 +2448,19 @@ export default function App() {
                 </div>
               </div>
             )}
-          </>
-        )}
+        </div>
 
+        {/* TAB CONTENT: GENERATOR */}
+        <div className={`swipe-view ${activeTab === 'generator' ? 'active-desktop' : ''}`} id="view-generator">
+          {(isMobile || activeTab === 'generator') && (
+          <div className="tab-workspace-flat" style={{ height: 'calc(100vh - 80px)', padding: '20px' }}>
+            <GeneratorConfig />
+          </div>
+          )}
+        </div>
+
+        {/* END SWIPE VIEWS CONTAINER */}
+      </div>
       </div>
 
       {/* New Program Modal Dialog */}
@@ -2851,25 +2864,25 @@ export default function App() {
       <div className="mobile-bottom-nav">
         <button 
           className={`bottom-nav-btn ${activeTab === 'editor' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('editor'); setSelectedSession(null); }}
+          onClick={() => { scrollToTab('editor'); setSelectedSession(null); }}
         >
           <Edit size={20} />
         </button>
         <button 
           className={`bottom-nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('dashboard'); setSelectedSession(null); }}
+          onClick={() => { scrollToTab('dashboard'); setSelectedSession(null); }}
         >
           <BarChart3 size={20} />
         </button>
         <button 
           className={`bottom-nav-btn ${activeTab === 'db' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('db'); setSelectedSession(null); }}
+          onClick={() => { scrollToTab('db'); setSelectedSession(null); }}
         >
           <Search size={20} />
         </button>
         <button 
           className={`bottom-nav-btn ${activeTab === 'generator' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('generator'); }}
+          onClick={() => { scrollToTab('generator'); }}
         >
           <Bot size={20} />
         </button>
