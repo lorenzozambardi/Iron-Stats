@@ -205,6 +205,18 @@ export default function MetricDetailsPage({ metric, onBack }) {
     }
   }, [metric]);
 
+  // Fade in/out animation — matches settings popup
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(() => onBack(), 200); // match CSS transition duration
+  };
+
   const activeMetric = metric || lastValidMetric.current;
 
   const getMetricData = () => {
@@ -392,20 +404,38 @@ export default function MetricDetailsPage({ metric, onBack }) {
   if (!data) return <div>Metric not found</div>;
 
   return (
-    <div style={{ padding: '80px 16px 100px 16px', color: 'var(--text-primary)' }}>
-      {/* Back Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <button 
-          onClick={onBack}
-          className="btn btn-secondary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }}
-        >
-          &larr; Back to Dashboard
-        </button>
-      </div>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100dvh',
+      background: 'var(--bg-primary)',
+      zIndex: 100,
+      overflowY: 'auto',
+      padding: '80px 20px 100px 20px',
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(20px)',
+      transition: 'opacity 0.2s ease, transform 0.2s ease',
+    }}>
+      {/* Close Button — exact copy of settings popup mobile-close-btn */}
+      <button
+        onClick={handleClose}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--text-primary)',
+          fontSize: '2rem',
+          cursor: 'pointer',
+          lineHeight: 1,
+        }}
+      >×</button>
 
       {/* Main card */}
-      <div className="glass-card" style={{ borderLeft: `4px solid ${data.color}`, padding: '24px', borderRadius: '16px', position: 'relative', overflow: 'hidden' }}>
+      <div className="glass-card" style={{ borderLeft: `4px solid ${data.color}`, padding: '24px', borderRadius: '16px', position: 'relative' }}>
         <div style={{ marginBottom: '20px' }}>
           <span className="badge" style={{ backgroundColor: `${data.color}15`, color: data.color, fontWeight: '600', textTransform: 'uppercase', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '4px', border: `1px solid ${data.color}30` }}>
             Math Calculation details

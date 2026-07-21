@@ -26,9 +26,10 @@ import {
   Activity,
   Undo2,
   Redo2,
-  Settings
+  Settings,
+  Timer
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 import BezierEditor from './BezierEditor';
 import { 
   parseLogbook, 
@@ -45,6 +46,7 @@ import { formatRestTime, groupSets, fuzzyScore, solveBezierY, getBezierCurveData
 const GeneratorConfig = lazy(() => import('./components/GeneratorConfig'));
 import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
+import StopwatchTab from './components/tabs/StopwatchTab';
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
 
@@ -58,6 +60,7 @@ export default function App() {
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [showDesktopSettings, setShowDesktopSettings] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [muscleSearch, setMuscleSearch] = useState('');
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
@@ -114,6 +117,7 @@ export default function App() {
 
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
   const [secPalette, setSecPalette] = useState(() => localStorage.getItem('sec-palette') || 'darkest');
+  const [secAccentPalette, setSecAccentPalette] = useState(() => localStorage.getItem('sec-accent-palette') || 'cyan');
 
   useEffect(() => {
     const root = document.documentElement;
@@ -121,6 +125,7 @@ export default function App() {
     if (p) {
       root.style.setProperty('--accent-primary', p.color);
       root.style.setProperty('--accent-primary-glow', p.glow);
+      root.style.setProperty('--accent-primary-subtle', hexToRgba(p.color, 0.1));
       localStorage.setItem('app-palette', appPalette);
     }
     
@@ -150,7 +155,16 @@ export default function App() {
     root.style.setProperty('--bg-glass', secGlass);
     root.style.setProperty('--bg-glass-active', secGlassActive);
     localStorage.setItem('sec-palette', secPalette);
-  }, [appPalette, bgPalette, secPalette]);
+
+    // Apply secondary accent color
+    const sp = APP_PALETTES.find(x => x.id === secAccentPalette);
+    if (sp) {
+      root.style.setProperty('--accent-secondary', sp.color);
+      root.style.setProperty('--accent-secondary-glow', sp.glow);
+      root.style.setProperty('--accent-secondary-subtle', hexToRgba(sp.color, 0.1));
+      localStorage.setItem('sec-accent-palette', secAccentPalette);
+    }
+  }, [appPalette, bgPalette, secPalette, secAccentPalette]);
 
   // History State for Undo/Redo
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -203,51 +217,46 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Hide bottom nav when virtual keyboard is open on mobile.
-  // Uses focusin for open detection, and visualViewport resize for close detection
-  // (handles Android back button which closes keyboard without removing focus).
+  // Hide bottom nav when virtual keyboard is active on mobile.
+  // Compares visualViewport height against physical screen.height to accurately detect keyboard open/close,
+  // preventing the navbar from sliding up on top of the keyboard on mobile Chrome/Android.
   useEffect(() => {
-    const initialHeight = window.innerHeight;
-
     const getNav = () => document.querySelector('.mobile-bottom-nav');
 
-    const onFocusIn = (e) => {
-      if (e.target.matches('input, textarea, [contenteditable]')) {
-        const nav = getNav();
-        if (nav) nav.classList.add('keyboard-open');
+    const updateKeyboardState = () => {
+      const nav = getNav();
+      if (!nav) return;
+
+      const screenH = window.screen.height || window.outerHeight || 800;
+      const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+      // Virtual keyboard is open if visible viewport height drops below 75% of physical screen height
+      const isKeyboardOpen = currentH < screenH * 0.75;
+
+      if (isKeyboardOpen) {
+        nav.classList.add('keyboard-open');
+      } else {
+        nav.classList.remove('keyboard-open');
       }
     };
 
-    const onFocusOut = () => {
-      setTimeout(() => {
-        const focused = document.activeElement;
-        const isInput = focused && focused.matches('input, textarea, [contenteditable]');
-        if (!isInput) {
-          const nav = getNav();
-          if (nav) nav.classList.remove('keyboard-open');
-        }
-      }, 100);
-    };
+    const handleFocus = () => setTimeout(updateKeyboardState, 50);
 
-    // Detect keyboard close via back button (focus stays but keyboard disappears)
-    const onViewportResize = () => {
-      const vv = window.visualViewport;
-      if (!vv) return;
-      // If viewport height returns close to initial, keyboard has closed
-      if (vv.height >= initialHeight * 0.9) {
-        const nav = getNav();
-        if (nav) nav.classList.remove('keyboard-open');
-      }
-    };
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focusout', handleFocus);
 
-    document.addEventListener('focusin', onFocusIn);
-    document.addEventListener('focusout', onFocusOut);
-    window.visualViewport?.addEventListener('resize', onViewportResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateKeyboardState);
+      window.visualViewport.addEventListener('scroll', updateKeyboardState);
+    }
 
     return () => {
-      document.removeEventListener('focusin', onFocusIn);
-      document.removeEventListener('focusout', onFocusOut);
-      window.visualViewport?.removeEventListener('resize', onViewportResize);
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focusout', handleFocus);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateKeyboardState);
+        window.visualViewport.removeEventListener('scroll', updateKeyboardState);
+      }
     };
   }, []);
 
@@ -264,6 +273,17 @@ export default function App() {
   const scrollTimeoutRef = useRef(null);
   const isScrollingToTab = useRef(false);
   const scrollTabTimeout = useRef(null);
+
+  // Sync initial scroll position on mount for mobile
+  useEffect(() => {
+    if (swipeContainerRef.current && window.innerWidth <= 768) {
+      const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
+      const index = tabOrder.indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab);
+      if (index > 0) {
+        swipeContainerRef.current.scrollTo({ left: index * swipeContainerRef.current.clientWidth, behavior: 'instant' });
+      }
+    }
+  }, []);
 
   const handleScroll = useCallback((e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
@@ -290,7 +310,7 @@ export default function App() {
     scrollTimeoutRef.current = setTimeout(() => {
       // Calculate which tab is mostly visible
       const index = Math.round(exactIndex);
-      const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
+      const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
       if (index >= 0 && index < tabOrder.length) {
         const currentTab = tabOrder[index];
         if (activeTab !== currentTab && activeTab !== 'metric-details') {
@@ -307,7 +327,7 @@ export default function App() {
   // Helper to scroll to tab programmatically
   const scrollToTab = useCallback((tabName) => {
     if (swipeContainerRef.current) {
-      const tabOrder = ['editor', 'dashboard', 'db', 'generator'];
+      const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
       // If we go to metric-details, scroll to dashboard
       const targetName = tabName === 'metric-details' ? 'dashboard' : tabName;
       const index = tabOrder.indexOf(targetName);
@@ -318,7 +338,7 @@ export default function App() {
         scrollTabTimeout.current = setTimeout(() => {
           isScrollingToTab.current = false;
         }, 50); // clear flag quickly since it's instant
-        
+
         if (bottomNavIndicatorRef.current) {
           bottomNavIndicatorRef.current.style.transition = 'none'; // Instant
           bottomNavIndicatorRef.current.style.transform = `translateX(${index * 52}px)`;
@@ -450,6 +470,7 @@ export default function App() {
   });
   const [exerciseError, setExerciseError] = useState('');
   const [editingCurveIndex, setEditingCurveIndex] = useState(null);
+  const [tensionSliderPos, setTensionSliderPos] = useState(50); // 0-100 ROM % for mobile scrubber
 
   const currentHasOverride = useMemo(() => {
     if (!editingOriginalName) return false;
@@ -1059,6 +1080,13 @@ export default function App() {
             }}
           />
           <button 
+            className={`tab-btn ${activeTab === 'stopwatch' ? 'active' : ''}`}
+            onClick={() => { scrollToTab('stopwatch'); setSelectedSession(null); }}
+            style={{ zIndex: 1, position: 'relative' }}
+          >
+            <Timer size={16} /> Cronometro
+          </button>
+          <button 
             className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
             onClick={() => { scrollToTab('editor'); setSelectedSession(null); }}
             style={{ zIndex: 1, position: 'relative' }}
@@ -1113,6 +1141,27 @@ export default function App() {
                 </div>
               </div>
               <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Secondary Color</div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                  {APP_PALETTES.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSecAccentPalette(p.id)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: p.color,
+                        border: secAccentPalette === p.id ? '2px solid white' : '2px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      title={p.label}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Background Color</div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
                   {BG_PALETTES.map(b => (
@@ -1145,7 +1194,7 @@ export default function App() {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Secondary Color</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Secondary Background Color</div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
                   {SEC_PALETTES.map(s => (
                     <button
@@ -1306,7 +1355,7 @@ export default function App() {
         </div>
 
         {/* Header Controls (Desktop) */}
-        <div className="header-controls desktop-only">
+        <div className="header-controls desktop-only" style={{ position: 'relative' }}>
           {/* Program Selector */}
           <div className="program-selector-container">
             <span className="program-label">Program:</span>
@@ -1340,85 +1389,234 @@ export default function App() {
             </span>
           </div>
 
-          {/* Desktop Palette Selectors */}
-          <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginLeft: '16px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', maxWidth: '140px' }}>
-              {APP_PALETTES.map(p => (
+          <button 
+            className="btn-icon-small" 
+            onClick={() => setShowDesktopSettings(!showDesktopSettings)}
+            title="Settings"
+            style={{ marginLeft: '8px', background: showDesktopSettings ? 'var(--accent-primary)' : '' }}
+          >
+            <Settings size={18} />
+          </button>
+
+          {showDesktopSettings && (
+            <div className="desktop-settings-dropdown" style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: '12px',
+              background: 'var(--bg-glass)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--card-radius)',
+              padding: '20px',
+              width: 'max-content',
+              maxWidth: '400px',
+              zIndex: 3000,
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              {/* Storage Folder Settings */}
+              <div className="storage-settings-container" style={{ width: '100%' }}>
                 <button
-                  key={p.id}
-                  onClick={() => setAppPalette(p.id)}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: p.color,
-                    border: appPalette === p.id ? '2px solid white' : '2px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                  title={`Theme: ${p.label}`}
-                />
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {BG_PALETTES.map(b => (
-                <button
-                  key={b.id}
-                  onClick={() => setBgPalette(b.id)}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: b.primary,
-                    border: bgPalette === b.id ? '2px solid white' : '2px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                  title={`Background: ${b.label}`}
-                />
-              ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>#</span>
-                <input 
-                  type="text" 
-                  value={bgPalette.startsWith('#') ? bgPalette.substring(1) : ''}
-                  onChange={(e) => setBgPalette('#' + e.target.value)}
-                  placeholder="hex"
-                  style={{ width: '40px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.7rem', outline: 'none' }}
-                  maxLength={6}
-                />
+                  className="storage-toggle-btn"
+                  onClick={toggleStorageSettings}
+                >
+                  <FolderOpen size={16} className="icon-folder" />
+                  <span style={{ flex: 1 }}>Storage Folder</span>
+                  <ChevronDown size={14} className={`storage-chevron${showStorageSettings ? ' open' : ''}`} />
+                </button>
+
+                {(showStorageSettings || isStorageClosing) && (() => {
+                  const cfg = getStorageConfig();
+                  const isCustom = cfg.dirType === 'custom' && cfg.safUri;
+                  return (
+                    <div className={`storage-panel${isStorageClosing ? ' closing' : ''}`}>
+                      <div className={`storage-status-card ${isCustom ? 'custom' : ''}`}>
+                        <div className="storage-status-title">
+                          <Folder size={12} />
+                          <span>Current Folder</span>
+                        </div>
+                        <div className="storage-status-path">
+                          {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
+                        </div>
+                      </div>
+
+                      <button className="storage-primary-btn" onClick={handlePickFolder}>
+                        <FolderOpen size={18} />
+                        <span>Pick Any Folder</span>
+                      </button>
+
+                      {storagePickError && (
+                        <div className="storage-error-alert">
+                          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                          <span>{storagePickError}</span>
+                        </div>
+                      )}
+
+                      {isCustom && (
+                        <button className="storage-reset-btn" onClick={handleResetStorage}>
+                          <RotateCcw size={14} />
+                          <span>Reset to Default</span>
+                        </button>
+                      )}
+
+                      <div className="storage-fallback-section">
+                        <div className="storage-divider-title">
+                          <Sliders size={12} />
+                          <span>Use standard</span>
+                        </div>
+
+                        <div className="storage-form-group">
+                          <label className="storage-form-label">Location Type</label>
+                          <select
+                            className="storage-select"
+                            value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
+                            onChange={e => setPendingDirType(e.target.value)}
+                          >
+                            <option value="documents">📁 Public Documents (PC sync)</option>
+                            <option value="data">🔒 Private App Storage</option>
+                          </select>
+                        </div>
+
+                        <div className="storage-form-group">
+                          <label className="storage-form-label">Subfolder Name</label>
+                          <input
+                            type="text"
+                            className="storage-input"
+                            value={pendingSubfolder}
+                            onChange={e => setPendingSubfolder(e.target.value)}
+                            placeholder="e.g. Algorithmic Bodybuilding"
+                          />
+                          <div className="storage-path-preview">
+                            {pendingDirType === 'data'
+                              ? `App private storage/${pendingSubfolder || '(root)'}`
+                              : `Documents/${pendingSubfolder || '(root)'}`}
+                          </div>
+                        </div>
+
+                        <button className="storage-apply-btn" onClick={applyStorageConfig}>
+                          <RefreshCw size={14} />
+                          <span>Apply &amp; Refresh</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Desktop Palette Selectors */}
+              <div className="palette-settings-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Theme Color</div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                    {APP_PALETTES.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setAppPalette(p.id)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: p.color,
+                          border: appPalette === p.id ? '2px solid white' : '2px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                        title={p.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Secondary Color</div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                    {APP_PALETTES.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSecAccentPalette(p.id)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: p.color,
+                          border: secAccentPalette === p.id ? '2px solid white' : '2px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                        title={p.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Background Color</div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                    {BG_PALETTES.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => setBgPalette(b.id)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: b.primary,
+                          border: bgPalette === b.id ? '2px solid white' : '2px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                        title={b.label}
+                      />
+                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#</span>
+                      <input 
+                        type="text" 
+                        value={bgPalette.startsWith('#') ? bgPalette.substring(1) : ''}
+                        onChange={(e) => setBgPalette('#' + e.target.value)}
+                        placeholder="hex"
+                        style={{ width: '50px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}
+                        maxLength={6}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Secondary Background Color</div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                    {SEC_PALETTES.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => setSecPalette(s.id)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: s.color,
+                          border: secPalette === s.id ? '2px solid white' : '2px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                        title={s.label}
+                      />
+                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>#</span>
+                      <input 
+                        type="text" 
+                        value={secPalette.startsWith('#') ? secPalette.substring(1) : ''}
+                        onChange={(e) => setSecPalette('#' + e.target.value)}
+                        placeholder="hex"
+                        style={{ width: '50px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}
+                        maxLength={6}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {SEC_PALETTES.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setSecPalette(s.id)}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: s.color,
-                    border: secPalette === s.id ? '2px solid white' : '2px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                  title={`Secondary: ${s.label}`}
-                />
-              ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>#</span>
-                <input 
-                  type="text" 
-                  value={secPalette.startsWith('#') ? secPalette.substring(1) : ''}
-                  onChange={(e) => setSecPalette('#' + e.target.value)}
-                  placeholder="hex"
-                  style={{ width: '40px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.7rem', outline: 'none' }}
-                  maxLength={6}
-                />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </header>
 
@@ -1439,10 +1637,13 @@ export default function App() {
       <div className="main-workspace">
         <div className="swipe-views-container" ref={swipeContainerRef} onScroll={handleScroll}>
         
+        {/* Full-Page Stopwatch Tab */}
+        <StopwatchTab activeTab={activeTab} isMobile={isMobile} />
+
         {/* Full-Page Editor Tab */}
         <div className={`swipe-view ${activeTab === 'editor' ? 'active-desktop' : ''}`} id="view-editor" style={{ position: 'relative' }}>
           
-          {/* Mobile Editor Controls (floating inside the swipe view) */}
+          {/* Mobile Editor Controls (belonging ONLY to the editor swipe view page) */}
           {isMobile && (
             <div id="mobile-header-editor-controls" style={{ 
               position: 'absolute', 
@@ -1485,6 +1686,7 @@ export default function App() {
               </div>
             </div>
           )}
+          
           {(isMobile || activeTab === 'editor') && (
           <div className="editor-tab-workspace">
             {/* Editor Sub-Header */}
@@ -1668,8 +1870,8 @@ export default function App() {
 
       {/* Exercise CRUD Modal Dialog */}
       {showExerciseModal && (
-        <div className="modal-overlay" onClick={() => setShowExerciseModal(false)}>
-          <div className="modal-card" style={{ maxWidth: '500px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" style={{ background: 'var(--bg-primary)', backdropFilter: 'none' }} onClick={() => setShowExerciseModal(false)}>
+          <div className="modal-card" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', borderRadius: 0, border: 'none', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingRight: '20px' }}>
               <h3 className="modal-title" style={{ borderBottom: 'none' }}>{editingExercise ? 'Edit Exercise' : 'Add Exercise'}</h3>
               {editingExercise && (
@@ -1771,18 +1973,77 @@ export default function App() {
                 </span>
                 
                 {exerciseForm.muscles.length > 0 && (
-                  <div style={{ width: '100%', height: 160, marginBottom: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 10px 0 0' }}>
-                    <ResponsiveContainer width="99%">
-                      <LineChart data={getBezierCurveData(exerciseForm.muscles)}>
+                  <div style={{ width: '100%', marginBottom: isMobile ? '8px' : '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 10px 0 0' }}>
+                    <ResponsiveContainer width="99%" height={isMobile ? 140 : 160}>
+                      <LineChart data={getBezierCurveData(exerciseForm.muscles)} style={isMobile ? { pointerEvents: 'none' } : undefined}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                         <XAxis dataKey="x" type="number" domain={[0, 1]} tickCount={5} stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => val === 0 ? 'Stretch' : val === 1 ? 'Contract' : val} />
                         <YAxis stroke="var(--text-muted)" fontSize={10} width={30} domain={[0, 1]} tickFormatter={(v) => Math.round(v*100)} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />
+                        {!isMobile && <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />}
+                        {isMobile && <ReferenceLine x={tensionSliderPos / 100} stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="4 4" />}
                         {exerciseForm.muscles.map((m, i) => {
                            return <Line key={m.name} type="monotone" dataKey={m.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} name={m.name} />;
                         })}
                       </LineChart>
                     </ResponsiveContainer>
+                    {isMobile && (
+                      <div style={{ padding: '4px 8px 10px 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {/* Per-muscle tension values at current ROM — above slider so finger doesn't cover */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                          {exerciseForm.muscles.map((m, i) => {
+                            const y = solveBezierY(
+                              tensionSliderPos / 100,
+                              m.x0 ?? 0.0, m.y0 ?? 1.0,
+                              m.x1 ?? 0.33, m.y1 ?? 1.0,
+                              m.x2 ?? 0.66, m.y2 ?? 1.0,
+                              m.x3 ?? 1.0, m.y3 ?? 1.0
+                            );
+                            const magnitude = parseFloat(m.percentage) / 100.0;
+                            // Normalize: get max Y same way getBezierCurveData does
+                            let maxY = 0;
+                            for (let r = 0; r <= 50; r++) {
+                              const my = solveBezierY(r / 50, m.x0 ?? 0.0, m.y0 ?? 1.0, m.x1 ?? 0.33, m.y1 ?? 1.0, m.x2 ?? 0.66, m.y2 ?? 1.0, m.x3 ?? 1.0, m.y3 ?? 1.0);
+                              if (my > maxY) maxY = my;
+                            }
+                            const normalizedY = maxY > 0 ? (y / maxY) * magnitude : 0;
+                            const color = CHART_COLORS[i % CHART_COLORS.length];
+                            return (
+                              <span key={m.name} style={{
+                                fontSize: '0.68rem',
+                                color: color,
+                                background: 'rgba(0,0,0,0.35)',
+                                padding: '2px 8px',
+                                borderRadius: '100px',
+                                border: `1px solid ${color}33`,
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {m.name}: {(normalizedY * 100).toFixed(1)}%
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          ROM: {tensionSliderPos}%
+                        </div>
+                        {/* ROM scrubber slider — at the bottom so finger doesn't cover labels */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '36px', textAlign: 'right' }}>Stretch</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={tensionSliderPos}
+                            onChange={(e) => setTensionSliderPos(parseInt(e.target.value))}
+                            className="tension-scrubber-slider"
+                            style={{
+                              flex: 1,
+                              accentColor: 'var(--accent-primary)'
+                            }}
+                          />
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '44px' }}>Contract</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -1905,7 +2166,7 @@ export default function App() {
                         type="text"
                         className="modal-input"
                         style={{ width: '100%', padding: '8px 12px', fontSize: '0.85rem', background: 'rgba(5, 7, 15, 0.85)', color: 'var(--text-primary)', borderColor: 'rgba(99,102,241,0.3)' }}
-                        placeholder="🔍 Search muscle to add… (Tab to select top)"
+                        placeholder="Search muscle to add… (Tab to select top)"
                         value={muscleSearch}
                         onChange={(e) => setMuscleSearch(e.target.value)}
                         onKeyDown={(e) => {
@@ -2025,8 +2286,14 @@ export default function App() {
         <div 
           className="mobile-bottom-nav-indicator" 
           ref={bottomNavIndicatorRef}
-          style={{ transform: `translateX(${['editor', 'dashboard', 'db', 'generator'].indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab) * 52}px)` }} 
+          style={{ transform: `translateX(${['stopwatch', 'editor', 'dashboard', 'db', 'generator'].indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab) * 52}px)` }} 
         />
+        <button 
+          className={`bottom-nav-btn ${activeTab === 'stopwatch' ? 'active' : ''}`}
+          onClick={() => { scrollToTab('stopwatch'); setSelectedSession(null); }}
+        >
+          <Timer size={20} />
+        </button>
         <button 
           className={`bottom-nav-btn ${activeTab === 'editor' ? 'active' : ''}`}
           onClick={() => { scrollToTab('editor'); setSelectedSession(null); }}

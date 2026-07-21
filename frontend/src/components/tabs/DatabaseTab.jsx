@@ -62,7 +62,7 @@ const DatabaseTab = React.memo(({
           gap: '8px', 
           pointerEvents: 'none' 
         }}>
-          <div className="search-pill-container" style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '99px', border: '1px solid var(--border-color)', padding: '0 12px', flex: 1, height: '44px', pointerEvents: 'auto' }}>
+          <div className="search-pill-container" style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '99px', border: '1px solid var(--border-color)', padding: '0 12px', flex: 1, height: '44px', pointerEvents: 'auto', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}>
             <Search size={16} color="var(--text-muted)" />
             <input 
               type="text" 
@@ -74,7 +74,7 @@ const DatabaseTab = React.memo(({
           </div>
           <button 
             onClick={handleOpenAddExercise} 
-            style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--accent-primary)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.3), 0 0 12px rgba(99, 102, 241, 0.4)', pointerEvents: 'auto' }}
+            style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--accent-primary)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)', pointerEvents: 'auto' }}
           >
             <Plus size={20} strokeWidth={2.5} />
           </button>

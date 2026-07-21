@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 import { Info, TrendingUp } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 import MetricDetailsPage from '../MetricDetails';
@@ -36,6 +36,8 @@ const DashboardTab = ({
   // Shared muscle group/subgroup isolation filter
   const [dashMuscleMacro, setDashMuscleMacro] = useState('all');   // 'all' or macro name e.g. 'Back'
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
+  const [tensionSliderPos, setTensionSliderPos] = useState(50); // 0-100 ROM % for mobile scrubber
+  const [weekSliderIdx, setWeekSliderIdx] = useState(0); // week index for mobile scrubber
 
 
   // Calculated Metrics — memoized to avoid recomputing on every render
@@ -146,6 +148,13 @@ const DashboardTab = ({
       };
     });
   }, [dashFilteredData, dashFilterSession, dashFilterWeek, dashWeeksList, dashMuscleMacro, dashMuscleSubgroup, sessionsList, workoutData]);
+
+  // Clamp weekSliderIdx when metricsByWeek shrinks
+  useEffect(() => {
+    if (metricsByWeek.length > 0 && weekSliderIdx >= metricsByWeek.length) {
+      setWeekSliderIdx(Math.max(0, metricsByWeek.length - 1));
+    }
+  }, [metricsByWeek.length, weekSliderIdx]);
 
   // Compare program B metrics by week — respects its own session/week + shared muscle filters
   const compareMetricsByWeek = useMemo(() => {
@@ -566,12 +575,7 @@ const DashboardTab = ({
   return (
     <>
         <div className={`swipe-view ${activeTab === 'dashboard' || activeTab === 'metric-details' ? 'active-desktop' : ''}`} id="view-dashboard">
-          {activeTab === 'metric-details' ? (
-            <MetricDetailsPage 
-              metric={selectedMetricDetail} 
-              onBack={() => { scrollToTab('dashboard'); setSelectedMetricDetail(null); }} 
-            />
-          ) : (isMobile || activeTab === 'dashboard') ? (
+          {(isMobile || activeTab === 'dashboard') ? (
             <div className="main-content-card" style={{ overflow: 'hidden' }}>
                 <div className="glass-card-body" style={{ padding: '4px 8px 20px 8px' }}>
 
@@ -580,7 +584,7 @@ const DashboardTab = ({
                     display: 'flex', flexDirection: 'column', gap: '10px',
                     padding: '14px 16px', marginBottom: '20px',
                     background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
-                    borderRadius: '12px'
+                    borderRadius: '12px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
                   }}>
 
                     {/* Top row: Compare toggle + program picker + clear */}
@@ -588,7 +592,7 @@ const DashboardTab = ({
                       <button
                         id="dash-compare-toggle"
                         className={`btn ${compareMode ? 'btn-secondary' : ''}`}
-                        style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                        style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: '100px' }}
                         onClick={() => {
                           const next = !compareMode;
                           setCompareMode(next);
@@ -629,68 +633,55 @@ const DashboardTab = ({
                       // Compare mode: two columns, one per program
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         {/* Program A filters */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'var(--accent-primary-subtle)', border: '1px solid var(--accent-primary-glow)', borderRadius: '8px' }}>
                           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                           </div>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session</span>
                               <select id="dash-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
                                 value={dashFilterSession}
                                 onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
                               >
-                                <option value="all">All</option>
+                                <option value="all">All sessions</option>
                                 {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
                               </select>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Week</span>
                               <select id="dash-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
                                 value={dashFilterWeek}
                                 onChange={e => setDashFilterWeek(e.target.value)}
                               >
-                                <option value="all">All</option>
+                                <option value="all">All weeks</option>
                                 {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
                               </select>
-                            </div>
                           </div>
                         </div>
 
                         {/* Program B filters */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'var(--accent-secondary-subtle)', border: '1px solid var(--accent-secondary-glow)', borderRadius: '8px' }}>
                           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                           </div>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session</span>
                               <select id="cmp-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
                                 value={cmpFilterSession}
                                 onChange={e => { setCmpFilterSession(e.target.value); setCmpFilterWeek('all'); }}
                               >
-                                <option value="all">All</option>
+                                <option value="all">All sessions</option>
                                 {compareSessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
                               </select>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Week</span>
                               <select id="cmp-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
                                 value={cmpFilterWeek}
                                 onChange={e => setCmpFilterWeek(e.target.value)}
                               >
-                                <option value="all">All</option>
+                                <option value="all">All weeks</option>
                                 {cmpWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
                               </select>
-                            </div>
                           </div>
                         </div>
 
                         {/* Shared muscle filter — full width row */}
                         <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid var(--border-color)' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Muscle Group</span>
                           <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px', fontSize: '0.78rem' }}
                             value={dashMuscleMacro}
                             onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
@@ -716,48 +707,35 @@ const DashboardTab = ({
                     ) : (
                       // Normal mode: single row of filters
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Session</span>
-                          <select id="dash-session-filter" className="select-control" style={{ minWidth: '120px' }}
-                            value={dashFilterSession}
-                            onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
-                          >
-                            <option value="all">All Sessions</option>
-                            {sessionsList.map(s => <option key={s} value={s}>Session {s}</option>)}
-                          </select>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week</span>
-                          <select id="dash-week-filter" className="select-control" style={{ minWidth: '120px' }}
-                            value={dashFilterWeek}
-                            onChange={e => setDashFilterWeek(e.target.value)}
-                          >
-                            <option value="all">All Weeks</option>
-                            {dashWeeksList.map(w => <option key={w} value={w}>Week {w}</option>)}
-                          </select>
-                        </div>
-                        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }} />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Muscle</span>
-                          <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px' }}
+                        <select id="dash-session-filter" className="select-control" style={{ minWidth: '120px' }}
+                          value={dashFilterSession}
+                          onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                        >
+                          <option value="all">All Sessions</option>
+                          {sessionsList.map(s => <option key={s} value={s}>Session {s}</option>)}
+                        </select>
+                        <select id="dash-week-filter" className="select-control" style={{ minWidth: '120px' }}
+                          value={dashFilterWeek}
+                          onChange={e => setDashFilterWeek(e.target.value)}
+                        >
+                          <option value="all">All Weeks</option>
+                          {dashWeeksList.map(w => <option key={w} value={w}>Week {w}</option>)}
+                        </select>
+                        <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px' }}
                             value={dashMuscleMacro}
                             onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
                           >
                             <option value="all">All Groups</option>
                             {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
                           </select>
-                        </div>
                         {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sub-group</span>
-                            <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px' }}
+                          <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px' }}
                               value={dashMuscleSubgroup}
                               onChange={e => setDashMuscleSubgroup(e.target.value)}
                             >
                               <option value="all">All {dashMuscleMacro}</option>
                               {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
-                          </div>
                         )}
                       </div>
                     )}
@@ -765,13 +743,13 @@ const DashboardTab = ({
 
                   {/* Active filter pills */}
                   {hasAnyFilter && (
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Filters:</span>
-                      {dashFilterSession !== 'all' && <span style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#a5b4fc' }}>{currentProgram} · S{dashFilterSession}</span>}
-                      {dashFilterWeek !== 'all' && <span style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#a5b4fc' }}>{currentProgram} · W{dashFilterWeek}</span>}
-                      {cmpFilterSession !== 'all' && <span style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#67e8f9' }}>{compareProgram} · S{cmpFilterSession}</span>}
-                      {cmpFilterWeek !== 'all' && <span style={{ background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#67e8f9' }}>{compareProgram} · W{cmpFilterWeek}</span>}
-                      {dashMuscleMacro !== 'all' && <span style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '6px', padding: '2px 10px', color: '#d8b4fe' }}>{dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro}</span>}
+                      {dashFilterSession !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · S{dashFilterSession}</span>}
+                      {dashFilterWeek !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · W{dashFilterWeek}</span>}
+                      {cmpFilterSession !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · S{cmpFilterSession}</span>}
+                      {cmpFilterWeek !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · W{cmpFilterWeek}</span>}
+                      {dashMuscleMacro !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro}</span>}
                     </div>
                   )}
 
@@ -782,8 +760,8 @@ const DashboardTab = ({
                       {/* Column headers */}
                       <div style={{
                         gridColumn: '1', padding: '8px 16px',
-                        background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)',
-                        borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600,
+                        background: 'var(--accent-primary-subtle)', border: '1px solid var(--accent-primary-glow)',
+                        borderRadius: '100px', fontSize: '0.85rem', fontWeight: 600,
                         color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px'
                       }}>
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
@@ -791,8 +769,8 @@ const DashboardTab = ({
                       </div>
                       <div style={{
                         gridColumn: '2', padding: '8px 16px',
-                        background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.2)',
-                        borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600,
+                        background: 'var(--accent-secondary-subtle)', border: '1px solid var(--accent-secondary-glow)',
+                        borderRadius: '100px', fontSize: '0.85rem', fontWeight: 600,
                         color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '8px'
                       }}>
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
@@ -809,7 +787,7 @@ const DashboardTab = ({
                         ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
                       ].map(([label, cls, valA, valB, d]) => (
                         <React.Fragment key={label}>
-                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); scrollToTab('metric-details'); }}>
+                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {label}
                               <span className="info-icon-wrapper">
@@ -820,7 +798,7 @@ const DashboardTab = ({
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
                             <span className="metric-trend">{currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}</span>
                           </div>
-                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); scrollToTab('metric-details'); }}>
+                          <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {label}
                               <span className="info-icon-wrapper">
@@ -840,7 +818,7 @@ const DashboardTab = ({
                     </div>
                   ) : (
                     <div className="metrics-summary-grid">
-                      <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Volume
                           <span className="info-icon-wrapper">
@@ -854,7 +832,7 @@ const DashboardTab = ({
                           {dashFilterWeek !== 'all' ? ` · Week ${dashFilterWeek}` : ''}
                         </span>
                       </div>
-                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective Reps
                           <span className="info-icon-wrapper">
@@ -865,7 +843,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
                         <span className="metric-trend">Stimulative reps</span>
                       </div>
-                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Tonnage
                           <span className="info-icon-wrapper">
@@ -876,7 +854,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Load-adjusted</span>
                       </div>
-                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective Tonnage
                           <span className="info-icon-wrapper">
@@ -887,7 +865,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative load</span>
                       </div>
-                      <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           TUT
                           <span className="info-icon-wrapper">
@@ -898,7 +876,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalTut.toLocaleString()}s</span>
                         <span className="metric-trend">Time under tension</span>
                       </div>
-                      <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Effective TUT
                           <span className="info-icon-wrapper">
@@ -909,7 +887,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
                         <span className="metric-trend">Stimulative TUT</span>
                       </div>
-                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Sets
                           <span className="info-icon-wrapper">
@@ -920,7 +898,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalSets.toLocaleString()} sets</span>
                         <span className="metric-trend">Total sets performed</span>
                       </div>
-                      <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); scrollToTab('metric-details'); }}>
+                      <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Accumulated Fatigue
                           <span className="info-icon-wrapper">
@@ -986,14 +964,22 @@ const DashboardTab = ({
                         </div>
                       </div>
                       <div className="dashboard-chart-wrapper" style={{ width: '100%', height: 260 }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                        {progressionExercise === 'all_metrics' && metricsByWeek.length === 0 && !compareMode ? (
+                          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No data available for the current selection.
+                          </div>
+                        ) : (
+                        <ResponsiveContainer width="100%" height="100%" style={isMobile ? { pointerEvents: 'none' } : undefined}>
                           {progressionExercise === 'all_metrics' ? (() => {
                             const overallMetricInfo = getMetricLabelAndUnit(overallChartMetric);
                             const nameStr = `${overallMetricInfo.name}${overallMetricInfo.unit ? ` (${overallMetricInfo.unit})` : ''}`;
                             return (
                               <LineChart data={compareMode ? mergedChartData : metricsByWeek} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                <XAxis dataKey="Week" stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => `W${val}`} />
+                                {isMobile && metricsByWeek.length > 0 && (
+                                  <ReferenceLine x={metricsByWeek[Math.min(weekSliderIdx, metricsByWeek.length - 1)]?.week} stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="4 4" />
+                                )}
+                                <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={10} />
                                 <YAxis 
                                   yAxisId="main"
                                   stroke="var(--text-muted)" 
@@ -1074,7 +1060,56 @@ const DashboardTab = ({
                             </LineChart>
                           )}
                         </ResponsiveContainer>
+                        )}
                       </div>
+                      {/* Mobile week scrubber */}
+                      {isMobile && progressionExercise === 'all_metrics' && metricsByWeek.length > 0 && (
+                        <div style={{ padding: '4px 8px 0 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {/* Per-metric values at selected week */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                            {(() => {
+                              const idx = Math.min(weekSliderIdx, metricsByWeek.length - 1);
+                              const pt = metricsByWeek[idx];
+                              if (!pt) return null;
+                              const metrics = [
+                                { key: 'Volume', color: 'var(--color-volume)' },
+                                { key: 'Tonnage', color: 'var(--color-tonnage)' },
+                                { key: 'EffectiveRepsCustom', label: 'Eff. Reps', color: 'var(--color-effective-volume)' },
+                                { key: 'Fatigue', color: 'var(--color-fatigue)' },
+                              ];
+                              return metrics.map(m => (
+                                <span key={m.key} style={{
+                                  fontSize: '0.68rem',
+                                  color: m.color,
+                                  background: 'rgba(0,0,0,0.35)',
+                                  padding: '2px 8px',
+                                  borderRadius: '100px',
+                                  border: `1px solid ${m.color}33`,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {m.label || m.key}: {typeof pt[m.key] === 'number' ? pt[m.key].toFixed(1) : '—'}
+                                </span>
+                              ));
+                            })()}
+                          </div>
+                          <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            {metricsByWeek[Math.min(weekSliderIdx, metricsByWeek.length - 1)]?.week || '—'}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '36px', textAlign: 'right' }}>Start</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max={Math.max(0, metricsByWeek.length - 1)}
+                              value={weekSliderIdx}
+                              onChange={(e) => setWeekSliderIdx(parseInt(e.target.value))}
+                              className="tension-scrubber-slider"
+                              style={{ flex: 1, accentColor: 'var(--accent-primary)' }}
+                            />
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '36px' }}>End</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Muscle Group Volume */}
@@ -1132,7 +1167,7 @@ const DashboardTab = ({
                                       position: 'absolute', top: 0, left: 0,
                                       width: `${comparePct}%`, height: '100%',
                                       background: 'var(--accent-secondary)',
-                                      opacity: 0.35, borderRadius: '99px'
+                                      opacity: 0.35, borderRadius: '100px'
                                     }}
                                   />
                                 )}
@@ -1151,41 +1186,41 @@ const DashboardTab = ({
 
                     {/* Cumulative Tension Curves Chart */}
                     <div className="chart-container" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
-                      <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); scrollToTab('metric-details'); }}>
+                      <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); }}>
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
                           Tension Profiles
                         </span>
                       </div>
-                      <div style={{ height: '300px', width: '100%', marginTop: '10px' }}>
+                      <div style={{ height: isMobile ? '220px' : '300px', width: '100%', marginTop: '10px' }}>
                         {cumulativeCurveData.length > 0 ? (
                           <ResponsiveContainer width="99%" height="100%">
-                            <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} style={isMobile ? { pointerEvents: 'none' } : undefined}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                              <XAxis 
-                                dataKey="rom" 
-                                stroke="var(--text-muted)" 
-                                fontSize={10} 
+                              <XAxis
+                                dataKey="rom"
+                                stroke="var(--text-muted)"
+                                fontSize={10}
                                 tickFormatter={(val) => `${Math.round(val * 100)}%`}
                               />
                               <YAxis stroke="var(--text-muted)" fontSize={10} />
-                              <Tooltip 
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} 
+                              {!isMobile && <Tooltip
+                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}
                                 labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
                                 formatter={(val) => parseFloat(val).toFixed(1)}
-                              />
-                              <Legend fontSize={10} wrapperStyle={{ paddingTop: '10px' }} />
+                              />}
+                              {isMobile && <ReferenceLine x={tensionSliderPos / 100} stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="4 4" />}
                               {displayMuscleData.slice(0, 6).map((m, idx) => {
                                 const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
                                 return (
-                                  <Line 
-                                    key={m.name} 
-                                    type="monotone" 
-                                    dataKey={m.name} 
+                                  <Line
+                                    key={m.name}
+                                    type="monotone"
+                                    dataKey={m.name}
                                     name={m.name}
-                                    stroke={colors[idx % colors.length]} 
-                                    strokeWidth={2.5} 
+                                    stroke={colors[idx % colors.length]}
+                                    strokeWidth={2.5}
                                     dot={false}
-                                    activeDot={{ r: 4 }} 
+                                    activeDot={{ r: 4 }}
                                   />
                                 );
                               })}
@@ -1197,6 +1232,52 @@ const DashboardTab = ({
                           </div>
                         )}
                       </div>
+                      {/* Mobile ROM scrubber */}
+                      {isMobile && cumulativeCurveData.length > 0 && (
+                        <div style={{ padding: '4px 8px 0 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {/* Per-muscle values — above slider so finger doesn't cover */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                            {displayMuscleData.slice(0, 6).map((m, idx) => {
+                              const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+                              const color = colors[idx % colors.length];
+                              const resolution = cumulativeCurveData.length - 1;
+                              const closestIdx = Math.round((tensionSliderPos / 100) * resolution);
+                              const closestPt = cumulativeCurveData[Math.min(closestIdx, resolution)];
+                              const val = closestPt ? (closestPt[m.name] ?? 0) : 0;
+                              return (
+                                <span key={m.name} style={{
+                                  fontSize: '0.68rem',
+                                  color: color,
+                                  background: 'rgba(0,0,0,0.35)',
+                                  padding: '2px 8px',
+                                  borderRadius: '100px',
+                                  border: `1px solid ${color}33`,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {m.name}: {val.toFixed(1)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            ROM: {tensionSliderPos}%
+                          </div>
+                          {/* Slider at the bottom so finger doesn't cover labels */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '36px', textAlign: 'right' }}>Stretch</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={tensionSliderPos}
+                              onChange={(e) => setTensionSliderPos(parseInt(e.target.value))}
+                              className="tension-scrubber-slider"
+                              style={{ flex: 1, accentColor: 'var(--accent-primary)' }}
+                            />
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '44px' }}>Contract</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -1204,6 +1285,14 @@ const DashboardTab = ({
                 </div>
               </div>
             ) : null}
+
+          {/* Metric Detail Popup Overlay — copy of settings popup */}
+          {selectedMetricDetail && (
+            <MetricDetailsPage
+              metric={selectedMetricDetail}
+              onBack={() => setSelectedMetricDetail(null)}
+            />
+          )}
         </div>
     </>
   );
