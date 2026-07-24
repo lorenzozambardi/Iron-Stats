@@ -38,6 +38,7 @@ import {
   getExercisesWithOverrides
 } from './parser';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
+import { App as CapacitorApp } from '@capacitor/app';
 
 import LogbookPreview from './components/LogbookPreview';
 import MetricDetailsPage from './components/MetricDetails';
@@ -64,6 +65,7 @@ export default function App() {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [muscleSearch, setMuscleSearch] = useState('');
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
 
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
 
@@ -492,6 +494,26 @@ export default function App() {
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [cursorPos, setCursorPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    let backListener;
+    CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
+      else if (showNewProgramModal) setShowNewProgramModal(false);
+      else if (showExerciseModal) setShowExerciseModal(false);
+      else if (showMobileSettings) setShowMobileSettings(false);
+      else if (showStorageSettings) setShowStorageSettings(false);
+      else if (showSuggestions) setShowSuggestions(false);
+      else if (canGoBack) window.history.back();
+      else CapacitorApp.exitApp();
+    }).then(listener => {
+      backListener = listener;
+    });
+
+    return () => {
+      if (backListener) backListener.remove();
+    };
+  }, [selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings, showStorageSettings, showSuggestions]);
 
   const textareaRef = useRef(null);
 

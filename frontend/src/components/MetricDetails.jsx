@@ -212,6 +212,15 @@ export default function MetricDetailsPage({ metric, onBack }) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  useEffect(() => {
+    const handleHardwareBack = () => {
+      setVisible(false);
+      setTimeout(() => onBack(), 200);
+    };
+    window.addEventListener('close-metric-detail', handleHardwareBack);
+    return () => window.removeEventListener('close-metric-detail', handleHardwareBack);
+  }, [onBack]);
+
   const handleClose = () => {
     setVisible(false);
     setTimeout(() => onBack(), 200); // match CSS transition duration
