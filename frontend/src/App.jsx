@@ -1084,7 +1084,7 @@ export default function App() {
             onClick={() => { scrollToTab('stopwatch'); setSelectedSession(null); }}
             style={{ zIndex: 1, position: 'relative' }}
           >
-            <Timer size={16} /> Cronometro
+            <Timer size={16} /> Stopwatch
           </button>
           <button 
             className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}

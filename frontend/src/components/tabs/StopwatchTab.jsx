@@ -59,7 +59,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
               style={{ width: '100%', height: '100px', borderRadius: '99px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.6rem', fontWeight: 'normal', gap: '16px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}
             >
               {isRunning ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" />}
-              {isRunning ? 'Pausa' : 'Avvia'}
+              {isRunning ? 'Pause' : 'Start'}
             </button>
             <button 
               className="btn" 
@@ -67,7 +67,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
               style={{ width: '100%', height: '100px', borderRadius: '99px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid var(--border-color)', fontSize: '1.6rem', fontWeight: 'normal', gap: '16px', color: '#fff', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}
             >
               <RotateCcw size={32} />
-              Azzera
+              Reset
             </button>
           </div>
         </div>
