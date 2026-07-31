@@ -358,11 +358,13 @@ export default function App() {
         
         // Header controls visibility is managed naturally by swipe view layout
 
-        // Execute physical scroll immediately
-        swipeContainerRef.current.scrollTo({
-          left: index * swipeContainerRef.current.clientWidth,
-          behavior: 'auto'
-        });
+        // Execute physical scroll immediately on mobile
+        if (window.innerWidth <= 768) {
+          swipeContainerRef.current.scrollTo({
+            left: index * swipeContainerRef.current.clientWidth,
+            behavior: 'auto'
+          });
+        }
         
         // Defer the heavy React state update so it doesn't block the browser from painting the jump
         setTimeout(() => {
@@ -1077,7 +1079,7 @@ export default function App() {
         </button>
 
         <div className="brand" style={{ pointerEvents: 'auto' }}>
-          <h1 style={{ textAlign: 'right' }}>Algorithmic<br/>Bodybuilding</h1>
+          <h1 style={{ textAlign: 'right' }}>Iron Stats</h1>
         </div>
 
         {/* Tab Selection */}
@@ -1412,10 +1414,10 @@ export default function App() {
           </div>
 
           <button 
-            className="btn-icon-small" 
+            className="tab-btn settings-desktop-btn" 
             onClick={() => setShowDesktopSettings(!showDesktopSettings)}
             title="Settings"
-            style={{ marginLeft: '8px', background: showDesktopSettings ? 'var(--accent-primary)' : '' }}
+            style={{ marginLeft: '8px', padding: '6px', background: showDesktopSettings ? 'rgba(255, 255, 255, 0.03)' : '' }}
           >
             <Settings size={18} />
           </button>
@@ -1663,7 +1665,7 @@ export default function App() {
         <StopwatchTab activeTab={activeTab} isMobile={isMobile} />
 
         {/* Full-Page Editor Tab */}
-        <div className={`swipe-view ${activeTab === 'editor' ? 'active-desktop' : ''}`} id="view-editor" style={{ position: 'relative' }}>
+        <div className={`swipe-view ${activeTab === 'editor' ? 'active-desktop' : ''}`} id="view-editor">
           
           {/* Mobile Editor Controls (belonging ONLY to the editor swipe view page) */}
           {isMobile && (
@@ -1714,7 +1716,8 @@ export default function App() {
             {/* Editor Sub-Header */}
             <div className="editor-control-bar">
               {/* Edit Mode Toggles */}
-              <div className="editor-mode-toggles">
+              <div className={`editor-mode-toggles mode-${editorMode}`}>
+                <div className="editor-mode-indicator"></div>
                 <button 
                   className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}
                   onClick={() => setEditorMode('edit')}

@@ -755,32 +755,36 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: var(--accent-primary);
+  color: #ffffff;
+  border: none;
 }
 
 .badge.muscle {
-  background: var(--bg-secondary);
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-  border-radius: 100px;
+  /* Inherits from .badge */
 }
 
-.badge.isolation {
-  background: rgba(244, 63, 94, 0.1);
-  color: #fda4af;
-  border-color: rgba(244, 63, 94, 0.2);
+.badge.tempo {
+  /* Inherits from .badge */
 }
 
-.badge.compound {
-  background: rgba(16, 185, 129, 0.1);
-  color: #6ee7b7;
-  border-color: rgba(16, 185, 129, 0.2);
+.badge.info-btn {
+  background: var(--accent-primary);
+  color: #ffffff;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
 }
+.badge.info-btn:hover {
+  opacity: 0.8;
+}
+
+
 
 /* Animations */
 @keyframes pulse {
@@ -995,36 +999,63 @@ h1, h2, h3, h4, h5, h6 {
 
 .editor-mode-toggles {
   display: flex;
+  position: relative;
   background: rgba(0, 0, 0, 0.3);
   padding: 3px;
-  border-radius: var(--button-radius);
+  border-radius: 100px;
   border: 1px solid var(--border-color);
+  width: 280px; /* Fixed width for equal parts */
+}
+
+.editor-mode-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  background: var(--accent-primary);
+  border-radius: 100px;
+  box-shadow: 0 0 8px var(--accent-primary-glow);
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+.editor-mode-toggles.mode-edit .editor-mode-indicator {
+  transform: translateX(0);
+}
+.editor-mode-toggles.mode-preview .editor-mode-indicator {
+  transform: translateX(100%);
+}
+.editor-mode-toggles.mode-split .editor-mode-indicator {
+  transform: translateX(200%);
 }
 
 .mode-toggle-btn {
+  flex: 1;
+  position: relative;
+  z-index: 1;
   background: transparent;
   border: none;
   color: var(--text-secondary);
   font-family: var(--font-sans);
   font-size: 0.8rem;
   font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 8px;
+  padding: 6px 0;
+  text-align: center;
+  border-radius: 100px;
   cursor: pointer;
-  transition: background-color , color , border-color , opacity , transform , box-shadow ;
+  transition: color 0.3s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
-
-.mode-toggle-btn:hover {
-  color: var(--text-primary);
-}
+  .mode-toggle-btn:hover {
+    color: var(--text-primary);
+  }
 }
 
 .mode-toggle-btn.active {
   color: #fff;
-  background: var(--accent-primary);
-  box-shadow: 0 0 8px var(--accent-primary-glow);
+  /* background/shadow is now handled by .editor-mode-indicator */
 }
 
 .editor-actions {

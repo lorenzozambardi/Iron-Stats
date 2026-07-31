@@ -99,8 +99,8 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
         return (
           <div key={sessNum} className="preview-session-group">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', borderLeft: '3px solid var(--accent-primary)' }}>
-              <h2 className="preview-session-title" style={{ margin: 0, paddingBottom: 0, borderBottom: 'none' }}>Session {sessNum}</h2>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              <h2 className="preview-session-title" style={{ margin: 0, paddingBottom: 0, borderBottom: 'none', color: 'var(--text-primary)' }}>Session {sessNum}</h2>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                 <span><strong>{exercises.length}</strong> Exercises</span>
                 <span><strong>{totalEffReps.toFixed(0)}</strong> Eff. Reps (W{latestWeek})</span>
                 <span><strong>Muscles:</strong> {musclesStr}</span>
@@ -133,14 +133,17 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                           </span>
                         )}
                         {ex.concentric !== undefined && (
-                          <span className="badge" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', color: 'var(--color-tut)' }}>
+                          <span className="badge tempo">
                             Tempo: {ex.concentric}-{ex.shortening_pause}-{ex.eccentric}-{ex.lengthening_pause}
                           </span>
                         )}
                         {editorMode === 'preview' && ex.exercise_obj && (
                           <span 
                             className="badge info-btn" 
-                            style={{ cursor: 'pointer', border: '1px solid rgba(99, 102, 241, 0.4)', background: 'rgba(99, 102, 241, 0.05)', color: 'var(--accent-primary)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
+                            }}
                           >
                             {expandedExerciseName === ex.exercise_obj.name ? 'Hide Info' : 'Show Info'}
                           </span>

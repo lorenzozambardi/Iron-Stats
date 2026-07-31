@@ -48,7 +48,7 @@ const DatabaseTab = React.memo(({
   }, [debouncedLogbookText]);
 
   return (
-    <div className={`swipe-view ${activeTab === 'db' ? 'active-desktop' : ''}`} id="view-db" style={{ position: 'relative' }}>
+    <div className={`swipe-view ${activeTab === 'db' ? 'active-desktop' : ''}`} id="view-db">
       {/* Mobile Database Controls (floating inside the swipe view) */}
       {isMobile && (
         <div id="mobile-header-db-controls" style={{ 
