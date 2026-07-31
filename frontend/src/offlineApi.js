@@ -16,7 +16,7 @@ const FolderPicker = registerPlugin('FolderPicker');
 
 export function getStorageConfig() {
   const dirType        = localStorage.getItem('logbook_directory_type')    || 'documents';
-  const subfolder      = localStorage.getItem('logbook_subfolder')         || 'Algorithmic Bodybuilding';
+  const subfolder      = localStorage.getItem('logbook_subfolder')         || 'Iron Stats';
   const safUri         = localStorage.getItem('logbook_saf_uri')           || null;
   const safDisplayName = localStorage.getItem('logbook_saf_display_name') || safUri;
   const dir            = dirType === 'documents' ? Directory.Documents : Directory.Data;

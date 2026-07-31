@@ -411,9 +411,9 @@ export default function App() {
   };
 
   const handleResetStorage = () => {
-    setStorageConfig('documents', 'Algorithmic Bodybuilding');
+    setStorageConfig('documents', 'Iron Stats');
     setPendingDirType('documents');
-    setPendingSubfolder('Algorithmic Bodybuilding');
+    setPendingSubfolder('Iron Stats');
     window.location.reload();
   };
 
@@ -1354,7 +1354,7 @@ export default function App() {
                           className="storage-input"
                           value={pendingSubfolder}
                           onChange={e => setPendingSubfolder(e.target.value)}
-                          placeholder="e.g. Algorithmic Bodybuilding"
+                          placeholder="e.g. Iron Stats"
                         />
                         <div className="storage-path-preview">
                           {pendingDirType === 'data'
@@ -1509,7 +1509,7 @@ export default function App() {
                             className="storage-input"
                             value={pendingSubfolder}
                             onChange={e => setPendingSubfolder(e.target.value)}
-                            placeholder="e.g. Algorithmic Bodybuilding"
+                            placeholder="e.g. Iron Stats"
                           />
                           <div className="storage-path-preview">
                             {pendingDirType === 'data'
