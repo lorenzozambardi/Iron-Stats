@@ -139,7 +139,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                         )}
                         {editorMode === 'preview' && ex.exercise_obj && (
                           <span 
-                            className="badge info-btn" 
+                            className={`badge info-btn ${expandedExerciseName === ex.exercise_obj.name ? 'active' : ''}`} 
                             onClick={(e) => {
                               e.stopPropagation();
                               setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
@@ -158,7 +158,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                       marginTop: '4px', 
                       marginBottom: '12px', 
                       padding: '10px', 
-                      background: 'rgba(0,0,0,0.2)', 
+                      background: 'var(--bg-primary)', 
                       borderRadius: '8px', 
                       border: '1px solid var(--border-color)', 
                       fontSize: '0.75rem',
@@ -174,7 +174,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                         <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Muscle Distribution:</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {Object.entries(ex.exercise_obj.muscles_distr).map(([muscle, pct]) => (
-                            <span key={muscle} className="badge muscle" style={{ background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.65rem', padding: '2px 6px' }}>
+                            <span key={muscle} className="badge muscle">
                               {muscle}: <strong>{Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%</strong>
                             </span>
                           ))}

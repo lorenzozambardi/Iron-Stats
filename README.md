@@ -1,6 +1,6 @@
-# Algorithmic Bodybuilding
+# Iron Stats
 
-**Algorithmic Bodybuilding** is an advanced, data-driven, and computational approach to bodybuilding programming, simulation, and analysis. It abandons traditional, rudimentary metrics like simple Total Volume (Sets × Reps) and Tonnage, which fail to accurately evaluate mechanical tension and actual hypertrophy stimulus. 
+**Iron Stats** is an advanced, data-driven, and computational approach to bodybuilding programming, simulation, and analysis. It abandons traditional, rudimentary metrics like simple Total Volume (Sets × Reps) and Tonnage, which fail to accurately evaluate mechanical tension and actual hypertrophy stimulus. 
 
 Instead, this engine evaluates workout programs using **Effective Volume**, **Dynamic Time Under Tension (TUT)**, **Exponential Fatigue**, and **Cumulative Muscle Tension** modeled via 3rd-Degree Bezier Curves across the Range of Motion (ROM).
 

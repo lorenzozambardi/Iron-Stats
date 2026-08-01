@@ -75,7 +75,7 @@ class Exercise:
 
 
 exercises_list = [
-    Exercise("Squat", {"Quadriceps": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.9, 0.1, 0.45), "Glutes": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.8, 0.1, 0.35), "Adductors": BezierProfile(0.2, 1, 0.33, 0.9, 0.66, 0.5, 0.7, 0.1, 0.15), "Erectors": BezierProfile(0.4, 1, 0.33, 0.9, 0.66, 0.5, 0.6, 0.1, 0.05)}, 9.5, 0.10),
+    Exercise("Squat", {"Quadriceps": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.9, 0.1, 0.45), "Glutes": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.8, 0.1, 0.35), "Adductors": BezierProfile(0.2, 1, 0.33, 0.9, 0.66, 0.5, 0.7, 0.1, 0.15), "Erectors": BezierProfile(0.37612680288461536, 1, 0.43553185096153846, 0.856787109375, 0.5853064903846154, 0.459375, 0.6357722355769231, 0, 0.05)}, 9.5, 0.10),
     Exercise("Leg Press 45", {"Quadriceps": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.9, 0.1, 0.45), "Glutes": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.8, 0.1, 0.35), "Adductors": BezierProfile(0.2, 1, 0.33, 0.9, 0.66, 0.5, 0.7, 0.1, 0.15), "Erectors": BezierProfile(0.4, 1, 0.33, 0.9, 0.66, 0.5, 0.6, 0.1, 0.05)}, 8.0, 0.30),
     Exercise("Sissy Squat", {"Quadriceps": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.9, 0.1, 1)}, 5.0, 0.70, is_isolation=True),
     Exercise("Hack Squat", {"Quadriceps": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.9, 0.1, 0.7), "Glutes": BezierProfile(0.1, 1, 0.33, 0.9, 0.66, 0.5, 0.8, 0.1, 0.3)}, 8.5, 0.30),

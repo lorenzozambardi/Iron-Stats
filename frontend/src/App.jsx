@@ -48,6 +48,7 @@ const GeneratorConfig = lazy(() => import('./components/GeneratorConfig'));
 import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
 import StopwatchTab from './components/tabs/StopwatchTab';
+import EasyEditor from './components/EasyEditor';
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
 
@@ -65,6 +66,7 @@ export default function App() {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [muscleSearch, setMuscleSearch] = useState('');
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
+  const [editorType, setEditorType] = useState(() => localStorage.getItem('editor-type') || 'manual');
 
 
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
@@ -1144,6 +1146,14 @@ export default function App() {
             {/* Palette Settings */}
             <div className="palette-settings-container" style={{ width: '100%', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Editor Mode</div>
+                <div className="settings-pill-toggle">
+                  <div className={`settings-pill-indicator ${editorType}`}></div>
+                  <button onClick={() => { setEditorType('manual'); localStorage.setItem('editor-type', 'manual'); }} className={`settings-pill-btn ${editorType==='manual'?'active':''}`}>Manual</button>
+                  <button onClick={() => { setEditorType('easy'); localStorage.setItem('editor-type', 'easy'); if (editorMode === 'split') setEditorMode('edit'); }} className={`settings-pill-btn ${editorType==='easy'?'active':''}`}>Easy</button>
+                </div>
+              </div>
+              <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Theme Color</div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
                   {APP_PALETTES.map(p => (
@@ -1443,6 +1453,15 @@ export default function App() {
             }}>
               {/* Storage Folder Settings */}
               <div className="storage-settings-container" style={{ width: '100%' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Editor Mode</div>
+                  <div className="settings-pill-toggle">
+                    <div className={`settings-pill-indicator ${editorType}`}></div>
+                    <button onClick={() => { setEditorType('manual'); localStorage.setItem('editor-type', 'manual'); }} className={`settings-pill-btn ${editorType==='manual'?'active':''}`}>Manual</button>
+                    <button onClick={() => { setEditorType('easy'); localStorage.setItem('editor-type', 'easy'); if (editorMode === 'split') setEditorMode('edit'); }} className={`settings-pill-btn ${editorType==='easy'?'active':''}`}>Easy</button>
+                  </div>
+                </div>
+
                 <button
                   className="storage-toggle-btn"
                   onClick={toggleStorageSettings}
@@ -1704,7 +1723,9 @@ export default function App() {
                  <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
                  <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
                  <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
-                 <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                 {editorType !== 'easy' && (
+                   <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                 )}
                  <div className="pill-divider"></div>
                  <button className="btn-save-circle" onClick={() => saveLogbookContent(logbookText)}><Save size={18} /></button>
               </div>
@@ -1730,12 +1751,14 @@ export default function App() {
                 >
                   Preview
                 </button>
-                <button 
-                  className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
-                  onClick={() => setEditorMode('split')}
-                >
-                  Split View
-                </button>
+                {editorType !== 'easy' && (
+                  <button 
+                    className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
+                    onClick={() => setEditorMode('split')}
+                  >
+                    Split View
+                  </button>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -1753,38 +1776,50 @@ export default function App() {
               {(editorMode === 'edit' || editorMode === 'split') && (
                 <div className="editor-panel">
                   <div className="editor-wrapper">
-                    <textarea
-                      ref={textareaRef}
-                      className="editor-textarea"
-                      value={logbookText}
-                      onChange={handleTextChange}
-                      onKeyDown={handleKeyDown}
-                      onKeyUp={handleCursorMove}
-                      onClick={handleCursorMove}
-                      onFocus={handleCursorMove}
-                      placeholder="# 1&#10;Lat machine | 3'&#10;90..9+2.7+2&#10;90..9+2.8+2"
-                      spellCheck="false"
-                    />
-
-                    {/* Autocomplete Suggestions Box */}
-                    {showSuggestions && (
-                      <div 
-                        className="autocomplete-container"
-                        style={{ top: cursorPos.top, left: cursorPos.left }}
-                      >
-                        {suggestions.map((ex, index) => (
+                    {editorType === 'easy' ? (
+                      <EasyEditor 
+                        logbookText={logbookText}
+                        onChange={(newText) => {
+                          setLogbookText(newText);
+                          setDebouncedLogbookText(newText);
+                        }}
+                        exercisesDb={exercisesDb}
+                      />
+                    ) : (
+                      <>
+                        <textarea
+                          ref={textareaRef}
+                          className="editor-textarea"
+                          value={logbookText}
+                          onChange={handleTextChange}
+                          onKeyDown={handleKeyDown}
+                          onKeyUp={handleCursorMove}
+                          onClick={handleCursorMove}
+                          onFocus={handleCursorMove}
+                          placeholder="# 1&#10;Lat machine | 3'&#10;90..9+2.7+2&#10;90..9+2.8+2"
+                          spellCheck="false"
+                        />
+                        {/* Autocomplete Suggestions Box */}
+                        {showSuggestions && (
                           <div 
-                            key={ex.name}
-                            className={`autocomplete-item ${index === suggestionIndex ? 'active' : ''}`}
-                            onClick={() => selectSuggestion(ex.name)}
+                            className="autocomplete-container"
+                            style={{ top: cursorPos.top, left: cursorPos.left }}
                           >
-                            <span>{ex.name}</span>
-                            <span className="autocomplete-muscle">
-                              {MUSCLES[Object.keys(ex.muscles_distr)[0]] || Object.keys(ex.muscles_distr)[0]}
-                            </span>
+                            {suggestions.map((ex, index) => (
+                              <div 
+                                key={ex.name}
+                                className={`autocomplete-item ${index === suggestionIndex ? 'active' : ''}`}
+                                onClick={() => selectSuggestion(ex.name)}
+                              >
+                                <span>{ex.name}</span>
+                                <span className="autocomplete-muscle">
+                                  {MUSCLES[Object.keys(ex.muscles_distr)[0]] || Object.keys(ex.muscles_distr)[0]}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -2109,7 +2144,7 @@ export default function App() {
                               onClick={() => setEditingCurveIndex(index)}
                             >
                               <Sliders size={14} style={{ marginRight: '6px' }} />
-                              Scolpisci Curva
+                              Sculpt Curve
                             </button>
                           </div>
                           <div>
