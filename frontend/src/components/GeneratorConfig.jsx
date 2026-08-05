@@ -128,19 +128,19 @@ export default function GeneratorConfig({ isMobile }) {
     try {
       const payload = {
         days: globalParams.days,
-        minSets: globalParams.minSets, maxSets: globalParams.maxSets,
-        minReps: globalParams.minReps, maxReps: globalParams.maxReps,
-        minEx: globalParams.minEx, maxEx: globalParams.maxEx,
+        min_sets: globalParams.minSets, max_sets: globalParams.maxSets,
+        min_reps: globalParams.minReps, max_reps: globalParams.maxReps,
+        min_ex: globalParams.minEx, max_ex: globalParams.maxEx,
         iterations: globalParams.iterations,
-        calibrationSteps: globalParams.calibrationSteps,
+        calibration_steps: globalParams.calibrationSteps,
         weights: normalizedWeights,
-        ratios: {
+        target_ratios: {
           vol: targets.vol / 100,
           ton: targets.ton / 100,
           tut: targets.tut / 100
         },
-        muscleTargets: muscleCurves,
-        volumeDist
+        muscle_targets: muscleCurves,
+        volume_dist: volumeDist
       };
       
       const exRes = await fetch('/api/exercises');
