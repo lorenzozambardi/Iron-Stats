@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -469,13 +469,13 @@ export default function GeneratorConfig({ isMobile }) {
                 remarkPlugins={[remarkMath]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
-                  h1: ({node, ...props}) => <h1 style={{fontSize: '1.5rem', color: 'white', marginBottom: '15px'}} {...props} />,
-                  h2: ({node, ...props}) => <h2 style={{fontSize: '1.2rem', color: '#007aff', marginTop: '20px', marginBottom: '10px'}} {...props} />,
-                  h3: ({node, ...props}) => <h3 style={{fontSize: '1.0rem', color: '#ff9f0a', marginTop: '15px', marginBottom: '10px'}} {...props} />,
-                  p: ({node, ...props}) => <p style={{marginBottom: '10px'}} {...props} />,
-                  ul: ({node, ...props}) => <ul style={{marginLeft: '20px', marginBottom: '15px'}} {...props} />,
-                  li: ({node, ...props}) => <li style={{marginBottom: '5px'}} {...props} />,
-                  blockquote: ({node, ...props}) => <blockquote style={{borderLeft: '4px solid #007aff', paddingLeft: '10px', margin: '10px 0', background: 'rgba(0, 122, 255, 0.1)', padding: '10px'}} {...props} />
+                  h1: (props) => <h1 style={{fontSize: '1.5rem', color: 'white', marginBottom: '15px'}} {...props} />,
+                  h2: (props) => <h2 style={{fontSize: '1.2rem', color: '#007aff', marginTop: '20px', marginBottom: '10px'}} {...props} />,
+                  h3: (props) => <h3 style={{fontSize: '1.0rem', color: '#ff9f0a', marginTop: '15px', marginBottom: '10px'}} {...props} />,
+                  p: (props) => <p style={{marginBottom: '10px'}} {...props} />,
+                  ul: (props) => <ul style={{marginLeft: '20px', marginBottom: '15px'}} {...props} />,
+                  li: (props) => <li style={{marginBottom: '5px'}} {...props} />,
+                  blockquote: (props) => <blockquote style={{borderLeft: '4px solid #007aff', paddingLeft: '10px', margin: '10px 0', background: 'rgba(0, 122, 255, 0.1)', padding: '10px'}} {...props} />
                 }}
               >
                 {markdownContent}

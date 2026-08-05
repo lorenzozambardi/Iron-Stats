@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 import { Info } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
@@ -15,9 +15,7 @@ const DashboardTab = ({
   activeExercises,
   exercisesDb,
   selectedMetricDetail,
-  setSelectedMetricDetail,
-  scrollToTab,
-  setSelectedSession
+  setSelectedMetricDetail
 }) => {
   const [muscleMetric, setMuscleMetric] = useState('effective');
   const [progressionExercise, setProgressionExercise] = useState('all_metrics');
@@ -149,12 +147,6 @@ const DashboardTab = ({
     });
   }, [dashFilteredData, dashFilterSession, dashFilterWeek, dashWeeksList, dashMuscleMacro, dashMuscleSubgroup, sessionsList, workoutData]);
 
-  // Clamp weekSliderIdx when metricsByWeek shrinks
-  useEffect(() => {
-    if (metricsByWeek.length > 0 && weekSliderIdx >= metricsByWeek.length) {
-      setWeekSliderIdx(Math.max(0, metricsByWeek.length - 1));
-    }
-  }, [metricsByWeek.length, weekSliderIdx]);
 
   // Compare program B metrics by week — respects its own session/week + shared muscle filters
   const compareMetricsByWeek = useMemo(() => {

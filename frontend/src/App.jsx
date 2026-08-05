@@ -1,38 +1,32 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import 'katex/dist/katex.min.css';
-import { 
-  BookOpen, 
-  Save, 
-  BarChart3, 
-  Dumbbell, 
-  Search, 
-  Plus, 
-  AlertCircle, 
+import {
+  Save,
+  BarChart3,
+  Search,
+  Plus,
+  AlertCircle,
   RotateCcw,
   Bot,
   Edit,
   Trash2,
-  Info,
   Pencil,
   Eye,
   Columns,
   FolderOpen,
   Folder,
   ChevronDown,
-  ChevronUp,
   RefreshCw,
   Sliders,
-  Activity,
   Undo2,
   Redo2,
   Settings,
   Timer
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 import BezierEditor from './BezierEditor';
-import { 
-  parseLogbook, 
-  calculateMetrics, 
+import {
+  parseLogbook,
   MUSCLES,
   getExercisesWithOverrides
 } from './parser';
@@ -40,9 +34,7 @@ import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.
 import { App as CapacitorApp } from '@capacitor/app';
 
 import LogbookPreview from './components/LogbookPreview';
-import MetricDetailsPage from './components/MetricDetails';
-import { renderMetricTooltip } from './components/Tooltips';
-import { formatRestTime, groupSets, fuzzyScore, solveBezierY, getBezierCurveData } from './components/helpers';
+import { fuzzyScore, solveBezierY, getBezierCurveData } from './components/helpers';
 const GeneratorConfig = lazy(() => import('./components/GeneratorConfig'));
 import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
@@ -56,7 +48,7 @@ export default function App() {
   const [logbookText, setLogbookText] = useState('');
   const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
   const [exercisesDb, setExercisesDb] = useState([]);
-  const [selectedSession, setSelectedSession] = useState(null);
+  const [_selectedSession, setSelectedSession] = useState(null);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -1854,8 +1846,6 @@ export default function App() {
           exercisesDb={exercisesDb}
           selectedMetricDetail={selectedMetricDetail}
           setSelectedMetricDetail={setSelectedMetricDetail}
-          scrollToTab={scrollToTab}
-          setSelectedSession={setSelectedSession}
         />
         {/* TAB CONTENT: EXERCISE DATABASE */}
         <DatabaseTab

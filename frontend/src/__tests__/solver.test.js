@@ -9,9 +9,7 @@ import {
   parseTempoFromLine,
   calculateSetTuts,
   calculateSetFatigue,
-  getExercisesWithOverrides,
-  COEFF_ASSISTED,
-  COEFF_PARTIAL
+  getExercisesWithOverrides
 } from '../parser';
 
 // --- Minimal exercise DB for solver tests ---
@@ -565,7 +563,6 @@ describe('WorkoutSolver', () => {
     // Deep clone via mutate on a different day (which copies other days)
     const cloned = solver.mutateWorkout(state);
 
-    const originalCost = solver.evaluateWorkout(state);
     // A mutated state should still evaluate to a number
     const clonedCost = solver.evaluateWorkout(cloned);
     expect(typeof clonedCost).toBe('number');
