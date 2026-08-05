@@ -78,7 +78,7 @@ import json
 import os
 
 exercises_list = []
-_data_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'exercises.json')
+_data_path = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'src', 'defaultExercises.json')
 if os.path.exists(_data_path):
     with open(_data_path, 'r', encoding='utf-8') as f:
         _data = json.load(f)

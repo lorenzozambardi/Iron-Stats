@@ -161,6 +161,10 @@ export class WorkoutSolver {
             ...config
         };
 
+        if (this.config.iterations !== undefined) {
+            this.config.iterations = Math.min(this.config.iterations, 100000);
+        }
+
         this.db = db;
         this.resolution = 50;
 

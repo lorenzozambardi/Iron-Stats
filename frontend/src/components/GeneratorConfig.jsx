@@ -4,6 +4,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Settings, Target, BookOpen, Sliders, Activity, Scale, Play, Save, Bot } from 'lucide-react';
 import { MUSCLES } from '../parser';
+import { WorkoutSolver, calculateRest } from '../solver';
 
 const MACRO_MUSCLES = Array.from(new Set(Object.values(MUSCLES))).sort();
 
@@ -142,14 +143,41 @@ export default function GeneratorConfig({ isMobile }) {
         volumeDist
       };
       
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const exRes = await fetch('/api/exercises');
+      const exercises = await exRes.json();
       
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Errore sconosciuto dal server");
+      // Permettiamo al browser di renderizzare lo stato di "caricamento"
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      const solver = new WorkoutSolver(payload, exercises);
+      const { bestState, bestCost } = solver.solve(payload.iterations || 5000, 50.0);
+      
+      const outDays = [];
+      for (const day of bestState.days) {
+        const dayExs = [];
+        for (const ex of day) {
+          const setsData = ex.sets.map(s => ({
+            base_reps: s.base_reps,
+            partial_reps: s.partial_reps,
+            rpe: s.rpe
+          }));
+          const muscles = Object.keys(ex.exercise.muscles_distr).slice(0, 2).join(', ');
+          dayExs.push({
+            exercise: ex.exercise.name,
+            rest: calculateRest(ex.exercise.fatigue),
+            muscles: muscles,
+            sets: setsData
+          });
+        }
+        outDays.push(dayExs);
+      }
+      
+      const data = {
+        success: true,
+        days: outDays,
+        final_cost: bestCost
+      };
+
       setGeneratedResult(data);
       setRightTab('result');
     } catch (err) {

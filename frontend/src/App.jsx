@@ -10,7 +10,6 @@ import {
   AlertCircle, 
   RotateCcw,
   Bot,
-  TrendingUp,
   Edit,
   Trash2,
   Info,

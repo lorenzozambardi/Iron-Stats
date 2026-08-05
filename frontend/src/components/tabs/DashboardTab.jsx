@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
-import { Info, TrendingUp } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 import MetricDetailsPage from '../MetricDetails';
 import { renderMetricTooltip } from '../Tooltips';

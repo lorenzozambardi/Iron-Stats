@@ -101,7 +101,7 @@ export default defineConfig({
           }
 
           if (urlObj.pathname === '/api/exercises' && req.method === 'GET') {
-            const exercisesJsonPath = path.resolve(__dirname, '../data/exercises.json');
+            const exercisesJsonPath = path.resolve(__dirname, './src/defaultExercises.json');
             if (fs.existsSync(exercisesJsonPath)) {
               try {
                 const content = fs.readFileSync(exercisesJsonPath, 'utf-8');
@@ -113,7 +113,7 @@ export default defineConfig({
               }
             } else {
               res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-              res.end('exercises.json not found');
+              res.end('defaultExercises.json not found');
             }
             return;
           }
@@ -127,7 +127,7 @@ export default defineConfig({
                 if (!Array.isArray(exercises)) {
                   throw new Error('Body must be an array of exercises');
                 }
-                const exercisesJsonPath = path.resolve(__dirname, '../data/exercises.json');
+                const exercisesJsonPath = path.resolve(__dirname, './src/defaultExercises.json');
                 fs.writeFileSync(exercisesJsonPath, JSON.stringify(exercises, null, 2), 'utf-8');
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
