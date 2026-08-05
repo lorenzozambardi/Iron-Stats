@@ -150,7 +150,7 @@ export default function GeneratorConfig({ isMobile }) {
       await new Promise(resolve => setTimeout(resolve, 50));
       
       const solver = new WorkoutSolver(payload, exercises);
-      const { bestState, bestCost } = solver.solve(payload.iterations || 5000, 50.0);
+      const { bestState, bestCost } = await solver.solve(payload.iterations || 5000, 50.0);
       
       const outDays = [];
       for (const day of bestState.days) {

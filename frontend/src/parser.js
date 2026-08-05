@@ -448,7 +448,21 @@ export function parseLine(line, lineIndex = 0) {
     return sets;
   }
 
-
+  // Preprocess Format: load1..load2..reps1.reps2 -> load1/load2..reps1/reps2
+  if ((cleanLine.match(/\.\./g) || []).length > 1) {
+    const lastIdx = cleanLine.lastIndexOf('..');
+    if (lastIdx !== -1) {
+      let loadsPart = cleanLine.substring(0, lastIdx);
+      let repsPart = cleanLine.substring(lastIdx + 2);
+      if (repsPart.includes('.') && loadsPart.includes('..')) {
+        if (/^[\d()++@.]+$/.test(repsPart)) {
+          loadsPart = loadsPart.replace(/\.\./g, '/');
+          repsPart = repsPart.replace(/\./g, '/');
+          cleanLine = `${loadsPart}..${repsPart}`;
+        }
+      }
+    }
+  }
 
   // Split on single dot not part of a decimal or double dot
   // In JS, (?<!\.)\.(?!\.) works in V8 and Chrome/Node

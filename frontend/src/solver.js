@@ -559,7 +559,7 @@ export class WorkoutSolver {
      * by `coolingRate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
      * is applied and the new state is evaluated.
      */
-    solve(iterations = 10000, initialTemp = 100.0, coolingRate = null, progressCallback = null) {
+    async solve(iterations = 10000, initialTemp = 100.0, coolingRate = null, progressCallback = null) {
         if (!coolingRate) {
             coolingRate = iterations > 0 ? Math.pow(0.01 / initialTemp, 1.0 / iterations) : 0.995;
         }
@@ -595,14 +595,17 @@ export class WorkoutSolver {
 
             T *= coolingRate;
 
-            if (progressCallback && i % 500 === 0) {
-                progressCallback({
-                    iteration: i,
-                    total: iterations,
-                    temp: T,
-                    currentCost,
-                    bestCost
-                });
+            if (i % 500 === 0) {
+                if (progressCallback) {
+                    progressCallback({
+                        iteration: i,
+                        total: iterations,
+                        temp: T,
+                        currentCost,
+                        bestCost
+                    });
+                }
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
 
