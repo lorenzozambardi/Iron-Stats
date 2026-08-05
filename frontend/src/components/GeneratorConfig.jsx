@@ -22,16 +22,7 @@ const CURVE_OPTIONS = [
 ];
 
 export default function GeneratorConfig({ isMobile }) {
-  if (isMobile) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-        <Bot size={48} color="var(--accent-primary)" style={{ marginBottom: '16px' }} />
-        <h2 style={{ color: 'var(--text-primary)', marginBottom: '12px' }}>Generator Mobile</h2>
-        <p>Work in progress...<br />Please use the desktop version for now.</p>
-      </div>
-    );
-  }
-
+  // ===== HOOKS — must be called unconditionally before any early return =====
   const [markdownContent, setMarkdownContent] = useState('');
 
   // Form State
@@ -71,7 +62,7 @@ export default function GeneratorConfig({ isMobile }) {
     });
     return normalized;
   };
-  
+
   const normalizedWeights = useMemo(() => calculateSoftmax(weights), [weights]);
 
   const [targets, setTargets] = useState({
@@ -96,12 +87,12 @@ export default function GeneratorConfig({ isMobile }) {
     MACRO_MUSCLES.forEach(m => {
       initial.macros[m] = baseMacroPct + (macroRemainder > 0 ? 1 : 0);
       macroRemainder--;
-      
+
       initial.subs[m] = {};
       const subs = MACRO_SUB_MAP[m];
       const baseSubPct = Math.floor(100 / subs.length);
       let subRemainder = 100 - baseSubPct * subs.length;
-      
+
       subs.forEach(s => {
         initial.subs[m][s] = baseSubPct + (subRemainder > 0 ? 1 : 0);
         subRemainder--;
@@ -119,12 +110,13 @@ export default function GeneratorConfig({ isMobile }) {
       .catch(err => console.error("Failed to load Markdown", err));
   }, []);
 
+  // ===== EVENT HANDLERS =====
   const handleGenerate = async () => {
-    
+
     setIsGenerating(true);
     setError(null);
     setGeneratedResult(null);
-    
+
     try {
       const payload = {
         days: globalParams.days,
@@ -142,16 +134,16 @@ export default function GeneratorConfig({ isMobile }) {
         muscle_targets: muscleCurves,
         volume_dist: volumeDist
       };
-      
+
       const exRes = await fetch('/api/exercises');
       const exercises = await exRes.json();
-      
+
       // Permettiamo al browser di renderizzare lo stato di "caricamento"
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       const solver = new WorkoutSolver(payload, exercises);
       const { bestState, bestCost } = await solver.solve(payload.iterations || 5000, 50.0);
-      
+
       const outDays = [];
       for (const day of bestState.days) {
         const dayExs = [];
@@ -171,7 +163,7 @@ export default function GeneratorConfig({ isMobile }) {
         }
         outDays.push(dayExs);
       }
-      
+
       const data = {
         success: true,
         days: outDays,
@@ -190,7 +182,7 @@ export default function GeneratorConfig({ isMobile }) {
 
   const handleSaveProgram = async () => {
     if (!generatedResult) return;
-    
+
     let markdown = '';
     generatedResult.days.forEach((day, idx) => {
       markdown += `# ${idx + 1}\n`;
@@ -239,6 +231,7 @@ export default function GeneratorConfig({ isMobile }) {
     });
   };
 
+  // ===== DERIVED VALUES =====
   const macroSum = Object.values(volumeDist.macros).reduce((a, b) => a + b, 0);
   const isMacroValid = macroSum === 100;
   const invalidSubs = Object.keys(volumeDist.subs).filter(m => {
@@ -246,9 +239,21 @@ export default function GeneratorConfig({ isMobile }) {
   });
   const isVolumeValid = isMacroValid && invalidSubs.length === 0;
 
+  // ===== MOBILE EARLY RETURN =====
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+        <Bot size={48} color="var(--accent-primary)" style={{ marginBottom: '16px' }} />
+        <h2 style={{ color: 'var(--text-primary)', marginBottom: '12px' }}>Generator Mobile</h2>
+        <p>Work in progress...<br />Please use the desktop version for now.</p>
+      </div>
+    );
+  }
+
+  // ===== DESKTOP RENDER =====
   return (
     <div className="generator-container" style={{ display: 'flex', gap: '20px', height: '100%', overflow: 'hidden' }}>
-      
+
       {/* Left Pane: Configuration UI */}
       <div className="config-pane" style={{ flex: '1', overflowY: 'auto', padding: '20px', background: '#1c1c1e', borderRadius: '12px', border: '1px solid #333' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
@@ -316,17 +321,17 @@ export default function GeneratorConfig({ isMobile }) {
               return (
                 <div key={m} style={{ background: '#1c1c1e', padding: '10px', borderRadius: '6px', border: `1px solid ${!mValid ? '#ff453a' : '#3a3a3c'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                    <button 
+                    <button
                       onClick={() => setExpandedMacro(isExpanded ? null : m)}
                       style={{ background: 'transparent', border: 'none', color: '#007aff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', width: '90px', fontSize: '0.9rem' }}
                     >
                       {isExpanded ? '▼' : '▶'} {m}
                     </button>
-                    <input 
-                      type="range" min="0" max="100" step="1" 
-                      value={volumeDist.macros[m]} 
-                      onChange={e => handleVolumeChange('macro', m, null, e.target.value)} 
-                      style={{ flex: '1', accentColor: '#30d158' }} 
+                    <input
+                      type="range" min="0" max="100" step="1"
+                      value={volumeDist.macros[m]}
+                      onChange={e => handleVolumeChange('macro', m, null, e.target.value)}
+                      style={{ flex: '1', accentColor: '#30d158' }}
                     />
                     <span style={{ width: '40px', textAlign: 'right', fontSize: '0.85rem', color: isMacroValid ? 'white' : '#ff453a' }}>
                       {volumeDist.macros[m]}%
@@ -342,11 +347,11 @@ export default function GeneratorConfig({ isMobile }) {
                       {MACRO_SUB_MAP[m].map(sub => (
                         <div key={sub} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <label style={{ width: '120px', fontSize: '0.75rem', color: '#d1d1d6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</label>
-                          <input 
-                            type="range" min="0" max="100" step="1" 
-                            value={volumeDist.subs[m][sub]} 
-                            onChange={e => handleVolumeChange('sub', m, sub, e.target.value)} 
-                            style={{ flex: '1', accentColor: '#ff9f0a' }} 
+                          <input
+                            type="range" min="0" max="100" step="1"
+                            value={volumeDist.subs[m][sub]}
+                            onChange={e => handleVolumeChange('sub', m, sub, e.target.value)}
+                            style={{ flex: '1', accentColor: '#ff9f0a' }}
                           />
                           <span style={{ width: '35px', textAlign: 'right', fontSize: '0.75rem', color: mValid ? 'white' : '#ff453a' }}>
                             {volumeDist.subs[m][sub]}%
@@ -368,7 +373,7 @@ export default function GeneratorConfig({ isMobile }) {
               <Scale size={16} /> Pesi Obiettivo (Valori Reali)
             </h3>
           </div>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {Object.entries(weights).map(([key, val]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -413,8 +418,8 @@ export default function GeneratorConfig({ isMobile }) {
             {MACRO_MUSCLES.map(m => (
               <div key={m} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: '#d1d1d6' }}>{m}</span>
-                <select 
-                  value={muscleCurves[m]} 
+                <select
+                  value={muscleCurves[m]}
                   onChange={e => setMuscleCurves(prev => ({...prev, [m]: e.target.value}))}
                   style={{ background: '#1c1c1e', color: 'white', border: '1px solid #3a3a3c', padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', width: '160px' }}
                 >
@@ -427,8 +432,8 @@ export default function GeneratorConfig({ isMobile }) {
           </div>
         </div>
 
-        <button 
-          onClick={handleGenerate} 
+        <button
+          onClick={handleGenerate}
           disabled={isGenerating || !isVolumeValid}
           style={{ marginTop: '20px', width: '100%', padding: '12px', background: (isGenerating || !isVolumeValid) ? '#636366' : '#30d158', color: (isGenerating || !isVolumeValid) ? '#aeaeb2' : 'black', border: 'none', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (isGenerating || !isVolumeValid) ? 'not-allowed' : 'pointer' }}
         >
@@ -445,15 +450,15 @@ export default function GeneratorConfig({ isMobile }) {
 
       {/* Right Pane: Markdown Documentation or Result */}
       <div className="docs-pane" style={{ flex: '1', display: 'flex', flexDirection: 'column', padding: '20px', background: '#1c1c1e', borderRadius: '12px', border: '1px solid #333' }}>
-        
+
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-          <button 
+          <button
             onClick={() => setRightTab('info')}
             style={{ padding: '8px 16px', background: rightTab === 'info' ? '#007aff' : 'transparent', color: rightTab === 'info' ? 'white' : '#8e8e93', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'info' ? 'bold' : 'normal' }}
           >
             <BookOpen size={18} /> Modello Matematico
           </button>
-          <button 
+          <button
             onClick={() => setRightTab('result')}
             disabled={!generatedResult}
             style={{ padding: '8px 16px', background: rightTab === 'result' ? '#30d158' : 'transparent', color: rightTab === 'result' ? 'black' : (generatedResult ? 'white' : '#48484a'), border: 'none', borderRadius: '8px', cursor: generatedResult ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'result' ? 'bold' : 'normal' }}
@@ -491,7 +496,7 @@ export default function GeneratorConfig({ isMobile }) {
             <h3 style={{ color: '#30d158', marginBottom: '20px', fontSize: '1.4rem' }}>
               Scheda Ottimizzata (Costo: {generatedResult.final_cost.toFixed(2)})
             </h3>
-            
+
             <div style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '20px' }}>
               {generatedResult.days.map((day, dIdx) => (
                 <div key={dIdx} style={{ minWidth: '320px', flex: '0 0 auto', display: 'flex', flexDirection: 'column' }}>
@@ -523,7 +528,7 @@ export default function GeneratorConfig({ isMobile }) {
               ))}
             </div>
 
-            <button 
+            <button
               onClick={handleSaveProgram}
               style={{ marginTop: 'auto', width: '100%', padding: '15px', background: '#007aff', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer' }}
             >

@@ -16,7 +16,6 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           const urlObj = new URL(req.url, 'http://localhost');
-          const analyzerPath = path.resolve(__dirname, '../python_research/analyzer/models.py');
           const examplesDir = path.resolve(__dirname, '../logbooks');
 
           if (urlObj.pathname === '/api/logbook') {

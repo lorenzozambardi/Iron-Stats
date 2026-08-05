@@ -43,6 +43,54 @@ import EasyEditor from './components/EasyEditor';
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
 
+const APP_PALETTES = [
+  { id: 'red', color: '#ef4444', glow: 'rgba(239, 68, 68, 0.25)', label: 'Red' },
+  { id: 'rose', color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.25)', label: 'Rose' },
+  { id: 'pink', color: '#ec4899', glow: 'rgba(236, 72, 153, 0.25)', label: 'Pink' },
+  { id: 'orange', color: '#f97316', glow: 'rgba(249, 115, 22, 0.25)', label: 'Orange' },
+  { id: 'amber', color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.25)', label: 'Amber' },
+  { id: 'yellow', color: '#eab308', glow: 'rgba(234, 179, 8, 0.25)', label: 'Yellow' },
+  { id: 'lime', color: '#84cc16', glow: 'rgba(132, 204, 22, 0.25)', label: 'Lime' },
+  { id: 'emerald', color: '#10b981', glow: 'rgba(16, 185, 129, 0.25)', label: 'Emerald' },
+  { id: 'teal', color: '#14b8a6', glow: 'rgba(20, 184, 166, 0.25)', label: 'Teal' },
+  { id: 'cyan', color: '#06b6d4', glow: 'rgba(6, 182, 212, 0.25)', label: 'Cyan' },
+  { id: 'sky', color: '#0ea5e9', glow: 'rgba(14, 165, 233, 0.25)', label: 'Sky' },
+  { id: 'indigo', color: '#6366f1', glow: 'rgba(99, 102, 241, 0.25)', label: 'Indigo' },
+  { id: 'violet', color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.25)', label: 'Violet' },
+  { id: 'fuchsia', color: '#d946ef', glow: 'rgba(217, 70, 239, 0.25)', label: 'Fuchsia' },
+  { id: 'slate', color: '#64748b', glow: 'rgba(100, 116, 139, 0.25)', label: 'Slate' }
+];
+
+const hexToRgba = (hex, alpha) => {
+  let r = 0, g = 0, b = 0;
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else if (hex.length === 7) {
+    r = parseInt(hex.substring(1, 3), 16);
+    g = parseInt(hex.substring(3, 5), 16);
+    b = parseInt(hex.substring(5, 7), 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const BG_PALETTES = [
+  { id: 'black', primary: '#000000', label: 'Pure Black' },
+  { id: 'darkest', primary: '#050505', label: 'Darkest' },
+  { id: 'dark', primary: '#0a0a0a', label: 'Dark' },
+  { id: 'zinc', primary: '#111111', label: 'Zinc' },
+  { id: 'charcoal', primary: '#18181b', label: 'Charcoal' }
+];
+
+const SEC_PALETTES = [
+  { id: 'black', color: '#000000', glass: 'rgba(0, 0, 0, 0.6)', glassActive: 'rgba(0, 0, 0, 0.85)', label: 'Pure Black' },
+  { id: 'darkest', color: '#09090b', glass: 'rgba(9, 9, 11, 0.6)', glassActive: 'rgba(9, 9, 11, 0.85)', label: 'Darkest' },
+  { id: 'dark', color: '#18181b', glass: 'rgba(24, 24, 27, 0.6)', glassActive: 'rgba(24, 24, 27, 0.85)', label: 'Dark' },
+  { id: 'zinc', color: '#27272a', glass: 'rgba(39, 39, 42, 0.6)', glassActive: 'rgba(39, 39, 42, 0.85)', label: 'Zinc' },
+  { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
+];
+
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
@@ -61,54 +109,6 @@ export default function App() {
 
 
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
-
-  const APP_PALETTES = [
-    { id: 'red', color: '#ef4444', glow: 'rgba(239, 68, 68, 0.25)', label: 'Red' },
-    { id: 'rose', color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.25)', label: 'Rose' },
-    { id: 'pink', color: '#ec4899', glow: 'rgba(236, 72, 153, 0.25)', label: 'Pink' },
-    { id: 'orange', color: '#f97316', glow: 'rgba(249, 115, 22, 0.25)', label: 'Orange' },
-    { id: 'amber', color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.25)', label: 'Amber' },
-    { id: 'yellow', color: '#eab308', glow: 'rgba(234, 179, 8, 0.25)', label: 'Yellow' },
-    { id: 'lime', color: '#84cc16', glow: 'rgba(132, 204, 22, 0.25)', label: 'Lime' },
-    { id: 'emerald', color: '#10b981', glow: 'rgba(16, 185, 129, 0.25)', label: 'Emerald' },
-    { id: 'teal', color: '#14b8a6', glow: 'rgba(20, 184, 166, 0.25)', label: 'Teal' },
-    { id: 'cyan', color: '#06b6d4', glow: 'rgba(6, 182, 212, 0.25)', label: 'Cyan' },
-    { id: 'sky', color: '#0ea5e9', glow: 'rgba(14, 165, 233, 0.25)', label: 'Sky' },
-    { id: 'indigo', color: '#6366f1', glow: 'rgba(99, 102, 241, 0.25)', label: 'Indigo' },
-    { id: 'violet', color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.25)', label: 'Violet' },
-    { id: 'fuchsia', color: '#d946ef', glow: 'rgba(217, 70, 239, 0.25)', label: 'Fuchsia' },
-    { id: 'slate', color: '#64748b', glow: 'rgba(100, 116, 139, 0.25)', label: 'Slate' }
-  ];
-
-  const hexToRgba = (hex, alpha) => {
-    let r = 0, g = 0, b = 0;
-    if (hex.length === 4) {
-      r = parseInt(hex[1] + hex[1], 16);
-      g = parseInt(hex[2] + hex[2], 16);
-      b = parseInt(hex[3] + hex[3], 16);
-    } else if (hex.length === 7) {
-      r = parseInt(hex.substring(1, 3), 16);
-      g = parseInt(hex.substring(3, 5), 16);
-      b = parseInt(hex.substring(5, 7), 16);
-    }
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
-
-  const BG_PALETTES = [
-    { id: 'black', primary: '#000000', label: 'Pure Black' },
-    { id: 'darkest', primary: '#050505', label: 'Darkest' },
-    { id: 'dark', primary: '#0a0a0a', label: 'Dark' },
-    { id: 'zinc', primary: '#111111', label: 'Zinc' },
-    { id: 'charcoal', primary: '#18181b', label: 'Charcoal' }
-  ];
-
-  const SEC_PALETTES = [
-    { id: 'black', color: '#000000', glass: 'rgba(0, 0, 0, 0.6)', glassActive: 'rgba(0, 0, 0, 0.85)', label: 'Pure Black' },
-    { id: 'darkest', color: '#09090b', glass: 'rgba(9, 9, 11, 0.6)', glassActive: 'rgba(9, 9, 11, 0.85)', label: 'Darkest' },
-    { id: 'dark', color: '#18181b', glass: 'rgba(24, 24, 27, 0.6)', glassActive: 'rgba(24, 24, 27, 0.85)', label: 'Dark' },
-    { id: 'zinc', color: '#27272a', glass: 'rgba(39, 39, 42, 0.6)', glassActive: 'rgba(39, 39, 42, 0.85)', label: 'Zinc' },
-    { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
-  ];
 
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
   const [secPalette, setSecPalette] = useState(() => localStorage.getItem('sec-palette') || 'darkest');
@@ -163,6 +163,7 @@ export default function App() {
 
   // History State for Undo/Redo
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [historyLength, setHistoryLength] = useState(1);
   const textHistoryRef = useRef(['']);
   const isUndoRedoAction = useRef(false);
   const textHistoryTimeoutRef = useRef(null);
@@ -185,6 +186,7 @@ export default function App() {
             }
             setHistoryIndex(textHistoryRef.current.length - 1);
          }
+         setHistoryLength(textHistoryRef.current.length);
      }, 500);
   }, [logbookText, historyIndex]);
 
@@ -278,7 +280,7 @@ export default function App() {
         swipeContainerRef.current.scrollTo({ left: index * swipeContainerRef.current.clientWidth, behavior: 'instant' });
       }
     }
-  }, []);
+  }, [activeTab]);
 
   const handleScroll = useCallback((e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
@@ -1702,8 +1704,8 @@ export default function App() {
                 <button 
                    className="mode-pill-btn" 
                    onClick={handleRedo} 
-                   disabled={historyIndex === textHistoryRef.current.length - 1}
-                   style={{ opacity: historyIndex === textHistoryRef.current.length - 1 ? 0.3 : 1 }}
+                   disabled={historyIndex >= historyLength - 1}
+                   style={{ opacity: historyIndex >= historyLength - 1 ? 0.3 : 1 }}
                 >
                   <Redo2 size={18} />
                 </button>
