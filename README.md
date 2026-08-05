@@ -17,9 +17,10 @@ Instead, this engine evaluates workout programs using **Effective Volume**, **Dy
 
 ## 📁 Project Structure
 
-- `analyzer/`: The core Python engine containing the CLI, the parsing logic (`parser.py`), the mathematical models (`metrics.py`, `models.py`), and the optimization solver (`solver.py`).
-- `frontend/`: A modern web application built with React, Vite, and Capacitor (for Android support). It provides a UI for the parser and a visual editor for the biomechanical Bezier models.
-- `examples/`: A collection of markdown files (`.md`) containing real-world, parsed workout templates and routines.
+- `python_research/analyzer/`: The core Python engine containing the CLI, the parsing logic (`parser.py`), the mathematical models (`metrics.py`, `models.py`), and the optimization solver (`solver.py`).
+- `python_research/scripts/`: Python analysis scripts and test utilities (`Analyzer.py`, calibration and evaluation scripts).
+- `frontend/`: A modern web application built with React, Vite, and Capacitor (for Android support). It provides a UI for the parser, a visual editor for the biomechanical Bezier models, and a client-side workout generator (`src/solver.js`).
+- `logbooks/`: A collection of markdown files (`.md`) containing real-world, parsed workout templates and routines.
 
 ## 🧠 The Math & Models
 
@@ -62,7 +63,7 @@ For a complete guide on how to read and write these logs, please refer to the [M
 1. Ensure you have Python 3.10+ installed.
 2. Run the analyzer on a workout file:
    ```bash
-   python Analyzer.py --file examples/Scheda_Simone.md
+   python python_research/scripts/Analyzer.py --file logbooks/Scheda_Simone.md
    ```
    *Optional flags: `--session`, `--week`, `--macro`, `--sub` to filter the output.*
 
@@ -85,7 +86,7 @@ For a complete guide on how to read and write these logs, please refer to the [M
 ## 📚 Documentation
 
 - [LEGGERE_LA_SCHEDA.md](LEGGERE_LA_SCHEDA.md): Comprehensive guide to the workout parsing syntax (Drop sets, assisted reps, overrides, etc.).
-- [GENERATOR_MATH_MODEL.md](GENERATOR_MATH_MODEL.md): Deep dive into the mathematical multi-objective optimization model used for routine generation.
+- [GENERATOR_MATH_MODEL.md](frontend/public/GENERATOR_MATH_MODEL.md): Deep dive into the mathematical multi-objective optimization model used for routine generation.
 
 ## 📄 License
 

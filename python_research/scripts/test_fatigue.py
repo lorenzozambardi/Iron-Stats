@@ -2,7 +2,7 @@ from analyzer.Analyzer import Analyzer
 import os
 
 analyzer = Analyzer()
-workout = analyzer.parse_markdown("examples/S3M2.md")
+workout = analyzer.parse_markdown("logbooks/S3M2.md")
 metrics = analyzer.calculate_metrics(workout)
 
 print("Total Fatigue:", metrics.accumulated_fatigue)

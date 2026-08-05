@@ -1,6 +1,5 @@
 import defaultExercises from './defaultExercises.json';
 
-const COEFF_ASSISTED = 0.5;
 const COEFF_PARTIAL = 0.5;
 
 // --- TARGET CURVES GENERATORS ---
@@ -63,7 +62,7 @@ function getBezierCurve(prof, resolution = 50) {
 
 // --- REST CALCULATOR ---
 export function calculateRest(fatigue) {
-    let mins = 1.0;
+    let mins;
     if (fatigue <= 2.0) {
         mins = 1.0;
     } else if (fatigue <= 7.0) {
