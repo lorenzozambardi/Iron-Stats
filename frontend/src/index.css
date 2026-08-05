@@ -829,15 +829,15 @@ input::-webkit-list-button {
 }
 
 .select-control {
-  background-color: rgba(15, 23, 42, 0.6);
+  background-color: var(--bg-secondary);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 0.8rem;
   font-weight: 500;
-  padding: 6px 32px 6px 12px;
-  border-radius: var(--button-radius);
+  padding: 6px 32px 6px 16px;
+  border-radius: 100px;
   outline: none;
   cursor: pointer;
   min-width: 140px;
@@ -875,7 +875,9 @@ input::-webkit-list-button {
   padding: 4px 28px 4px 10px;
   font-size: 0.75rem;
   min-width: auto;
-  border-radius: 6px;
+  border-radius: 100px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a5b4fc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
   background-position: right 8px center;
   background-size: 12px;
 }
@@ -1051,6 +1053,12 @@ input::-webkit-list-button {
 }
 .editor-mode-toggles.mode-split .editor-mode-indicator {
   transform: translateX(200%);
+}
+.editor-mode-toggles.easy-toggles {
+  width: 200px;
+}
+.editor-mode-toggles.easy-toggles .editor-mode-indicator {
+  width: calc((100% - 6px) / 2);
 }
 
 .mode-toggle-btn {
@@ -2718,6 +2726,8 @@ input::-webkit-list-button {
 .easy-editor-container {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  width: 100%;
   gap: 16px;
   padding: 16px;
   height: 100%;
@@ -2988,3 +2998,184 @@ input::-webkit-list-button {
   color: var(--text-primary);
   border-color: rgba(255,255,255,0.2);
 }
+
+/* Custom Desktop Navigation: Full Mobile Experience on Desktop */
+@media (min-width: 769px) {
+  /* 1. Hide the top desktop elements */
+  .brand, .desktop-only, .tab-nav > .tab-btn, .tab-nav-highlight {
+    display: none !important;
+  }
+
+  /* 2. Style the top header to look like mobile */
+  .app-header {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none !important;
+  }
+
+  /* 3. Show and style the burger button */
+  .mobile-burger-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: var(--bg-secondary) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    padding: 8px !important;
+  }
+  .burger-icon {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+  }
+  .burger-icon div {
+    width: 18px !important;
+    height: 2px !important;
+    background: var(--text-primary) !important;
+    border-radius: 2px !important;
+  }
+
+  /* 4. Transform tab-nav into the mobile lateral menu */
+  .tab-nav {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: var(--bg-primary) !important;
+    flex-direction: column !important;
+    padding: 80px 20px 100px 20px !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+    z-index: 2000 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+    overflow-y: auto !important;
+    opacity: 0 !important;
+    transform: translateY(20px) !important;
+  }
+  .tab-nav.mobile-open {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    pointer-events: auto !important;
+  }
+  .mobile-close-btn {
+    display: block !important;
+    position: absolute !important;
+    top: 20px !important;
+    right: 20px !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-primary) !important;
+    font-size: 2rem !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+  }
+
+  /* 5. Fix header controls inside the lateral menu */
+  .tab-nav > .header-controls {
+    display: flex !important;
+    position: static !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 400px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 0 !important;
+    gap: 16px !important;
+  }
+  .tab-nav > .header-controls .program-selector-container {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 8px 12px !important;
+    border-radius: 99px !important;
+    width: calc(100% - 20px) !important;
+    box-sizing: border-box !important;
+  }
+  .tab-nav > .header-controls .program-select {
+    flex: 1 !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-primary) !important;
+    font-size: 0.9rem !important;
+    padding: 4px !important;
+  }
+  .tab-nav > .header-controls .status-badge {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 99px !important;
+    width: calc(100% - 20px) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 6. Style the bottom nav pill */
+  .mobile-bottom-nav {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    align-items: center !important;
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background: var(--bg-secondary) !important;
+    padding: 6px !important;
+    border-radius: 99px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+    z-index: 1000 !important;
+    width: max-content !important;
+    min-width: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    margin: 0 !important;
+  }
+  .mobile-bottom-nav-indicator {
+    position: absolute !important;
+    left: 6px !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    background: var(--accent-primary) !important;
+    box-shadow: 0 4px 12px var(--accent-primary-glow) !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    will-change: transform !important;
+  }
+  .bottom-nav-btn {
+    background: transparent !important;
+    border: none !important;
+    color: #fff !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    z-index: 2 !important;
+    position: relative !important;
+  }
+  .bottom-nav-btn svg {
+    transition: none !important;
+  }
+}
+

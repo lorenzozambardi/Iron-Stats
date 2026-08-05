@@ -1737,7 +1737,7 @@ export default function App() {
             {/* Editor Sub-Header */}
             <div className="editor-control-bar">
               {/* Edit Mode Toggles */}
-              <div className={`editor-mode-toggles mode-${editorMode}`}>
+              <div className={`editor-mode-toggles mode-${editorMode} ${editorType === 'easy' ? 'easy-toggles' : ''}`}>
                 <div className="editor-mode-indicator"></div>
                 <button 
                   className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}

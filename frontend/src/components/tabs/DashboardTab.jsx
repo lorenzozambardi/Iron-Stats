@@ -960,7 +960,7 @@ const DashboardTab = ({
                               </select>
                             </>
                           )}
-                          <TrendingUp size={15} color="var(--accent-primary)" className="chart-trending-icon" style={{ opacity: 0.8 }} />
+
                         </div>
                       </div>
                       <div className="dashboard-chart-wrapper" style={{ width: '100%', height: 260 }}>

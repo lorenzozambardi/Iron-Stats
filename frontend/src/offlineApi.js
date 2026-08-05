@@ -2,6 +2,7 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import defaultExercises from './defaultExercises.json';
 import { defaultLogbook } from './defaultLogbook.js';
+import { WorkoutSolver, calculateRest } from './solver.js';
 
 const originalFetch = window.fetch;
 
@@ -217,6 +218,66 @@ window.fetch = async (input, init) => {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+  }
+
+  // ── /api/generate ──────────────────────────────────────────────────────────
+  if (urlObj.pathname === '/api/generate') {
+    if (method === 'POST') {
+      try {
+        const config = JSON.parse(init.body);
+        let exercises = defaultExercises;
+        
+        try {
+          if (isCustom) {
+            const res = await FolderPicker.readFile({ uri: safUri, filename: 'exercises_v6.json' });
+            exercises = JSON.parse(res.data);
+          } else {
+            const res = await Filesystem.readFile({ path: filePath('exercises_v6.json'), directory: dir, encoding: Encoding.UTF8 });
+            exercises = JSON.parse(res.data);
+          }
+        } catch (e) {
+          // Fallback to default if file doesn't exist
+          exercises = defaultExercises;
+        }
+
+        const solver = new WorkoutSolver(config, exercises);
+        const { bestState, bestCost } = solver.solve(
+            config.iterations || 5000, 
+            50.0 // initial temp
+        );
+
+        // Format output
+        const outDays = [];
+        for (const day of bestState.days) {
+            const dayExs = [];
+            for (const ex of day) {
+                const setsData = ex.sets.map(s => ({
+                    base_reps: s.base_reps,
+                    partial_reps: s.partial_reps,
+                    rpe: s.rpe
+                }));
+                const muscles = Object.keys(ex.exercise.muscles_distr).slice(0, 2).join(', ');
+                dayExs.push({
+                    exercise: ex.exercise.name,
+                    rest: calculateRest(ex.exercise.fatigue),
+                    muscles: muscles,
+                    sets: setsData
+                });
+            }
+            outDays.push(dayExs);
+        }
+
+        const finalOutput = {
+            success: true,
+            days: outDays,
+            final_cost: bestCost
+        };
+
+        return new Response(JSON.stringify(finalOutput), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
       }
     }
   }

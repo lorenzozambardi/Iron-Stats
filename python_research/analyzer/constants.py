@@ -162,6 +162,7 @@ HARD_MAP = {
     "hanging leg": "Hanging Leg Raises",
     "hanging leg raises": "Hanging Leg Raises",
     "leg raises": "Hanging Leg Raises",
+    "crunch": "Crunch",
 }
 
 SORTED_HARD_MAP_KEYS = sorted(HARD_MAP.keys(), key=len, reverse=True)

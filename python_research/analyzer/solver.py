@@ -171,6 +171,19 @@ class WorkoutSolver:
         return state
 
     def evaluate_workout(self, state: WorkoutState) -> float:
+        """
+        Evaluates the fitness (cost) of a given WorkoutState (a generated program).
+        Lower cost is better. The cost is a weighted sum of several error metrics:
+        - E_curva: Mean Squared Error (MSE) against the target muscle activation curves.
+        - E_vol/ton/tut: Ratio errors for effective vs total volume/tonnage/tut.
+        - E_distr: Muscle distribution error (actual vs target volume distribution).
+        - E_variety: Penalty for reusing the same exercises (unique exercises / total exercises).
+        - E_balance: Variance of daily fatigue and volume to ensure balanced days.
+        
+        The final raw weighted cost (`mo_cost`) is multiplied by 10000.0 to expand the 
+        gradient for the Simulated Annealing temperature scale (which starts at T=50.0).
+        A hard penalty of 1000.0 is applied per duplicate exercise on the same day.
+        """
         total_vol = 0.0
         eff_vol = 0.0
         total_ton = 0.0
@@ -422,6 +435,14 @@ class WorkoutSolver:
         print(f"Calibration finished. Scales: {self.scales}", file=sys.stderr)
 
     def solve(self, iterations=10000, initial_temp=100.0, cooling_rate=None):
+        """
+        Runs the Simulated Annealing algorithm to find the optimal WorkoutState.
+        
+        The algorithm starts with a random workout and a high temperature, allowing it to 
+        accept worse states to escape local minima. The temperature decays over `iterations` 
+        by `cooling_rate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
+        is applied and the new state is evaluated.
+        """
         if cooling_rate is None:
             cooling_rate = (0.01 / initial_temp) ** (1.0 / iterations) if iterations > 0 else 0.995
             

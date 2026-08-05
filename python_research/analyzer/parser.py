@@ -9,21 +9,33 @@ from .metrics import calculate_set_tuts
 from .models import Exercise, SetData, WeekData, WorkoutExercise
 
 # Precompiled regular expressions for performance optimization
+# Matches fluff text in exercise names to be cleaned out (e.g. '10s', 'rep', 'cluster')
 RE_CLEAN_EXERCISE = re.compile(
     r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione)'
 )
+# Matches rest times in the format | 2' | or | 90" | or | 1'30" |
 RE_REST_TIME = re.compile(r'\|\s*(?:(\d+)\')?(?:(\d+)")?\s*(?:\||$)')
+# Matches tempo notations like 1-0-2-0 (concentric-pause-eccentric-pause)
 RE_TEMPO_COMMENT = re.compile(r"\b(\d+)-(\d+)-(\d+)-(\d+)\b")
+# Matches set structures like "10(2)+3@8.5" (10 base reps, 2 assisted, 3 partials, @8.5 RPE)
 RE_REP_TOKEN = re.compile(r"(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?")
 RE_OLD_PREFIX = re.compile(r"(?i)old\s+")
+# Matches lines that contain only short numerical sets (e.g. "10.9.8")
 RE_LOG_LINE_SHORT = re.compile(r"^[\d\.\(\)\+@]+$")
 RE_DOT_SPLIT = re.compile(r"(?<!\.)\.(?!\.)")
+# Matches exercise override syntax: "override: Lat Machine | fatigue=6.0 | load_coeff=0.8"
 RE_OVERRIDE = re.compile(r"^override:\s*([^|]+)\|\s*(.*)$", re.IGNORECASE)
 RE_DIGITS = re.compile(r"\d+")
+# Matches general log lines containing sets, weights, and dropsets (e.g. "90/80..10.8")
 RE_LOG_LINE_LONG = re.compile(r"^[\d\.\(\)\+\/@]+$", re.IGNORECASE)
 
 
 def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercise]:
+    """
+    Attempts to match a raw string (e.g. from the logbook) to a known exercise in the database.
+    It cleans the string, checks for exact matches, checks a hardcoded alias map, and finally 
+    uses fuzzy string matching with a cutoff to avoid false positives.
+    """
     name_part = raw_name.split("|")[0]
     raw_clean = RE_CLEAN_EXERCISE.sub("", name_part).lower().strip()
 
@@ -36,7 +48,7 @@ def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercis
             return next((e for e in exercises if e.name == HARD_MAP[key]), None)
 
     names = [e.name for e in exercises]
-    matches = get_close_matches(raw_clean, names, n=1, cutoff=0.4)
+    matches = get_close_matches(raw_clean, names, n=1, cutoff=0.6)  # Increased cutoff to 0.6 to prevent false positives
     if matches:
         return next((e for e in exercises if e.name == matches[0]), None)
     return None
@@ -111,15 +123,7 @@ def parse_line(line: str) -> List[SetData]:
                 sets.extend(parse_rep_token(t, [0.0]))
         return sets
 
-    if line.count("..") > 1:
-        parts = line.rsplit("..", 1)
-        if len(parts) == 2:
-            loads_part, reps_part = parts[0], parts[1]
-            if "." in reps_part and ".." in loads_part:
-                if RE_LOG_LINE_SHORT.match(reps_part):
-                    loads_part = loads_part.replace("..", "/")
-                    reps_part = reps_part.replace(".", "/")
-                    line = f"{loads_part}..{reps_part}"
+
 
     tokens = RE_DOT_SPLIT.split(line)
     current_loads = [0.0]
@@ -147,6 +151,15 @@ def parse_line(line: str) -> List[SetData]:
 def analyze_workout_log(
     log_text: str, exercises: List[Exercise]
 ) -> List[WorkoutExercise]:
+    """
+    Parses a raw markdown workout log into a structured List of WorkoutExercise objects.
+    It handles:
+    - Exercise overrides (`override: ...`)
+    - Session numbers (`# 1`)
+    - Exercise headers (`Lat Machine | 2' | 1-0-2-0`)
+    - Sets and loads (`90..10.8+2`)
+    And calculates TUT and effective reps for each parsed set.
+    """
     local_exercises = []
     for ex in exercises:
         local_exercises.append(
