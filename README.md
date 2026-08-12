@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="full_logo.png" alt="Iron Stats Banner" />
+  <img src="full_logo.png" alt="Iron Stats Banner" width="400" />
 </div>
 
 # Iron Stats
@@ -48,7 +48,7 @@ The engine calculates concentric slowdown based on proximity to failure. As Reps
 Systemic CNS (Central Nervous System) fatigue is not linear. The engine assigns an exponential fatigue multiplier for reps performed above an RPE of 7.5:
 
 $$ 
-\text{RPE\_Multiplier} = 1.1^{(\text{rep\_rpe} - 7.5)} 
+RPE_{Multiplier} = 1.1^{(rep_{rpe} - 7.5)} 
 $$
 
 Total set fatigue is the integral sum of the weighted TUT, the exercise's base fatigue cost, and its load coefficient.
