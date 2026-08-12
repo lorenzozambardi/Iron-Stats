@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { fuzzyScore } from '../helpers';
 

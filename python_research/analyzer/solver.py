@@ -423,13 +423,13 @@ class WorkoutSolver:
         for _ in range(steps):
             state = self.generate_random_state()
             _, raw = self.evaluate_workout(state)
-            for k in sums.keys():
+            for k in sums:
                 sums[k] += raw[k]
                 
         self._return_raw = False
         
-        for k in sums.keys():
-            mean_val = sums[k] / steps
+        for k, value in sums.items():
+            mean_val = value / steps
             self.scales[k] = mean_val * 2.0
             
         print(f"Calibration finished. Scales: {self.scales}", file=sys.stderr)
@@ -528,7 +528,7 @@ if __name__ == "__main__":
             if 'volumeDist' in data:
                 config.volume_dist = data['volumeDist']
                 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error parsing config JSON: {e}", file=sys.stderr)
             sys.exit(1)
 

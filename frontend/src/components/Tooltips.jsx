@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 const renderVolumeTooltip = () => (
   <div className="info-tooltip" style={{ textAlign: 'left' }}>

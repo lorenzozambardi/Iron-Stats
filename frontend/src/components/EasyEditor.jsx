@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Clock } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { MUSCLES } from '../parser';
 
 function parseSetLineToSets(line) {
@@ -135,10 +135,6 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
       const updated = sessions.filter((_, idx) => idx !== sIdx);
       triggerChange(updated);
     }
-  };
-
-  const addExercise = (sIdx) => {
-    insertExerciseAtIndex(sIdx, sessions[sIdx]?.exercises.length || 0);
   };
 
   const insertExerciseAtIndex = (sIdx, targetIndex) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Timer } from 'lucide-react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 
 const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
   const [time, setTime] = useState(0);

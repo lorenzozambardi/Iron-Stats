@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 const BezierEditor = ({ value, onChange }) => {
   // value is { y0, x1, y1, x2, y2, y3 }
@@ -132,7 +132,8 @@ const BezierEditor = ({ value, onChange }) => {
     }
     
     return { pathD: rawPath, normalizedPathD: normPath };
-  }, [p0, p1, p2, p3]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p0, p1, p2, p3, toSvgX, toSvgY]);
 
   return (
     <div style={{ position: 'relative', width: '300px', height: '200px', background: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border-accent)', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>

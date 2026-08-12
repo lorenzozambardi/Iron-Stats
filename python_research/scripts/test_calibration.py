@@ -1,6 +1,4 @@
-import json
-import numpy as np
-from analyzer.solver import SolverConfig, WorkoutSolver, WorkoutState, ScheduledExercise, ScheduledSet
+from analyzer.solver import SolverConfig, WorkoutSolver
 
 config = SolverConfig()
 
