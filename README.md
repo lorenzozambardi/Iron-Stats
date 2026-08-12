@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="full_logo.png" alt="Iron Stats Banner" />
+</div>
+
 # Iron Stats
 
 **Iron Stats** is an advanced, data-driven, and computational approach to bodybuilding programming, simulation, and analysis. It abandons traditional, rudimentary metrics like simple Total Volume (Sets × Reps) and Tonnage, which fail to accurately evaluate mechanical tension and actual hypertrophy stimulus. 
@@ -26,8 +30,15 @@ Instead, this engine evaluates workout programs using **Effective Volume**, **Dy
 
 ### 1. Cumulative Muscle Tension (Bezier Curves)
 Instead of assigning flat percentage impacts (e.g., "Bench Press = 70% Chest, 30% Triceps"), the algorithm models tension dynamically. A cubic Bezier curve $B(t)$ for $t \in [0, 1]$ represents the ROM:
-$$ x(t) = (1-t)^3 x_0 + 3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3 x_3 $$
-$$ y(t) = (1-t)^3 y_0 + 3(1-t)^2 t y_1 + 3(1-t) t^2 y_2 + t^3 y_3 $$
+
+$$ 
+x(t) = (1-t)^3 x_0 + 3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3 x_3 
+$$
+
+$$ 
+y(t) = (1-t)^3 y_0 + 3(1-t)^2 t y_1 + 3(1-t) t^2 y_2 + t^3 y_3 
+$$
+
 This allows the engine to differentiate between a movement that is hardest in the stretched position (e.g., DB Flies) versus one hardest in the contracted position (e.g., Pec Deck).
 
 ### 2. Effective Reps & Dynamic TUT
@@ -35,7 +46,11 @@ The engine calculates concentric slowdown based on proximity to failure. As Reps
 
 ### 3. Exponential Fatigue
 Systemic CNS (Central Nervous System) fatigue is not linear. The engine assigns an exponential fatigue multiplier for reps performed above an RPE of 7.5:
-$$ \text{RPE\_Multiplier} = 1.1^{(\text{rep\_rpe} - 7.5)} $$
+
+$$ 
+\text{RPE\_Multiplier} = 1.1^{(\text{rep\_rpe} - 7.5)} 
+$$
+
 Total set fatigue is the integral sum of the weighted TUT, the exercise's base fatigue cost, and its load coefficient.
 
 ## Syntax Guide
