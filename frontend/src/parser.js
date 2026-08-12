@@ -211,7 +211,7 @@ const HARD_MAP = {
 
 const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.length);
 
-function matchExercise(rawName, exercises) {
+export function matchExercise(rawName, exercises) {
   const namePart = rawName.split('|')[0];
   const cleanRegex = /(?:\d+s|\d+"|\d+'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione)/gi;
   const rawClean = namePart.replace(cleanRegex, '').replace(/\|/g, '').toLowerCase().trim();
@@ -246,7 +246,7 @@ function matchExercise(rawName, exercises) {
   return bestMatch;
 }
 
-function parseRestTime(line) {
+export function parseRestTime(line) {
   const match = line.match(/\|\s*(?:(\d+)')?(?:(\d+)")?\s*(?:\||$)/);
   if (match && (match[1] || match[2])) {
     const m = match[1] ? parseInt(match[1], 10) : 0;
@@ -316,7 +316,7 @@ function parseTempoFromComment(comment) {
   return [1.0, 0.0, 2.0, 0.0];
 }
 
-function parseTempoFromLine(line) {
+export function parseTempoFromLine(line) {
   const parts = line.split('|');
   const comment = parts.length > 2 ? parts[2] : "";
   return parseTempoFromComment(comment);
@@ -337,7 +337,7 @@ function parseTempoFromLine(line) {
  * 
  * Partial reps are assumed to take half the normal TUT.
  */
-function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause) {
+export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause) {
   const tuts = [];
   
   // 1. Base reps
@@ -385,7 +385,7 @@ function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, 
  * (Reps in Reserve). Sets closer to failure generate significantly more fatigue.
  * Assisted reps and partial reps contribute to fatigue with reduced coefficients.
  */
-function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff, tuts = null) {
+export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff, tuts = null) {
   const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause);
   let totalFat = 0.0;
   
@@ -425,7 +425,7 @@ function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentri
 }
 
 
-function parseLine(line, lineIndex = 0) {
+export function parseLine(line, lineIndex = 0) {
   let cleanLine = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
   cleanLine = cleanLine.replace(/\s+/g, '');
   if (!cleanLine) return [];

@@ -294,7 +294,6 @@ def analyze_workout_log(
                         exercise_obj=matched_obj,
                         raw_name=line,
                         session=current_session,
-                        rest_seconds=parse_rest_time(line),
                         concentric=c,
                         shortening_pause=s_pause,
                         eccentric=e,
@@ -302,6 +301,6 @@ def analyze_workout_log(
                     )
                     workout_data.append(current_exercise)
                     current_week = 1
-        except Exception as e:  # noqa: BLE001
-            sys.stderr.write(f"Error parsing: '{line}' | {e}\n")
+        except Exception as err:  # noqa: BLE001
+            sys.stderr.write(f"Error parsing: '{line}' | {err}\n")
     return workout_data
