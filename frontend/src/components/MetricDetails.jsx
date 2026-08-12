@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Latex, MathBlock } from './MathComponents';
 
 const TensionProfileExplainer = () => {
@@ -19,7 +19,7 @@ const TensionProfileExplainer = () => {
       pts.push(`${x*100},${(1-y)*100}`);
     }
     return pts.join(" ");
-  }, []);
+  }, [P0.x, P0.y, P1.x, P1.y, P2.x, P2.y, P3.x, P3.y]);
 
   const currentX = Math.pow(1-tVal, 3)*P0.x + 3*Math.pow(1-tVal, 2)*tVal*P1.x + 3*(1-tVal)*Math.pow(tVal, 2)*P2.x + Math.pow(tVal, 3)*P3.x;
   const currentY = Math.pow(1-tVal, 3)*P0.y + 3*Math.pow(1-tVal, 2)*tVal*P1.y + 3*(1-tVal)*Math.pow(tVal, 2)*P2.y + Math.pow(tVal, 3)*P3.y;
@@ -197,11 +197,11 @@ const TensionProfileExplainer = () => {
 };
 
 export default function MetricDetailsPage({ metric, onBack }) {
-  // Keep track of the last valid metric so it doesn't say "not found" during the exit animation
-  const lastValidMetric = useRef(metric);
+  const [lastValidMetric, setLastValidMetric] = useState(metric);
   useEffect(() => {
     if (metric) {
-      lastValidMetric.current = metric;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLastValidMetric(metric);
     }
   }, [metric]);
 
@@ -226,7 +226,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
     setTimeout(() => onBack(), 200); // match CSS transition duration
   };
 
-  const activeMetric = metric || lastValidMetric.current;
+  const activeMetric = metric || lastValidMetric;
 
   const getMetricData = () => {
     switch (activeMetric) {

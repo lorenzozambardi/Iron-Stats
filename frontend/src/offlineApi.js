@@ -57,14 +57,14 @@ async function ensureDefaults() {
   // Ensure subfolder exists
   if (subfolder) {
     try { await Filesystem.mkdir({ path: subfolder, directory: dir, recursive: true }); }
-    catch (e) { /* already exists */ }
+    catch { /* already exists */ }
   }
 
   // Seed S1M3.md if not present
   const defaultFile = filePath('S1M3.md');
   try {
     await Filesystem.stat({ path: defaultFile, directory: dir });
-  } catch (e) {
+  } catch {
     try {
       await Filesystem.writeFile({ path: defaultFile, data: defaultLogbook, directory: dir, encoding: Encoding.UTF8 });
     } catch (writeErr) {
@@ -119,7 +119,7 @@ window.fetch = async (input, init) => {
         // Only read from file if it is a custom program
         const res = await FolderPicker.readFile({ uri: safUri, filename: 'exercises_v6.json' });
         return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
-      } catch (e) {
+      } catch {
         return new Response(JSON.stringify(defaultExercises), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
     } else if (method === 'POST') {
@@ -155,7 +155,7 @@ window.fetch = async (input, init) => {
             .map(n => n.replace('.md', ''));
         }
         return new Response(JSON.stringify(names), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      } catch (e) {
+      } catch {
         return new Response(JSON.stringify(['S1M3']), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
     } else if (method === 'POST') {
@@ -172,14 +172,14 @@ window.fetch = async (input, init) => {
             if ((listing.files || []).includes(filename)) {
               return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
             }
-          } catch (_) {}
+          } catch { /* ignore */ }
           await FolderPicker.writeFile({ uri: safUri, filename, data: template });
         } else {
           const fullPath = filePath(filename);
           try {
             await Filesystem.stat({ path: fullPath, directory: dir });
             return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
-          } catch (_) {}
+          } catch { /* ignore */ }
           await Filesystem.writeFile({ path: fullPath, data: template, directory: dir, encoding: Encoding.UTF8 });
         }
         return new Response(JSON.stringify({ success: true, name }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -204,7 +204,7 @@ window.fetch = async (input, init) => {
           const res = await Filesystem.readFile({ path: filePath(filename), directory: dir, encoding: Encoding.UTF8 });
           return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
         }
-      } catch (e) {
+      } catch {
         return new Response(`Logbook file ${filename} not found`, { status: 404 });
       }
     } else if (method === 'POST') {

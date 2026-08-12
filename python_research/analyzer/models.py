@@ -135,7 +135,6 @@ class WorkoutExercise:
     exercise_obj: Exercise
     raw_name: str
     session: int = 0
-    rest_seconds: int = 120
     weeks: List[WeekData] = field(default_factory=list)
     concentric: float = 1.0
     shortening_pause: float = 0.0
