@@ -16,11 +16,11 @@ def main():
 
     args = parser.parse_args()
 
-    raw_log = (
-        open(args.file).read()
-        if args.file
-        else (sys.stdin.read() if not sys.stdin.isatty() else "")
-    )
+    if args.file:
+        with open(args.file) as f:
+            raw_log = f.read()
+    else:
+        raw_log = sys.stdin.read() if not sys.stdin.isatty() else ""
 
     if not raw_log.strip():
         sys.exit("No input.")
