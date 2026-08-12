@@ -2,6 +2,7 @@ import json
 import math
 import random
 import sys
+from typing import Any
 
 import numpy as np
 
@@ -143,7 +144,7 @@ class WorkoutSolver:
         self.partial_mask = (self.t_domain <= 0.3333).astype(float)
         self.default_curve = np.ones(self.resolution)
         
-        self.scales = {}
+        self.scales: dict[str, float] = {}
         
         # Precompute bezier curves for all exercises
         self.ex_curves = {}
@@ -170,7 +171,7 @@ class WorkoutSolver:
                 state.days[d].append(ex)
         return state
 
-    def evaluate_workout(self, state: WorkoutState) -> float:
+    def evaluate_workout(self, state: WorkoutState) -> Any:
         """
         Evaluates the fitness (cost) of a given WorkoutState (a generated program).
         Lower cost is better. The cost is a weighted sum of several error metrics:
