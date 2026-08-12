@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 
 const BezierEditor = ({ value, onChange }) => {
   // value is { y0, x1, y1, x2, y2, y3 }
@@ -10,8 +10,8 @@ const BezierEditor = ({ value, onChange }) => {
   const innerWidth = 300 - paddingX * 2;
   const innerHeight = 200 - paddingY * 2;
 
-  const toSvgX = (x) => paddingX + x * innerWidth;
-  const toSvgY = (y) => paddingY + innerHeight - (y * innerHeight);
+  const toSvgX = useCallback((x) => paddingX + x * innerWidth, [paddingX, innerWidth]);
+  const toSvgY = useCallback((y) => paddingY + innerHeight - (y * innerHeight), [paddingY, innerHeight]);
 
   const fromSvgX = (svgX) => Math.max(0, Math.min(1, (svgX - paddingX) / innerWidth));
   const fromSvgY = (svgY) => Math.max(0, Math.min(1, (paddingY + innerHeight - svgY) / innerHeight));
@@ -132,7 +132,6 @@ const BezierEditor = ({ value, onChange }) => {
     }
     
     return { pathD: rawPath, normalizedPathD: normPath };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p0, p1, p2, p3, toSvgX, toSvgY]);
 
   return (

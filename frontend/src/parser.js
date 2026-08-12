@@ -1,5 +1,5 @@
-export const COEFF_ASSISTED = 0.5;
-export const COEFF_PARTIAL = 0.33;
+const COEFF_ASSISTED = 0.5;
+const COEFF_PARTIAL = 0.33;
 
 export const MUSCLES = {
   // --- Chest ---
@@ -211,7 +211,7 @@ const HARD_MAP = {
 
 const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.length);
 
-export function matchExercise(rawName, exercises) {
+function matchExercise(rawName, exercises) {
   const namePart = rawName.split('|')[0];
   const cleanRegex = /(?:\d+s|\d+"|\d+'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione)/gi;
   const rawClean = namePart.replace(cleanRegex, '').replace(/\|/g, '').toLowerCase().trim();
@@ -246,7 +246,7 @@ export function matchExercise(rawName, exercises) {
   return bestMatch;
 }
 
-export function parseRestTime(line) {
+function parseRestTime(line) {
   const match = line.match(/\|\s*(?:(\d+)')?(?:(\d+)")?\s*(?:\||$)/);
   if (match && (match[1] || match[2])) {
     const m = match[1] ? parseInt(match[1], 10) : 0;
@@ -256,7 +256,7 @@ export function parseRestTime(line) {
   return 120;
 }
 
-export function parseRepToken(repStr, loads, dropsetId = null) {
+function parseRepToken(repStr, loads, dropsetId = null) {
   const setsOut = [];
   const repParts = repStr.split('/');
   for (let i = 0; i < repParts.length; i++) {
@@ -302,7 +302,7 @@ export function parseRepToken(repStr, loads, dropsetId = null) {
   return setsOut;
 }
 
-export function parseTempoFromComment(comment) {
+function parseTempoFromComment(comment) {
   const commentClean = (comment || "").trim();
   const match = commentClean.match(/\b(\d+)-(\d+)-(\d+)-(\d+)\b/);
   if (match) {
@@ -316,7 +316,7 @@ export function parseTempoFromComment(comment) {
   return [1.0, 0.0, 2.0, 0.0];
 }
 
-export function parseTempoFromLine(line) {
+function parseTempoFromLine(line) {
   const parts = line.split('|');
   const comment = parts.length > 2 ? parts[2] : "";
   return parseTempoFromComment(comment);
@@ -337,7 +337,7 @@ export function parseTempoFromLine(line) {
  * 
  * Partial reps are assumed to take half the normal TUT.
  */
-export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause) {
+function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause) {
   const tuts = [];
   
   // 1. Base reps
@@ -385,7 +385,7 @@ export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, conce
  * (Reps in Reserve). Sets closer to failure generate significantly more fatigue.
  * Assisted reps and partial reps contribute to fatigue with reduced coefficients.
  */
-export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff, tuts = null) {
+function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff, tuts = null) {
   const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause);
   let totalFat = 0.0;
   
@@ -425,7 +425,7 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
 }
 
 
-export function parseLine(line, lineIndex = 0) {
+function parseLine(line, lineIndex = 0) {
   let cleanLine = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
   cleanLine = cleanLine.replace(/\s+/g, '');
   if (!cleanLine) return [];

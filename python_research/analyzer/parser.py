@@ -2,7 +2,6 @@ import json
 import re
 import sys
 from difflib import get_close_matches
-from typing import List, Optional
 
 from .constants import HARD_MAP, SORTED_HARD_MAP_KEYS
 from .metrics import calculate_set_tuts
@@ -30,7 +29,7 @@ RE_DIGITS = re.compile(r"\d+")
 RE_LOG_LINE_LONG = re.compile(r"^[\d\.\(\)\+\/@]+$", re.IGNORECASE)
 
 
-def match_exercise(raw_name: str, exercises: List[Exercise]) -> Optional[Exercise]:
+def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
     """
     Attempts to match a raw string (e.g. from the logbook) to a known exercise in the database.
     It cleans the string, checks for exact matches, checks a hardcoded alias map, and finally 
@@ -82,7 +81,7 @@ def parse_tempo_from_line(line: str) -> tuple[float, float, float, float]:
     return parse_tempo_from_comment(comment)
 
 
-def parse_rep_token(rep_str: str, loads: List[float]) -> List[SetData]:
+def parse_rep_token(rep_str: str, loads: list[float]) -> list[SetData]:
     sets_out = []
     rep_parts = rep_str.split("/")
     for i, rp in enumerate(rep_parts):
@@ -109,7 +108,7 @@ def parse_rep_token(rep_str: str, loads: List[float]) -> List[SetData]:
     return sets_out
 
 
-def parse_line(line: str) -> List[SetData]:
+def parse_line(line: str) -> list[SetData]:
     line = RE_OLD_PREFIX.sub("", line).strip()
     line = line.replace(" ", "")
     if not line:
@@ -149,8 +148,8 @@ def parse_line(line: str) -> List[SetData]:
 
 
 def analyze_workout_log(
-    log_text: str, exercises: List[Exercise]
-) -> List[WorkoutExercise]:
+    log_text: str, exercises: list[Exercise]
+) -> list[WorkoutExercise]:
     """
     Parses a raw markdown workout log into a structured List of WorkoutExercise objects.
     It handles:
@@ -219,7 +218,7 @@ def analyze_workout_log(
                         elif key == "muscles_distr":
                             try:
                                 ex_obj.muscles_distr = json.loads(val)
-                            except Exception as e:
+                            except json.JSONDecodeError as e:
                                 sys.stderr.write(
                                     f"Failed to parse muscles_distr JSON in override: '{val}' | {e}\n"
                                 )
@@ -303,6 +302,6 @@ def analyze_workout_log(
                     )
                     workout_data.append(current_exercise)
                     current_week = 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             sys.stderr.write(f"Error parsing: '{line}' | {e}\n")
     return workout_data

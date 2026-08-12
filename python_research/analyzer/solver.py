@@ -1,12 +1,12 @@
-import numpy as np
-import random
-import copy
-import sys
 import json
 import math
-from typing import List, Dict, Any
+import random
+import sys
 
-from analyzer.models import exercises_list, COEFF_ASSISTED, COEFF_PARTIAL, Exercise
+import numpy as np
+
+from analyzer.models import COEFF_PARTIAL, Exercise, exercises_list
+
 
 # --- TARGET CURVES GENERATORS ---
 def get_target_curve(curve_type: str, resolution: int = 50) -> np.ndarray:
@@ -64,7 +64,7 @@ class ScheduledSet:
 class ScheduledExercise:
     def __init__(self, exercise: Exercise):
         self.exercise = exercise
-        self.sets: List[ScheduledSet] = []
+        self.sets: list[ScheduledSet] = []
 
     def clone(self):
         cloned = ScheduledExercise(self.exercise)
@@ -73,7 +73,7 @@ class ScheduledExercise:
 
 class WorkoutState:
     def __init__(self, days: int):
-        self.days: List[List[ScheduledExercise]] = [[] for _ in range(days)]
+        self.days: list[list[ScheduledExercise]] = [[] for _ in range(days)]
 
 # --- CONFIGURATION (from UI) ---
 class SolverConfig:
@@ -129,14 +129,14 @@ class WorkoutSolver:
         for m, curve_type in self.config.muscle_targets.items():
             curve = get_target_curve(curve_type, self.resolution)
             if m in subs_dict:
-                for sub in subs_dict[m].keys():
+                for sub in subs_dict[m]:
                     self.T_m[sub] = curve
             else:
                 self.T_m[m] = curve
             
         self.all_submuscles = set()
         for ex in self.db:
-            for m in ex.muscles_distr.keys():
+            for m in ex.muscles_distr:
                 self.all_submuscles.add(m)
                 
         self.t_domain = np.linspace(0, 1, self.resolution)
@@ -399,15 +399,14 @@ class WorkoutSolver:
                     s.rpe += random.choice([-0.5, 0.5])
                     s.rpe = max(5.0, min(10.0, s.rpe))
                     
-        elif mutation_type == 'mut_partials':
-            if len(day) > 0:
-                ex = random.choice(day)
-                if len(ex.sets) > 0:
-                    s = random.choice(ex.sets)
-                    if s.rpe >= 9.0:
-                        s.partial_reps = random.choice([0, 2, 4, 6])
-                    else:
-                        s.partial_reps = 0
+        elif mutation_type == 'mut_partials' and len(day) > 0:
+            ex = random.choice(day)
+            if len(ex.sets) > 0:
+                s = random.choice(ex.sets)
+                if s.rpe >= 9.0:
+                    s.partial_reps = random.choice([0, 2, 4, 6])
+                else:
+                    s.partial_reps = 0
 
         return new_state
 

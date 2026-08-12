@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union, Any
+from typing import Any
+
 import numpy as np
 
 
@@ -37,7 +38,7 @@ from analyzer.constants import COEFF_ASSISTED, COEFF_PARTIAL
 @dataclass
 class Exercise:
     name: str
-    muscles_distr: Dict[str, Any]
+    muscles_distr: dict[str, Any]
     fatigue: float
     load_coeff: float
     load_multiplier: float = 1.0
@@ -104,7 +105,7 @@ class SetData:
     rpe: float = 9.0
     total_tut: float = 0.0
     effective_tut: float = 0.0
-    tuts: List[float] = field(default_factory=list)
+    tuts: list[float] = field(default_factory=list)
 
     @property
     def effective_reps(self) -> float:
@@ -127,7 +128,7 @@ class SetData:
 @dataclass
 class WeekData:
     week_num: int
-    sets: List[SetData] = field(default_factory=list)
+    sets: list[SetData] = field(default_factory=list)
 
 
 @dataclass
@@ -135,7 +136,7 @@ class WorkoutExercise:
     exercise_obj: Exercise
     raw_name: str
     session: int = 0
-    weeks: List[WeekData] = field(default_factory=list)
+    weeks: list[WeekData] = field(default_factory=list)
     concentric: float = 1.0
     shortening_pause: float = 0.0
     eccentric: float = 2.0
