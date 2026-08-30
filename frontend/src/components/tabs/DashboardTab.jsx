@@ -138,6 +138,8 @@ const DashboardTab = ({
         Volume: parseFloat(weeklyData.reduce((s, d) => s + d.volume, 0).toFixed(1)),
         Tonnage: parseFloat(weeklyData.reduce((s, d) => s + d.tonnage, 0).toFixed(1)),
         EffectiveTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTonnage || 0), 0).toFixed(1)),
+        WeightedTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.weightedTonnage || 0), 0).toFixed(1)),
+        EffectiveWeightedTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveWeightedTonnage || 0), 0).toFixed(1)),
         Fatigue: parseFloat(weeklyData.reduce((s, d) => s + d.fatigue, 0).toFixed(1)),
         EffectiveRepsCustom: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveRepsCustom || 0), 0).toFixed(1)),
         Tut: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
@@ -171,6 +173,8 @@ const DashboardTab = ({
         Volume_B: parseFloat(weeklyData.reduce((s, d) => s + d.volume, 0).toFixed(1)),
         Tonnage_B: parseFloat(weeklyData.reduce((s, d) => s + d.tonnage, 0).toFixed(1)),
         EffectiveTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTonnage || 0), 0).toFixed(1)),
+        WeightedTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.weightedTonnage || 0), 0).toFixed(1)),
+        EffectiveWeightedTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveWeightedTonnage || 0), 0).toFixed(1)),
         Fatigue_B: parseFloat(weeklyData.reduce((s, d) => s + d.fatigue, 0).toFixed(1)),
         EffectiveRepsCustom_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveRepsCustom || 0), 0).toFixed(1)),
         Tut_B: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
@@ -351,6 +355,8 @@ const DashboardTab = ({
     totalVolume: metricsByWeek.reduce((sum, m) => sum + m.Volume, 0),
     totalTonnage: metricsByWeek.reduce((sum, m) => sum + m.Tonnage, 0),
     totalEffectiveTonnage: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage || 0), 0),
+    totalWeightedTonnage: metricsByWeek.reduce((sum, m) => sum + (m.WeightedTonnage || 0), 0),
+    totalEffectiveWeightedTonnage: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveWeightedTonnage || 0), 0),
     totalFatigue: metricsByWeek.reduce((sum, m) => sum + m.Fatigue, 0),
     totalEffectiveReps: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom || 0), 0),
     totalTut: metricsByWeek.reduce((sum, m) => sum + (m.Tut || 0), 0),
@@ -362,6 +368,8 @@ const DashboardTab = ({
     compareTotalVolume: compareMetricsByWeek.reduce((sum, m) => sum + (m.Volume_B || 0), 0),
     compareTotalTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.Tonnage_B || 0), 0),
     compareTotalEffectiveTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage_B || 0), 0),
+    compareTotalWeightedTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.WeightedTonnage_B || 0), 0),
+    compareTotalEffectiveWeightedTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveWeightedTonnage_B || 0), 0),
     compareTotalFatigue: compareMetricsByWeek.reduce((sum, m) => sum + (m.Fatigue_B || 0), 0),
     compareTotalEffReps: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom_B || 0), 0),
     compareTotalTut: compareMetricsByWeek.reduce((sum, m) => sum + (m.Tut_B || 0), 0),
@@ -369,9 +377,9 @@ const DashboardTab = ({
     compareTotalSets: compareMetricsByWeek.reduce((sum, m) => sum + (m.Sets_B || 0), 0),
   }), [compareMetricsByWeek]);
 
-  const { totalVolume, totalTonnage, totalEffectiveTonnage, totalFatigue,
+  const { totalVolume, totalTonnage, totalEffectiveTonnage, totalWeightedTonnage, totalEffectiveWeightedTonnage, totalFatigue,
     totalEffectiveReps, totalTut, totalEffectiveTut, totalSets } = mainTotals;
-  const { compareTotalVolume, compareTotalTonnage, compareTotalEffectiveTonnage, compareTotalFatigue,
+  const { compareTotalVolume, compareTotalTonnage, compareTotalEffectiveTonnage, compareTotalWeightedTonnage, compareTotalEffectiveWeightedTonnage, compareTotalFatigue,
     compareTotalEffReps, compareTotalTut, compareTotalEffectiveTut, compareTotalSets } = compareTotals;
 
   const getMetricLabelAndUnit = (metric) => {
@@ -379,6 +387,8 @@ const DashboardTab = ({
       case 'Volume': return { name: 'Volume', unit: 'reps' };
       case 'Tonnage': return { name: 'Tonnage', unit: 'kg' };
       case 'EffectiveTonnage': return { name: 'Effective Tonnage', unit: 'kg' };
+      case 'WeightedTonnage': return { name: 'Weighted Tonnage', unit: 'kg' };
+      case 'EffectiveWeightedTonnage': return { name: 'Effective Weighted Tonnage', unit: 'kg' };
       case 'Fatigue': return { name: 'Neuromuscular Fatigue', unit: 'units' };
       case 'EffectiveRepsCustom': return { name: 'Effective Reps', unit: 'reps' };
       case 'EffectiveTut': return { name: 'Effective TUT', unit: 's' };
@@ -393,6 +403,8 @@ const DashboardTab = ({
       case 'Volume': return 'var(--color-volume)';
       case 'Tonnage': return 'var(--color-tonnage)';
       case 'EffectiveTonnage': return 'var(--color-effective-tonnage)';
+      case 'WeightedTonnage': return 'var(--color-tonnage)';
+      case 'EffectiveWeightedTonnage': return 'var(--color-effective-tonnage)';
       case 'Fatigue': return 'var(--color-fatigue)';
       case 'EffectiveRepsCustom': return 'var(--accent-secondary)';
       case 'EffectiveTut': return 'var(--color-effective-tut)';
@@ -407,6 +419,8 @@ const DashboardTab = ({
       case 'Volume': return '#a855f7'; // Purple
       case 'Tonnage': return 'var(--accent-secondary)'; // Lavender/Secondary Accent
       case 'EffectiveTonnage': return '#fda4af'; // Rose/Light pink
+      case 'WeightedTonnage': return 'var(--accent-secondary)';
+      case 'EffectiveWeightedTonnage': return '#fda4af';
       case 'Fatigue': return 'var(--color-tut)'; // Violet
       case 'EffectiveRepsCustom': return 'var(--color-effective-tut)'; // Pink
       case 'EffectiveTut': return 'var(--color-volume)'; // Amber
@@ -773,6 +787,8 @@ const DashboardTab = ({
                         ['Effective Tonnage', 'effective-tonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveTonnage, totalEffectiveTonnage)],
                         ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
                         ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(compareTotalEffReps, totalEffectiveReps)],
+                        ['Weighted Tonnage', 'weighted-tonnage', `${totalWeightedTonnage.toLocaleString()} kg`, `${compareTotalWeightedTonnage.toLocaleString()} kg`, delta(compareTotalWeightedTonnage, totalWeightedTonnage)],
+                        ['Eff. Weighted Tonnage', 'effective-weighted-tonnage', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`, `${compareTotalEffectiveWeightedTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveWeightedTonnage, totalEffectiveWeightedTonnage)],
                         ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
                         ['TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
                         ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
@@ -856,6 +872,28 @@ const DashboardTab = ({
                         </span>
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative load</span>
+                      </div>
+                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('weighted-tonnage'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Weighted Tonnage
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderMetricTooltip('weighted-tonnage')}
+                          </span>
+                        </span>
+                        <span className="metric-value">{totalWeightedTonnage.toLocaleString()} kg</span>
+                        <span className="metric-trend">Weighted load</span>
+                      </div>
+                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-weighted-tonnage'); }}>
+                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          Eff. Weighted Tonnage
+                          <span className="info-icon-wrapper">
+                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
+                            {renderMetricTooltip('effective-weighted-tonnage')}
+                          </span>
+                        </span>
+                        <span className="metric-value">{totalEffectiveWeightedTonnage.toLocaleString()} kg</span>
+                        <span className="metric-trend">Stimulative weighted load</span>
                       </div>
                       <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -944,6 +982,8 @@ const DashboardTab = ({
                                 <option value="Volume">Volume</option>
                                 <option value="Tonnage">Tonnage</option>
                                 <option value="EffectiveTonnage">Effective Tonnage</option>
+                                <option value="WeightedTonnage">Weighted Tonnage</option>
+                                <option value="EffectiveWeightedTonnage">Effective Weighted Tonnage</option>
                                 <option value="Fatigue">Fatigue</option>
                                 <option value="EffectiveRepsCustom">Effective Reps</option>
                                 <option value="EffectiveTut">Effective TUT</option>
@@ -961,7 +1001,7 @@ const DashboardTab = ({
                             No data available for the current selection.
                           </div>
                         ) : (
-                        <ResponsiveContainer width="100%" height="100%" style={isMobile ? { pointerEvents: 'none' } : undefined}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} style={isMobile ? { pointerEvents: 'none' } : undefined}>
                           {progressionExercise === 'all_metrics' ? (() => {
                             const overallMetricInfo = getMetricLabelAndUnit(overallChartMetric);
                             const nameStr = `${overallMetricInfo.name}${overallMetricInfo.unit ? ` (${overallMetricInfo.unit})` : ''}`;
@@ -1185,7 +1225,7 @@ const DashboardTab = ({
                       </div>
                       <div style={{ height: isMobile ? '220px' : '300px', width: '100%', marginTop: '10px' }}>
                         {cumulativeCurveData.length > 0 ? (
-                          <ResponsiveContainer width="99%" height="100%">
+                          <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
                             <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} style={isMobile ? { pointerEvents: 'none' } : undefined}>
                               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                               <XAxis

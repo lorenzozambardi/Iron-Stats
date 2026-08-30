@@ -4,7 +4,7 @@ import { MUSCLES } from '../parser';
 
 function parseSetLineToSets(line) {
   if (!line || !line.trim()) return [];
-  const rawSets = line.trim().split(/(?<=\d[\w+()@]*)\.(?=\d)/);
+  const rawSets = line.trim().split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
   return rawSets.filter(s => s.trim().length > 0);
 }
 

@@ -294,6 +294,46 @@ export default function MetricDetailsPage({ metric, onBack }) {
           ],
           example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 reps, where 2 are assisted (leaving 8 unassisted base reps) and 3 are partial reps, at RPE 9.0 (logged as 10(2)+3@9), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nEffective reps = min(8, 9.0 - 4.0) + (2 * 0.5) + (3 * 0.33) = 5.0 + 1.0 + 0.99 = 6.99 reps.\nEffective Tonnage = 140 kg * 6.99 reps * 0.8 = 782.88 kg for Quads.'
         };
+      case 'weighted-tonnage':
+        return {
+          title: 'Weighted Tonnage',
+          subtitle: 'Exercise load profile weighted tonnage',
+          color: 'var(--color-tonnage)',
+          description: 'Weighted Tonnage is identical to regular Tonnage, except it is further multiplied by the load_coeff of the exercise, reflecting its intensity weighting profile.',
+          formulas: [
+            '\\text{WTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{TotReps}_s \\cdot D_m \\cdot C_{\\text{load}}',
+            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
+            '\\text{TotReps}_s = R_{\\text{base}, s} + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+          ],
+          variables: [
+            { symbol: '\\text{WTonnage}', desc: 'The total kilograms moved, scaled by target muscle distribution and load coefficient.' },
+            { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
+            { symbol: '\\text{TotReps}_s', desc: 'Weighted repetitions count of set s: R_base + 0.5 * R_assisted + 0.33 * R_partial.' },
+            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' },
+            { symbol: 'C_{\\text{load}}', desc: 'Exercise-specific load coefficient.' }
+          ],
+          example: 'Same as Tonnage, but multiplied by the exercise load_coeff (e.g., 0.85).'
+        };
+      case 'effective-weighted-tonnage':
+        return {
+          title: 'Effective Weighted Tonnage',
+          subtitle: 'Stimulative exercise load profile weighted tonnage',
+          color: 'var(--color-effective-tonnage)',
+          description: 'Effective Weighted Tonnage is identical to regular Effective Tonnage, except it is further multiplied by the load_coeff of the exercise.',
+          formulas: [
+            '\\text{EffWTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m \\cdot C_{\\text{load}}',
+            'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
+            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+          ],
+          variables: [
+            { symbol: '\\text{EffWTonnage}', desc: 'The stimulative kilograms moved, scaled by target muscle distribution and load coefficient.' },
+            { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
+            { symbol: '\\text{effReps}_s', desc: 'Weighted effective repetitions: min(R_base, max(0, RPE - 4.0)) + 0.5 * R_assisted + 0.33 * R_partial.' },
+            { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' },
+            { symbol: 'C_{\\text{load}}', desc: 'Exercise-specific load coefficient.' }
+          ],
+          example: 'Same as Effective Tonnage, but multiplied by the exercise load_coeff.'
+        };
       case 'effective':
         return {
           title: 'Effective Reps',

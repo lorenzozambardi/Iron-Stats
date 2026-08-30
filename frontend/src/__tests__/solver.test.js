@@ -161,13 +161,11 @@ describe('parseLine', () => {
     expect(result[0].rpe).toBe(9);
   });
 
-  it('parses decimal RPE as separate sets (dot is set separator)', () => {
-    // The dot in "7.5" acts as set separator: 8@7 → set 1, 5 → set 2
+  it('parses decimal RPE as a single set with decimal RPE', () => {
     const result = parseLine('8@7.5');
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
     expect(result[0].base_reps).toBe(8);
-    expect(result[0].rpe).toBe(7);
-    expect(result[1].base_reps).toBe(5);
+    expect(result[0].rpe).toBe(7.5);
   });
 
   it('parses load..reps format', () => {

@@ -436,7 +436,7 @@ export function parseLine(line, lineIndex = 0) {
   // Plain numbers separated by single dots (reps only, load-less)
   // E.g., matches "10.9.8" or "10(2)+3@8.5"
   if (/^[\d()+\u002b@.]+$/.test(cleanLine) && !cleanLine.includes('..')) {
-    const tokens = cleanLine.split('.');
+    const tokens = cleanLine.split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
     const sets = [];
     for (const t of tokens) {
       if (t) {
@@ -457,7 +457,7 @@ export function parseLine(line, lineIndex = 0) {
       if (repsPart.includes('.') && loadsPart.includes('..')) {
         if (/^[\d()++@.]+$/.test(repsPart)) {
           loadsPart = loadsPart.replace(/\.\./g, '/');
-          repsPart = repsPart.replace(/\./g, '/');
+          repsPart = repsPart.replace(/(?<!@\d+)\./g, '/');
           cleanLine = `${loadsPart}..${repsPart}`;
         }
       }
@@ -465,8 +465,7 @@ export function parseLine(line, lineIndex = 0) {
   }
 
   // Split on single dot not part of a decimal or double dot
-  // In JS, (?<!\.)\.(?!\.) works in V8 and Chrome/Node
-  const tokens = cleanLine.split(/(?<!\.)\.(?!\.)/);
+  const tokens = cleanLine.split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
   let currentLoads = [0.0];
   const parsedSets = [];
 
@@ -658,6 +657,8 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
       let vol = 0.0;
       let ton = 0.0;
       let effTon = 0.0;
+      let weightedTon = 0.0;
+      let weightedEffTon = 0.0;
       let totalFat = 0.0;
       let customEffSum = 0.0;
       let totalTut = 0.0;
@@ -671,6 +672,8 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
         const actualLoad = (s.load * ex.load_multiplier) + ex.load_offset;
         ton += actualLoad * reps * distrSum;
         effTon += actualLoad * s.effectiveReps * distrSum;
+        weightedTon += actualLoad * reps * distrSum * ex.load_coeff;
+        weightedEffTon += actualLoad * s.effectiveReps * distrSum * ex.load_coeff;
         
         const setFat = calculateSetFatigue(
           s.base_reps,
@@ -704,6 +707,8 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
           volume: vol,
           tonnage: ton,
           effectiveTonnage: effTon,
+          weightedTonnage: weightedTon,
+          effectiveWeightedTonnage: weightedEffTon,
           fatigue: totalFat,
           effectiveRepsCustom: customEffSum,
           totalTut,
