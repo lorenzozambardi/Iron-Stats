@@ -25,11 +25,6 @@ export const SettingsPanel = ({
   secPalette,
   setSecPalette,
   SEC_PALETTES,
-  metricColors,
-  updateMetricColor,
-  resetMetricColors,
-  METRIC_COLOR_CONFIG,
-  DEFAULT_METRIC_COLORS,
   // Optional program / storage controls
   showProgramSelector = false,
   currentProgram,
@@ -169,74 +164,6 @@ export const SettingsPanel = ({
               maxLength={6}
             />
           </div>
-        </div>
-      </div>
-
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Colors</div>
-          <button 
-            onClick={resetMetricColors}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            Reset Defaults
-          </button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: '8px' }}>
-          {METRIC_COLOR_CONFIG.map(m => {
-            const currentColor = metricColors[m.key] || DEFAULT_METRIC_COLORS[m.key];
-            return (
-              <div 
-                key={m.key}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  background: 'var(--bg-primary)', 
-                  padding: '6px 8px', 
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)' 
-                }}
-              >
-                <label style={{ position: 'relative', width: '20px', height: '20px', borderRadius: '50%', background: currentColor, cursor: 'pointer', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)', display: 'inline-block' }}>
-                  <input 
-                    type="color" 
-                    value={currentColor} 
-                    onChange={(e) => updateMetricColor(m.key, e.target.value)}
-                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
-                  />
-                </label>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {m.label}
-                  </span>
-                  <input 
-                    type="text"
-                    value={currentColor}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.startsWith('#') || val === '') {
-                        updateMetricColor(m.key, val);
-                      } else {
-                        updateMetricColor(m.key, '#' + val);
-                      }
-                    }}
-                    style={{ 
-                      background: 'transparent', 
-                      border: 'none', 
-                      color: 'var(--text-muted)', 
-                      fontSize: '0.68rem', 
-                      fontFamily: 'var(--font-mono)',
-                      outline: 'none',
-                      width: '100%',
-                      padding: 0
-                    }}
-                    maxLength={7}
-                  />
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
 
