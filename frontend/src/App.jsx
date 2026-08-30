@@ -849,11 +849,13 @@ export default function App() {
     const musclesDistr = {};
     exerciseForm.muscles.forEach(m => {
       musclesDistr[m.name] = {
+        x0: m.x0 ?? 0.0,
         y0: m.y0 ?? 1.0,
         x1: m.x1 ?? 0.33,
         y1: m.y1 ?? 1.0,
         x2: m.x2 ?? 0.66,
         y2: m.y2 ?? 1.0,
+        x3: m.x3 ?? 1.0,
         y3: m.y3 ?? 1.0,
         magnitude: parseFloat((m.percentage / 100).toFixed(3))
       };
@@ -2025,7 +2027,7 @@ export default function App() {
                 
                 {exerciseForm.muscles.length > 0 && (
                   <div style={{ width: '100%', marginBottom: isMobile ? '8px' : '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 10px 0 0' }}>
-                    <ResponsiveContainer width="99%" height={isMobile ? 140 : 160}>
+                    <ResponsiveContainer width="99%" height={isMobile ? 140 : 160} minWidth={0} minHeight={0}>
                       <LineChart data={getBezierCurveData(exerciseForm.muscles)} style={isMobile ? { pointerEvents: 'none' } : undefined}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                         <XAxis dataKey="x" type="number" domain={[0, 1]} tickCount={5} stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => val === 0 ? 'Stretch' : val === 1 ? 'Contract' : val} />
