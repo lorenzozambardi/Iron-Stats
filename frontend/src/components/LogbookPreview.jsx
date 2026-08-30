@@ -67,7 +67,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
         const wk = ex.weeks.find(w => w.week_num === latestWeek);
         if (wk && ex.exercise_obj) {
           let exEffReps = 0;
-          wk.sets.forEach(s => { exEffReps += (s.effectiveRepsCustom || 0); });
+          wk.sets.forEach(s => { exEffReps += (s.effectiveReps || 0); });
           totalEffReps += exEffReps;
           Object.entries(ex.exercise_obj.muscles_distr).forEach(([sub, pct]) => {
             const pctVal = typeof pct === 'number' ? pct : (pct?.magnitude || 0);

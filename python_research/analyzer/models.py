@@ -3,6 +3,8 @@ from typing import Any
 
 import numpy as np
 
+from analyzer.constants import COEFF_ASSISTED, COEFF_PARTIAL
+
 
 @dataclass
 class BezierProfile:
@@ -31,8 +33,6 @@ class BezierProfile:
         if area > 0:
             return y * (self.magnitude / area)
         return np.zeros_like(y)
-
-from analyzer.constants import COEFF_ASSISTED, COEFF_PARTIAL
 
 
 @dataclass
