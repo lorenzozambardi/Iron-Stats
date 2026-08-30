@@ -298,7 +298,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
         return {
           title: 'Weighted Tonnage',
           subtitle: 'Exercise load profile weighted tonnage',
-          color: 'var(--color-tonnage)',
+          color: 'var(--color-weighted-tonnage)',
           description: 'Weighted Tonnage is identical to regular Tonnage, except it is further multiplied by the load_coeff of the exercise, reflecting its intensity weighting profile.',
           formulas: [
             '\\text{WTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{TotReps}_s \\cdot D_m \\cdot C_{\\text{load}}',
@@ -318,7 +318,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
         return {
           title: 'Effective Weighted Tonnage',
           subtitle: 'Stimulative exercise load profile weighted tonnage',
-          color: 'var(--color-effective-tonnage)',
+          color: 'var(--color-effective-weighted-tonnage)',
           description: 'Effective Weighted Tonnage is identical to regular Effective Tonnage, except it is further multiplied by the load_coeff of the exercise.',
           formulas: [
             '\\text{EffWTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m \\cdot C_{\\text{load}}',

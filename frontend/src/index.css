@@ -23,6 +23,8 @@
   --color-effective-volume: #fbbf24; /* Amber 400 */
   --color-tonnage: #10b981; /* Emerald 500 */
   --color-effective-tonnage: #34d399; /* Emerald 400 */
+  --color-weighted-tonnage: #06b6d4; /* Cyan 500 */
+  --color-effective-weighted-tonnage: #22d3ee; /* Cyan 400 */
   --color-tut: #8b5cf6; /* Violet 500 */
   --color-effective-tut: #a78bfa; /* Violet 400 */
   --color-sets: #3b82f6; /* Blue 500 */
@@ -593,6 +595,8 @@ h1, h2, h3, h4, h5, h6 {
 .metric-summary-card.volume { border-left: 4px solid var(--color-volume); }
 .metric-summary-card.tonnage { border-left: 4px solid var(--color-tonnage); }
 .metric-summary-card.effective-tonnage { border-left: 4px solid var(--color-effective-tonnage); }
+.metric-summary-card.weighted-tonnage { border-left: 4px solid var(--color-weighted-tonnage); }
+.metric-summary-card.effective-weighted-tonnage { border-left: 4px solid var(--color-effective-weighted-tonnage); }
 .metric-summary-card.effective { border-left: 4px solid var(--color-effective-volume); }
 .metric-summary-card.fatigue { border-left: 4px solid var(--color-fatigue); }
 .metric-summary-card.tut { border-left: 4px solid var(--color-tut); }

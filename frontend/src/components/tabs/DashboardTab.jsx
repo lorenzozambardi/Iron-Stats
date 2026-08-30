@@ -403,8 +403,8 @@ const DashboardTab = ({
       case 'Volume': return 'var(--color-volume)';
       case 'Tonnage': return 'var(--color-tonnage)';
       case 'EffectiveTonnage': return 'var(--color-effective-tonnage)';
-      case 'WeightedTonnage': return 'var(--color-tonnage)';
-      case 'EffectiveWeightedTonnage': return 'var(--color-effective-tonnage)';
+      case 'WeightedTonnage': return 'var(--color-weighted-tonnage)';
+      case 'EffectiveWeightedTonnage': return 'var(--color-effective-weighted-tonnage)';
       case 'Fatigue': return 'var(--color-fatigue)';
       case 'EffectiveRepsCustom': return 'var(--accent-secondary)';
       case 'EffectiveTut': return 'var(--color-effective-tut)';
@@ -873,7 +873,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative load</span>
                       </div>
-                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('weighted-tonnage'); }}>
+                      <div className="metric-summary-card weighted-tonnage" onClick={() => { setSelectedMetricDetail('weighted-tonnage'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Weighted Tonnage
                           <span className="info-icon-wrapper">
@@ -884,7 +884,7 @@ const DashboardTab = ({
                         <span className="metric-value">{totalWeightedTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Weighted load</span>
                       </div>
-                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-weighted-tonnage'); }}>
+                      <div className="metric-summary-card effective-weighted-tonnage" onClick={() => { setSelectedMetricDetail('effective-weighted-tonnage'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           Eff. Weighted Tonnage
                           <span className="info-icon-wrapper">

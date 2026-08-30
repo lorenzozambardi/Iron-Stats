@@ -72,6 +72,24 @@ const renderSetsTooltip = () => (
   </div>
 );
 
+const renderWeightedTonnageTooltip = () => (
+  <div className="info-tooltip" style={{ textAlign: 'left' }}>
+    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-weighted-tonnage)', fontSize: '0.8rem' }}>Weighted Tonnage</div>
+    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+      Sums the weight lifted scaled by leverage, distribution, and exercise load coefficient
+    </div>
+  </div>
+);
+
+const renderEffectiveWeightedTonnageTooltip = () => (
+  <div className="info-tooltip" style={{ textAlign: 'left' }}>
+    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-effective-weighted-tonnage)', fontSize: '0.8rem' }}>Effective Weighted Tonnage</div>
+    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+      Sums the hypertrophy-stimulative weight lifted scaled by leverage, distribution, and load coefficient
+    </div>
+  </div>
+);
+
 const renderMetricTooltip = (cls) => {
   switch (cls) {
     case 'volume':
@@ -80,6 +98,10 @@ const renderMetricTooltip = (cls) => {
       return renderTonnageTooltip();
     case 'effective-tonnage':
       return renderEffectiveTonnageTooltip();
+    case 'weighted-tonnage':
+      return renderWeightedTonnageTooltip();
+    case 'effective-weighted-tonnage':
+      return renderEffectiveWeightedTonnageTooltip();
     case 'effective':
       return renderEffectiveRepsTooltip();
     case 'tut':
