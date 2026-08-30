@@ -1,33 +1,17 @@
-import { useState, useEffect } from 'react';
-
-let katexPromise = null;
-const loadKatex = () => {
-  if (!katexPromise) {
-    katexPromise = import('katex').then((module) => module.default || module);
-  }
-  return katexPromise;
-};
+import { useMemo } from 'react';
+import katex from 'katex';
 
 const Latex = ({ math, block = false }) => {
-  const [html, setHtml] = useState(math);
-
-  useEffect(() => {
-    let active = true;
-    loadKatex().then((katex) => {
-      if (!active) return;
-      try {
-        const rendered = katex.renderToString(math, {
-          displayMode: block,
-          throwOnError: false
-        });
-        setHtml(rendered);
-      } catch (err) {
-        console.error("KaTeX rendering error:", err);
-      }
-    });
-    return () => {
-      active = false;
-    };
+  const html = useMemo(() => {
+    try {
+      return katex.renderToString(math, {
+        displayMode: block,
+        throwOnError: false
+      });
+    } catch (err) {
+      console.error("KaTeX rendering error:", err);
+      return math;
+    }
   }, [math, block]);
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
