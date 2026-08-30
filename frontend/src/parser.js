@@ -47,7 +47,7 @@ export const MUSCLES = {
 
 // Parse overrides from program markdown and clone/modify exercises list
 export function getExercisesWithOverrides(logText, globalExercises) {
-  if (!logText) return globalExercises;
+  if (!logText || !logText.toLowerCase().includes('override:')) return globalExercises;
   const lines = logText.split('\n').map(l => l.trim());
   const localExercises = globalExercises.map(ex => ({
     ...ex,
@@ -175,7 +175,7 @@ const HARD_MAP = {
   "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
 
   // --- SPALLE ---
-  "lr": "LR", "alzate laterali": "LR", "lateral raise": "LR",
+  "lr": "LR", "lr 49": "LR 49", "alzate laterali 49": "LR 49", "alzate laterali": "LR", "lateral raise": "LR",
   "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
   "shoulder press": "Machine Press", "press macch": "Machine Press",
   "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
@@ -196,6 +196,10 @@ const HARD_MAP = {
   "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
   "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
   "preacher": "Preacher Curl", "scott": "Preacher Curl", "panca scott": "Preacher Curl",
+  "biceps curl db reverse scott bench": "Reverse Scott DB Curl",
+  "reverse scott db curl": "Reverse Scott DB Curl",
+  "spider curl db": "Reverse Scott DB Curl",
+  "spider curl manubri": "Reverse Scott DB Curl",
 
   // --- BRACCIA (Tricipiti) ---
   "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
@@ -206,7 +210,8 @@ const HARD_MAP = {
 
   // --- ADDOME ---
   "dragon flag": "Dragon Flag Raises", "dragon flag raises": "Dragon Flag Raises",
-  "hanging leg": "Hanging Leg Raises", "hanging leg raises": "Hanging Leg Raises", "leg raises": "Hanging Leg Raises"
+  "hanging leg": "Hanging Leg Raises", "hanging leg raises": "Hanging Leg Raises", "leg raises": "Hanging Leg Raises",
+  "crunch": "Crunch"
 };
 
 const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.length);
@@ -283,7 +288,6 @@ function parseRepToken(repStr, loads, dropsetId = null) {
       // Calculate effective reps taking RPE, partials, and assisted reps into account
       const effBase = Math.min(base, Math.max(0, rpe - 4.0));
       const effectiveReps = effBase + (assisted * COEFF_ASSISTED) + (partial * COEFF_PARTIAL);
-      const effectiveRepsCustom = effectiveReps;
       const totalReps = base + (assisted * COEFF_ASSISTED) + (partial * COEFF_PARTIAL);
       
       setsOut.push({
@@ -293,7 +297,6 @@ function parseRepToken(repStr, loads, dropsetId = null) {
         partial_reps: partial,
         rpe,
         effectiveReps,
-        effectiveRepsCustom,
         totalReps,
         ...(dropsetId ? { dropsetId } : {})
       });
@@ -435,7 +438,7 @@ export function parseLine(line, lineIndex = 0) {
 
   // Plain numbers separated by single dots (reps only, load-less)
   // E.g., matches "10.9.8" or "10(2)+3@8.5"
-  if (/^[\d()+\u002b@.]+$/.test(cleanLine) && !cleanLine.includes('..')) {
+  if (/^[\d()+@.]+$/.test(cleanLine) && !cleanLine.includes('..')) {
     const tokens = cleanLine.split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
     const sets = [];
     for (const t of tokens) {
@@ -455,7 +458,7 @@ export function parseLine(line, lineIndex = 0) {
       let loadsPart = cleanLine.substring(0, lastIdx);
       let repsPart = cleanLine.substring(lastIdx + 2);
       if (repsPart.includes('.') && loadsPart.includes('..')) {
-        if (/^[\d()++@.]+$/.test(repsPart)) {
+        if (/^[\d()+@.]+$/.test(repsPart)) {
           loadsPart = loadsPart.replace(/\.\./g, '/');
           repsPart = repsPart.replace(/(?<!@\d+)\./g, '/');
           cleanLine = `${loadsPart}..${repsPart}`;
@@ -551,7 +554,6 @@ export function parseLogbook(logText, exercises) {
                   ...s,
                   load,
                   effectiveReps,
-                  effectiveRepsCustom: effectiveReps,
                   totalReps
                 };
               });
@@ -620,6 +622,12 @@ export function parseLogbook(logText, exercises) {
   return workoutData;
 }
 
+const getMagnitude = (val) => {
+  if (typeof val === 'number') return val;
+  if (val && typeof val.magnitude === 'number') return val.magnitude;
+  return 0.0;
+};
+
 export function calculateMetrics(workoutData, targetSession, targetWeek, targetMacro, targetSub) {
   const results = [];
   for (const wEx of workoutData) {
@@ -636,12 +644,6 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
     if (targetSub && !(targetSub in ex.muscles_distr)) continue;
 
     // Determine distribution coefficient
-    const getMagnitude = (val) => {
-      if (typeof val === 'number') return val;
-      if (val && typeof val.magnitude === 'number') return val.magnitude;
-      return 0.0;
-    };
-
     let distrSum = 1.0;
     if (targetSub) {
       distrSum = getMagnitude(ex.muscles_distr[targetSub]);
@@ -660,7 +662,7 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
       let weightedTon = 0.0;
       let weightedEffTon = 0.0;
       let totalFat = 0.0;
-      let customEffSum = 0.0;
+      let effRepsSum = 0.0;
       let totalTut = 0.0;
       let effectiveTut = 0.0;
       let sets = 0.0;
@@ -690,9 +692,8 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
         );
         totalFat += setFat * distrSum;
         
-        // Custom effective reps scale with muscle distribution just like volume
-        const customEff = (s.effectiveRepsCustom || 0) * distrSum;
-        customEffSum += customEff;
+        const eff = (s.effectiveReps || 0) * distrSum;
+        effRepsSum += eff;
 
         totalTut += (s.totalTut || 0) * distrSum;
         effectiveTut += (s.effectiveTut || 0) * distrSum;
@@ -710,7 +711,8 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
           weightedTonnage: weightedTon,
           effectiveWeightedTonnage: weightedEffTon,
           fatigue: totalFat,
-          effectiveRepsCustom: customEffSum,
+          effectiveReps: effRepsSum,
+          effectiveRepsCustom: effRepsSum,
           totalTut,
           effectiveTut,
           sets

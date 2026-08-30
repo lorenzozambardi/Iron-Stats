@@ -1,6 +1,6 @@
 import defaultExercises from './defaultExercises.json';
 
-const COEFF_PARTIAL = 0.5;
+const COEFF_PARTIAL = 0.33;
 
 // --- TARGET CURVES GENERATORS ---
 function getTargetCurve(curveType, resolution = 50) {

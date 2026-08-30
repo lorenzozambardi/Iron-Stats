@@ -215,7 +215,7 @@ const DashboardTab = ({
             const macro = MUSCLES[subMuscle] || 'Other';
             let metricValue = 0;
             if (muscleMetric === 'effective') {
-              metricValue = s.effectiveRepsCustom || 0;
+              metricValue = s.effectiveReps || 0;
             } else if (muscleMetric === 'volume') {
               metricValue = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
             } else if (muscleMetric === 'sets') {
