@@ -712,7 +712,6 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
           effectiveWeightedTonnage: weightedEffTon,
           fatigue: totalFat,
           effectiveReps: effRepsSum,
-          effectiveRepsCustom: effRepsSum,
           totalTut,
           effectiveTut,
           sets

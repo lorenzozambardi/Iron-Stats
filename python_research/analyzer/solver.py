@@ -189,8 +189,6 @@ class WorkoutSolver:
         eff_vol = 0.0
         total_ton = 0.0
         eff_ton = 0.0
-        weighted_ton = 0.0
-        weighted_eff_ton = 0.0
         total_tut = 0.0
         eff_tut = 0.0
         
@@ -235,8 +233,6 @@ class WorkoutSolver:
                     load = ex.load_multiplier * (100.0 / (1.0 + 0.033 * s.base_reps)) + ex.load_offset
                     total_ton += s_total * load
                     eff_ton += s_eff * load
-                    weighted_ton += s_total * load * ex.load_coeff
-                    weighted_eff_ton += s_eff * load * ex.load_coeff
                     
                     total_tut += s_total * 2.0
                     eff_tut += s_eff * 2.0
