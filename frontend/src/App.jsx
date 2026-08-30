@@ -1151,8 +1151,8 @@ export default function App() {
               transition: 'left var(--transition-normal), width var(--transition-normal), opacity var(--transition-fast)',
               pointerEvents: 'none',
               borderRadius: '99px',
-              background: 'rgba(99, 102, 241, 0.08)',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.2), 0 0 10px rgba(99, 102, 241, 0.15)',
+              background: 'var(--accent-primary-subtle)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2), 0 0 10px var(--accent-primary-glow)',
               border: 'none',
               zIndex: 0
             }}
