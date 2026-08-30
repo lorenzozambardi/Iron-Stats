@@ -126,9 +126,9 @@ const DatabaseTab = React.memo(({
                       <h4 className="ex-card-title" style={{ margin: 0, wordBreak: 'break-word', fontSize: '0.95rem' }}>{ex.name}</h4>
                       {overriddenExercisesSet.has(ex.name.toLowerCase()) && (
                           <span style={{ 
-                            background: 'rgba(99, 102, 241, 0.15)', 
-                            color: '#818cf8', 
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            background: 'var(--accent-primary-subtle)', 
+                            color: 'var(--accent-primary)', 
+                            border: '1px solid var(--accent-primary-glow)',
                             alignSelf: 'flex-start',
                             fontSize: '0.7rem',
                             padding: '2px 6px',
