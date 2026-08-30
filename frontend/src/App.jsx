@@ -284,6 +284,12 @@ export default function App() {
 
   const handleScroll = useCallback((e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
+
+    // Dismiss virtual keyboard if user is scrolling to change pages
+    if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+
     if (isScrollingToTab.current) return; // Ignore programmatic scrolls to prevent transition conflicts
     
     const container = e.target;
@@ -323,6 +329,10 @@ export default function App() {
 
   // Helper to scroll to tab programmatically
   const scrollToTab = useCallback((tabName) => {
+    if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+
     if (swipeContainerRef.current) {
       const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
       // If we go to metric-details, scroll to dashboard
