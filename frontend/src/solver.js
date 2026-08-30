@@ -222,6 +222,14 @@ export class WorkoutSolver {
                 this.ex_curves[ex.name][m] = getBezierCurve(ex.muscles_distr[m], this.resolution);
             }
         });
+
+        // Pre-allocate evaluation buffers to avoid GC thrashing during SA loop
+        this.V_m_buffers = {};
+        this.subVols = {};
+        this.all_submuscles.forEach(m => {
+            this.V_m_buffers[m] = new Float32Array(this.resolution);
+            this.subVols[m] = 0.0;
+        });
     }
 
     getRandomExercise() {
@@ -265,12 +273,12 @@ export class WorkoutSolver {
         let totalTon = 0.0, effTon = 0.0;
         let totalTut = 0.0, effTut = 0.0;
 
-        const V_m = {};
-        const subVols = {};
-        this.all_submuscles.forEach(m => {
-            V_m[m] = new Float32Array(this.resolution);
+        const V_m = this.V_m_buffers;
+        const subVols = this.subVols;
+        for (const m of this.all_submuscles) {
+            V_m[m].fill(0);
             subVols[m] = 0.0;
-        });
+        }
 
         const uniqueExercises = new Set();
         let totalExercises = 0;
@@ -354,7 +362,8 @@ export class WorkoutSolver {
                 let sumSq = 0.0;
                 for (let i = 0; i < this.resolution; i++) {
                     const normV = curve[i] / maxV;
-                    sumSq += Math.pow(normV - target[i], 2);
+                    const diff = normV - target[i];
+                    sumSq += diff * diff;
                 }
                 E_curva += sumSq / this.resolution;
                 trainedMuscles++;
@@ -363,9 +372,12 @@ export class WorkoutSolver {
         if (trainedMuscles > 0) E_curva /= trainedMuscles;
 
         // 2. Ratio Errors
-        const E_vol = totalVol > 0 ? Math.pow(effVol / totalVol - this.config.target_ratios.vol, 2) : 0.0;
-        const E_ton = totalTon > 0 ? Math.pow(effTon / totalTon - this.config.target_ratios.ton, 2) : 0.0;
-        const E_tut = totalTut > 0 ? Math.pow(effTut / totalTut - this.config.target_ratios.tut, 2) : 0.0;
+        const vDiff = effVol / totalVol - this.config.target_ratios.vol;
+        const E_vol = totalVol > 0 ? vDiff * vDiff : 0.0;
+        const tonDiff = effTon / totalTon - this.config.target_ratios.ton;
+        const E_ton = totalTon > 0 ? tonDiff * tonDiff : 0.0;
+        const tutDiff = effTut / totalTut - this.config.target_ratios.tut;
+        const E_tut = totalTut > 0 ? tutDiff * tutDiff : 0.0;
 
         // 3. Distribution Error
         let E_distr = 0.0;
@@ -376,36 +388,44 @@ export class WorkoutSolver {
             for (const m of this.all_submuscles) {
                 const targetPct = this.target_sub_vol[m] || 0.0;
                 const actualPct = (subVols[m] || 0.0) / totalSubVol;
-                E_distr += Math.pow(actualPct - targetPct, 2);
+                const dDiff = actualPct - targetPct;
+                E_distr += dDiff * dDiff;
             }
-            E_distr /= 2.0;
+            E_distr *= 0.5;
         }
 
         // 5. Variety Error
         let E_variety = 0.0;
         if (totalExercises > 0) {
             const varietyRatio = uniqueExercises.size / totalExercises;
-            E_variety = Math.pow(1.0 - varietyRatio, 2);
+            const varDiff = 1.0 - varietyRatio;
+            E_variety = varDiff * varDiff;
         }
 
         // 6. Balance Error
         let E_balance = 0.0;
         if (dailyFatigue.length > 1) {
             const maxDayFatigue = this.config.max_ex * this.config.max_sets * this.config.max_reps * 15.0;
-            const maxVarF = Math.pow(maxDayFatigue / 2.0, 2);
+            const maxVarF = (maxDayFatigue * 0.5) * (maxDayFatigue * 0.5);
             
             const meanF = dailyFatigue.reduce((a, b) => a + b, 0) / dailyFatigue.length;
-            const varFatigue = dailyFatigue.reduce((a, b) => a + Math.pow(b - meanF, 2), 0) / dailyFatigue.length;
+            const varFatigue = dailyFatigue.reduce((a, b) => {
+                const d = b - meanF;
+                return a + d * d;
+            }, 0) / dailyFatigue.length;
             const normVarF = maxVarF > 0 ? varFatigue / maxVarF : 0.0;
 
             const maxDayVol = this.config.max_ex * this.config.max_sets * this.config.max_reps;
-            const maxVarV = Math.pow(maxDayVol / 2.0, 2);
+            const maxVarV = (maxDayVol * 0.5) * (maxDayVol * 0.5);
             
             const meanV = dailyVol.reduce((a, b) => a + b, 0) / dailyVol.length;
-            const varVol = dailyVol.reduce((a, b) => a + Math.pow(b - meanV, 2), 0) / dailyVol.length;
+            const varVol = dailyVol.reduce((a, b) => {
+                const d = b - meanV;
+                return a + d * d;
+            }, 0) / dailyVol.length;
             const normVarV = maxVarV > 0 ? varVol / maxVarV : 0.0;
 
-            E_balance = (normVarF + normVarV) / 2.0;
+            E_balance = (normVarF + normVarV) * 0.5;
         }
 
         const rawMetrics = {
