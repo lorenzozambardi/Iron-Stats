@@ -460,7 +460,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
       width: '100%',
       height: '100dvh',
       background: 'var(--bg-primary)',
-      zIndex: 100,
+      zIndex: 10000,
       overflowY: 'auto',
       padding: '80px 20px 100px 20px',
       opacity: visible ? 1 : 0,

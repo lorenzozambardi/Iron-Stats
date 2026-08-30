@@ -591,7 +591,7 @@ h1, h2, h3, h4, h5, h6 {
 .metric-summary-card:focus-within,
 .metric-summary-card:has(.info-icon-wrapper:hover) {
   transform: translateY(-2px);
-  z-index: 9999;
+  z-index: 20;
 }
 }
 
@@ -1551,7 +1551,7 @@ input::-webkit-list-button {
 
 @media (hover: hover) and (pointer: fine) {
 .info-icon-wrapper:hover {
-  z-index: 100000;
+  z-index: 30;
 }
 }
 
@@ -1570,7 +1570,7 @@ input::-webkit-list-button {
   box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8), 0 10px 20px -5px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  z-index: 100000;
+  z-index: 50;
   opacity: 0;
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   color: var(--text-primary);
@@ -1598,7 +1598,7 @@ input::-webkit-list-button {
   visibility: visible;
   opacity: 1;
   transform: translateX(-50%) scale(1) translateY(-4px);
-  z-index: 100000;
+  z-index: 50;
 }
 }
 
