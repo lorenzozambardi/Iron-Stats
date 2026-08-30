@@ -85,32 +85,6 @@ const SEC_PALETTES = [
   { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
 ];
 
-const DEFAULT_METRIC_COLORS = {
-  'color-volume': '#f59e0b',
-  'color-effective-volume': '#fbbf24',
-  'color-tonnage': '#10b981',
-  'color-effective-tonnage': '#34d399',
-  'color-weighted-tonnage': '#06b6d4',
-  'color-effective-weighted-tonnage': '#22d3ee',
-  'color-tut': '#8b5cf6',
-  'color-effective-tut': '#a78bfa',
-  'color-sets': '#3b82f6',
-  'color-fatigue': '#f43f5e'
-};
-
-const METRIC_COLOR_CONFIG = [
-  { key: 'color-volume', label: 'Volume' },
-  { key: 'color-effective-volume', label: 'Effective Reps' },
-  { key: 'color-tonnage', label: 'Tonnage' },
-  { key: 'color-effective-tonnage', label: 'Effective Tonnage' },
-  { key: 'color-weighted-tonnage', label: 'Weighted Tonnage' },
-  { key: 'color-effective-weighted-tonnage', label: 'Eff. Weighted Tonnage' },
-  { key: 'color-tut', label: 'TUT' },
-  { key: 'color-effective-tut', label: 'Effective TUT' },
-  { key: 'color-sets', label: 'Sets' },
-  { key: 'color-fatigue', label: 'Fatigue' }
-];
-
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
@@ -130,23 +104,6 @@ export default function App() {
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
   const [secPalette, setSecPalette] = useState(() => localStorage.getItem('sec-palette') || 'darkest');
   const [secAccentPalette, setSecAccentPalette] = useState(() => localStorage.getItem('sec-accent-palette') || 'cyan');
-
-  const [metricColors, setMetricColors] = useState(() => {
-    try {
-      const saved = localStorage.getItem('metric-colors');
-      return saved ? { ...DEFAULT_METRIC_COLORS, ...JSON.parse(saved) } : DEFAULT_METRIC_COLORS;
-    } catch {
-      return DEFAULT_METRIC_COLORS;
-    }
-  });
-
-  const updateMetricColor = (key, value) => {
-    setMetricColors(prev => ({ ...prev, [key]: value }));
-  };
-
-  const resetMetricColors = () => {
-    setMetricColors(DEFAULT_METRIC_COLORS);
-  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -193,13 +150,7 @@ export default function App() {
       root.style.setProperty('--accent-secondary-subtle', hexToRgba(sp.color, 0.1));
       localStorage.setItem('sec-accent-palette', secAccentPalette);
     }
-
-    // Apply metric colors
-    Object.entries(metricColors).forEach(([k, v]) => {
-      root.style.setProperty(`--${k}`, v);
-    });
-    localStorage.setItem('metric-colors', JSON.stringify(metricColors));
-  }, [appPalette, bgPalette, secPalette, secAccentPalette, metricColors]);
+  }, [appPalette, bgPalette, secPalette, secAccentPalette]);
 
   // History State for Undo/Redo
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -1205,11 +1156,6 @@ export default function App() {
                 secPalette={secPalette}
                 setSecPalette={setSecPalette}
                 SEC_PALETTES={SEC_PALETTES}
-                metricColors={metricColors}
-                updateMetricColor={updateMetricColor}
-                resetMetricColors={resetMetricColors}
-                METRIC_COLOR_CONFIG={METRIC_COLOR_CONFIG}
-                DEFAULT_METRIC_COLORS={DEFAULT_METRIC_COLORS}
                 showProgramSelector={true}
                 currentProgram={currentProgram}
                 handleProgramChange={handleProgramChange}
@@ -1312,11 +1258,6 @@ export default function App() {
                 secPalette={secPalette}
                 setSecPalette={setSecPalette}
                 SEC_PALETTES={SEC_PALETTES}
-                metricColors={metricColors}
-                updateMetricColor={updateMetricColor}
-                resetMetricColors={resetMetricColors}
-                METRIC_COLOR_CONFIG={METRIC_COLOR_CONFIG}
-                DEFAULT_METRIC_COLORS={DEFAULT_METRIC_COLORS}
                 showProgramSelector={false}
                 showStorageSettings={showStorageSettings}
                 toggleStorageSettings={toggleStorageSettings}
