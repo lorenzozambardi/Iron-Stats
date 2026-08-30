@@ -587,8 +587,11 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (hover: hover) and (pointer: fine) {
 
-.metric-summary-card:hover {
+.metric-summary-card:hover,
+.metric-summary-card:focus-within,
+.metric-summary-card:has(.info-icon-wrapper:hover) {
   transform: translateY(-2px);
+  z-index: 9999;
 }
 }
 
@@ -1543,6 +1546,13 @@ input::-webkit-list-button {
   position: relative;
   display: inline-flex;
   align-items: center;
+  z-index: 10;
+}
+
+@media (hover: hover) and (pointer: fine) {
+.info-icon-wrapper:hover {
+  z-index: 100000;
+}
 }
 
 .info-tooltip {
@@ -1557,10 +1567,10 @@ input::-webkit-list-button {
   border-radius: 12px;
   width: 350px;
   max-width: 85vw;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 10px 15px -5px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 1000;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8), 0 10px 20px -5px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 100000;
   opacity: 0;
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   color: var(--text-primary);
@@ -1588,6 +1598,7 @@ input::-webkit-list-button {
   visibility: visible;
   opacity: 1;
   transform: translateX(-50%) scale(1) translateY(-4px);
+  z-index: 100000;
 }
 }
 
