@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { MUSCLES } from '../parser';
 
@@ -302,16 +302,23 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
     }
   };
 
-  const getMuscleForExercise = (exName) => {
-    if (!exercisesDb || exercisesDb.length === 0) return null;
-    const match = exercisesDb.find(e => e.name.toLowerCase() === exName.toLowerCase());
-    if (match && match.muscles_distr) {
-      const keys = Object.keys(match.muscles_distr);
-      if (keys.length > 0) {
-        return MUSCLES[keys[0]] || keys[0];
+  const muscleMap = useMemo(() => {
+    const map = new Map();
+    if (!exercisesDb) return map;
+    for (const ex of exercisesDb) {
+      if (ex.muscles_distr) {
+        const keys = Object.keys(ex.muscles_distr);
+        if (keys.length > 0) {
+          map.set(ex.name.toLowerCase(), MUSCLES[keys[0]] || keys[0]);
+        }
       }
     }
-    return null;
+    return map;
+  }, [exercisesDb]);
+
+  const getMuscleForExercise = (exName) => {
+    if (!exName) return null;
+    return muscleMap.get(exName.toLowerCase()) || null;
   };
 
   return (

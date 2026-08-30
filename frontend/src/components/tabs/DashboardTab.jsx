@@ -271,6 +271,34 @@ const DashboardTab = ({
       data.push(pt);
     }
 
+    const curveCache = new Map();
+
+    const getNormalizedCurve = (distr) => {
+      const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
+      const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
+      const x1 = typeof distr === 'object' ? (distr.x1 ?? 0.33) : 0.33;
+      const y1 = typeof distr === 'object' ? (distr.y1 ?? 1.0) : 1.0;
+      const x2 = typeof distr === 'object' ? (distr.x2 ?? 0.66) : 0.66;
+      const y2 = typeof distr === 'object' ? (distr.y2 ?? 1.0) : 1.0;
+      const x3 = typeof distr === 'object' ? (distr.x3 ?? 1.0) : 1.0;
+      const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
+      const magnitude = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
+
+      const rawY = new Float32Array(resolution + 1);
+      let areaSum = 0;
+      for (let i = 0; i <= resolution; i++) {
+        const y = solveBezierY(i / resolution, x0, y0, x1, y1, x2, y2, x3, y3);
+        rawY[i] = y;
+        areaSum += y;
+      }
+      const area = areaSum / resolution;
+      const factor = area > 0 ? (magnitude / area) : 0;
+      for (let i = 0; i <= resolution; i++) {
+        rawY[i] *= factor;
+      }
+      return rawY;
+    };
+
     dashFilteredData.forEach(wEx => {
       const ex = activeExercises.find(e => e.name === wEx.name) || wEx.exercise_obj;
       if (!ex) return;
@@ -280,66 +308,45 @@ const DashboardTab = ({
         if (dashFilterWeek === 'all' && wData.week_num !== Math.max(...wEx.weeks.map(w => w.week_num))) return;
         
         wData.sets.forEach(s => {
-            Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
-              const macro = MUSCLES[subMuscle] || 'Other';
-              const isMacroView = dashMuscleMacro === 'all';
-              const targetMuscle = isMacroView ? macro : subMuscle;
+          Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
+            const macro = MUSCLES[subMuscle] || 'Other';
+            const isMacroView = dashMuscleMacro === 'all';
+            const targetMuscle = isMacroView ? macro : subMuscle;
+            
+            if (topMuscles.includes(targetMuscle)) {
+              let baseMetricValue = 0;
+              let partialMetricValue = 0;
               
-              if (topMuscles.includes(targetMuscle)) {
-                let baseMetricValue = 0;
-                let partialMetricValue = 0;
-                
-                if (muscleMetric === 'effective') {
-                  const rpe = s.rpe !== undefined ? s.rpe : 9.0;
-                  const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
-                  baseMetricValue = effBase + (s.assisted_reps || 0) * 0.5;
-                  partialMetricValue = s.partial_reps || 0;
-                } else if (muscleMetric === 'volume') {
-                  baseMetricValue = (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
-                  partialMetricValue = s.partial_reps || 0;
-                } else if (muscleMetric === 'sets') {
-                  baseMetricValue = 1.0;
-                  partialMetricValue = 0;
-                }
-                
-                const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
-                const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
-                const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
-                const x1 = typeof distr === 'object' ? (distr.x1 ?? 0.33) : 0.33;
-                const y1 = typeof distr === 'object' ? (distr.y1 ?? 1.0) : 1.0;
-                const x2 = typeof distr === 'object' ? (distr.x2 ?? 0.66) : 0.66;
-                const y2 = typeof distr === 'object' ? (distr.y2 ?? 1.0) : 1.0;
-                const x3 = typeof distr === 'object' ? (distr.x3 ?? 1.0) : 1.0;
-                const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
-                const magnitude = distrVal;
-                
-                const rawY = [];
-                let areaSum = 0;
-                for (let i = 0; i <= resolution; i++) {
-                  const x = i / resolution;
-                  const y = solveBezierY(x, x0, y0, x1, y1, x2, y2, x3, y3);
-                  rawY.push(y);
-                  areaSum += y;
-                }
-                const area = areaSum / resolution;
-                const factor = area > 0 ? (magnitude / area) : 0;
-                
-                for (let i = 0; i <= resolution; i++) {
-                  const x = i / resolution;
-                  const pointVal = rawY[i] * factor;
-                  
-                  let activeMetricValue = baseMetricValue;
-                  if (x <= 0.3333) {
-                    activeMetricValue += partialMetricValue;
-                  }
-                  
-                  data[i][targetMuscle] += (pointVal * activeMetricValue);
-                }
+              if (muscleMetric === 'effective') {
+                const rpe = s.rpe !== undefined ? s.rpe : 9.0;
+                const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
+                baseMetricValue = effBase + (s.assisted_reps || 0) * 0.5;
+                partialMetricValue = s.partial_reps || 0;
+              } else if (muscleMetric === 'volume') {
+                baseMetricValue = (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
+                partialMetricValue = s.partial_reps || 0;
+              } else if (muscleMetric === 'sets') {
+                baseMetricValue = 1.0;
+                partialMetricValue = 0;
               }
-            });
+              
+              const cacheKey = `${ex.name}_${subMuscle}`;
+              let normCurve = curveCache.get(cacheKey);
+              if (!normCurve) {
+                normCurve = getNormalizedCurve(distr);
+                curveCache.set(cacheKey, normCurve);
+              }
+              
+              for (let i = 0; i <= resolution; i++) {
+                const x = i / resolution;
+                const activeMetricValue = x <= 0.3333 ? (baseMetricValue + partialMetricValue) : baseMetricValue;
+                data[i][targetMuscle] += normCurve[i] * activeMetricValue;
+              }
+            }
           });
         });
       });
+    });
 
     data.forEach(pt => {
       topMuscles.forEach(m => {
