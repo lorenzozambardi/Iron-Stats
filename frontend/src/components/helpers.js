@@ -21,13 +21,23 @@ export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
   let upper = 1;
   let t = 0.5;
   for (let i = 0; i < 15; i++) {
-    const x = Math.pow(1 - t, 3) * x0 + 3 * Math.pow(1 - t, 2) * t * x1 + 3 * (1 - t) * Math.pow(t, 2) * x2 + Math.pow(t, 3) * x3;
+    const u = 1 - t;
+    const u2 = u * u;
+    const u3 = u2 * u;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const x = u3 * x0 + 3 * u2 * t * x1 + 3 * u * t2 * x2 + t3 * x3;
     if (Math.abs(x - targetX) < 0.001) break;
     if (x < targetX) lower = t;
     else upper = t;
-    t = (lower + upper) / 2;
+    t = (lower + upper) * 0.5;
   }
-  return Math.pow(1 - t, 3) * y0 + 3 * Math.pow(1 - t, 2) * t * y1 + 3 * (1 - t) * Math.pow(t, 2) * y2 + Math.pow(t, 3) * y3;
+  const u = 1 - t;
+  const u2 = u * u;
+  const u3 = u2 * u;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return u3 * y0 + 3 * u2 * t * y1 + 3 * u * t2 * y2 + t3 * y3;
 };
 
 export const getBezierCurveData = (musclesDistrList, resolution = 50) => {
