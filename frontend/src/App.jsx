@@ -91,6 +91,32 @@ const SEC_PALETTES = [
   { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
 ];
 
+const DEFAULT_METRIC_COLORS = {
+  'color-volume': '#f59e0b',
+  'color-effective-volume': '#fbbf24',
+  'color-tonnage': '#10b981',
+  'color-effective-tonnage': '#34d399',
+  'color-weighted-tonnage': '#06b6d4',
+  'color-effective-weighted-tonnage': '#22d3ee',
+  'color-tut': '#8b5cf6',
+  'color-effective-tut': '#a78bfa',
+  'color-sets': '#3b82f6',
+  'color-fatigue': '#f43f5e'
+};
+
+const METRIC_COLOR_CONFIG = [
+  { key: 'color-volume', label: 'Volume' },
+  { key: 'color-effective-volume', label: 'Effective Reps' },
+  { key: 'color-tonnage', label: 'Tonnage' },
+  { key: 'color-effective-tonnage', label: 'Effective Tonnage' },
+  { key: 'color-weighted-tonnage', label: 'Weighted Tonnage' },
+  { key: 'color-effective-weighted-tonnage', label: 'Eff. Weighted Tonnage' },
+  { key: 'color-tut', label: 'TUT' },
+  { key: 'color-effective-tut', label: 'Effective TUT' },
+  { key: 'color-sets', label: 'Sets' },
+  { key: 'color-fatigue', label: 'Fatigue' }
+];
+
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
@@ -107,12 +133,27 @@ export default function App() {
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const [editorType, setEditorType] = useState(() => localStorage.getItem('editor-type') || 'manual');
 
-
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
-
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
   const [secPalette, setSecPalette] = useState(() => localStorage.getItem('sec-palette') || 'darkest');
   const [secAccentPalette, setSecAccentPalette] = useState(() => localStorage.getItem('sec-accent-palette') || 'cyan');
+
+  const [metricColors, setMetricColors] = useState(() => {
+    try {
+      const saved = localStorage.getItem('metric-colors');
+      return saved ? { ...DEFAULT_METRIC_COLORS, ...JSON.parse(saved) } : DEFAULT_METRIC_COLORS;
+    } catch {
+      return DEFAULT_METRIC_COLORS;
+    }
+  });
+
+  const updateMetricColor = (key, value) => {
+    setMetricColors(prev => ({ ...prev, [key]: value }));
+  };
+
+  const resetMetricColors = () => {
+    setMetricColors(DEFAULT_METRIC_COLORS);
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -159,7 +200,13 @@ export default function App() {
       root.style.setProperty('--accent-secondary-subtle', hexToRgba(sp.color, 0.1));
       localStorage.setItem('sec-accent-palette', secAccentPalette);
     }
-  }, [appPalette, bgPalette, secPalette, secAccentPalette]);
+
+    // Apply metric colors
+    Object.entries(metricColors).forEach(([k, v]) => {
+      root.style.setProperty(`--${k}`, v);
+    });
+    localStorage.setItem('metric-colors', JSON.stringify(metricColors));
+  }, [appPalette, bgPalette, secPalette, secAccentPalette, metricColors]);
 
   // History State for Undo/Redo
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -1264,7 +1311,74 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Colors</div>
+                    <button 
+                      onClick={resetMetricColors}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Reset Defaults
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: '8px' }}>
+                    {METRIC_COLOR_CONFIG.map(m => {
+                      const currentColor = metricColors[m.key] || DEFAULT_METRIC_COLORS[m.key];
+                      return (
+                        <div 
+                          key={m.key}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px', 
+                            background: 'var(--bg-primary)', 
+                            padding: '6px 8px', 
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)' 
+                          }}
+                        >
+                          <label style={{ position: 'relative', width: '20px', height: '20px', borderRadius: '50%', background: currentColor, cursor: 'pointer', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)', display: 'inline-block' }}>
+                            <input 
+                              type="color" 
+                              value={currentColor} 
+                              onChange={(e) => updateMetricColor(m.key, e.target.value)}
+                              style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+                            />
+                          </label>
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {m.label}
+                            </span>
+                            <input 
+                              type="text"
+                              value={currentColor}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.startsWith('#') || val === '') {
+                                  updateMetricColor(m.key, val);
+                                } else {
+                                  updateMetricColor(m.key, '#' + val);
+                                }
+                              }}
+                              style={{ 
+                                background: 'transparent', 
+                                border: 'none', 
+                                color: 'var(--text-muted)', 
+                                fontSize: '0.68rem', 
+                                fontFamily: 'var(--font-mono)',
+                                outline: 'none',
+                                width: '100%',
+                                padding: 0
+                              }}
+                              maxLength={7}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             {/* Program Selector */}
             <div className="program-selector-container">
               <span className="program-label">Program:</span>
@@ -1662,6 +1776,73 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Colors</div>
+                    <button 
+                      onClick={resetMetricColors}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Reset Defaults
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {METRIC_COLOR_CONFIG.map(m => {
+                      const currentColor = metricColors[m.key] || DEFAULT_METRIC_COLORS[m.key];
+                      return (
+                        <div 
+                          key={m.key}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px', 
+                            background: 'var(--bg-primary)', 
+                            padding: '6px 8px', 
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)' 
+                          }}
+                        >
+                          <label style={{ position: 'relative', width: '20px', height: '20px', borderRadius: '50%', background: currentColor, cursor: 'pointer', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)', display: 'inline-block' }}>
+                            <input 
+                              type="color" 
+                              value={currentColor} 
+                              onChange={(e) => updateMetricColor(m.key, e.target.value)}
+                              style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+                            />
+                          </label>
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {m.label}
+                            </span>
+                            <input 
+                              type="text"
+                              value={currentColor}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.startsWith('#') || val === '') {
+                                  updateMetricColor(m.key, val);
+                                } else {
+                                  updateMetricColor(m.key, '#' + val);
+                                }
+                              }}
+                              style={{ 
+                                background: 'transparent', 
+                                border: 'none', 
+                                color: 'var(--text-muted)', 
+                                fontSize: '0.68rem', 
+                                fontFamily: 'var(--font-mono)',
+                                outline: 'none',
+                                width: '100%',
+                                padding: 0
+                              }}
+                              maxLength={7}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -2042,7 +2223,7 @@ export default function App() {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                         <XAxis dataKey="x" type="number" domain={[0, 1]} tickCount={5} stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => val === 0 ? 'Stretch' : val === 1 ? 'Contract' : val} />
                         <YAxis stroke="var(--text-muted)" fontSize={10} width={30} domain={[0, 1]} tickFormatter={(v) => Math.round(v*100)} />
-                        {!isMobile && <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />}
+                        {!isMobile && <Tooltip contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />}
                         {isMobile && <ReferenceLine x={tensionSliderPos / 100} stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="4 4" />}
                         {exerciseForm.muscles.map((m, i) => {
                            return <Line key={m.name} type="monotone" dataKey={m.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} dot={false} strokeWidth={2} name={m.name} />;

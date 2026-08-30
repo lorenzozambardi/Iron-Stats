@@ -330,7 +330,7 @@ h1, h2, h3, h4, h5, h6 {
   text-align: right;
   color: var(--text-muted);
   user-select: none;
-  background: #020305;
+  background: var(--bg-primary);
   border-right: 1px solid var(--border-color);
 }
 
@@ -399,8 +399,7 @@ h1, h2, h3, h4, h5, h6 {
 @media (hover: hover) and (pointer: fine) {
 
 .btn-primary:hover {
-  background: #4f46e5;
-  border-color: #4f46e5;
+  filter: brightness(1.15);
   box-shadow: 0 0 12px var(--accent-primary-glow);
 }
 }
@@ -436,17 +435,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-success-solid {
-  background: #10b981;
-  border-color: #10b981;
+  background: var(--color-tonnage);
+  border-color: var(--color-tonnage);
   color: #ffffff;
 }
 
 @media (hover: hover) and (pointer: fine) {
 
 .btn-success-solid:hover {
-  background: #059669;
-  border-color: #059669;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+  filter: brightness(1.15);
+  box-shadow: 0 0 12px var(--color-tonnage);
 }
 }
 
@@ -521,8 +519,10 @@ h1, h2, h3, h4, h5, h6 {
 /* Autocomplete suggestion popup */
 .autocomplete-container {
   position: absolute;
-  background: #0f172a;
-  border: 1px solid var(--accent-primary);
+  background: var(--bg-glass-active);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.5);
   z-index: 50;
@@ -1551,14 +1551,15 @@ input::-webkit-list-button {
   bottom: 135%;
   left: 50%;
   transform: translateX(-50%) scale(0.95);
-  background: rgba(10, 15, 30, 1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-glass-active);
+  border: 1px solid var(--border-color);
   padding: 14px 16px;
   border-radius: 12px;
   width: 350px;
   max-width: 85vw;
   box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 10px 15px -5px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   z-index: 1000;
   opacity: 0;
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1578,7 +1579,7 @@ input::-webkit-list-button {
   margin-left: -6px;
   border-width: 6px;
   border-style: solid;
-  border-color: rgba(10, 15, 30, 0.95) transparent transparent transparent;
+  border-color: var(--bg-glass-active) transparent transparent transparent;
 }
 
 @media (hover: hover) and (pointer: fine) {

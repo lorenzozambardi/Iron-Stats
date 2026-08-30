@@ -430,6 +430,33 @@ const DashboardTab = ({
     }
   };
 
+  const renderOverallChartTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{
+          backgroundColor: 'var(--bg-glass-active)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          color: 'var(--text-primary)',
+          fontSize: '0.8rem',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: '4px', color: 'var(--text-secondary)' }}>{label}</div>
+          {payload.map((entry, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: entry.color || 'var(--text-primary)', marginTop: '2px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: entry.color }} />
+              <span>{entry.name}: <strong>{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</strong></span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Bounds calculations to scale the selected metric dynamically
   const overallChartBoundsSelected = useMemo(() => {
     const data = compareMode ? mergedChartData : metricsByWeek;
@@ -1025,7 +1052,7 @@ const DashboardTab = ({
                                     style: { fill: 'var(--text-muted)', fontSize: '10px', textAnchor: 'middle' } 
                                   }}
                                 />
-                                <Tooltip content={(props) => renderMetricTooltip(props, 'overall')} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
+                                <Tooltip content={renderOverallChartTooltip} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }} />
                                 {compareMode && <Legend wrapperStyle={{ fontSize: '11px' }} />}
                                 
                                 <Line 
@@ -1079,7 +1106,7 @@ const DashboardTab = ({
                                 tickFormatter={(val) => Math.round(val).toLocaleString()}
                                 label={{ value: 'Volume (reps)', angle: 90, position: 'insideRight', style: { fill: 'var(--text-muted)', fontSize: 9 } }} 
                               />
-                              <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
+                              <Tooltip contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} />
                               <Legend fontSize={10} />
                               <Line yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--accent-primary)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? 'Tonnage — Selection A' : 'Tonnage (kg)'} />
                               <Line yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--accent-secondary)" strokeWidth={2.5} name={compareMode ? 'Volume — Selection A' : 'Volume (reps)'} />
@@ -1236,7 +1263,7 @@ const DashboardTab = ({
                               />
                               <YAxis stroke="var(--text-muted)" fontSize={10} />
                               {!isMobile && <Tooltip
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                                contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
                                 labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
                                 formatter={(val) => parseFloat(val).toFixed(1)}
                               />}
