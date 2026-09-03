@@ -165,29 +165,98 @@
 % -------------------------------------------------------------
 % METODOLOGIA 2: SPLINE CUBICHE
 % -------------------------------------------------------------
-\begin{frame}{2.2 Metodo 2: Spline Cubiche Interpolanti $C^2$ (Teoria)}
-    \begin{block}{Definizione e Risoluzione Lineare Tridiagonale}
-        Dato l'insieme di nodi $0 = t_0 < t_1 < \dots < t_n = 1$, la spline cubica è un polinomio di grado 3 su ciascun sottointervallo $I_k = [t_k, t_{k+1}]$ con continuità di classe $C^2$:
-        $$S(t) \in C^2[0, 1] \implies S_k(t_k) = y_k, \quad S'_k(t_k) = S'_{k-1}(t_k), \quad S''_k(t_k) = S''_{k-1}(t_k)$$
+\begin{frame}{2.2 Metodo 2: Spline Cubiche $C^2$ — Come si Calcolano i Tratti $S_k(t)$}
+    \begin{block}{Definizione Polinomiale a Tratti su $I_k = [t_k, t_{k+1}]$}
+        Posto $h_k = t_{k+1} - t_k$, su ciascun intervallo la funzione è un polinomio cubico:
+        $$S_k(t) = a_k + b_k (t - t_k) + c_k (t - t_k)^2 + d_k (t - t_k)^3, \quad t \in [t_k, t_{k+1}]$$
     \end{block}
-    \vspace{0.15cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Vantaggi Computazionali}
+            \begin{exampleblock}{Condizioni di Raccordo $C^2$ nei Nodi}
+                \footnotesize
                 \begin{itemize}
-                    \item Continuità di derivata prima e curvatura.
-                    \item Risoluzione del sistema tridiagonale in $\mathcal{O}(n)$ con \textbf{Algoritmo di Thomas}.
-                    \item Elimina le oscillazioni globali di Runge.
+                    \item \textbf{Interpolazione:} $S_k(t_k) = y_k \implies a_k = y_k$.
+                    \item \textbf{Continuità $C^1$:} $S'_k(t_k) = S'_{k-1}(t_k)$ (pendenze).
+                    \item \textbf{Continuità $C^2$:} $S''_k(t_k) = S''_{k-1}(t_k) = M_k$ (curvatura continua nei nodi).
                 \end{itemize}
+            \end{exampleblock}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Coefficienti dai Momenti $M_k = S''(t_k)$}
+                \footnotesize
+                Noti i momenti $\{M_k\}$, ogni tratto è esplicito:
+                $$\begin{aligned}
+                a_k &= y_k, \qquad c_k = \frac{M_k}{2} \\
+                d_k &= \frac{M_{k+1} - M_k}{6 h_k} \\
+                b_k &= \frac{y_{k+1} - y_k}{h_k} - \frac{2 M_k + M_{k+1}}{6} h_k
+                \end{aligned}$$
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 2: Il Sistema Lineare Tridiagonale dei Momenti}
+    \begin{block}{Equazione di Continuità a Tre Termini per $M_k$}
+        Imponendo l'uguaglianza delle derivate prime $S'_{k-1}(t_k) = S'_k(t_k)$ per $k = 1, \dots, n-1$:
+        $$\mu_k M_{k-1} + 2 M_k + \lambda_k M_{k+1} = d_k$$
+        $$\text{con } \mu_k = \frac{h_{k-1}}{h_{k-1} + h_k}, \quad \lambda_k = \frac{h_k}{h_{k-1} + h_k} \; (\mu_k + \lambda_k = 1), \quad d_k = \frac{6 \Delta^2 y_k}{h_{k-1} + h_k}$$
+    \end{block}
+    \begin{columns}[T]
+        \begin{column}{0.54\textwidth}
+            \begin{block}{Sistema Tridiagonale $A \mathbf{M} = \mathbf{d}$ (Spline Naturale)}
+                \tiny
+                $$\begin{pmatrix}
+                2 & \lambda_1 & 0 & \dots & 0 \\
+                \mu_2 & 2 & \lambda_2 & \dots & 0 \\
+                0 & \mu_3 & 2 & \dots & 0 \\
+                \vdots & & \ddots & \ddots & \vdots \\
+                0 & \dots & 0 & \mu_{n-1} & 2
+                \end{pmatrix}
+                \begin{pmatrix} M_1 \\ M_2 \\ M_3 \\ \vdots \\ M_{n-1} \end{pmatrix}
+                =
+                \begin{pmatrix} d_1 \\ d_2 \\ d_3 \\ \vdots \\ d_{n-1} \end{pmatrix}$$
+                \footnotesize Bordo naturale: $M_0 = 0, \quad M_n = 0$.
+            \end{block}
+        \end{column}
+        \begin{column}{0.44\textwidth}
+            \begin{exampleblock}{Dominanza Diagonale Stretta}
+                \footnotesize
+                Su ogni riga vale:
+                $$|2| > |\mu_k| + |\lambda_k| = 1$$
+                La matrice $A$ è \textbf{strettamente diagonalmente dominante per righe}: non singolare, ben condizionata, risolvibile senza pivoting.
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 2: Risoluzione in $\mathcal{O}(n)$ via Algoritmo di Thomas}
+    \begin{block}{L'Algoritmo di Thomas (TDMA: Tri-Diagonal Matrix Algorithm)}
+        È una fattorizzazione $LU$ specializzata per matrici tridiagonali che abbatte il costo da $\mathcal{O}(n^3)$ (Gauss) a \textbf{tempo strettamente lineare $\mathcal{O}(n)$}:
+    \end{block}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{1. Forward Sweep (Eliminazione)}
+                \footnotesize
+                Annulla la sotto-diagonale $\mu_k$ da $k=1$ a $n-1$:
+                $$\begin{aligned}
+                c'_1 &= \frac{\lambda_1}{2}, \quad d'_1 = \frac{d_1}{2} \\
+                c'_k &= \frac{\lambda_k}{2 - \mu_k c'_{k-1}} \\
+                d'_k &= \frac{d_k - \mu_k d'_{k-1}}{2 - \mu_k c'_{k-1}}
+                \end{aligned}$$
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{alertblock}{Limite Fisico Fondamentale}
-                \begin{itemize}
-                    \item \textbf{Assenza di forma vincolata:} la spline cubica non rispetta la monotonicità locale né la positività.
-                    \item Tende a produrre \textbf{undershoot non fisici}:
-                    $$y(t) < 0$$
-                \end{itemize}
+            \begin{block}{2. Back Substitution (Risoluzione)}
+                \footnotesize
+                Risolve a ritroso i momenti $M_k$:
+                $$\begin{aligned}
+                M_{n-1} &= d'_{n-1} \\
+                M_k &= d'_k - c'_k M_{k+1} \\
+                \text{per } k &= n-2, \dots, 1
+                \end{aligned}$$
+            \end{block}
+            \begin{alertblock}{Limite Fisico: Undershoot}
+                \footnotesize Nonostante $\mathcal{O}(n)$, la spline \textbf{non preserva la positività}: produce $y(t) < 0$.
             \end{alertblock}
         \end{column}
     \end{columns}
