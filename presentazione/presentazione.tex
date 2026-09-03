@@ -150,16 +150,38 @@
     \end{exampleblock}
 \end{frame}
 
-\begin{frame}{2.2 Metodo 1: Nodi di Chebyshev-Gauss-Lobatto (Caso LR)}
+\begin{frame}{2.2 Metodo 1: Nodi Non Equispaziati di Gauss-Lobatto (Teoria)}
+    \begin{block}{Distribuzione di Chebyshev-Gauss-Lobatto (CGL)}
+        Per superare il fenomeno di Runge, si addensano i nodi agli estremi del ROM secondo la proiezione dei punti di Chebyshev sull'intervallo $[0, 1]$:
+        $$t_k = \frac{1}{2}\left(1 - \cos\frac{k\pi}{N-1}\right), \qquad k = 0, 1, \dots, N-1$$
+    \end{block}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{Vantaggio Teorico (Costante di Lebesgue)}
+                L'errore di interpolazione soddisfa $\|f - p_{N-1}\|_\infty \le (1 + \Lambda_N) E_{N-1}(f)$:
+                \begin{itemize}
+                    \item Nodi equispaziati: $\Lambda_N \sim \mathcal{O}(2^N)$ (divergenza esponenziale).
+                    \item \textbf{Nodi CGL:} $\Lambda_N \sim \frac{2}{\pi}\ln N + \mathcal{O}(1)$ (crescita solo logaritmica).
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{alertblock}{Perché Fallisce nella Biomeccanica?}
+                \begin{itemize}
+                    \item Servono \textbf{troppi parametri} ($N \ge 12 \div 16$) per tentare di catturare la zona piatta di riposo ($t \in [0, 0.2]$).
+                    \item La natura globale del polinomio genera comunque \textbf{ondulazioni parassite} e valori negativi non fisici ($y < 0$).
+                \end{itemize}
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 1: Risultati Gauss-Lobatto su LR ($N=6, 12, 16$)}
     \centering
-    \includegraphics[height=0.48\textheight, keepaspectratio]{plot_lagrange_gauss_lobatto.png}
-    \begin{alertblock}{Perché Gauss-Lobatto non risolve il problema?}
-        \footnotesize \textbf{Distribuzione CGL:} $t_k = \frac{1}{2}\left(1 - \cos\frac{k\pi}{N-1}\right)$ addensa i nodi agli estremi ed elimina Runge teorico, ma:
-        \begin{itemize}
-            \item Servono \textbf{troppi parametri} ($N \ge 12 \div 16$) per tentare di catturare la zona piatta di quiete ($t \in [0, 0.2]$).
-            \item Permangono \textbf{ondulazioni parassite} e valori negativi $y(t) < 0$, rendendo il modello instabile e non parsimonioso.
-        \end{itemize}
-    \end{alertblock}
+    \includegraphics[height=0.54\textheight, keepaspectratio]{plot_lagrange_gauss_lobatto.png}
+    \begin{exampleblock}{Analisi del Plot Comparativo su LR}
+        \footnotesize Anche aumentando i nodi fino a $N=16$, il polinomio globale non riesce ad appiattirsi a zero all'inizio del movimento ($0 \le t \le 0.2$), producendo fluttuazioni non fisiologiche e richiedendo un numero ingestibile di parametri per l'utente.
+    \end{exampleblock}
 \end{frame}
 
 % -------------------------------------------------------------
