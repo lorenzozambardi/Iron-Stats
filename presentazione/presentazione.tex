@@ -311,41 +311,64 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{2.2 Metodo 3: Come Funziona Geometricamente (De Casteljau)}
-    \begin{block}{Interpolazioni Lineari Annidate (LERP Ricorsivo a 3 Livelli)}
-        Fissato $t \in [0, 1]$, il punto sulla curva $\mathbf{P}(t)$ si ottiene ricorsivamente:
+\begin{frame}[shrink=2]{2.2 Metodo 3: Costruzione Geometrica (Algoritmo di De Casteljau)}
+    \begin{block}{Il Principio dei Tagli Proporzionali Progressivi}
+        Dato $t \in [0, 1]$, la curva si costruisce geometricamente dividendo ricorsivamente i segmenti in rapporto $t : (1-t)$:
         \begin{itemize}
-            \item \textbf{Livello 1:} $Q_i(t) = (1-t)P_i + t P_{i+1}, \quad i \in \{0, 1, 2\}$
-            \item \textbf{Livello 2:} $R_i(t) = (1-t)Q_i(t) + t Q_{i+1}(t), \quad i \in \{0, 1\}$
-            \item \textbf{Livello 3:} $\mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)$
+            \item \textbf{Passo 1 (Poligono di Controllo):} sui 3 segmenti $\{P_i P_{i+1}\}$, il taglio a frazione $t$ individua 3 punti intermedi:
+            $$Q_i(t) = (1-t)P_i + t P_{i+1}, \quad i \in \{0, 1, 2\}$$
+            \item \textbf{Passo 2 (Segmenti Intermedi):} collegando i $\{Q_i\}$ in 2 segmenti, il taglio a frazione $t$ individua 2 punti:
+            $$R_i(t) = (1-t)Q_i(t) + t Q_{i+1}(t), \quad i \in \{0, 1\}$$
+            \item \textbf{Passo 3 (Punto Finale):} sul segmento $R_0 - R_1$, il taglio a frazione $t$ dà:
+            $$\mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)$$
         \end{itemize}
     \end{block}
+    \begin{exampleblock}{Proprietà Notevole della Tangente Istantanea}
+        \footnotesize Il segmento $R_0 - R_1$ non trova solo $\mathbf{P}(t)$: \textbf{è esattamente la retta tangente alla curva in quel punto}!
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: Visualizzazione Geometrica su LR ($t = 0.5$)}
+    \centering
+    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_de_casteljau.png}
+    \begin{block}{Lettura Grafica della Costruzione Geometrica su LR}
+        \footnotesize
+        \begin{itemize}
+            \item \textbf{Tratti tratteggiati grigi:} poligono di controllo originario $\{P_0, P_1, P_2, P_3\}$.
+            \item \textbf{Segmenti blu e punti $Q_i$:} punti medi ($t=0.5$) dei segmenti di controllo iniziali.
+            \item \textbf{Segmento arancione $R_0 - R_1$:} unione dei punti di secondo livello; è tangente alla curva in $\mathbf{P}(0.5)$.
+            \item \textbf{Punto rosso $\mathbf{P}(0.5)$:} punto medio di $R_0 - R_1$, giacente esattamente sulla traiettoria biomeccanica.
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: Proprietà Geometrica di Suddivisione (Subdivision)}
+    \begin{block}{Teorema della Suddivisione Ricorsiva}
+        La costruzione di De Casteljau non si limita a valutare $\mathbf{P}(t)$: genera automaticamente i punti di controllo per \textbf{spezzare la curva in due sub-curve di Bézier esatte}!
+    \end{block}
     \begin{columns}[T]
-        \begin{column}{0.50\textwidth}
-            \begin{exampleblock}{Ruolo Fisico dei Punti di Controllo}
-                \begin{itemize}
-                    \item $P_0, P_3$: \textbf{ancore di attivazione} ($t=0, 1$ locale). Delimitano $[x_0, x_3]$ e \textbf{non sono vincolati} a $x=0, 1$ (es. LR: $x_0=0.2, x_3=0.9$, con $y=0$ altrove).
-                    \item $P_1, P_2$: \textbf{attrattori tangenziali} della curvatura.
-                \end{itemize}
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{Ramo Sinistro (Intervallo $[0, t]$)}
+                Curva di Bézier cubica con nodi di controllo:
+                $$\mathcal{C}_{\text{sinistra}} = \{P_0, \; Q_0, \; R_0, \; \mathbf{P}(t)\}$$
             \end{exampleblock}
+            \vspace{0.1cm}
+            \begin{alertblock}{Ramo Destro (Intervallo $[t, 1]$)}
+                Curva di Bézier cubica con nodi di controllo:
+                $$\mathcal{C}_{\text{destra}} = \{\mathbf{P}(t), \; R_1, \; Q_2, \; P_3\}$$
+            \end{alertblock}
         \end{column}
-        \begin{column}{0.46\textwidth}
-            \begin{block}{Stabilità \& Dead Zones}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Applicazioni Computazionali}
+                \footnotesize
                 \begin{itemize}
-                    \item Sole combinazioni convesse ($t \in [0, 1]$) $\implies$ totale stabilità numerica.
-                    \item Modella naturalmente escursioni con contrazione parziale nel ROM.
+                    \item \textbf{Raffinamento Locale:} calcolo della quadratura e dell'area sottesa per integrazione numerica adattiva senza valutare polinomi complessi.
+                    \item \textbf{Zero Divisioni:} solo somme pesate $a(1-t) + bt$, stabili al $100\%$ anche in aritmetica a precisione ridotta.
+                    \item \textbf{Complessità $\mathcal{O}(1)$:} 6 semplici interpolazioni lineari 2D.
                 \end{itemize}
             \end{block}
         \end{column}
     \end{columns}
-\end{frame}
-
-\begin{frame}{2.2 Metodo 3: Costruzione Geometrica su LR ($t = 0.5$)}
-    \centering
-    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_de_casteljau.png}
-    \begin{exampleblock}{Visualizzazione Dinamica della Costruzione}
-        \footnotesize I segmenti grigi uniscono $\{P_i\}$, quelli blu $\{Q_i\}$ al $50\%$, quelli arancioni $\{R_i\}$ al $50\%$, determinando univocamente il punto rosso $\mathbf{P}(0.5)$ sulla curva reale di attivazione di LR.
-    \end{exampleblock}
 \end{frame}
 
 \begin{frame}{2.2 Metodo 3: Come si Calcola la Tensione $y(x)$ nel Software}
