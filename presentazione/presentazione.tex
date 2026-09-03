@@ -545,7 +545,27 @@
 \section{4. Modello Matematico: Ottimizzazione su Curva di Tensione Cumulativa}
 % =============================================================
 
-\begin{frame}{4.1 Variabili Decisionali e Parametri di Configurazione}
+\begin{frame}{4.1 Introduzione: Limiti Scientifici e Bias nei Modelli}
+    \begin{block}{Ipertrofia Muscolare: Un Territorio Scientifico Aperto}
+        \footnotesize
+        \begin{itemize}
+            \item I meccanismi biologici che regolano l'ipertrofia (tensione meccanica, danno muscolare, stretch-mediated hypertrophy) \textbf{non sono ancora del tutto compresi} né descritti da leggi universali di primo principio.
+            \item La letteratura scientifica presenta teorie in continua evoluzione e una marcata variabilità soggettiva nella risposta biomeccanica allo stimolo.
+        \end{itemize}
+    \end{block}
+    \vspace{-0.1cm}
+    \begin{alertblock}{L'Inevitabilità di un Forte Bias Modellistico}
+        \footnotesize
+        Formulare un modello matematico in questo contesto impone assunzioni a priori, introducendo un \textbf{bias teorico ed empirico inevitabilmente molto grande} da parte del modellatore.
+    \end{alertblock}
+    \vspace{-0.1cm}
+    \begin{exampleblock}{La Risposta: Un'Architettura Aperta e Parametrizzabile}
+        \footnotesize
+        Il software non impone verità assolute: trasforma il bias in \textbf{scelte trasparenti per l'utente}, fornendo una struttura di ottimizzazione i cui vincoli e curve sono interamente personalizzabili da UI.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{4.2 Variabili Decisionali e Limiti Operativi di Default}
     \begin{block}{1. Variabili Decisionali Discrete}
         \footnotesize
         \begin{itemize}
@@ -555,26 +575,19 @@
         \end{itemize}
     \end{block}
     \vspace{-0.1cm}
-    \begin{exampleblock}{2. Parametri di Input Modificabili da Interfaccia (UI)}
+    \begin{exampleblock}{2. Limiti Operativi di Default (Nessun Vincolo Hard-Coded)}
         \footnotesize
-        Tutti i vincoli e limiti sono configurabili liberamente dall'utente (nessun limite hard-coded):
+        Dato l'alto bias intrinseco, \textbf{nessun vincolo è hard-coded}: l'utente ha piena libertà di scegliere vincoli estremamente rigidi o rilassarli da interfaccia. I valori di default correnti sono:
         \begin{itemize}
-            \item $D$: Giorni del microciclo, con $3 \le D \le 7$.
-            \item $T$: Set di punti discreti che mappano il Range of Motion (ROM).
-            \item $C_{i,m}(t)$: Curva di tensione di base dell'esercizio $i$ sul muscolo $m$; $F_i$: fatica sistemica.
-            \item $T_m(t)$: Curva Target ideale su $t \in [0, 1]$, selezionabile tra:
-            \textbf{Costante} ($T_m(t) = c$), \textbf{Sigmoide} (contrazione), \textbf{Sigmoide Inversa} (allungamento), \textbf{Lineare} (decrescente).
+            \item \textbf{Microciclo e Densità:} $D \in [3, 7]$ giorni; esercizi per sessione $E_{min} = 3, E_{max} = 10$.
+            \item \textbf{Volume e Ripetizioni:} serie $V_{min} = 1, V_{max} = 6$; ripetizioni $R_{min} = 5, R_{max} = 20$.
+            \item \textbf{Fatica e Recupero:} limite fatica max/giorno $F_{max} = 1500$; recuperi $80\,\text{s} \div 210\,\text{s}$.
+            \item \textbf{Curve Target $T_m(t)$:} selezionabili tra Costante ($c$), Sigmoide, Sigmoide Inversa, Lineare.
         \end{itemize}
     \end{exampleblock}
-    \vspace{-0.1cm}
-    \begin{alertblock}{Limiti Operativi di Default}
-        \scriptsize
-        Serie: $V_{min} = 1, V_{max} = 6$; Reps: $R_{min} = 5, R_{max} = 20$; Esercizi/giorno: $E_{min} = 3, E_{max} = 10$; \\
-        Fatica giornaliera: $F_{max\_giorno} = 1500$; Recupero: $Rest_{min} = 80\,\text{s}$ (1'20''), $Rest_{max} = 210\,\text{s}$ (3'30'').
-    \end{alertblock}
 \end{frame}
 
-\begin{frame}{4.2 Funzione Obiettivo: Ottimizzazione Multi-Obiettivo Scalarizzata}
+\begin{frame}{4.3 Funzione Obiettivo: Ottimizzazione Multi-Obiettivo Scalarizzata}
     \begin{block}{3.1 Pesi e Target di Efficienza (Impostabili da UI)}
         \footnotesize
         L'utente definisce i \textbf{Pesi ($w_k$)} (la cui somma è normalizzata a $1.0$ via Softmax) e i \textbf{Target Ideali}:
@@ -597,7 +610,7 @@
     \end{exampleblock}
 \end{frame}
 
-\begin{frame}{4.3 Calcolo degli Errori Normalizzati $[0, 1]$: Curva ed Efficienza}
+\begin{frame}{4.4 Calcolo degli Errori Normalizzati $[0, 1]$: Curva ed Efficienza}
     \begin{block}{Errore Curva (Media del MSE sui Muscoli Analizzati)}
         \footnotesize
         L'errore quadratico medio calcolato sui punti discreti della curva viene sommato per tutti i muscoli e diviso per $|M|$ e la risoluzione del ROM:
@@ -628,7 +641,7 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{4.4 Calcolo degli Errori Normalizzati $[0, 1]$: Distribuzione e Bilanciamento}
+\begin{frame}{4.5 Calcolo degli Errori Normalizzati $[0, 1]$: Distribuzione e Bilanciamento}
     \begin{block}{Errore Distribuzione Volumi (Distanza Massima Normalizzata)}
         \footnotesize
         Target anatomico globale: $Target_{globale}(m) = Macro\%(M) \times Sub\%(m)$. \\
@@ -654,7 +667,7 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{4.5 Vincoli Fisiologici (Constraints)}
+\begin{frame}{4.6 Vincoli Fisiologici (Constraints)}
     \begin{block}{4.1 Limiti di Serie e Ripetizioni (Formulazione Big-M)}
         \footnotesize
         Se l'esercizio è scelto ($x_{i,d} = 1$), rispetta i limiti; se inattivo ($x_{i,d} = 0$), i valori collassano a 0:
