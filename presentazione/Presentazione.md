@@ -28,7 +28,7 @@
 ## 2.2 Analisi Numerica delle Curve di Tensione
 - **Confronto teorico e matematico tra metodi di approssimazione/interpolazione:**
   1. *Interpolazione polinomiale di Lagrange/Newton:*
-     - Matrice di Vandermonde $V$ associata e divergenza del numero di condizionamento $\kappa(V) \to \infty$.
+     - Costante di Lebesgue $\Lambda_n \sim \mathcal{O}(2^n)$ su nodi equispaziati (evita la matrice di Vandermonde $V$, ma l'errore cresce ed esplode esponenzialmente).
      - Insorgenza del **Fenomeno di Runge** a estremi liberi con nodi equispaziati ($\lim_{n \to \infty} \max |f(x) - p_n(x)| = \infty$).
   2. *Spline Cubiche Interpolanti ($C^2$):*
      - Risoluzione del sistema lineare tridiagonale $A \mathbf{m} = \mathbf{d}$ tramite algoritmo di Thomas in tempo $\mathcal{O}(n)$.

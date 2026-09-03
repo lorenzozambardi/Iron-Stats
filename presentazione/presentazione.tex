@@ -131,10 +131,9 @@
         Dati $n$ punti campionati $(t_i, y_i)$ lungo il ROM $t \in [0, 1]$:
         $$p_{n-1}(t) = \sum_{i=1}^n y_i \ell_i(t), \qquad \ell_i(t) = \prod_{j \ne i} \frac{t - t_j}{t_i - t_j}$$
     \end{block}
-    \vspace{0.15cm}
     \begin{alertblock}{Condizionamento e Fenomeno di Runge}
         \begin{itemize}
-            \item \textbf{Matrice di Vandermonde:} $V \mathbf{a} = \mathbf{y}$ con $V_{ij} = t_i^{j-1}$. Il numero di condizionamento cresce esponenzialmente: $\kappa(V) \sim \mathcal{O}(e^{\gamma n}) \implies$ perdita totale di stabilità numerica.
+            \item \textbf{Costante di Lebesgue:} $\Lambda_n = \max_{t \in [0, 1]} \sum_{i=1}^n |\ell_i(t)|$. Pur evitando la matrice di Vandermonde ($V \mathbf{a} = \mathbf{y}$), sui nodi equispaziati $\Lambda_n \sim \mathcal{O}(2^n)$: l'errore cresce esponenzialmente.
             \item \textbf{Fenomeno di Runge (Nodi Equispaziati):}
             $$\lim_{n \to \infty} \max_{t \in [0, 1]} |f(t) - p_{n-1}(t)| = \infty$$
             L'errore diverge esponenzialmente in corrispondenza degli estremi ($t \to 0$ e $t \to 1$).
