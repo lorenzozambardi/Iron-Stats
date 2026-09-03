@@ -233,6 +233,71 @@
     \end{columns}
 \end{frame}
 
+\begin{frame}{2.2 Metodo 3: Come Funziona Geometricamente (De Casteljau)}
+    \begin{block}{Interpolazioni Lineari Annidate (LERP Ricorsivo)}
+        Fissato un parametro $t \in [0, 1]$, il punto sulla curva $\mathbf{P}(t)$ si ottiene con 3 passi di interpolazione lineare ponderata:
+        \begin{align*}
+        \text{\textbf{Livello 1:}} \quad & Q_0(t) = (1-t)P_0 + t P_1, \quad Q_1(t) = (1-t)P_1 + t P_2, \quad Q_2(t) = (1-t)P_2 + t P_3 \\
+        \text{\textbf{Livello 2:}} \quad & R_0(t) = (1-t)Q_0(t) + t Q_1(t), \quad R_1(t) = (1-t)Q_1(t) + t Q_2(t) \\
+        \text{\textbf{Livello 3:}} \quad & \mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)
+        \end{align*}
+    \end{block}
+    \vspace{0.1cm}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{Ruolo Fisico dei Punti di Controllo}
+                \begin{itemize}
+                    \item $P_0$ e $P_3$: \textbf{ancore} inizio/fine ROM ($t=0$ e $t=1$).
+                    \item $P_1$ e $P_2$: poli di attrazione tangenziale (senza forzare il passaggio per essi $\implies$ zero oscillazioni).
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Stabilità Numerica Assoluta}
+                Eseguendo solo combinazioni convesse ($0 \le t \le 1$), l'algoritmo non soffre di cancellazione numerica né di amplificazione di errori di arrotondamento.
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: Costruzione Geometrica su LR ($t = 0.5$)}
+    \centering
+    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_de_casteljau.png}
+    \begin{exampleblock}{Visualizzazione Dinamica della Costruzione}
+        \footnotesize I segmenti grigi uniscono $\{P_i\}$, quelli blu $\{Q_i\}$ al $50\%$, quelli arancioni $\{R_i\}$ al $50\%$, determinando univocamente il punto rosso $\mathbf{P}(0.5)$ sulla curva reale di attivazione di LR.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: Come si Calcola la Tensione $y(x)$ nel Software}
+    \begin{block}{Il Problema dell'Inversione Cinematica}
+        Bézier è parametrizzata in $t \in [0, 1] \implies \begin{cases} x(t) = (1-t)^3 x_0 + 3t(1-t)^2 x_1 + 3t^2(1-t) x_2 + t^3 x_3 \\ y(t) = (1-t)^3 y_0 + 3t(1-t)^2 y_1 + 3t^2(1-t) y_2 + t^3 y_3 \end{cases}$ \\
+        Per calcolare la tensione $y$ dato un angolo di ROM target $x_{target} \in [0, 1]$:
+    \end{block}
+    \vspace{0.1cm}
+    \begin{columns}[T]
+        \begin{column}{0.50\textwidth}
+            \begin{alertblock}{Risoluzione Radice $x(t) - x_{target} = 0$}
+                \begin{itemize}
+                    \item Poiché $x_0 < x_1 < x_2 < x_3$, la funzione $x(t)$ è \textbf{strettamente monotona crescente}.
+                    \item Esiste un'\textbf{unica soluzione} $t^* \in [0, 1]$.
+                    \item Trovata con \textbf{bisezione} in max 15 iterazioni:
+                    $$|x(t^{(k)}) - x_{target}| < 10^{-3}$$
+                \end{itemize}
+            \end{alertblock}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{Valutazione Diretta di $y$}
+                Una volta calcolato $t^*$, la tensione vale:
+                $$y_{target} = y(t^*)$$
+                \begin{itemize}
+                    \item Se $x_{target} < x_0$ o $x_{target} > x_3 \implies y = 0$.
+                    \item Costo costante $\mathcal{O}(1)$ in frazioni di microsecondo.
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 \begin{frame}{2.2 Metodo 3: Funzioni Base di Bernstein e Curva LR}
     \centering
     \includegraphics[height=0.54\textheight, keepaspectratio]{plot_bezier_dettaglio.png}
