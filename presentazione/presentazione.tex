@@ -212,25 +212,70 @@
 % -------------------------------------------------------------
 % METODOLOGIA 3: BÉZIER
 % -------------------------------------------------------------
-\begin{frame}{2.2 Metodo 3: Curve di Bézier e Polinomi di Bernstein (Teoria)}
-    \begin{block}{Definizione Vettoriale Bidimensionale ($x, y$)}
-        Ogni punto ha due coordinate: $\mathbf{P}_i = \begin{pmatrix} x_i \\ y_i \end{pmatrix} \implies \mathbf{P}(t) = \begin{pmatrix} x(t) \\ y(t) \end{pmatrix} = \sum_{i=0}^3 \begin{pmatrix} x_i \\ y_i \end{pmatrix} B_{i,3}(t)$
+\begin{frame}{2.2 Metodo 3: Curve Parametriche di Bézier (Formulazione 2D)}
+    \begin{block}{Definizione Vettoriale e per Componenti}
+        Ogni punto di controllo è un vettore nel piano ROM-Tensione: $\mathbf{P}_i = \begin{pmatrix} x_i \\ y_i \end{pmatrix} \in \mathbb{R}^2$. \\
+        La curva è una combinazione lineare pesata a due coordinate:
+        $$\mathbf{P}(t) = \begin{pmatrix} x(t) \\ y(t) \end{pmatrix} = \sum_{i=0}^3 \begin{pmatrix} x_i \\ y_i \end{pmatrix} B_{i,3}(t), \quad t \in [0, 1]$$
+        $$\begin{cases}
+        x(t) = B_{0,3}(t) x_0 + B_{1,3}(t) x_1 + B_{2,3}(t) x_2 + B_{3,3}(t) x_3 \\
+        y(t) = B_{0,3}(t) y_0 + B_{1,3}(t) y_1 + B_{2,3}(t) y_2 + B_{3,3}(t) y_3
+        \end{cases}$$
     \end{block}
+    \begin{exampleblock}{Cosa Sono i Coefficienti $B_{i,3}(t)$?}
+        \footnotesize Sono le \textbf{funzioni di miscelazione (blending functions)} di Bernstein: ad ogni istante $t \in [0, 1]$, stabiliscono il peso percentuale con cui ciascun punto $\mathbf{P}_i$ attira la curva a sé.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: I Polinomi Base di Bernstein ($B_{i,3}$)}
+    \begin{block}{Definizione Analitica Generale}
+        I polinomi di Bernstein di grado $n=3$ sono definiti dal binomio:
+        $$B_{i,3}(t) = \binom{3}{i} t^i (1-t)^{3-i}, \quad \text{con } \binom{3}{i} = \frac{3!}{i!(3-i)!}, \quad t \in [0, 1]$$
+    \end{block}
+    \vspace{0.1cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{exampleblock}{Invarianza Affine}
-                Poiché i pesi sommano a uno ($\sum_{i=0}^3 B_{i,3} \equiv 1$):
-                $$T\big(\mathbf{P}(t)\big) = \sum_{i=0}^3 T(\mathbf{P}_i) B_{i,3}(t)$$
-                \footnotesize Traslazioni, rotazioni e \textbf{cambi di scala} (es. da gradi a $[0, 1]$ o carichi in kg) trasformano i soli 4 punti $\mathbf{P}_i$ senza dover ricalcolare la curva.
+            \begin{block}{Espressioni Esplicite ($n=3$)}
+                \begin{itemize}
+                    \item $\mathbf{B_{0,3}(t) = (1-t)^3}$
+                    \item $\mathbf{B_{1,3}(t) = 3t(1-t)^2}$
+                    \item $\mathbf{B_{2,3}(t) = 3t^2(1-t)}$
+                    \item $\mathbf{B_{3,3}(t) = t^3}$
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.50\textwidth}
+            \begin{exampleblock}{Dinamica di Ponderazione}
+                \footnotesize
+                \begin{itemize}
+                    \item A $t=0$: $B_{0,3}=1$, gli altri $0 \implies \mathbf{P}(0) = \mathbf{P}_0$.
+                    \item A $t=1/3$: picco di influenza per $\mathbf{P}_1$.
+                    \item A $t=2/3$: picco di influenza per $\mathbf{P}_2$.
+                    \item A $t=1$: $B_{3,3}=1$, gli altri $0 \implies \mathbf{P}(1) = \mathbf{P}_3$.
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: Proprietà dei Bernstein (Partizione Unità \& Positività)}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{1. Partizione dell'Unità}
+                Dallo sviluppo del binomio di Newton:
+                $$\sum_{i=0}^3 B_{i,3}(t) = \big((1-t) + t\big)^3 \equiv 1$$
+                \footnotesize I pesi sommano sempre al $100\%$.
+                \vspace{0.1cm} \\
+                \textbf{Invarianza Affine:} cambi di scala (es. da gradi a $[0, 1]$ o carichi in kg) si applicano solo ai 4 punti $\mathbf{P}_i$ senza dover ricalcolare la curva.
             \end{exampleblock}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{alertblock}{Inviluppo Convesso (Convex Hull)}
-                Poiché i pesi sono non-negativi ($B_{i,3} \ge 0$):
-                $$\mathbf{P}(t) \in \text{Conv}(\{\mathbf{P}_0, \mathbf{P}_1, \mathbf{P}_2, \mathbf{P}_3\})$$
-                \footnotesize \textbf{Garanzia fisica:}
-                $$y_i \ge 0 \;\; \forall i \implies y(t) \ge 0 \;\; \forall t$$
-                Tensione muscolare sempre non-negativa per costruzione geometrica.
+            \begin{alertblock}{2. Positività Rigorosa}
+                Poiché $t \ge 0$ e $(1-t) \ge 0$:
+                $$B_{i,3}(t) \ge 0 \implies \mathbf{P}(t) \in \text{Conv}(\{\mathbf{P}_i\})$$
+                \footnotesize \textbf{Garanzia fisica fondamentale:}
+                $$y_i \ge 0 \;\; \forall i \implies y(t) \ge 0 \quad \forall t$$
+                La tensione muscolare non può mai scendere sotto zero per costruzione geometrica.
             \end{alertblock}
         \end{column}
     \end{columns}
