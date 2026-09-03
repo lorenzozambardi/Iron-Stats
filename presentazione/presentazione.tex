@@ -456,13 +456,18 @@
 
 \begin{frame}{2.3 Quadratura Numerica e Riscalamento Vincolato}
     \begin{block}{Calcolo dell'Area Sotto la Curva (AUC)}
+        \footnotesize
         Griglia discreta $N = 50$, passo $h = \Delta t = \frac{1}{N-1}$:
-        $$I_{trap} = \int_0^1 y(x)\,dx \approx \sum_{k=0}^{N-2} \frac{y(t_k) + y(t_{k+1})}{2} (t_{k+1} - t_k)$$
-        Errore di troncamento della formula composita: $E_{trap} = -\frac{1}{12(N-1)^2} y''(\xi) = \mathcal{O}(h^2)$.
+        $$I_{trap} = \int_0^1 y(t)\,dt \approx \sum_{k=0}^{N-2} \frac{y(t_k) + y(t_{k+1})}{2} (t_{k+1} - t_k), \qquad E_{trap} = -\frac{h^2}{12} y''(\xi) = \mathcal{O}(h^2)$$
     \end{block}
     \begin{block}{Operatore di Riscalamento Funzionale}
-        Garantisce che l'integrale coincida esattamente con la magnitudo target $M$:
-        $$\tilde{y}(t) = \begin{cases} y(t) \cdot \frac{M}{I_{trap}} & \text{se } I_{trap} > 0 \\ \mathbf{0} & \text{altrimenti} \end{cases} \implies \int_0^1 \tilde{y}(t)\,dt = M + \mathcal{O}(h^2)$$
+        \footnotesize
+        Normalizza la curva rispetto alla quadratura discreta calcolata:
+        $$\tilde{y}(t) = \begin{cases} y(t) \cdot \frac{M}{I_{trap}} & \text{se } I_{trap} > 0 \\ 0 & \text{altrimenti} \end{cases}$$
+        \begin{itemize}\setlength{\itemsep}{1pt}
+            \item \textbf{Consistenza discreta (software):} $I_{trap}(\tilde{y}) \equiv M$ (esatta sulla griglia di calcolo).
+            \item \textbf{Limite continuo:} $\int_0^1 \tilde{y}(t)\,dt = M + \mathcal{O}(h^2)$ (a meno del troncamento $\mathcal{O}(h^2)$).
+        \end{itemize}
     \end{block}
 \end{frame}
 
