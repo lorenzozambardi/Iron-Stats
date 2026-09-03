@@ -69,14 +69,14 @@
     \begin{itemize}
         \item \textbf{Approccio Scalare Classico:}
         \begin{itemize}
-            \item $\text{Volume} = \text{Serie} \times \text{Ripetizioni}$
+            \item $\text{Volume} = \text{Serie} \times \text{Reps}$
             \item $\text{Tonnellaggio grezzo} = \text{Serie} \times \text{Reps} \times \text{Carico}$
         \end{itemize}
         \vspace{0.3cm}
         \item \textbf{Criticità Fisiologiche e Meccaniche:}
         \begin{itemize}
             \item Incapacità di modellare la variazione continua del \textbf{braccio di leva} muscolo-articolare.
-            \item Ignora il \textbf{profilo di resistenza} delle macchine o dei pesi liberi lungo il Range of Motion (ROM).
+            \item Trascuratezza del \textbf{profilo di resistenza} reale lungo il Range of Motion (ROM).
             \item Mancata stima dell'\textbf{affaticamento neuromuscolare intrinseco} e della caduta di velocità concentrica.
         \end{itemize}
     \end{itemize}
@@ -88,7 +88,7 @@
         $$t \in [0, 1] \quad (\text{Range of Motion - ROM})$$
     \end{block}
     \vspace{0.2cm}
-        L'ottimizzazione del programma settimanale viene formulata come un \textbf{Problema di minimo globale multiobiettivo vincolato su spazio discreto combinatorio}
+        L'ottimizzazione del programma settimanale viene formulata come un \textbf{Problema di minimo globale multiobiettivo vincolato su spazio discreto combinatorio}.
 \end{frame}
 
 \begin{frame}{1.3 Obiettivi di Calcolo Scientifico e Metodi Numerici}
@@ -116,7 +116,7 @@
 \end{frame}
 
 % =============================================================
-\section{2. Models: Modellazione e Approssimazione Funzionale}
+\section{2. Modellazione e Approssimazione Funzionale}
 % =============================================================
 
 \begin{frame}
@@ -134,15 +134,15 @@
 \begin{frame}{2.1 Formalizzazione della Classe Esercizio}
     \begin{block}{Parametri Biomeccanici}
         \begin{itemize}
-            \item $c_{load} \in (0, 1]$: Efficienza articolare e dispersione del carico.
-            \item $f_{base} \in [1, 10]$: Coefficiente intrinseco di affaticamento sistemico.
-            \item $\mu_{load} \in \mathbb{R}^+, \; q_{load} \in \mathbb{R}$: Correzione carico effettivo: $L = L_{nom} \cdot \mu_{load} + q_{load}$.
-            \item $is\_isolation \in \{0, 1\}$: Flag booleano esercizio mono/multi-articolare.
+            \item $c_{\mathrm{load}} \in (0, 1]$: Efficienza articolare e dispersione del carico.
+            \item $f_{\mathrm{base}} \in [1, 10]$: Coefficiente intrinseco di affaticamento sistemico.
+            \item $\mu_{\mathrm{load}} \in \mathbb{R}^+, \; q_{\mathrm{load}} \in \mathbb{R}$: Correzione carico effettivo: $L = L_{\mathrm{nom}} \cdot \mu_{\mathrm{load}} + q_{\mathrm{load}}$.
+            \item $\mathrm{is\_isolation} \in \{0, 1\}$: Flag booleano esercizio mono/multi-articolare.
         \end{itemize}
     \end{block}
     \begin{alertblock}{Vincolo di Conservazione della Ripartizione Muscolare}
         Per l'insieme dei distretti $\mathcal{M}$ e vettore magnitudo $\mathbf{M} = [M_1, \dots, M_k]^T$:
-        $$\sum_{m \in \mathcal{M}} M_m = 1.0 \pm \varepsilon, \quad \varepsilon \le 10^{-4}$$
+        $$\left| \sum_{m \in \mathcal{M}} M_m - 1.0 \right| \le \varepsilon, \quad \varepsilon \le 10^{-4}$$
         \footnotesize \textbf{Tolleranza numerica $\varepsilon$:} dovuta all'aritmetica floating-point IEEE 754.
 \end{alertblock}
 \end{frame}
@@ -365,7 +365,7 @@
         \end{itemize}
     \end{block}
     \begin{exampleblock}{Proprietà Notevole della Tangente Istantanea}
-        \footnotesize Il segmento $R_0 - R_1$ non trova solo $\mathbf{P}(t)$: \textbf{è esattamente la retta tangente alla curva in quel punto}
+        \footnotesize Il segmento $R_0 - R_1$ non trova solo $\mathbf{P}(t)$: \textbf{è esattamente la retta tangente alla curva in quel punto.}
     \end{exampleblock}
 \end{frame}
 
@@ -385,7 +385,7 @@
 
 \begin{frame}{2.2 Metodo 3: Proprietà Geometrica di Suddivisione (Subdivision)}
     \begin{block}{Teorema della Suddivisione Ricorsiva}
-        La costruzione di De Casteljau non si limita a valutare $\mathbf{P}(t)$: genera automaticamente i punti di controllo per \textbf{spezzare la curva in due sub-curve di Bézier esatte}
+        La costruzione di De Casteljau non si limita a valutare $\mathbf{P}(t)$: genera automaticamente i punti di controllo per \textbf{spezzare la curva in due sub-curve di Bézier esatte.}
     \end{block}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
@@ -462,10 +462,10 @@
             \toprule
             \textbf{Metodologia} & \textbf{N. Parametri} & \textbf{Complessità} & \textbf{Regolarità} & \textbf{Garanzia $y(t) \ge 0$} & \textbf{Fenomeno di Runge} \\
             \midrule
-            Lagrange (Equispaziato) & $n$ & $\mathcal{O}(n^2)$ & $C^\infty$ & No & Grave oscillazione \\
-            Lagrange (Gauss-Lobatto) & $\ge 12$ & $\mathcal{O}(n \log n)$ & $C^\infty$ & No & Attenuato (ondulazioni) \\
-            Spline Cubica Naturale & $2n$ nodi & $\mathcal{O}(n)$ & $C^2$ & No (undershoot) & Assente \\
-            \textbf{Bézier Grado 3} & \textbf{4 nodi} & $\bm{\mathcal{O}(1)}$ & $\bm{C^\infty}$ \textbf{su} $[0, 1]$ & \textbf{Sì (Convex Hull)} & \textbf{Assente} \\
+            Lagrange (Equispaziato) & $n$ nodi & $\mathcal{O}(n^2)$ & $C^\infty$ & No & Grave oscillazione \\
+            Lagrange (Gauss-Lobatto) & $N \ge 12$ nodi & $\mathcal{O}(n \log n)$ & $C^\infty$ & No & Attenuato (ondulazioni) \\
+            Spline Cubica Naturale & $n$ nodi & $\mathcal{O}(n)$ & $C^2$ & No (undershoot) & Assente \\
+            \textbf{Bézier Grado 3} & \textbf{4 nodi} & $\bm{\mathcal{O}(1)}$ & $\bm{C^\infty} \text{ su } [0, 1]$ & \textbf{Sì (Convex Hull)} & \textbf{Assente} \\
             \bottomrule
         \end{tabular}
     \end{table}
@@ -504,41 +504,42 @@
     \vfill
 \end{frame}
 
-\begin{frame}{3.1 Volume ($V$) ed Effective Volume ($V_{eff}$)}
+\begin{frame}{3.1 Volume ($V$) ed Effective Volume ($V_{\mathrm{eff}}$)}
     \begin{itemize}
         \item \textbf{Ripetizioni Totali Equivalenti (serie $s$):}
-        $$R_{tot, s} = R_{base, s} + c_{ass} R_{ass, s} + c_{part} R_{part, s} \quad (c_{ass}=0.5, \, c_{part}=0.33)$$
+        $$R_{\mathrm{tot}, s} = R_{\mathrm{base}, s} + c_{\mathrm{ass}} R_{\mathrm{ass}, s} + c_{\mathrm{part}} R_{\mathrm{part}, s} \quad (c_{\mathrm{ass}}=0.5, \, c_{\mathrm{part}}=0.33)$$
         \item \textbf{Ripetizioni Efficaci da Scala RPE ($RPE \in [0, 10]$):}
-        $$R_{eff, s} = \min\Big(R_{base, s}, \, \max\big(0, \, RPE_s - 4.0\big)\Big) + c_{ass} R_{ass, s} + c_{part} R_{part, s}$$
-        \item \textbf{Proiezione sulla quota muscolare $\Omega_m = \int \tilde{y}_m(t) dt$:}
-        $$V = \sum_{s} R_{tot, s} \cdot \Omega_m, \qquad V_{eff} = \sum_{s} R_{eff, s} \cdot \Omega_m$$
+        $$R_{\mathrm{eff}, s} = \min\Big(R_{\mathrm{base}, s}, \, \max\big(0, \, RPE_s - 4.0\big)\Big) + c_{\mathrm{ass}} R_{\mathrm{ass}, s} + c_{\mathrm{part}} R_{\mathrm{part}, s}$$
+        \item \textbf{Proiezione sulla quota muscolare $\Omega_{e(s), m} = \int_0^1 \tilde{y}_{e(s), m}(t)\,dt$:}
+        $$V = \sum_{s} R_{\mathrm{tot}, s} \cdot \Omega_{e(s), m}, \qquad V_{\mathrm{eff}} = \sum_{s} R_{\mathrm{eff}, s} \cdot \Omega_{e(s), m}$$
     \end{itemize}
 \end{frame}
 
 \begin{frame}{3.2-3.3 Tonnellaggio e Tonnellaggio Ponderato}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Tonnellaggio ($T$ e $T_{eff}$)}
-                Carico effettivo: $L_s = L_{nom, s} \cdot \mu_{load} + q_{load}$.
-                $$T = \sum_{s} (L_s \cdot R_{tot, s}) \cdot \Omega_m$$
-                $$T_{eff} = \sum_{s} (L_s \cdot R_{eff, s}) \cdot \Omega_m$$
+            \begin{block}{Tonnellaggio ($T$ e $T_{\mathrm{eff}}$)}
+                Carico effettivo: $L_s = L_{\mathrm{nom}, s} \cdot \mu_{\mathrm{load}} + q_{\mathrm{load}}$.
+                $$T = \sum_{s} (L_s \cdot R_{\mathrm{tot}, s}) \cdot \Omega_{e(s), m}$$
+                $$T_{\mathrm{eff}} = \sum_{s} (L_s \cdot R_{\mathrm{eff}, s}) \cdot \Omega_{e(s), m}$$
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{block}{Tonnellaggio Ponderato ($T_w, T_{w,eff}$)}
-                Include l'efficienza articolare $c_{load}$:
-                $$T_w = \sum_{s} (L_s R_{tot, s} c_{load}) \Omega_m$$
-                $$T_{w,eff} = \sum_{s} (L_s R_{eff, s} c_{load}) \Omega_m$$
+            \begin{block}{Tonnellaggio Ponderato ($T_w, T_{w,\mathrm{eff}}$)}
+                Include l'efficienza articolare $c_{\mathrm{load}, s}$:
+                $$T_w = \sum_{s} (L_s R_{\mathrm{tot}, s} c_{\mathrm{load}, s}) \Omega_{e(s), m}$$
+                $$T_{w,\mathrm{eff}} = \sum_{s} (L_s R_{\mathrm{eff}, s} c_{\mathrm{load}, s}) \Omega_{e(s), m}$$
             \end{block}
         \end{column}
     \end{columns}
 \end{frame}
 
 \begin{frame}{3.4 TUT (Time Under Tension) e Decadimento di Velocità}
+    \footnotesize
     \begin{itemize}
-        \item Tempo base per ripetizione: $\tau_0 = t_{conc} + t_{iso,short} + t_{ecc} + t_{iso,leng}$.
-        \item Indice di sforzo istantaneo per la rip $j$: $\Delta_{RPE}(j) = RPE - (R_{base} - 1 - j)$.
+        \item Tempo base per rip: $\tau_0 = t_{\mathrm{conc}} + t_{\mathrm{iso,short}} + t_{\mathrm{ecc}} + t_{\mathrm{iso,leng}}$; sforzo: $\Delta_{RPE}(j) = RPE - (R_{\mathrm{base}} - 1 - j)$.
     \end{itemize}
+    \vspace{-0.15cm}
     \begin{equation*}
     \delta(j, RPE) = \begin{cases} 
     1.60\,\text{s} & \text{se } \Delta_{RPE} > 9.0 \\
@@ -549,28 +550,34 @@
     0.00\,\text{s} & \text{se } \Delta_{RPE} \le 5.0 
     \end{cases}
     \end{equation*}
-    $$\text{TUT}_{set} = \sum_{j=0}^{R_{base}-1} \big(\tau_0 + \delta(j, RPE)\big) + R_{ass}\tau_0 + R_{part}(0.5\tau_0)$$
+    \vspace{-0.2cm}
+    $$\text{TUT}_{\mathrm{set}} = \sum_{j=0}^{R_{\mathrm{base}}-1} \big(\tau_0 + \delta(j, RPE)\big) + R_{\mathrm{ass}}\tau_0 + R_{\mathrm{part}}(0.5\tau_0), \quad \text{TUT}_{\mathrm{tot}} = \sum_{s} \text{TUT}_{\mathrm{set}, s} \cdot \Omega_{e(s), m}$$
+    \begin{block}{TUT Efficace ($\text{TUT}_{\mathrm{eff}}$)}
+        \footnotesize
+        Somma ristretta alle sole ultime $k = \operatorname{round}(R_{\mathrm{eff,base}})$ ripetizioni della serie (più assistite e parziali):
+        $$\text{TUT}_{\mathrm{eff}} = \sum_s \left( \sum_{j=R_{\mathrm{base}}-k}^{R_{\mathrm{base}}-1} \big(\tau_0 + \delta(j, RPE)\big) + R_{\mathrm{ass}}\tau_0 + R_{\mathrm{part}}(0.5\tau_0) \right) \cdot \Omega_{e(s), m}$$
+    \end{block}
 \end{frame}
 
 \begin{frame}{3.5-3.6 Sets ($S$) e Modello Esponenziale di Fatica ($F$)}
     \begin{block}{Conteggio Serie}
-        $$S = \sum_{s} 1 \cdot \Omega_m$$
+        $$S = \sum_{s} 1 \cdot \Omega_{e(s), m}$$
     \end{block}
     \begin{block}{Modello di Fatica Sistemica/Tessutale Accumulata}
-        $$F_{base\_rep}(j) = \big(\tau_0 + \delta(j, RPE)\big) \cdot (1.1)^{\max(0, \, \Delta_{RPE}(j) - 7.5)} \cdot f_{base} \cdot c_{load}$$
+        $$F_{\mathrm{base\_rep}}(j) = \big(\tau_0 + \delta(j, RPE)\big) \cdot (1.1)^{\max(0, \, \Delta_{RPE}(j) - 7.5)} \cdot f_{\mathrm{base}} \cdot c_{\mathrm{load}}$$
         \vspace{0.1cm}
-        $$F_{set} = \sum_{j=0}^{R_{base}-1} F_{base\_rep}(j) + \underbrace{\left(R_{ass} \tau_0 1.1^{-0.5} f_{base} c_{load} c_{ass}\right)}_{\text{Assistite}} + \underbrace{\left(R_{part} 0.5\tau_0 f_{base} c_{load} \frac{c_{part}}{0.5}\right)}_{\text{Parziali}}$$
-        $$F_{tot} = \sum_{s} F_{set, s} \cdot \Omega_m$$
+        $$F_{\mathrm{set}} = \sum_{j=0}^{R_{\mathrm{base}}-1} F_{\mathrm{base\_rep}}(j) + \underbrace{R_{\mathrm{ass}} \tau_0 1.1^{-0.5} f_{\mathrm{base}} c_{\mathrm{load}} c_{\mathrm{ass}}}_{\text{Assistite}} + \underbrace{R_{\mathrm{part}} 0.5\tau_0 f_{\mathrm{base}} c_{\mathrm{load}} \frac{c_{\mathrm{part}}}{0.5}}_{\text{Parziali}}$$
+        $$F_{\mathrm{tot}} = \sum_{s} F_{\mathrm{set}, s} \cdot \Omega_{e(s), m}$$
     \end{block}
 \end{frame}
 
-\begin{frame}{3.7 Curve di Tensione Cumulative Muscolari ($V_m(t)$)}
+\begin{frame}{3.7 Curva di Tensione Cumulativa Muscolare ($V_m(t)$)}
     \begin{block}{Modellazione delle Parziali in Allungamento}
         Le ripetizioni parziali operano esclusivamente nel primo terzo del ROM ($t \in [0, 0.333]$):
-        $$\chi_{part}(t) = \begin{cases} 1 & \text{se } t \in [0, \, 0.333] \\ 0 & \text{se } t \in (0.333, \, 1.0] \end{cases}$$
+        $$\chi_{\mathrm{part}}(t) = \begin{cases} 1 & \text{se } t \in [0, \, 0.333] \\ 0 & \text{se } t \in (0.333, \, 1.0] \end{cases}$$
     \end{block}
     \begin{alertblock}{Curva Cumulativa di Tensione sul Distretto Muscolare $m$}
-        $$V_m(t) = \sum_{e \in \text{Workout}} \Big( R_{base, e} \cdot \tilde{\mathbf{y}}_{e,m}(t) + R_{part, e} \cdot \tilde{\mathbf{y}}_{e,m}(t) \cdot \chi_{part}(t) \Big)$$
+        $$V_m(t) = \sum_{e \in \text{Workout}} v_e \cdot \Big( (R_{\mathrm{base}, e} + c_{\mathrm{ass}} R_{\mathrm{ass}, e}) \cdot \tilde{\mathbf{y}}_{e,m}(t) + R_{\mathrm{part}, e} \cdot \tilde{\mathbf{y}}_{e,m}(t) \cdot \chi_{\mathrm{part}}(t) \Big)$$
     \end{alertblock}
     \begin{itemize}
         \item Spiega l'accumulo asimmetrico e l'ipertrofia mediata dallo stretch prolungato.
@@ -617,72 +624,72 @@
 \end{frame}
 
 \begin{frame}{4.2 Variabili Decisionali e Limiti Operativi di Default}
-    \begin{block}{1. Variabili Decisionali Discrete}
+    \begin{block}{Variabili Decisionali Discrete}
         \footnotesize
         \begin{itemize}
             \item $x_{i,d} \in \{0, 1\}$: \textbf{Attivazione.} Vale $1$ se l'esercizio $i$ è programmato nel giorno $d$, $0$ altrimenti.
             \item $v_{i,d} \in \mathbb{N}$: \textbf{Volume} (numero di serie) per l'esercizio $i$ nel giorno $d$.
-            \item $r_{i,d} \in \mathbb{N}$: \textbf{Ripetizioni} per serie dell'esercizio $i$ nel giorno $d$.
+            \item $r_{i,d} \in \mathbb{N}$: \textbf{Ripetizioni} (reps per serie) dell'esercizio $i$ nel giorno $d$.
         \end{itemize}
     \end{block}
     \vspace{-0.1cm}
-    \begin{exampleblock}{2. Limiti Operativi di Default (Nessun Vincolo Hard-Coded)}
+    \begin{exampleblock}{Limiti Operativi di Default (Nessun Vincolo Hard-Coded)}
         \footnotesize
         Dato l'alto bias intrinseco, \textbf{nessun vincolo è hard-coded}: l'utente ha piena libertà di scegliere vincoli estremamente rigidi o rilassarli da interfaccia. I valori di default correnti sono:
         \begin{itemize}
-            \item \textbf{Microciclo e Densità:} $D \in [3, 7]$ giorni; esercizi per sessione $E_{min} = 3, E_{max} = 10$.
-            \item \textbf{Volume e Ripetizioni:} serie $V_{min} = 1, V_{max} = 6$; ripetizioni $R_{min} = 5, R_{max} = 20$.
-            \item \textbf{Fatica e Recupero:} limite fatica max/giorno $F_{max} = 1500$; recuperi $80\,\text{s} \div 210\,\text{s}$.
+            \item \textbf{Microciclo e Densità:} $D \in [3, 7]$ giorni; esercizi per sessione $E_{\min} = 3, E_{\max} = 10$.
+            \item \textbf{Volume e Reps:} serie $V_{\min} = 1, V_{\max} = 6$; reps $R_{\min} = 5, R_{\max} = 20$.
+            \item \textbf{Fatica e Recupero:} limite fatica max/giorno $F_{\max} = 1500$; recuperi $80\,\text{s} \div 210\,\text{s}$.
             \item \textbf{Curve Target $T_m(t)$:} selezionabili tra Costante ($c$), Sigmoide, Sigmoide Inversa, Lineare.
         \end{itemize}
     \end{exampleblock}
 \end{frame}
 
 \begin{frame}{4.3 Funzione Obiettivo: Ottimizzazione Multi-Obiettivo Scalarizzata}
-    \begin{block}{3.1 Pesi e Target di Efficienza (Impostabili da UI)}
+    \begin{block}{Pesi e Target di Efficienza (Impostabili da UI)}
         \footnotesize
         L'utente definisce i \textbf{Pesi ($w_k$)} (la cui somma è normalizzata a $1.0$ via Softmax) e i \textbf{Target Ideali}:
         \begin{itemize}
-            \item $w_{curva}$: peso per l'aderenza alla Curva Target di tensione muscolare.
-            \item $w_{vol}, w_{ton}, w_{tut}$: pesi per l'efficienza di Volume ($Target_{vol}$), Tonnellaggio ($Target_{ton}$) e TUT ($Target_{tut}$).
-            \item $w_{distr}$: peso per l'aderenza alla distribuzione volumetrica Macro/Micro richiesta.
-            \item $w_{variety}$: peso per incentivare la diversità degli esercizi su tutto il microciclo.
-            \item $w_{balance}$: peso per il bilanciamento di volume e fatica tra i giorni.
+            \item $w_{\mathrm{curva}}$: peso per l'aderenza alla Curva Target di tensione muscolare.
+            \item $w_{\mathrm{vol}}, w_{\mathrm{ton}}, w_{\mathrm{tut}}$: pesi per l'efficienza di Volume ($\mathrm{Target}_{\mathrm{vol}}$), Tonnellaggio ($\mathrm{Target}_{\mathrm{ton}}$) e TUT ($\mathrm{Target}_{\mathrm{tut}}$).
+            \item $w_{\mathrm{distr}}$: peso per l'aderenza alla distribuzione volumetrica Macro/Micro richiesta.
+            \item $w_{\mathrm{variety}}$: peso per incentivare la diversità degli esercizi su tutto il microciclo.
+            \item $w_{\mathrm{balance}}$: peso per il bilanciamento di volume e fatica tra i giorni.
         \end{itemize}
     \end{block}
     \vspace{-0.1cm}
-    \begin{alertblock}{3.2 Principio di Uniformazione nel Dominio $[0.0, 1.0]$}
+    \begin{alertblock}{Principio di Uniformazione nel Dominio $[0.0, 1.0]$}
         \footnotesize
-        Per garantire un impatto simmetrico e democratico ai pesi $w$, \textbf{tutti gli errori sono matematicamente schiacciati in $[0, 1]$} dividendo per i massimi teorici o mediando gli scarti.
+        Per garantire un impatto simmetrico ai pesi $w$, \textbf{tutti gli errori sono matematicamente normalizzati in $[0, 1]$} dividendo per i massimi teorici o mediando gli scarti.
     \end{alertblock}
     \vspace{-0.1cm}
-    \begin{exampleblock}{3.3 Problema di Minimo Globale}
-        $$\min \Big( w_{curva} E_{curva} + w_{vol} E_{vol} + w_{ton} E_{ton} + w_{tut} E_{tut} + w_{distr} E_{distr} + w_{variety} E_{variety} + w_{balance} E_{balance} \Big)$$
+    \begin{exampleblock}{Problema di Minimo Globale}
+        $$\min \Big( w_{\mathrm{curva}} E_{\mathrm{curva}} + w_{\mathrm{vol}} E_{\mathrm{vol}} + w_{\mathrm{ton}} E_{\mathrm{ton}} + w_{\mathrm{tut}} E_{\mathrm{tut}} + w_{\mathrm{distr}} E_{\mathrm{distr}} + w_{\mathrm{variety}} E_{\mathrm{variety}} + w_{\mathrm{balance}} E_{\mathrm{balance}} \Big)$$
     \end{exampleblock}
 \end{frame}
 
 \begin{frame}{4.4 Calcolo degli Errori Normalizzati $[0, 1]$: Curva ed Efficienza}
-    \begin{block}{Errore Curva (Media del MSE sui Muscoli Analizzati)}
+    \begin{block}{Errore Curva (Media del MSE Normalizzato)}
         \footnotesize
-        L'errore quadratico medio calcolato sui punti discreti della curva viene sommato per tutti i muscoli e diviso per $|M|$ e la risoluzione del ROM:
-        $$E_{curva} = \frac{1}{|M|} \sum_{m \in M} \frac{\sum_{t \in T} (V_m(t) - T_m(t))^2}{|T|}$$
+        L'errore quadratico medio sui punti discreti del ROM viene normalizzato rispetto al picco della curva cumulativa per confinarlo rigorosamente in $[0, 1]$:
+        $$E_{\mathrm{curva}} = \frac{1}{|M|} \sum_{m \in M} \frac{1}{|T|} \sum_{t \in T} \left( \frac{V_m(t)}{\max_{\tau \in T} V_m(\tau)} - T_m(t) \right)^2$$
     \end{block}
     \vspace{-0.1cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
             \begin{exampleblock}{Errore Volume}
                 \footnotesize
-                $$E_{vol} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - Target_{vol} \right)^2$$
+                $$E_{\mathrm{vol}} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - \mathrm{Target}_{\mathrm{vol}} \right)^2$$
             \end{exampleblock}
             \begin{exampleblock}{Errore Tonnellaggio}
                 \footnotesize
-                $$E_{ton} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - Target_{ton} \right)^2$$
+                $$E_{\mathrm{ton}} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - \mathrm{Target}_{\mathrm{ton}} \right)^2$$
             \end{exampleblock}
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{exampleblock}{Errore TUT}
                 \footnotesize
-                $$E_{tut} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - Target_{tut} \right)^2$$
+                $$E_{\mathrm{tut}} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - \mathrm{Target}_{\mathrm{tut}} \right)^2$$
             \end{exampleblock}
             \begin{block}{Confinamento Rigoroso}
                 \footnotesize
@@ -695,9 +702,9 @@
 \begin{frame}{4.5 Calcolo degli Errori Normalizzati $[0, 1]$: Distribuzione e Bilanciamento}
     \begin{block}{Errore Distribuzione Volumi (Distanza Massima Normalizzata)}
         \footnotesize
-        Target anatomico globale: $Target_{globale}(m) = Macro\%(M) \times Sub\%(m)$. \\
-        Normalizzato dividendo per $2.0$ (massima distanza teorica $L_2$ tra due distribuzioni percentuali):
-        $$E_{distr} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{effettivo}(m)}{V_{totale}} - Target_{globale}(m) \right)^2$$
+        Target anatomico globale: $\mathrm{Target}_{\mathrm{globale}}(m) = \mathrm{Macro\%}(M) \times \mathrm{Sub\%}(m)$. \\
+        Normalizzato dividendo per $2.0$ (massima distanza quadratica teorica tra due distribuzioni percentuali):
+        $$E_{\mathrm{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{\mathrm{effettivo}}(m)}{V_{\mathrm{totale}}} - \mathrm{Target}_{\mathrm{globale}}(m) \right)^2$$
     \end{block}
     \vspace{-0.1cm}
     \begin{columns}[T]
@@ -705,44 +712,44 @@
             \begin{exampleblock}{Errore Varietà Esercizi}
                 \footnotesize
                 Incentiva la rotazione dei movimenti:
-                $$E_{variety} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
+                $$E_{\mathrm{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
             \end{exampleblock}
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{exampleblock}{Errore Bilanciamento Giornaliero}
                 \footnotesize
                 Varianza divisa per la varianza teorica massima:
-                $$E_{balance} = \frac{1}{2} \left( \frac{Var(\text{Fatigue})}{Var_{max\_F}} + \frac{Var(\text{Volume})}{Var_{max\_V}} \right)$$
+                $$E_{\mathrm{balance}} = \frac{1}{2} \left( \frac{\operatorname{Var}(\text{Fatigue})}{\operatorname{Var}_{\max\_F}} + \frac{\operatorname{Var}(\text{Volume})}{\operatorname{Var}_{\max\_V}} \right)$$
             \end{exampleblock}
         \end{column}
     \end{columns}
 \end{frame}
 
 \begin{frame}{4.6 Vincoli Fisiologici (Constraints)}
-    \begin{block}{4.1 Limiti di Serie e Ripetizioni (Formulazione Big-M)}
+    \begin{block}{Limiti di Serie e Reps (Formulazione Big-M)}
         \footnotesize
         Se l'esercizio è scelto ($x_{i,d} = 1$), rispetta i limiti; se inattivo ($x_{i,d} = 0$), i valori collassano a 0:
-        $$V_{min} \cdot x_{i,d} \le v_{i,d} \le V_{max} \cdot x_{i,d} \qquad (\text{default: } 1 \le v_{i,d} \le 6)$$
-        $$R_{min} \cdot x_{i,d} \le r_{i,d} \le R_{max} \cdot x_{i,d} \qquad (\text{default: } 5 \le r_{i,d} \le 20)$$
+        $$V_{\min} \cdot x_{i,d} \le v_{i,d} \le V_{\max} \cdot x_{i,d} \qquad (\text{default: } 1 \le v_{i,d} \le 6)$$
+        $$R_{\min} \cdot x_{i,d} \le r_{i,d} \le R_{\max} \cdot x_{i,d} \qquad (\text{default: } 5 \le r_{i,d} \le 20)$$
     \end{block}
-    \vspace{-0.1cm}
+    \vspace{-0.2cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{exampleblock}{4.2 Densità Minima e Massima}
+            \begin{exampleblock}{Densità Minima e Massima}
                 \footnotesize
-                $$E_{min} \le \sum_{i \in \mathcal{E}} x_{i,d} \le E_{max} \quad (3 \le \text{Ex} \le 10)$$
+                $$E_{\min} \le \sum_{i \in \mathcal{E}} x_{i,d} \le E_{\max} \quad (3 \le \text{Esercizi/Sessione} \le 10)$$
             \end{exampleblock}
-            \begin{alertblock}{4.5 Overlap Neurale / Muscolare}
+            \begin{alertblock}{Overlap Neurale (Unicità Esercizio)}
                 \footnotesize
-                Penalità massiccia al Costo per impedire lo stesso esercizio due volte nello stesso giorno:
-                $$\text{Penalty se } \sum_i x_{i,d} > 1 \text{ nello stesso } d$$
+                Penalità al Costo per impedire lo stesso esercizio duplicato in slot distinti $s$ dello stesso giorno $d$:
+                $$\text{Penalty se } \sum_{s \in \mathcal{S}_d} x_{s, i, d} > 1 \quad \forall i \in \mathcal{E}$$
             \end{alertblock}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{block}{4.4 Recupero Deterministico ($rest_i$)}
+            \begin{block}{Recupero Deterministico ($\mathrm{rest}_i$)}
                 \footnotesize
                 Calcolato a priori dalla fatica sistemica $F_i$:
-                \begin{itemize}
+                \begin{itemize}\setlength{\itemsep}{0pt}
                     \item \textbf{Bassa Fatica ($F_i \le 2.0$):} $60\,\text{s}$ fisso.
                     \item \textbf{Media Fatica ($2 < F_i \le 7$):} scala linearmente da $1'$ a $3'$.
                     \item \textbf{Alta Fatica ($F_i > 7.0$):} scala linearmente da $3'$ a $3'30''$ (es. Stacco).
