@@ -213,21 +213,24 @@
 % METODOLOGIA 3: BÉZIER
 % -------------------------------------------------------------
 \begin{frame}{2.2 Metodo 3: Curve di Bézier e Polinomi di Bernstein (Teoria)}
-    \begin{block}{Definizione della Curva Parametrica di Grado 3}
-        $$\mathbf{P}(t) = \sum_{i=0}^3 \mathbf{P}_i B_{i,3}(t), \quad B_{i,3}(t) = \binom{3}{i} t^i (1-t)^{3-i}, \quad t \in [0, 1]$$
+    \begin{block}{Definizione Vettoriale Bidimensionale ($x, y$)}
+        Ogni punto ha due coordinate: $\mathbf{P}_i = \begin{pmatrix} x_i \\ y_i \end{pmatrix} \implies \mathbf{P}(t) = \begin{pmatrix} x(t) \\ y(t) \end{pmatrix} = \sum_{i=0}^3 \begin{pmatrix} x_i \\ y_i \end{pmatrix} B_{i,3}(t)$
     \end{block}
-    \vspace{0.15cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Partizione dell'Unità}
-                $$\sum_{i=0}^3 B_{i,3}(t) \equiv 1 \quad \forall t \in [0, 1]$$
-                Garantisce l'invarianza affine rispetto al sistema di coordinate adottato.
-            \end{block}
+            \begin{exampleblock}{Invarianza Affine}
+                Poiché i pesi sommano a uno ($\sum_{i=0}^3 B_{i,3} \equiv 1$):
+                $$T\big(\mathbf{P}(t)\big) = \sum_{i=0}^3 T(\mathbf{P}_i) B_{i,3}(t)$$
+                \footnotesize Traslazioni, rotazioni e \textbf{cambi di scala} (es. da gradi a $[0, 1]$ o carichi in kg) trasformano i soli 4 punti $\mathbf{P}_i$ senza dover ricalcolare la curva.
+            \end{exampleblock}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{alertblock}{Positività \& Inviluppo Convesso}
-                $$B_{i,3}(t) \ge 0 \implies \mathbf{P}(t) \in \text{Conv}(\{\mathbf{P}_i\})$$
-                Se tutti i punti di controllo hanno ordinata $y_i \ge 0$, la curva \textbf{non può mai diventare negativa}!
+            \begin{alertblock}{Inviluppo Convesso (Convex Hull)}
+                Poiché i pesi sono non-negativi ($B_{i,3} \ge 0$):
+                $$\mathbf{P}(t) \in \text{Conv}(\{\mathbf{P}_0, \mathbf{P}_1, \mathbf{P}_2, \mathbf{P}_3\})$$
+                \footnotesize \textbf{Garanzia fisica:}
+                $$y_i \ge 0 \;\; \forall i \implies y(t) \ge 0 \;\; \forall t$$
+                Tensione muscolare sempre non-negativa per costruzione geometrica.
             \end{alertblock}
         \end{column}
     \end{columns}
