@@ -53,6 +53,18 @@
 \section{1. Introduzione e Motivazione}
 % =============================================================
 
+\begin{frame}
+    \vfill
+    \centering
+    \begin{beamercolorbox}[sep=10pt,center,shadow=true,rounded=true]{palette primary}
+        {\usebeamerfont{title}\Huge \textbf{Capitolo 1}}\\[0.3cm]
+        {\usebeamerfont{subtitle}\LARGE \textbf{Introduzione e Motivazione}}
+    \end{beamercolorbox}
+    \vspace{0.4cm}
+    {\normalsize \textcolor{secondaryColor}{Dai limiti dei modelli discreti tradizionali alla necessità della continuità biomeccanica}}
+    \vfill
+\end{frame}
+
 \begin{frame}{1.1 Limiti dei Modelli Discreti Tradizionali}
     \begin{itemize}
         \item \textbf{Approccio Scalare Classico:}
@@ -106,6 +118,18 @@
 % =============================================================
 \section{2. Models: Modellazione e Approssimazione Funzionale}
 % =============================================================
+
+\begin{frame}
+    \vfill
+    \centering
+    \begin{beamercolorbox}[sep=10pt,center,shadow=true,rounded=true]{palette primary}
+        {\usebeamerfont{title}\Huge \textbf{Capitolo 2}}\\[0.3cm]
+        {\usebeamerfont{subtitle}\LARGE \textbf{Modellazione e Approssimazione Funzionale}}
+    \end{beamercolorbox}
+    \vspace{0.4cm}
+    {\normalsize \textcolor{secondaryColor}{Confronto numerico: Polinomi di Lagrange, Gauss-Lobatto, Spline e Curve di Bézier}}
+    \vfill
+\end{frame}
 
 \begin{frame}{2.1 Formalizzazione della Classe Esercizio}
     \begin{block}{Parametri Biomeccanici}
@@ -175,11 +199,11 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{2.2 Metodo 1: Risultati Gauss-Lobatto su LR ($N=6, 12, 16$)}
+\begin{frame}{2.2 Metodo 1: Risultati Gauss-Lobatto su LR ($N=6, 12$)}
     \centering
     \includegraphics[height=0.54\textheight, keepaspectratio]{plot_lagrange_gauss_lobatto.png}
     \begin{exampleblock}{Analisi del Plot Comparativo su LR}
-        \footnotesize Anche aumentando i nodi fino a $N=16$, il polinomio globale non riesce ad appiattirsi a zero all'inizio del movimento ($0 \le t \le 0.2$), producendo fluttuazioni non fisiologiche e richiedendo un numero ingestibile di parametri per l'utente.
+        \footnotesize Anche aumentando i nodi fino a $N=12$, il polinomio globale non riesce ad appiattirsi a zero all'inizio del movimento ($0 \le t \le 0.2$), producendo fluttuazioni non fisiologiche e richiedendo un numero ingestibile di parametri per l'utente.
     \end{exampleblock}
 \end{frame}
 
@@ -341,7 +365,7 @@
         \end{itemize}
     \end{block}
     \begin{exampleblock}{Proprietà Notevole della Tangente Istantanea}
-        \footnotesize Il segmento $R_0 - R_1$ non trova solo $\mathbf{P}(t)$: \textbf{è esattamente la retta tangente alla curva in quel punto}!
+        \footnotesize Il segmento $R_0 - R_1$ non trova solo $\mathbf{P}(t)$: \textbf{è esattamente la retta tangente alla curva in quel punto}
     \end{exampleblock}
 \end{frame}
 
@@ -361,7 +385,7 @@
 
 \begin{frame}{2.2 Metodo 3: Proprietà Geometrica di Suddivisione (Subdivision)}
     \begin{block}{Teorema della Suddivisione Ricorsiva}
-        La costruzione di De Casteljau non si limita a valutare $\mathbf{P}(t)$: genera automaticamente i punti di controllo per \textbf{spezzare la curva in due sub-curve di Bézier esatte}!
+        La costruzione di De Casteljau non si limita a valutare $\mathbf{P}(t)$: genera automaticamente i punti di controllo per \textbf{spezzare la curva in due sub-curve di Bézier esatte}
     \end{block}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
@@ -468,6 +492,18 @@
 \section{3. Analizzatore: Dinamica Discreta e Metriche di Carico}
 % =============================================================
 
+\begin{frame}
+    \vfill
+    \centering
+    \begin{beamercolorbox}[sep=10pt,center,shadow=true,rounded=true]{palette primary}
+        {\usebeamerfont{title}\Huge \textbf{Capitolo 3}}\\[0.3cm]
+        {\usebeamerfont{subtitle}\LARGE \textbf{Dinamica Discreta e Metriche di Carico}}
+    \end{beamercolorbox}
+    \vspace{0.4cm}
+    {\normalsize \textcolor{secondaryColor}{Volume Efficace, Tonnellaggio Continuo, TUT Dinamico e Modellazione della Fatica}}
+    \vfill
+\end{frame}
+
 \begin{frame}{3.1 Volume ($V$) ed Effective Volume ($V_{eff}$)}
     \begin{itemize}
         \item \textbf{Ripetizioni Totali Equivalenti (serie $s$):}
@@ -544,6 +580,18 @@
 % =============================================================
 \section{4. Modello Matematico: Ottimizzazione su Curva di Tensione Cumulativa}
 % =============================================================
+
+\begin{frame}
+    \vfill
+    \centering
+    \begin{beamercolorbox}[sep=10pt,center,shadow=true,rounded=true]{palette primary}
+        {\usebeamerfont{title}\Huge \textbf{Capitolo 4}}\\[0.3cm]
+        {\usebeamerfont{subtitle}\LARGE \textbf{Modello Matematico di Ottimizzazione}}
+    \end{beamercolorbox}
+    \vspace{0.4cm}
+    {\normalsize \textcolor{secondaryColor}{Formulazione del Problema di Minimo Discreto Vincolato su Curva Cumulativa}}
+    \vfill
+\end{frame}
 
 \begin{frame}{4.1 Introduzione: Limiti Scientifici e Bias nei Modelli}
     \begin{block}{Ipertrofia Muscolare: Un Territorio Scientifico Aperto}
