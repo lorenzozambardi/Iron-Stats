@@ -281,6 +281,36 @@
     \end{columns}
 \end{frame}
 
+\begin{frame}{2.2 Metodo 3: Cosa Significa Matematicamente "Attirare la Curva"?}
+    \begin{columns}[T]
+        \begin{column}{0.49\textwidth}
+            \begin{block}{1. Centro di Massa a Masse Variabili}
+                La curva è formalmente identica al \textbf{baricentro} di 4 masse collocate nei nodi:
+                $$\mathbf{P}(t) = \frac{\sum_{i=0}^3 m_i(t) \mathbf{P}_i}{\sum_{i=0}^3 m_i(t)}, \quad \text{con } m_i(t) = B_{i,3}(t)$$
+                \footnotesize
+                \begin{itemize}
+                    \item A $t=1/3$, la massa $B_{1,3}(1/3) \approx 0.44$ è massima: il centro di massa viene \textbf{trascinato fisicamente verso $\mathbf{P}_1$}.
+                    \item Non tocca mai $\mathbf{P}_1$ perché le altre masse $B_0, B_2 > 0$ esercitano una contro-trazione.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.49\textwidth}
+            \begin{exampleblock}{2. Vettori Tangente e Pendenza}
+                Derivando analiticamente la curva $\mathbf{P}'(t) = \frac{d\mathbf{P}}{dt}$:
+                $$\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0), \quad \mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)$$
+                \footnotesize
+                \begin{itemize}
+                    \item $\mathbf{P}_1$ impone la \textbf{direzione di lancio}: il vettore tangente iniziale punta esattamente verso $\mathbf{P}_1$.
+                    \item $\mathbf{P}_2$ impone la \textbf{direzione di atterraggio} in $\mathbf{P}_3$.
+                \end{itemize}
+            \end{exampleblock}
+            \begin{alertblock}{Approssimazione vs Interpolazione}
+                \footnotesize Non dover attraversare $\mathbf{P}_1$ e $\mathbf{P}_2$ evita curvature forzate ed elimina Runge alla radice.
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 \begin{frame}{2.2 Metodo 3: Come Funziona Geometricamente (De Casteljau)}
     \begin{block}{Interpolazioni Lineari Annidate (LERP Ricorsivo a 3 Livelli)}
         Fissato $t \in [0, 1]$, il punto sulla curva $\mathbf{P}(t)$ si ottiene ricorsivamente:
