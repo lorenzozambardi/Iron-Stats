@@ -432,16 +432,16 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}[shrink=2]{2.2 Metodo 3: Costruzione Geometrica (Algoritmo di De Casteljau)}
+\begin{frame}{2.2 Metodo 3: Costruzione Geometrica (Algoritmo di De Casteljau)}
     \begin{block}{Il Principio dei Tagli Proporzionali Progressivi}
-        Dato $t \in [0, 1]$, la curva si costruisce geometricamente dividendo ricorsivamente i segmenti in rapporto $t : (1-t)$:
-        \begin{itemize}
-            \item \textbf{Passo 1 (Poligono di Controllo):} sui 3 segmenti $\{P_i P_{i+1}\}$, il taglio a frazione $t$ individua 3 punti intermedi:
-            $$Q_i(t) = (1-t)P_i + t P_{i+1}, \quad i \in \{0, 1, 2\}$$
-            \item \textbf{Passo 2 (Segmenti Intermedi):} collegando i $\{Q_i\}$ in 2 segmenti, il taglio a frazione $t$ individua 2 punti:
-            $$R_i(t) = (1-t)Q_i(t) + t Q_{i+1}(t), \quad i \in \{0, 1\}$$
-            \item \textbf{Passo 3 (Punto Finale):} sul segmento $R_0 - R_1$, il taglio a frazione $t$ dà:
-            $$\mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)$$
+        Dato $t \in [0, 1]$, la curva si costruisce dividendo ricorsivamente i segmenti in rapporto $t : (1-t)$:
+        \begin{itemize}\setlength{\itemsep}{1pt}
+            \item \textbf{Passo 1 (Poligono di Controllo):} sui 3 segmenti $\{P_i P_{i+1}\}$, individua 3 punti intermedi:
+            \par\smallskip\centering$Q_i(t) = (1-t)P_i + t P_{i+1}, \quad i \in \{0, 1, 2\}$\par\smallskip
+            \item \textbf{Passo 2 (Segmenti Intermedi):} collegando i $\{Q_i\}$, individua 2 punti:
+            \par\smallskip\centering$R_i(t) = (1-t)Q_i(t) + t Q_{i+1}(t), \quad i \in \{0, 1\}$\par\smallskip
+            \item \textbf{Passo 3 (Punto Finale):} sul segmento $R_0 - R_1$, individua il punto sulla curva:
+            \par\smallskip\centering$\mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)$\par
         \end{itemize}
     \end{block}
     \begin{exampleblock}{Proprietà Notevole della Tangente Istantanea}
