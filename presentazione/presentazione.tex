@@ -554,14 +554,17 @@
         \end{itemize}
     \end{block}
     \vspace{-0.1cm}
-    \begin{alertblock}{L'Inevitabilità di un Forte Bias Modellistico}
+    \begin{alertblock}{L'Inevitabilità del Bias e il Problema degli Iperparametri}
         \footnotesize
-        Formulare un modello matematico in questo contesto impone assunzioni a priori, introducendo un \textbf{bias teorico ed empirico inevitabilmente molto grande} da parte del modellatore.
+        \begin{itemize}
+            \item Qualsiasi formalizzazione matematica impone assunzioni a priori, introducendo un \textbf{bias teorico ed empirico inevitabilmente molto grande}.
+            \item Lasciare tutti i pesi e vincoli aperti all'utente \textbf{non risolve il problema}: lo sposta interamente sulla \textbf{scelta arbitraria degli iperparametri}.
+        \end{itemize}
     \end{alertblock}
     \vspace{-0.1cm}
-    \begin{exampleblock}{La Risposta: Un'Architettura Aperta e Parametrizzabile}
+    \begin{exampleblock}{Assenza di Dataset: Il Ruolo della Definizione Formale}
         \footnotesize
-        Il software non impone verità assolute: trasforma il bias in \textbf{scelte trasparenti per l'utente}, fornendo una struttura di ottimizzazione i cui vincoli e curve sono interamente personalizzabili da UI.
+        Non esistono in letteratura dati quantitativi sufficienti per addestrare o calibrare empiricamente il modello: di questo solver \textbf{non resta altro che la rigorosa formulazione matematica del problema di ottimizzazione vincolato}.
     \end{exampleblock}
 \end{frame}
 
@@ -707,17 +710,17 @@
         \begin{column}{0.48\textwidth}
             \begin{block}{Sintesi del Modello Numerico}
                 \begin{itemize}
-                    \item Modellazione cinematica $C^\infty$ mediante curve parametriche di Bézier a supporto compatto.
-                    \item Formulazione mista intera vincolata con scala di costo uniformata in $[0, 1]$.
-                    \item Controllo interattivo real-time su browser con parametri biomeccanici modificabili da UI.
+                    \item Modellazione cinematica continua $C^\infty$ mediante curve di Bézier stabili e prive di oscillazioni.
+                    \item Rigorosa \textbf{definizione matematica} del problema di ottimizzazione di minimo discreto vincolato.
+                    \item Consapevolezza dei limiti: impossibilità di fittare data-driven i pesi per carenza di dataset quantitativi.
                 \end{itemize}
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{block}{Sviluppi Futuri}
                 \begin{itemize}
-                    \item Integrazione di vincoli di affaticamento neurale cumulato multi-microciclo.
-                    \item Acquisizione cinematica da pose estimation video per curve individualizzate.
+                    \item Raccolta di dataset longitudinali standardizzati per validare empiricamente gli iperparametri.
+                    \item Integrazione di vincoli di affaticamento neurale cumulato e tracciamento video da pose estimation.
                 \end{itemize}
             \end{block}
         \end{column}
