@@ -119,8 +119,8 @@
     \begin{alertblock}{Vincolo di Conservazione della Ripartizione Muscolare}
         Per l'insieme dei distretti $\mathcal{M}$ e vettore magnitudo $\mathbf{M} = [M_1, \dots, M_k]^T$:
         $$\sum_{m \in \mathcal{M}} M_m = 1.0 \pm \varepsilon, \quad \varepsilon \le 10^{-4}$$
-        \footnotesize \textbf{Tolleranza numerica $\varepsilon$:} dovuta all'aritmetica floating-point IEEE 754 e all'arrotondamento delle percentuali nei file di configurazione JSON ($M_m = \text{pct} / 100$).
-    \end{alertblock}
+        \footnotesize \textbf{Tolleranza numerica $\varepsilon$:} dovuta all'aritmetica floating-point IEEE 754.
+\end{alertblock}
 \end{frame}
 
 % -------------------------------------------------------------
@@ -151,7 +151,7 @@
 
 \begin{frame}{2.2 Metodo 1: Nodi Non Equispaziati di Gauss-Lobatto (Teoria)}
     \begin{block}{Distribuzione di Chebyshev-Gauss-Lobatto (CGL)}
-        Per superare il fenomeno di Runge, si addensano i nodi agli estremi del ROM secondo la proiezione dei punti di Chebyshev sull'intervallo $[0, 1]$:
+        Per superare il fenomeno di Runge, si addensano i nodi agli estremi del ROM sull'intervallo $[0, 1]$:
         $$t_k = \frac{1}{2}\left(1 - \cos\frac{k\pi}{N-1}\right), \qquad k = 0, 1, \dots, N-1$$
     \end{block}
     \begin{columns}[T]
@@ -167,7 +167,7 @@
         \begin{column}{0.48\textwidth}
             \begin{alertblock}{Perché Fallisce nella Biomeccanica?}
                 \begin{itemize}
-                    \item Servono \textbf{troppi parametri} ($N \ge 12 \div 16$) per tentare di catturare la zona piatta di riposo ($t \in [0, 0.2]$).
+                    \item Servono \textbf{troppi parametri} ($N \ge 16$) per tentare di catturare la zona piatta di riposo ($t \in [0, 0.2]$).
                     \item La natura globale del polinomio genera comunque \textbf{ondulazioni parassite} e valori negativi non fisici ($y < 0$).
                 \end{itemize}
             \end{alertblock}
@@ -186,35 +186,28 @@
 % -------------------------------------------------------------
 % METODOLOGIA 2: SPLINE CUBICHE
 % -------------------------------------------------------------
-\begin{frame}{2.2 Metodo 2: Spline Cubiche $C^2$ e Risoluzione Tridiagonale}
-    \begin{block}{Definizione e Raccordo a Tratti $C^2$}
-        \footnotesize
-        Suddivisione del ROM $[0, 1]$ in $n$ intervalli con cubiche locali $S_k(t) \in C^2[0, 1]$:
-        \begin{itemize}
-            \item $4n$ incognite vincolate da interpolazione ($2n$), continuità $C^1$ ed $C^2$ nei nodi interni ($2n-2$).
-            \item \textbf{Bordo Naturale:} chiusura imponendo curvatura nulla agli estremi liberi, $S''(t_0) = S''(t_n) = 0$.
-        \end{itemize}
+\begin{frame}{2.2 Metodo 2: Spline Cubiche $C^2$ (Interpolazione a Tratti)}
+    \begin{block}{Motivazione: Dal Globale al Locale}
+        Per superare le oscillazioni dei polinomi globali (Runge), si suddivide l'intervallo $[0, 1]$ in $n$ sottointervalli $[t_k, t_{k+1}]$, definendo su ciascuno un polinomio cubico locale $S_k(t)$.
     \end{block}
-    \vspace{-0.1cm}
     \begin{columns}[T]
-        \begin{column}{0.50\textwidth}
-            \begin{exampleblock}{Sistema dei Momenti $M_k = S''_k(t_k)$}
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{Proprietà di Raccordo $C^2$}
                 \footnotesize
-                La continuità $C^1$ accoppia solo i nodi adiacenti:
-                $$\mu_k M_{k-1} + 2 M_k + \lambda_k M_{k+1} = d_k$$
-                con $\mu_k + \lambda_k = 1$ e $M_0 = M_n = 0$.
-                \vspace{0.05cm} \\
-                Matrice \textbf{tridiagonale} a \textbf{dominanza diagonale stretta} ($|2| > |\mu_k| + |\lambda_k| = 1$), non singolare.
+                \begin{itemize}
+                    \item \textbf{Interpolazione:} la curva passa esattamente per i nodi: $S(t_k) = y_k$.
+                    \item \textbf{Continuità $C^2$:} derivata prima e seconda continue nei nodi interni per garantire massima regolarità.
+                    \item \textbf{Bordo Naturale:} curvatura nulla agli estremi liberi, $S''(t_0) = S''(t_n) = 0$.
+                \end{itemize}
             \end{exampleblock}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{block}{Algoritmo di Thomas (TDMA)}
+            \begin{block}{Vantaggi Teorici}
                 \footnotesize
-                Risoluzione del sistema lineare tridiagonale:
                 \begin{itemize}
-                    \item Eliminazione gaussiana a due passaggi (Forward Sweep e Back Substitution).
-                    \item Stabilità numerica incondizionata \textbf{senza pivoting}.
-                    \item Complessità computazionale ottimale: \textbf{$\mathcal{O}(n)$} invece di $\mathcal{O}(n^3)$.
+                    \item \textbf{Assenza di Runge:} l'errore resta confinato localmente e non diverge agli estremi.
+                    \item \textbf{Minima curvatura:} tra tutte le funzioni $C^2$ interpolanti, minimizza l'energia di deformazione:
+                    $$\int_0^1 [S''(t)]^2 \, dt$$
                 \end{itemize}
             \end{block}
         \end{column}
@@ -228,7 +221,7 @@
         \footnotesize
         \begin{itemize}
             \item \textbf{Undershoot non fisico ($y(t) < 0$):} la rigidità globale della continuità $C^2$ genera oscillazioni negative nella transizione da zona a riposo ad attiva ($t \in [0, 0.2]$). In fisiologia muscolare non esiste tensione attiva repulsiva.
-            \item \textbf{Il dilemma applicativo:} per contenere le oscillazioni occorrerebbero nodi fittissimi ($N \ge 10$, ingestibili da interfaccia utente) oppure algoritmi monotoni (PCHIP), che tuttavia sacrificano la continuità della curvatura degradando a $C^1$.
+            \item \textbf{Il dilemma applicativo:} per contenere le oscillazioni occorrerebbero nodi fittissimi ($N \ge 10$), rendendo il modello e l'interfaccia utente ingestibili.
         \end{itemize}
     \end{alertblock}
 \end{frame}
@@ -512,7 +505,7 @@
     \end{itemize}
     \begin{equation*}
     \delta(j, RPE) = \begin{cases} 
-    1.60\,\text{s} & \text{se } \Delta_{RPE} > 9.0 \quad (\text{grind al cedimento}) \\
+    1.60\,\text{s} & \text{se } \Delta_{RPE} > 9.0 \\
     1.00\,\text{s} & \text{se } 8.0 < \Delta_{RPE} \le 9.0 \\
     0.60\,\text{s} & \text{se } 7.0 < \Delta_{RPE} \le 8.0 \\
     0.35\,\text{s} & \text{se } 6.0 < \Delta_{RPE} \le 7.0 \\
