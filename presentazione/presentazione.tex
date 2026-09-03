@@ -234,27 +234,29 @@
 \end{frame}
 
 \begin{frame}{2.2 Metodo 3: Come Funziona Geometricamente (De Casteljau)}
-    \begin{block}{Interpolazioni Lineari Annidate (LERP Ricorsivo)}
-        Fissato un parametro $t \in [0, 1]$, il punto sulla curva $\mathbf{P}(t)$ si ottiene con 3 passi di interpolazione lineare ponderata:
-        \begin{align*}
-        \text{\textbf{Livello 1:}} \quad & Q_0(t) = (1-t)P_0 + t P_1, \quad Q_1(t) = (1-t)P_1 + t P_2, \quad Q_2(t) = (1-t)P_2 + t P_3 \\
-        \text{\textbf{Livello 2:}} \quad & R_0(t) = (1-t)Q_0(t) + t Q_1(t), \quad R_1(t) = (1-t)Q_1(t) + t Q_2(t) \\
-        \text{\textbf{Livello 3:}} \quad & \mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)
-        \end{align*}
+    \begin{block}{Interpolazioni Lineari Annidate (LERP Ricorsivo a 3 Livelli)}
+        Fissato $t \in [0, 1]$, il punto sulla curva $\mathbf{P}(t)$ si ottiene ricorsivamente:
+        \begin{itemize}
+            \item \textbf{Livello 1:} $Q_i(t) = (1-t)P_i + t P_{i+1}, \quad i \in \{0, 1, 2\}$
+            \item \textbf{Livello 2:} $R_i(t) = (1-t)Q_i(t) + t Q_{i+1}(t), \quad i \in \{0, 1\}$
+            \item \textbf{Livello 3:} $\mathbf{P}(t) = (1-t)R_0(t) + t R_1(t)$
+        \end{itemize}
     \end{block}
-    \vspace{0.1cm}
     \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
+        \begin{column}{0.50\textwidth}
             \begin{exampleblock}{Ruolo Fisico dei Punti di Controllo}
                 \begin{itemize}
-                    \item $P_0$ e $P_3$: \textbf{ancore} inizio/fine ROM ($t=0$ e $t=1$).
-                    \item $P_1$ e $P_2$: poli di attrazione tangenziale (senza forzare il passaggio per essi $\implies$ zero oscillazioni).
+                    \item $P_0, P_3$: \textbf{ancore di attivazione} ($t=0, 1$ locale). Delimitano $[x_0, x_3]$ e \textbf{non sono vincolati} a $x=0, 1$ (es. LR: $x_0=0.2, x_3=0.9$, con $y=0$ altrove).
+                    \item $P_1, P_2$: \textbf{attrattori tangenziali} della curvatura.
                 \end{itemize}
             \end{exampleblock}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Stabilità Numerica Assoluta}
-                Eseguendo solo combinazioni convesse ($0 \le t \le 1$), l'algoritmo non soffre di cancellazione numerica né di amplificazione di errori di arrotondamento.
+        \begin{column}{0.46\textwidth}
+            \begin{block}{Stabilità \& Dead Zones}
+                \begin{itemize}
+                    \item Sole combinazioni convesse ($t \in [0, 1]$) $\implies$ totale stabilità numerica.
+                    \item Modella naturalmente escursioni con contrazione parziale nel ROM.
+                \end{itemize}
             \end{block}
         \end{column}
     \end{columns}
