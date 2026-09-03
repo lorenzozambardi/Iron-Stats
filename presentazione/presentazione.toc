@@ -1,4 +1,4 @@
 \beamer@sectionintoc {1}{1. Introduzione e Motivazione}{3}{0}{1}
 \beamer@sectionintoc {2}{2. Models: Modellazione e Approssimazione Funzionale}{6}{0}{2}
-\beamer@sectionintoc {3}{3. Analizzatore: Dinamica Discreta e Metriche di Carico}{11}{0}{3}
-\beamer@sectionintoc {4}{4. Solver: Ottimizzazione Euristica Globale}{16}{0}{4}
+\beamer@sectionintoc {3}{3. Analizzatore: Dinamica Discreta e Metriche di Carico}{17}{0}{3}
+\beamer@sectionintoc {4}{4. Solver: Ottimizzazione Euristica Globale}{22}{0}{4}

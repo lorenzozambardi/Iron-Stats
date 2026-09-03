@@ -123,80 +123,143 @@
     \end{alertblock}
 \end{frame}
 
-\begin{frame}{2.2 Analisi Numerica: Interpolazione di Lagrange e Runge (1/3)}
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Interpolazione Polinomiale Globale}
-                Dati $n$ nodi equispaziati su $t \in [0, 1]$:
-                $$p_{n-1}(t) = \sum_{i=1}^n y_i \ell_i(t)$$
-            \end{block}
-            \begin{alertblock}{Instabilità Numerica e Runge}
-                \begin{itemize}
-                    \item \textbf{Vandermonde:} condizionamento divergente esponenzialmente ($\kappa(V) \gg 10^6$).
-                    \item \textbf{Fenomeno di Runge:} oscillazioni parassite ai bordi del ROM:
-                    $$\lim_{n \to \infty} \max_{t \in [0, 1]} |f(t) - p_n(t)| = \infty$$
-                    \item Genera forze e tensioni fittizie non fisiche.
-                \end{itemize}
-            \end{alertblock}
-        \end{column}
-        \begin{column}{0.50\textwidth}
-            \centering
-            \includegraphics[width=\linewidth]{plot_lagrange_runge.png}
-            \scriptsize \textbf{Caso studio LR (Lateral Raise):} con $n=9$ nodi equispaziati, l'interpolante diverge drasticamente agli estremi di allungamento ($t \to 0$) e accorciamento ($t \to 1$).
-        \end{column}
-    \end{columns}
+% -------------------------------------------------------------
+% METODOLOGIA 1: LAGRANGE
+% -------------------------------------------------------------
+\begin{frame}{2.2 Metodo 1: Interpolazione Polinomiale di Lagrange (Teoria)}
+    \begin{block}{Formulazione Globale di Lagrange}
+        Dati $n$ punti campionati $(t_i, y_i)$ lungo il ROM $t \in [0, 1]$:
+        $$p_{n-1}(t) = \sum_{i=1}^n y_i \ell_i(t), \qquad \ell_i(t) = \prod_{j \ne i} \frac{t - t_j}{t_i - t_j}$$
+    \end{block}
+    \vspace{0.15cm}
+    \begin{alertblock}{Condizionamento e Fenomeno di Runge}
+        \begin{itemize}
+            \item \textbf{Matrice di Vandermonde:} $V \mathbf{a} = \mathbf{y}$ con $V_{ij} = t_i^{j-1}$. Il numero di condizionamento cresce esponenzialmente: $\kappa(V) \sim \mathcal{O}(e^{\gamma n}) \implies$ perdita totale di stabilità numerica.
+            \item \textbf{Fenomeno di Runge (Nodi Equispaziati):}
+            $$\lim_{n \to \infty} \max_{t \in [0, 1]} |f(t) - p_{n-1}(t)| = \infty$$
+            L'errore diverge esponenzialmente in corrispondenza degli estremi ($t \to 0$ e $t \to 1$).
+        \end{itemize}
+    \end{alertblock}
 \end{frame}
 
-\begin{frame}{2.2 Analisi Numerica: Spline Cubiche e Undershoot (2/3)}
+\begin{frame}{2.2 Metodo 1: Lagrange su Nodi Equispaziati (Caso LR)}
+    \centering
+    \includegraphics[height=0.54\textheight, keepaspectratio]{plot_lagrange_runge.png}
+    \begin{exampleblock}{Criticità Biomeccanica Evidenziata}
+        \footnotesize Con soli $n=9$ nodi equispaziati, l'interpolante diverge drasticamente nella fase di allungamento iniziale ($t < 0.2$) e di accorciamento finale ($t > 0.85$), generando picchi di tensione artificiali e del tutto non fisiologici.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 1: Nodi di Chebyshev-Gauss-Lobatto (Caso LR)}
+    \centering
+    \includegraphics[height=0.48\textheight, keepaspectratio]{plot_lagrange_gauss_lobatto.png}
+    \begin{alertblock}{Perché Gauss-Lobatto non risolve il problema?}
+        \footnotesize \textbf{Distribuzione CGL:} $t_k = \frac{1}{2}\left(1 - \cos\frac{k\pi}{N-1}\right)$ addensa i nodi agli estremi ed elimina Runge teorico, ma:
+        \begin{itemize}
+            \item Servono \textbf{troppi parametri} ($N \ge 12 \div 16$) per tentare di catturare la zona piatta di quiete ($t \in [0, 0.2]$).
+            \item Permangono \textbf{ondulazioni parassite} e valori negativi $y(t) < 0$, rendendo il modello instabile e non parsimonioso.
+        \end{itemize}
+    \end{alertblock}
+\end{frame}
+
+% -------------------------------------------------------------
+% METODOLOGIA 2: SPLINE CUBICHE
+% -------------------------------------------------------------
+\begin{frame}{2.2 Metodo 2: Spline Cubiche Interpolanti $C^2$ (Teoria)}
+    \begin{block}{Definizione e Risoluzione Lineare Tridiagonale}
+        Dato l'insieme di nodi $0 = t_0 < t_1 < \dots < t_n = 1$, la spline cubica è un polinomio di grado 3 su ciascun sottointervallo $I_k = [t_k, t_{k+1}]$ con continuità di classe $C^2$:
+        $$S(t) \in C^2[0, 1] \implies S_k(t_k) = y_k, \quad S'_k(t_k) = S'_{k-1}(t_k), \quad S''_k(t_k) = S''_{k-1}(t_k)$$
+    \end{block}
+    \vspace{0.15cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Proprietà delle Spline Cubiche}
-                Raccordo a tratti con continuità $C^2$:
+            \begin{block}{Vantaggi Computazionali}
                 \begin{itemize}
-                    \item Sistema tridiagonale $A \mathbf{m} = \mathbf{d}$ in tempo lineare $\mathcal{O}(n)$ via \textbf{Algoritmo di Thomas}.
-                    \item Risolve le oscillazioni globali di Runge.
+                    \item Continuità di derivata prima e curvatura.
+                    \item Risoluzione del sistema tridiagonale in $\mathcal{O}(n)$ con \textbf{Algoritmo di Thomas}.
+                    \item Elimina le oscillazioni globali di Runge.
                 \end{itemize}
             \end{block}
-            \begin{alertblock}{Violazione dei Vincoli Fisici}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{alertblock}{Limite Fisico Fondamentale}
                 \begin{itemize}
-                    \item \textbf{Overshoot e Undershoot:} assenza del vincolo di monotonicità/positività:
+                    \item \textbf{Assenza di forma vincolata:} la spline cubica non rispetta la monotonicità locale né la positività.
+                    \item Tende a produrre \textbf{undershoot non fisici}:
                     $$y(t) < 0$$
-                    \item \textbf{Inconsistenza fisica:} un muscolo non può erogare tensione contrattile attiva negativa.
                 \end{itemize}
             \end{alertblock}
-        \end{column}
-        \begin{column}{0.50\textwidth}
-            \centering
-            \includegraphics[width=\linewidth]{plot_spline_overshoot.png}
-            \scriptsize \textbf{Caso studio LR (Lateral Raise):} la spline naturale produce un marcato undershoot ($y(t) < 0$) in fase di allungamento iniziale ($t \in [0, 0.2]$).
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{2.2 Analisi Numerica: Curve di Bézier e Confronto (3/3)}
+\begin{frame}{2.2 Metodo 2: Spline Cubica Naturale su LR (Undershoot)}
+    \centering
+    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_spline_overshoot.png}
+    \begin{alertblock}{Violazione dei Principi Biomeccanici}
+        \footnotesize L'interpolazione spline naturale sui nodi fisiologici genera un marcato undershoot ($y(t) < 0$) per $t \in [0, 0.2]$. Un muscolo scheletrico non può esercitare tensione attiva negativa (repulsiva); richiederebbe forzature numeriche ad-hoc (clamping artificiale).
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 2: Densità dei Nodi e Dilemma delle Spline}
+    \centering
+    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_spline_densita.png}
+    \begin{exampleblock}{Dilemma di Modellazione per l'Utente}
+        \footnotesize Per contenere gli undershoot servono \textbf{nodi fitti} ($N \ge 10$, ingestibili in una UI per l'utente) oppure interpolatori monotoni tipo PCHIP, che però \textbf{perdono la continuità della curvatura} degradando a $C^1$.
+    \end{exampleblock}
+\end{frame}
+
+% -------------------------------------------------------------
+% METODOLOGIA 3: BÉZIER
+% -------------------------------------------------------------
+\begin{frame}{2.2 Metodo 3: Curve di Bézier e Polinomi di Bernstein (Teoria)}
+    \begin{block}{Definizione della Curva Parametrica di Grado 3}
+        $$\mathbf{P}(t) = \sum_{i=0}^3 \mathbf{P}_i B_{i,3}(t), \quad B_{i,3}(t) = \binom{3}{i} t^i (1-t)^{3-i}, \quad t \in [0, 1]$$
+    \end{block}
+    \vspace{0.15cm}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Polinomi di Bernstein di Grado 3}
-                $$\mathbf{P}(t) = \sum_{i=0}^3 \mathbf{P}_i B_{i,3}(t), \quad B_{i,3}(t) = \binom{3}{i} t^i (1-t)^{3-i}$$
-            \end{block}
-            \begin{block}{Garanzie Matematiche e Numeriche}
-                \begin{itemize}
-                    \item \textbf{Partizione dell'Unità:} $\sum_{i=0}^3 B_{i,3}(t) \equiv 1$.
-                    \item \textbf{Inviluppo Convesso (Convex Hull):}
-                    \begin{align*}
-                    B_{i,3}(t) \ge 0 &\implies \mathbf{P}(t) \in \text{Conv}(\{\mathbf{P}_i\}) \\
-                    &\implies y(t) \ge 0 \quad \forall t \in [0, 1]
-                    \end{align*}
-                    \item \textbf{Complessità $\mathcal{O}(1)$:} forma analitica o De Casteljau.
-                \end{itemize}
+            \begin{block}{Partizione dell'Unità}
+                $$\sum_{i=0}^3 B_{i,3}(t) \equiv 1 \quad \forall t \in [0, 1]$$
+                Garantisce l'invarianza affine rispetto al sistema di coordinate adottato.
             \end{block}
         \end{column}
-        \begin{column}{0.50\textwidth}
-            \centering
-            \includegraphics[width=\linewidth]{plot_bezier_confronto.png}
-            \scriptsize \textbf{Sintesi Comparativa su LR:} Bézier (in verde) rispetta rigorosamente il poligono di controllo $\{P_0, \dots, P_3\}$, priva di oscillazioni o valori negativi.
+        \begin{column}{0.48\textwidth}
+            \begin{alertblock}{Positività \& Inviluppo Convesso}
+                $$B_{i,3}(t) \ge 0 \implies \mathbf{P}(t) \in \text{Conv}(\{\mathbf{P}_i\})$$
+                Se tutti i punti di controllo hanno ordinata $y_i \ge 0$, la curva \textbf{non può mai diventare negativa}!
+            \end{alertblock}
         \end{column}
     \end{columns}
+\end{frame}
+
+\begin{frame}{2.2 Metodo 3: Funzioni Base di Bernstein e Curva LR}
+    \centering
+    \includegraphics[height=0.54\textheight, keepaspectratio]{plot_bezier_dettaglio.png}
+    \begin{exampleblock}{Proprietà Emergenti della Curva di Bézier}
+        \footnotesize \textbf{Parsimonia estrema:} soli 4 nodi di controllo $P_0, P_1, P_2, P_3$ descrivono l'intero profilo biomeccanico. \\
+        \textbf{Complessità $\mathcal{O}(1)$:} calcolabile direttamente o tramite schema stabile di De Casteljau, ideale per valutazioni ripetute nell'ottimizzatore.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{2.2 Sintesi Comparativa Globale delle Metodologie}
+    \centering
+    \includegraphics[height=0.48\textheight, keepaspectratio]{plot_bezier_confronto.png}
+    \vspace{-0.15cm}
+    \begin{table}[h]
+        \centering
+        \tiny
+        \begin{tabular}{lccccc}
+            \toprule
+            \textbf{Metodologia} & \textbf{N. Parametri} & \textbf{Complessità} & \textbf{Regolarità} & \textbf{Garanzia $y(t) \ge 0$} & \textbf{Fenomeno di Runge} \\
+            \midrule
+            Lagrange (Equispaziato) & $n$ & $\mathcal{O}(n^2)$ & $C^\infty$ & No & Grave oscillazione \\
+            Lagrange (Gauss-Lobatto) & $\ge 12$ & $\mathcal{O}(n \log n)$ & $C^\infty$ & No & Attenuato (ondulazioni) \\
+            Spline Cubica Naturale & $2n$ nodi & $\mathcal{O}(n)$ & $C^2$ & No (undershoot) & Assente \\
+            \textbf{Bézier Grado 3} & \textbf{4 nodi} & $\bm{\mathcal{O}(1)}$ & $\bm{C^\infty}$ \textbf{su} $[0, 1]$ & \textbf{Sì (Convex Hull)} & \textbf{Assente} \\
+            \bottomrule
+        \end{tabular}
+    \end{table}
 \end{frame}
 
 \begin{frame}{2.3 Quadratura Numerica e Riscalamento Vincolato}
