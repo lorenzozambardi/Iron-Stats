@@ -186,148 +186,51 @@
 % -------------------------------------------------------------
 % METODOLOGIA 2: SPLINE CUBICHE
 % -------------------------------------------------------------
-\begin{frame}[shrink=3]{2.2 Metodo 2: Spline Cubiche $C^2$ — Idea Guida e Bilancio Incognite}
-    \begin{block}{L'Idea Guida: Suddivisione a Tratti}
-        Per evitare le oscillazioni di Runge dei polinomi globali, si suddivide il ROM $[0, 1]$ in $n$ intervalli $I_k = [t_k, t_{k+1}]$ con passo $h_k = t_{k+1} - t_k$, impiegando su ciascuno un polinomio cubico locale $S_k(t)$:
-        $$S_k(t) = a_k + b_k (t - t_k) + c_k (t - t_k)^2 + d_k (t - t_k)^3, \quad k = 0, \dots, n-1$$
+\begin{frame}{2.2 Metodo 2: Spline Cubiche $C^2$ e Risoluzione Tridiagonale}
+    \begin{block}{Definizione e Raccordo a Tratti $C^2$}
+        \footnotesize
+        Suddivisione del ROM $[0, 1]$ in $n$ intervalli con cubiche locali $S_k(t) \in C^2[0, 1]$:
+        \begin{itemize}
+            \item $4n$ incognite vincolate da interpolazione ($2n$), continuità $C^1$ ed $C^2$ nei nodi interni ($2n-2$).
+            \item \textbf{Bordo Naturale:} chiusura imponendo curvatura nulla agli estremi liberi, $S''(t_0) = S''(t_n) = 0$.
+        \end{itemize}
     \end{block}
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \begin{exampleblock}{Il Conteggio delle $4n$ Incognite}
-                Ogni tratto ha 4 coefficienti incogniti $(a_k, b_k, c_k, d_k) \implies \mathbf{4n \text{ incognite totali}}$.
-                \footnotesize
-                \begin{itemize}
-                    \item \textbf{Interpolazione ($2n$ eq.):} passaggio per i nodi $S_k(t_k)=y_k$ e $S_k(t_{k+1})=y_{k+1}$.
-                    \item \textbf{Continuità $C^1$ ($n-1$ eq.):} raccordo pendenze $S'_{k-1}(t_k) = S'_k(t_k)$.
-                    \item \textbf{Continuità $C^2$ ($n-1$ eq.):} raccordo curvature $S''_{k-1}(t_k) = S''_k(t_k)$.
-                \end{itemize}
-            \end{exampleblock}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Chiusura del Sistema: 2 Condizioni}
-                Totale equazioni interne:
-                $$2n + (n-1) + (n-1) = 4n - 2$$
-                Mancano esattamente 2 condizioni per chiudere il sistema.
-                \vspace{0.1cm} \\
-                \textbf{Spline Naturale:} si impone curvatura nulla agli estremi liberi del ROM:
-                $$S''(t_0) = 0, \qquad S''(t_n) = 0$$
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{2.2 Metodo 2: Come si Calcolano i Coefficienti di Ogni Tratto $S_k(t)$}
-    \begin{block}{La Strategia: Ridurre $4n$ Incognite ai soli Momenti $M_k$}
-        Invece di risolvere $4n$ equazioni simultanee, si scelgono come incognite principali le sole \textbf{curvature nei nodi interni}, dette \textbf{momenti}:
-        $$M_k = S''_k(t_k), \qquad k = 0, 1, \dots, n$$
-    \end{block}
+    \vspace{-0.1cm}
     \begin{columns}[T]
         \begin{column}{0.50\textwidth}
-            \begin{exampleblock}{Derivata Seconda Lineare}
-                Poiché ogni $S_k(t)$ è cubico, la sua derivata seconda $S''_k(t)$ è una retta che interpola $M_k$ e $M_{k+1}$:
-                $$S''_k(t) = M_k \frac{t_{k+1} - t}{h_k} + M_{k+1} \frac{t - t_k}{h_k}$$
-                Integrando due volte e imponendo il passaggio per $y_k$ e $y_{k+1}$, i coefficienti emergono analiticamente.
+            \begin{exampleblock}{Sistema dei Momenti $M_k = S''_k(t_k)$}
+                \footnotesize
+                La continuità $C^1$ accoppia solo i nodi adiacenti:
+                $$\mu_k M_{k-1} + 2 M_k + \lambda_k M_{k+1} = d_k$$
+                con $\mu_k + \lambda_k = 1$ e $M_0 = M_n = 0$.
+                \vspace{0.05cm} \\
+                Matrice \textbf{tridiagonale} a \textbf{dominanza diagonale stretta} ($|2| > |\mu_k| + |\lambda_k| = 1$), non singolare.
             \end{exampleblock}
         \end{column}
-        \begin{column}{0.46\textwidth}
-            \begin{block}{Formule Chiuse per Tratto}
-                \footnotesize
-                Noti i momenti $\{M_k\}$, ogni tratto è esplicito:
-                $$\begin{aligned}
-                a_k &= y_k \\
-                c_k &= \frac{M_k}{2} \\
-                d_k &= \frac{M_{k+1} - M_k}{6 h_k} \\
-                b_k &= \frac{y_{k+1} - y_k}{h_k} - \frac{2M_k + M_{k+1}}{6} h_k
-                \end{aligned}$$
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}[shrink=2]{2.2 Metodo 2: Perché la Matrice è Tridiagonale?}
-    \begin{block}{L'Accoppiamento Locale tra Nodi Vicini}
-        L'unica condizione non ancora sfruttata è la \textbf{continuità della derivata prima} nei nodi interni: $S'_{k-1}(t_k) = S'_k(t_k)$. \\
-        Sostituendo le formule dei coefficienti, il nodo $k$ dialoga \textbf{esclusivamente con il nodo sinistro $k-1$ e il nodo destro $k+1$}:
-        $$\mu_k M_{k-1} + 2 M_k + \lambda_k M_{k+1} = d_k, \qquad k = 1, \dots, n-1$$
-        $$\text{con } \mu_k = \frac{h_{k-1}}{h_{k-1}+h_k}, \quad \lambda_k = \frac{h_k}{h_{k-1}+h_k} \;\; (\implies \mu_k + \lambda_k = 1), \quad d_k = \frac{6 \Delta^2 y_k}{h_{k-1}+h_k}$$
-    \end{block}
-    \begin{columns}[T]
-        \begin{column}{0.50\textwidth}
-            \begin{block}{Struttura Tridiagonale $A \mathbf{M} = \mathbf{d}$}
-                \tiny
-                $$\begin{pmatrix}
-                2 & \lambda_1 & 0 & \dots & 0 \\
-                \mu_2 & 2 & \lambda_2 & \dots & 0 \\
-                0 & \mu_3 & 2 & \dots & 0 \\
-                \vdots & & \ddots & \ddots & \vdots \\
-                0 & \dots & 0 & \mu_{n-1} & 2
-                \end{pmatrix}
-                \begin{pmatrix} M_1 \\ M_2 \\ \vdots \\ M_{n-1} \end{pmatrix}
-                =
-                \begin{pmatrix} d_1 \\ d_2 \\ \vdots \\ d_{n-1} \end{pmatrix}$$
-                \footnotesize Bordo naturale: $M_0 = 0, \quad M_n = 0$.
-            \end{block}
-        \end{column}
-        \begin{column}{0.46\textwidth}
-            \begin{exampleblock}{Dominanza Diagonale Stretta}
-                \footnotesize
-                Su ogni riga vale:
-                $$|2| > |\mu_k| + |\lambda_k| = 1$$
-                La matrice $A$ è \textbf{strettamente dominante}: è garantita non singolare e risolvibile \textbf{senza pivoting}.
-            \end{exampleblock}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{2.2 Metodo 2: L'Algoritmo di Thomas (TDMA) e il Limite Fisico}
-    \begin{block}{Algoritmo di Thomas: Eliminazione Gaussiana in $\mathcal{O}(n)$}
-        Grazie alla presenza di sole 3 diagonali, il sistema si risolve senza matrici piene in due soli passaggi lineari:
-    \end{block}
-    \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{1. Forward Sweep (Discesa)}
+            \begin{block}{Algoritmo di Thomas (TDMA)}
                 \footnotesize
-                Scorrendo dall'alto in basso ($k=1 \to n-1$), si azzera la sotto-diagonale $\mu_k$:
-                $$\begin{aligned}
-                c'_1 &= \frac{\lambda_1}{2}, \quad d'_1 = \frac{d_1}{2} \\
-                c'_k &= \frac{\lambda_k}{2 - \mu_k c'_{k-1}}, \quad d'_k = \frac{d_k - \mu_k d'_{k-1}}{2 - \mu_k c'_{k-1}}
-                \end{aligned}$$
-            \end{block}
-            \vspace{-0.1cm}
-            \begin{block}{2. Back Substitution (Risalita)}
-                \footnotesize
-                Risolve a ritroso i momenti in tempo $\mathcal{O}(n)$:
-                $$M_{n-1} = d'_{n-1}, \quad M_k = d'_k - c'_k M_{k+1}$$
-            \end{block}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{alertblock}{Il Limite Fisico Fondamentale}
-                \footnotesize \textbf{Perché non basta per Iron Stats?} \\
-                Risolti i momenti in tempo $\mathcal{O}(n)$, la continuità di curvatura $C^2$ impone una rigidità globale che \textbf{non rispetta la positività}:
+                Risoluzione del sistema lineare tridiagonale:
                 \begin{itemize}
-                    \item Se il muscolo ha una zona iniziale a riposo ($y=0$) e poi sale, la spline genera un rimbalzo negativo:
-                    $$y(t) < 0 \quad (\text{\textbf{undershoot non fisico}})$$
-                    \item In biomeccanica non esiste tensione muscolare repulsiva/negativa.
+                    \item Eliminazione gaussiana a due passaggi (Forward Sweep e Back Substitution).
+                    \item Stabilità numerica incondizionata \textbf{senza pivoting}.
+                    \item Complessità computazionale ottimale: \textbf{$\mathcal{O}(n)$} invece di $\mathcal{O}(n^3)$.
                 \end{itemize}
-            \end{alertblock}
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{2.2 Metodo 2: Spline Cubica Naturale su LR (Undershoot)}
+\begin{frame}{2.2 Metodo 2: Criticità Biomeccanica delle Spline (Undershoot)}
     \centering
-    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_spline_overshoot.png}
-    \begin{alertblock}{Violazione dei Principi Biomeccanici}
-        \footnotesize L'interpolazione spline naturale sui nodi fisiologici genera un marcato undershoot ($y(t) < 0$) per $t \in [0, 0.2]$. Un muscolo scheletrico non può esercitare tensione attiva negativa (repulsiva); richiederebbe forzature numeriche ad-hoc (clamping artificiale).
+    \includegraphics[height=0.48\textheight, keepaspectratio]{plot_spline_overshoot.png}
+    \begin{alertblock}{Mancata Conservazione della Positività}
+        \footnotesize
+        \begin{itemize}
+            \item \textbf{Undershoot non fisico ($y(t) < 0$):} la rigidità globale della continuità $C^2$ genera oscillazioni negative nella transizione da zona a riposo ad attiva ($t \in [0, 0.2]$). In fisiologia muscolare non esiste tensione attiva repulsiva.
+            \item \textbf{Il dilemma applicativo:} per contenere le oscillazioni occorrerebbero nodi fittissimi ($N \ge 10$, ingestibili da interfaccia utente) oppure algoritmi monotoni (PCHIP), che tuttavia sacrificano la continuità della curvatura degradando a $C^1$.
+        \end{itemize}
     \end{alertblock}
-\end{frame}
-
-\begin{frame}{2.2 Metodo 2: Densità dei Nodi e Dilemma delle Spline}
-    \centering
-    \includegraphics[height=0.52\textheight, keepaspectratio]{plot_spline_densita.png}
-    \begin{exampleblock}{Dilemma di Modellazione per l'Utente}
-        \footnotesize Per contenere gli undershoot servono \textbf{nodi fitti} ($N \ge 10$, ingestibili in una UI per l'utente) oppure interpolatori monotoni tipo PCHIP, che però \textbf{perdono la continuità della curvatura} degradando a $C^1$.
-    \end{exampleblock}
 \end{frame}
 
 % -------------------------------------------------------------
