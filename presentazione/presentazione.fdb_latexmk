@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1788439227.13747 "presentazione.tex" "presentazione.pdf" "presentazione" 1788439231.87845 0
+["pdflatex"] 1788455228.78404 "presentazione.tex" "presentazione.pdf" "presentazione" 1788455233.47705 0
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1775415801 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1775415801 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecso0800.tfm" 1775415801 3584 9d213a5e33aba09782ffab939fc38a6f ""
@@ -273,13 +273,12 @@
   "plot_de_casteljau.png" 1788439203.70814 265331 cc8d8ee941b1ca09ea8dc5dec97e32f6 ""
   "plot_lagrange_gauss_lobatto.png" 1788438656.1555 358337 ed79abb364524ab75eba65bb21768617 ""
   "plot_lagrange_runge.png" 1788438655.00217 251823 9f8c8000905326417629c36373535b9f ""
-  "plot_spline_densita.png" 1788438658.89217 400968 43f59fea9edc7f3a3911f5131921b66e ""
   "plot_spline_overshoot.png" 1788438657.49217 277127 24c3569346bf250b039f76a56f590ea7 ""
-  "presentazione.aux" 1788439231.77735 5539 f6c9c5d250e65c9c7c44d496af8d49f9 "pdflatex"
-  "presentazione.nav" 1788439231.77879 3665 e71d3dbd6a62386055ab0b6ffd0faab1 "pdflatex"
-  "presentazione.out" 1788439231.77879 1124 0143ec5e4f562373b9b0108dbe4ff4e9 "pdflatex"
-  "presentazione.tex" 1788439220.88812 26383 cbc23325e39f7c2d7e5a01c724607d45 ""
-  "presentazione.toc" 1788439231.77879 325 e3984afa7e273d212844a22cfea9c91c "pdflatex"
+  "presentazione.aux" 1788455233.38433 6517 c015397334dbbda618c7e03831a85ab3 "pdflatex"
+  "presentazione.nav" 1788455233.3861 4365 b02ad981b1ecfee3eb85b2d54cbbe582 "pdflatex"
+  "presentazione.out" 1788455233.3861 1266 6efa5554bcf4ed089eec466aee577eeb "pdflatex"
+  "presentazione.tex" 1788455231.91637 40540 cf3c43e3bb14364d5f21d658492c62a6 ""
+  "presentazione.toc" 1788455233.3861 351 705ee806475da8c3c6f4cff886e41bb2 "pdflatex"
   (generated)
   "presentazione.aux"
   "presentazione.log"
