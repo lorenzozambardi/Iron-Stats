@@ -1,82 +1,82 @@
-# Modello Matematico: Ottimizzazione su Curva di Tensione Cumulativa
+# Mathematical Model: Optimization on Cumulative Tension Curve
 
-## 1. Variabili Decisionali
-*   $x_{i,d} \in \{0, 1\}$: Attivazione. `1` se l'esercizio $i$ è programmato nel giorno $d$, `0` altrimenti.
-*   $v_{i,d} \in \mathbb{N}$: Volume (numero di serie) per l'esercizio $i$ nel giorno $d$.
-*   $r_{i,d} \in \mathbb{N}$: Ripetizioni per serie dell'esercizio $i$ nel giorno $d$.
+## 1. Decision Variables
+*   $x_{i,d} \in \{0, 1\}$: Activation. `1` if exercise $i$ is scheduled on day $d$, `0` otherwise.
+*   $v_{i,d} \in \mathbb{N}$: Volume (number of sets) for exercise $i$ on day $d$.
+*   $r_{i,d} \in \mathbb{N}$: Repetitions per set of exercise $i$ on day $d$.
 
-## 2. Parametri (Input Modificabili da UI)
+## 2. Parameters (UI Editable Input)
 > [!IMPORTANT]
-> **Tutti i vincoli e limiti di seguito elencati non sono hard-coded, ma devono essere esposti e modificabili liberamente dall'utente tramite l'interfaccia (UI).** I valori riportati sono le impostazioni di default correnti.
+> **All constraints and limits listed below are not hard-coded, but must be exposed and freely editable by the user via the user interface (UI).** The values shown are the current default settings.
 
-*   $D$: Numero giorni del microciclo. Deve essere compreso tra 3 e 7 ($3 \le D \le 7$).
-*   $T$: Set di punti discreti che mappano il Range of Motion (ROM).
-*   $C_{i,m}(t)$: Curva di tensione di base dell'esercizio $i$ sul muscolo $m$.
-*   $T_m(t)$: Curva Target ideale di tensione. L'interfaccia deve permettere all'utente di impostarla scegliendo tra le seguenti forme (su dominio $t \in [0, 1]$):
-    *   **Costante:** Tensione piatta per tutto il ROM ($T_m(t) = c$).
-    *   **Sigmoide:** Crescente da 0 a 1 (enfasi sulla contrazione di picco).
-    *   **Sigmoide Inversa:** Decrescente da 1 a 0 (enfasi sull'allungamento massimo).
-    *   **Lineare (da 1 a 0):** Decrescente linearmente (enfasi proporzionale all'allungamento).
-*   $F_i$: Costo di fatica sistemica dell'esercizio $i$.
+*   $D$: Number of days in the microcycle. Must be between 3 and 7 ($3 \le D \le 7$).
+*   $T$: Set of discrete points mapping the Range of Motion (ROM).
+*   $C_{i,m}(t)$: Base tension curve of exercise $i$ on muscle $m$.
+*   $T_m(t)$: Ideal target tension curve. The interface must allow the user to set it by choosing among the following shapes (on domain $t \in [0, 1]$):
+    *   **Constant (Flat):** Flat tension throughout the ROM ($T_m(t) = c$).
+    *   **Sigmoid:** Increasing from 0 to 1 (emphasis on peak contraction).
+    *   **Inverse Sigmoid:** Decreasing from 1 to 0 (emphasis on maximal stretch).
+    *   **Linear (from 1 to 0):** Decreasing linearly (emphasis proportional to stretch).
+*   $F_i$: Systemic fatigue cost of exercise $i$.
 
-**Limiti Operativi (Default):**
-*   **Limiti Serie:** $V_{min} = 1$, $V_{max} = 6$.
-*   **Limiti Ripetizioni:** $R_{min} = 5$, $R_{max} = 20$.
-*   **Limiti Esercizi/Giorno:** $E_{min} = 3$, $E_{max} = 10$.
-*   **Limite Fatica Giornaliera:** $F_{max\_giorno} = 1500$.
-*   **Limiti Recupero:** $Rest_{min} = 80\text{s}$ (1'20"), $Rest_{max} = 210\text{s}$ (3'30").
+**Operational Limits (Default):**
+*   **Set Limits:** $V_{min} = 1$, $V_{max} = 6$.
+*   **Rep Limits:** $R_{min} = 5$, $R_{max} = 20$.
+*   **Exercises/Day Limits:** $E_{min} = 3$, $E_{max} = 10$.
+*   **Daily Fatigue Limit:** $F_{max\_day} = 1500$.
+*   **Rest Limits:** $Rest_{min} = 80\text{s}$ (1'20"), $Rest_{max} = 210\text{s}$ (3'30").
 
-## 3. Funzione Obiettivo: Ottimizzazione Multi-Obiettivo (Scalarizzata)
+## 3. Objective Function: Multi-Objective Optimization (Scalarized)
 
-L'obiettivo generale è minimizzare simultaneamente l'errore sulla curva di tensione e l'errore sugli indici di efficienza (Ratios) dell'allenamento. 
+The general objective is to simultaneously minimize the tension curve error and the training efficiency indexes (Ratios) error.
 
-### 3.1 Pesi e Target di Efficienza (Impostabili da UI)
-L'utente deve poter definire i **Pesi ($w$)** per decidere l'importanza di ciascun parametro (la cui somma deve fare 1.0) e i **Target Ideali** per le frazioni di efficienza (da 0.0 a 1.0):
-*   $w_{curva}$: Peso per l'aderenza alla Curva Target.
-*   $w_{vol}$: Peso per l'efficienza del Volume. (Target Ideale: $Target_{vol}$)
-*   $w_{ton}$: Peso per l'efficienza del Tonnellaggio. (Target Ideale: $Target_{ton}$)
-*   $w_{tut}$: Peso per l'efficienza del TUT. (Target Ideale: $Target_{tut}$)
-*   $w_{distr}$: Peso per l'aderenza alla distribuzione volumetrica Macro/Micro richiesta.
-*   $w_{variety}$: Peso per incentivare la diversità degli esercizi su tutto il microciclo.
+### 3.1 Efficiency Weights and Targets (UI Editable)
+The user must be able to define the **Weights ($w$)** to decide the importance of each parameter (whose sum must be 1.0) and the **Ideal Targets** for the efficiency fractions (from 0.0 to 1.0):
+*   $w_{curve}$: Weight for adherence to the Target Curve.
+*   $w_{vol}$: Weight for Volume efficiency. (Ideal Target: $Target_{vol}$)
+*   $w_{ton}$: Weight for Tonnage efficiency. (Ideal Target: $Target_{ton}$)
+*   $w_{tut}$: Weight for TUT efficiency. (Ideal Target: $Target_{tut}$)
+*   $w_{distr}$: Weight for adherence to the requested Macro/Micro volumetric distribution.
+*   $w_{variety}$: Weight to incentivize exercise diversity across the entire microcycle.
 
-### 3.2 Calcolo degli Errori (Uniformati nel dominio [0, 1])
-Per garantire che i pesi ($w$) assegnati dall'interfaccia abbiano un impatto perfettamente simmetrico e democratico, TUTTI gli errori sono matematicamente schiacciati nello stesso dominio `[0.0, 1.0]`. Questo si ottiene dividendo gli scarti per il loro massimo valore teorico o effettuando la media anziché la sommatoria.
+### 3.2 Error Calculation (Normalized in domain [0, 1])
+To ensure that the weights ($w$) assigned by the interface have a perfectly symmetrical and democratic impact, ALL errors are mathematically squashed into the same domain `[0.0, 1.0]`. This is achieved by dividing the deviations by their maximum theoretical value or by averaging instead of summing.
 
-1.  **Errore Curva (Media del MSE):**  L'errore quadratico medio calcolato sui punti della curva viene sommato per tutti i muscoli e diviso per il numero dei muscoli analizzati: $E_{curva} = \frac{1}{|M|} \sum_{m} \frac{\sum (V_m - T_m)^2}{Risoluzione}$
-2.  **Errore Volume:** $E_{vol} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - Target_{vol} \right)^2$
-3.  **Errore Tonnellaggio:** $E_{ton} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - Target_{ton} \right)^2$
-4.  **Errore TUT:** $E_{tut} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - Target_{tut} \right)^2$
-5.  **Errore Distribuzione Volumi:** Diviso per 2 (massima distanza teorica tra due distribuzioni percentuali)
-    $$ Target_{globale}(m) = Macro\%(M) \times Sub\%(m) $$
-    $$ E_{distr} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{effettivo}(m)}{V_{totale}} - Target_{globale}(m) \right)^2 $$
-6.  **Errore Varietà:**
+1.  **Curve Error (Mean MSE):** The mean squared error calculated on the curve points is summed for all analyzed muscles and divided by the number of muscles: $E_{curve} = \frac{1}{|M|} \sum_{m} \frac{\sum (V_m - T_m)^2}{Resolution}$
+2.  **Volume Error:** $E_{vol} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - Target_{vol} \right)^2$
+3.  **Tonnage Error:** $E_{ton} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - Target_{ton} \right)^2$
+4.  **TUT Error:** $E_{tut} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - Target_{tut} \right)^2$
+5.  **Volume Distribution Error:** Divided by 2 (maximum theoretical distance between two percentage distributions)
+    $$ Target_{global}(m) = Macro\%(M) \times Sub\%(m) $$
+    $$ E_{distr} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{effective}(m)}{V_{total}} - Target_{global}(m) \right)^2 $$
+6.  **Variety Error:**
     $$ E_{variety} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2 $$
-7.  **Errore di Bilanciamento Giornaliero (Ex-Varianza):**
-    Assicura che il volume e la fatica siano equamente spalmati nei vari giorni del microciclo. La varianza giornaliera viene divisa per la varianza massima teorica, mappando il risultato in `[0, 1]`.
+7.  **Daily Balance Error (Ex-Variance):**
+    Ensures that volume and fatigue are equally spread across the microcycle days. The daily variance is divided by the theoretical maximum variance, mapping the result to `[0, 1]`.
     $$ E_{balance} = \frac{1}{2} \left( \frac{Var(\text{Fatigue})}{Var_{max\_F}} + \frac{Var(\text{Volume})}{Var_{max\_V}} \right) $$
 
-### 3.3 Funzione Obiettivo Globale (Somma Pesata Softmax)
-I pesi $w$ forniti dalla UI (sottoposti a Normalizzazione Softmax in modo che $\sum w = 1.0$) vengono moltiplicati per i rispettivi Errori.
-L'algoritmo minimizzerà la seguente equazione:
-$$ \min \Big( w_{curva} \cdot E_{curva} + w_{vol} \cdot E_{vol} + w_{ton} \cdot E_{ton} + w_{tut} \cdot E_{tut} + w_{distr} \cdot E_{distr} + w_{variety} \cdot E_{variety} + w_{balance} \cdot E_{balance} \Big) $$
+### 3.3 Global Objective Function (Softmax Weighted Sum)
+The weights $w$ provided by the UI (subjected to Softmax Normalization so that $\sum w = 1.0$) are multiplied by the respective Errors.
+The algorithm will minimize the following equation:
+$$ \min \Big( w_{curve} \cdot E_{curve} + w_{vol} \cdot E_{vol} + w_{ton} \cdot E_{ton} + w_{tut} \cdot E_{tut} + w_{distr} \cdot E_{distr} + w_{variety} \cdot E_{variety} + w_{balance} \cdot E_{balance} \Big) $$
 
-## 4. Vincoli Fisiologici (Constraints)
+## 4. Physiological Constraints
 
-### 4.1. Limiti di Serie e Ripetizioni (Big-M)
-Se l'esercizio è scelto, deve rispettare i parametri minimi e massimi. Se non è scelto, i valori collassano a 0.
-$$ V_{min} \cdot x_{i,d} \le v_{i,d} \le V_{max} \cdot x_{i,d} \quad \text{(es. } 1 \le v_{i,d} \le 6 \text{)} $$
-$$ R_{min} \cdot x_{i,d} \le r_{i,d} \le R_{max} \cdot x_{i,d} \quad \text{(es. } 5 \le r_{i,d} \le 20 \text{)} $$
+### 4.1. Sets and Reps Limits (Big-M)
+If the exercise is chosen, it must respect the minimum and maximum parameters. If not chosen, the values collapse to 0.
+$$ V_{min} \cdot x_{i,d} \le v_{i,d} \le V_{max} \cdot x_{i,d} \quad \text{(e.g., } 1 \le v_{i,d} \le 6 \text{)} $$
+$$ R_{min} \cdot x_{i,d} \le r_{i,d} \le R_{max} \cdot x_{i,d} \quad \text{(e.g., } 5 \le r_{i,d} \le 20 \text{)} $$
 
-### 4.2. Densità Minima e Massima per Giorno
-$$ E_{min} \le \sum_{i \in E} x_{i,d} \le E_{max} \quad \text{(es. } 3 \le \text{Esercizi} \le 10 \text{)} $$
+### 4.2. Minimum and Maximum Density per Day
+$$ E_{min} \le \sum_{i \in E} x_{i,d} \le E_{max} \quad \text{(e.g., } 3 \le \text{Exercises} \le 10 \text{)} $$
 
-### 4.4. Recupero Deterministico (Proporzionale alla Fatica)
-Il recupero $rest_i$ non è una variabile libera da ottimizzare, ma viene calcolato a priori tramite un'euristica non-lineare basata sulla fatica sistemica $F_i$ dell'esercizio:
-* **Bassa Fatica ($F_i \le 2.0$):** Recupero fisso a 1 minuto (60s). Ideale per isolamento leggero.
-* **Fatica Media ($2.0 < F_i \le 7.0$):** Scala linearmente da 1 minuto a 3 minuti.
-* **Alta Fatica ($F_i > 7.0$):** Scala linearmente da 3 minuti fino a un massimo di 3 minuti e 30 secondi (per esercizi sistemici pesanti come lo Stacco).
-I valori calcolati vengono poi arrotondati al mezzo minuto più vicino (es. 2'30").
+### 4.4. Deterministic Rest (Proportional to Fatigue)
+Rest $rest_i$ is not a free variable to optimize, but is calculated a priori via a non-linear heuristic based on the systemic fatigue $F_i$ of the exercise:
+* **Low Fatigue ($F_i \le 2.0$):** Fixed rest at 1 minute (60s). Ideal for light isolation.
+* **Medium Fatigue ($2.0 < F_i \le 7.0$):** Scales linearly from 1 minute to 3 minutes.
+* **High Fatigue ($F_i > 7.0$):** Scales linearly from 3 minutes up to a maximum of 3 minutes and 30 seconds (for heavy systemic exercises like Deadlifts).
+The calculated values are then rounded to the nearest half minute (e.g., 2'30").
 
-### 4.5. Tempo di Recupero Muscolare / Neurale (Overlap)
-Per forzare l'algoritmo a cambiare angolo di lavoro e non saturare l'SNC con lo stesso identico movimento per aggirare il tetto dei set, viene applicata una penalità massiccia alla funzione di Costo se lo stesso esercizio viene programmato più di una volta nello stesso giorno.
-$$ Costo \mathrel{+}= \text{Penalty} \quad \text{se } \sum x_{i,d} > 1 \text{ nello stesso } d $$
+### 4.5. Muscle / Neural Recovery Time (Overlap)
+To force the algorithm to change working angles and avoid saturating the CNS with the exact same movement to bypass the set cap, a massive penalty is applied to the Cost function if the same exercise is scheduled more than once on the same day.
+$$ Cost \mathrel{+}= \text{Penalty} \quad \text{if } \sum x_{i,d} > 1 \text{ on the same } d $$
