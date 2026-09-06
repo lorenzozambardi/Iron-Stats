@@ -285,7 +285,7 @@ export const ExerciseModal = ({
               <div style={{ marginTop: '20px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                    Curva di Tensione: {exerciseForm.muscles[editingCurveIndex]?.name}
+                    Tension Curve: {exerciseForm.muscles[editingCurveIndex]?.name}
                   </h4>
                   <button 
                     type="button"
@@ -293,7 +293,7 @@ export const ExerciseModal = ({
                     style={{ padding: '4px 12px', fontSize: '0.8rem' }}
                     onClick={() => setEditingCurveIndex(null)}
                   >
-                    Fatto
+                    Done
                   </button>
                 </div>
                 <BezierEditor 
@@ -305,8 +305,8 @@ export const ExerciseModal = ({
                   }}
                 />
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', textAlign: 'center' }}>
-                  Trascina i punti arancioni per impostare la tensione iniziale e finale.<br/>
-                  Trascina le maniglie blu per modificare l'accelerazione della resistenza.
+                  Drag the orange points to set initial and final tension.<br/>
+                  Drag the blue handles to modify resistance acceleration.
                 </p>
               </div>
             )}
