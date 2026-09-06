@@ -175,7 +175,7 @@ class WorkoutSolver:
         """
         Evaluates the fitness (cost) of a given WorkoutState (a generated program).
         Lower cost is better. The cost is a weighted sum of several error metrics:
-        - E_curva: Mean Squared Error (MSE) against the target muscle activation curves.
+        - E_curve: Mean Squared Error (MSE) against the target muscle activation curves.
         - E_vol/ton/tut: Ratio errors for effective vs total volume/tonnage/tut.
         - E_distr: Muscle distribution error (actual vs target volume distribution).
         - E_variety: Penalty for reusing the same exercises (unique exercises / total exercises).
@@ -256,7 +256,7 @@ class WorkoutSolver:
             daily_vol.append(day_vol)
                 
         # 1. Curve Error
-        E_curva = 0.0
+        E_curve = 0.0
         if len(V_m) > 0:
             trained_muscles = 0
             for m, curve in V_m.items():
@@ -264,10 +264,10 @@ class WorkoutSolver:
                 if max_v > 0:
                     target = self.T_m.get(m, self.default_curve)
                     normalized_v = curve / max_v
-                    E_curva += np.sum((normalized_v - target)**2) / self.resolution
+                    E_curve += np.sum((normalized_v - target)**2) / self.resolution
                     trained_muscles += 1
             if trained_muscles > 0:
-                E_curva /= trained_muscles # Normalize to [0, 1] range
+                E_curve /= trained_muscles # Normalize to [0, 1] range
             
         # 2. Ratio Errors
         E_vol = (eff_vol / total_vol - self.config.target_ratios['vol'])**2 if total_vol > 0 else 0.0
@@ -309,7 +309,7 @@ class WorkoutSolver:
             E_balance = (norm_var_f + norm_var_v) / 2.0
                     
         raw_metrics = {
-            'curve': E_curva,
+            'curve': E_curve,
             'vol': E_vol,
             'ton': E_ton,
             'tut': E_tut,
