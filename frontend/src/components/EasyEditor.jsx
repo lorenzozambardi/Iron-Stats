@@ -451,7 +451,7 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
                           <input 
                             value={ex.note || ''}
                             onChange={(e) => updateExercise(sIdx, eIdx, { note: e.target.value })}
-                            placeholder='e.g. 1" pause, ultime mezze rep'
+                            placeholder='e.g. 1" pause, last half reps'
                             style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.92rem', width: '100%', outline: 'none', appearance: 'none', WebkitAppearance: 'none' }}
                           />
                         </div>
@@ -506,7 +506,7 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
                                       </button>
                                     </div>
 
-                                    {/* Line 2 (Grid): 3 Large Input Pill Boxes (Carico, Reps, RPE) */}
+                                    {/* Line 2 (Grid): 3 Large Input Pill Boxes (Load, Reps, RPE) */}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
                                       {/* Weight Box */}
                                       <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', boxSizing: 'border-box' }}>
