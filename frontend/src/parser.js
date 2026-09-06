@@ -141,7 +141,7 @@ function getStringSimilarity(s1, s2) {
 
 // Hard map from Analyzer.py (enhanced to fix matching bug)
 const HARD_MAP = {
-  // --- PETTO ---
+  // --- CHEST ---
   "flat db bench": "Flat DB Bench",
   "spinte db": "Flat DB Bench", "spinte manubri": "Flat DB Bench", "panca piana db": "Flat DB Bench",
   "spinte 20": "20 DB Bench", "spinte db 20": "20 DB Bench", "spinte manubri 20": "20 DB Bench",
@@ -161,7 +161,7 @@ const HARD_MAP = {
   "pec dec": "Pec Deck", "butterfly": "Pec Deck", "pectoral": "Pec Deck",
   "chest press": "Chest Press",
 
-  // --- DORSO ---
+  // --- BACK ---
   "lat machine": "Lat Machine", "lat presa larga": "Lat Machine", "lat": "Lat Machine",
   "lat machine alternative": "Lat Machine Alternative",
   "pulley stretta": "Close Pulley", "pulley presa stretta": "Close Pulley",
@@ -174,13 +174,13 @@ const HARD_MAP = {
   "sa machine pulldown": "SA Machine Pulldown", "pulldown macch": "SA Machine Pulldown",
   "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
 
-  // --- SPALLE ---
+  // --- SHOULDERS ---
   "lr": "LR", "lr 49": "LR 49", "alzate laterali 49": "LR 49", "alzate laterali": "LR", "lateral raise": "LR",
   "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
   "shoulder press": "Machine Press", "press macch": "Machine Press",
   "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
 
-  // --- GAMBE ---
+  // --- LEGS ---
   "squat": "Squat", "back squat": "Squat",
   "pressa": "Leg Press 45", "leg press": "Leg Press 45", "pressa 45": "Leg Press 45",
   "hack squat": "Hack Squat", "hack": "Hack Squat",
@@ -191,7 +191,7 @@ const HARD_MAP = {
   "leg curl": "Leg Curl", "leg curl sdraiato": "Leg Curl",
   "leg ext": "Leg Extension", "leg extension": "Leg Extension",
 
-  // --- BRACCIA (Bicipiti) ---
+  // --- ARMS (Biceps) ---
   "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl",
   "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
   "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
@@ -201,14 +201,14 @@ const HARD_MAP = {
   "spider curl db": "Reverse Scott DB Curl",
   "spider curl manubri": "Reverse Scott DB Curl",
 
-  // --- BRACCIA (Tricipiti) ---
+  // --- ARMS (Triceps) ---
   "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
   "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
   "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
   "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
   "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps",
 
-  // --- ADDOME ---
+  // --- CORE ---
   "dragon flag": "Dragon Flag Raises", "dragon flag raises": "Dragon Flag Raises",
   "hanging leg": "Hanging Leg Raises", "hanging leg raises": "Hanging Leg Raises", "leg raises": "Hanging Leg Raises",
   "crunch": "Crunch"

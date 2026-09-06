@@ -27,7 +27,7 @@ MUSCLES = {
 }
 
 HARD_MAP = {
-    # --- PETTO ---
+    # --- CHEST ---
     "flat db bench": "Flat DB Bench",
     "spinte db": "Flat DB Bench",
     "spinte manubri": "Flat DB Bench",
@@ -67,7 +67,7 @@ HARD_MAP = {
     "butterfly": "Pec Deck",
     "pectoral": "Pec Deck",
     "chest press": "Chest Press",
-    # --- DORSO ---
+    # --- BACK ---
     "lat machine": "Lat Machine",
     "lat presa larga": "Lat Machine",
     "lat": "Lat Machine",
@@ -94,7 +94,7 @@ HARD_MAP = {
     "chin up": "Chin-Ups",
     "max chin up": "Chin-Ups",
     "trazioni": "Chin-Ups",
-    # --- SPALLE ---
+    # --- SHOULDERS ---
     "lr": "LR",
     "lr 49": "LR 49",
     "alzate laterali 49": "LR 49",
@@ -107,7 +107,7 @@ HARD_MAP = {
     "press macch": "Machine Press",
     "extra": "Shoulder Extra-Rotations",
     "extra rotazioni": "Shoulder Extra-Rotations",
-    # --- GAMBE ---
+    # --- LEGS ---
     "squat": "Squat",
     "back squat": "Squat",
     "pressa": "Leg Press 45",
@@ -129,7 +129,7 @@ HARD_MAP = {
     "leg curl sdraiato": "Leg Curl",
     "leg ext": "Leg Extension",
     "leg extension": "Leg Extension",
-    # --- BRACCIA (Bicipiti) ---
+    # --- ARMS (Biceps) ---
     "curl 45": "45 Incl Curl",
     "curl incl 45": "45 Incl Curl",
     "curl 49": "49 Incl Curl",
@@ -144,7 +144,7 @@ HARD_MAP = {
     "reverse scott db curl": "Reverse Scott DB Curl",
     "spider curl db": "Reverse Scott DB Curl",
     "spider curl manubri": "Reverse Scott DB Curl",
-    # --- BRACCIA (Tricipiti) ---
+    # --- ARMS (Triceps) ---
     "fr pr c": "Cable French Press",
     "french press cavo": "Cable French Press",
     "pushdown 54": "Bench 54 Pushdown",
@@ -156,7 +156,7 @@ HARD_MAP = {
     "tricipiti cavo basso": "Low Cable Triceps",
     "bench 54 triceps": "Bench 54 Triceps",
     "tricipiti panca 54": "Bench 54 Triceps",
-    # --- ADDOME ---
+    # --- CORE ---
     "dragon flag": "Dragon Flag Raises",
     "dragon flag raises": "Dragon Flag Raises",
     "hanging leg": "Hanging Leg Raises",
