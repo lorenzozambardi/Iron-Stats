@@ -60,13 +60,13 @@ Workout logs are written in a specialized, highly compact markdown format.
 **Basic Structure:**
 ```text
 # 1
-Lat Machine | 3' | ultime mezze rep
+Lat Machine | 3' | last half reps
 90..9+2.7+2
 90..10+2.8+2
 ```
 
 - `# 1`: Denotes Session / Day 1.
-- `Lat Machine | 3' | ultime mezze rep`: Exercise Name | Rest Time | Notes.
+- `Lat Machine | 3' | last half reps`: Exercise Name | Rest Time | Notes.
 - `90..9+2.7+2`: Load (90kg) .. Set 1 (9 full reps + 2 partials) . Set 2 (7 full reps + 2 partials).
 
 For a complete guide on how to read and write these logs, please refer to the [User Manual: How to Read the Program](HOW_TO_READ_THE_PROGRAM.md).
