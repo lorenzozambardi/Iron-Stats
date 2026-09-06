@@ -258,7 +258,7 @@ export class WorkoutSolver {
     /**
      * Evaluates the fitness (cost) of a given WorkoutState (a generated program).
      * Lower cost is better. The cost is a weighted sum of several error metrics:
-     * - E_curva: Mean Squared Error (MSE) against the target muscle activation curves.
+     * - E_curve: Mean Squared Error (MSE) against the target muscle activation curves.
      * - E_vol/ton/tut: Ratio errors for effective vs total volume/tonnage/tut.
      * - E_distr: Muscle distribution error (actual vs target volume distribution).
      * - E_variety: Penalty for reusing the same exercises (unique exercises / total exercises).
@@ -349,7 +349,7 @@ export class WorkoutSolver {
         }
 
         // 1. Curve Error
-        let E_curva = 0.0;
+        let E_curve = 0.0;
         let trainedMuscles = 0;
         for (const m in V_m) {
             const curve = V_m[m];
@@ -365,11 +365,11 @@ export class WorkoutSolver {
                     const diff = normV - target[i];
                     sumSq += diff * diff;
                 }
-                E_curva += sumSq / this.resolution;
+                E_curve += sumSq / this.resolution;
                 trainedMuscles++;
             }
         }
-        if (trainedMuscles > 0) E_curva /= trainedMuscles;
+        if (trainedMuscles > 0) E_curve /= trainedMuscles;
 
         // 2. Ratio Errors
         const vDiff = effVol / totalVol - this.config.target_ratios.vol;
@@ -429,7 +429,7 @@ export class WorkoutSolver {
         }
 
         const rawMetrics = {
-            curve: E_curva,
+            curve: E_curve,
             vol: E_vol,
             ton: E_ton,
             tut: E_tut,
