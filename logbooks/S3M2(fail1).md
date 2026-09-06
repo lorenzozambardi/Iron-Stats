@@ -1,6 +1,6 @@
 # 1
 
-Lat Machine | 2'30" | 1-1-2-1, ultime mezze rep
+Lat Machine | 2'30" | 1-1-2-1, last half reps
 108..6+2.100..8+2
 
 Lat Machine Alternative | 2'30" | 1-1-2-1
@@ -9,13 +9,13 @@ Lat Machine Alternative | 2'30" | 1-1-2-1
 Sissy Squat | 3' | 1-1-2-1
 160..6.150..6
 
-Leg Curl | 2' | 1-0-2-1, ultime mezze rep
+Leg Curl | 2' | 1-0-2-1, last half reps
 50..15+3.50..11+3
 
-LRC | 1'30" | 1-0-1-0, ultime mezze rep
+LRC | 1'30" | 1-0-1-0, last half reps
 25..6+3.25..6+2
 
-LR | 1'30" | 1-0-1-0, ultime mezze rep
+LR | 1'30" | 1-0-1-0, last half reps
 22..7+3.22..6+3
 
 Dragon Flag Raises | 2' | 1-0-1-0
@@ -46,7 +46,7 @@ Hanging Leg Raises | 2' | 1-0-1-0
 
 # 3
 
-SA Cable Pulldown | 2' | 1-1-2-1, ultime mezze rep
+SA Cable Pulldown | 2' | 1-1-2-1, last half reps
 120..8+3.6+3
 
 Machine T-Bar | 2'40" | 1-0-1-1
@@ -58,10 +58,10 @@ Preacher Curl | 2' | 1-0-2-0
 49 Incl Curl | 2' | 1-0-2-0
 18..6.16..6
 
-LRC | 2' | 1-0-1-0, ultime mezze rep
+LRC | 2' | 1-0-1-0, last half reps
 25..7+3.6+3
 
-LR | 2' | 1-0-1-0, ultime mezze rep
+LR | 2' | 1-0-1-0, last half reps
 22..6+3.22..6+3
 
 # 4
@@ -86,7 +86,7 @@ Incl Cable Pushdown | 1'30" | 1-0-1-0
 
 # 5
 
-Close Pulley | 2'30" | 1-1-2-1, ultime mezze rep
+Close Pulley | 2'30" | 1-1-2-1, last half reps
 85..6+3.75..7+3
 
 45 SM Bench | 2'40" | 1-1-2-1
@@ -104,8 +104,8 @@ Low Cable Triceps | 2' | 1-0-2-0
 Bench 54 Triceps | 2' | 1-0-2-0
 45..6.35..6
 
-LRC | 1'30" | 1-0-1-0, ultime mezze rep
+LRC | 1'30" | 1-0-1-0, last half reps
 30..6+3.25..6+3
 
-LR | 1'30" | 1-0-1-0, ultime mezze rep
+LR | 1'30" | 1-0-1-0, last half reps
 27..6+3.22..6+3
