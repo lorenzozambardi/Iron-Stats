@@ -15,10 +15,10 @@ Object.entries(MUSCLES).forEach(([sub, macro]) => {
 });
 
 const CURVE_OPTIONS = [
-  { id: 'constant', label: 'Costante (Piatta)' },
-  { id: 'sigmoid', label: 'Sigmoide (Enfasi Contrazione)' },
-  { id: 'inv_sigmoid', label: 'Sigmoide Inversa (Enfasi Allungamento)' },
-  { id: 'linear', label: 'Lineare Decrescente' }
+  { id: 'constant', label: 'Constant (Flat)' },
+  { id: 'sigmoid', label: 'Sigmoid (Contraction Emphasis)' },
+  { id: 'inv_sigmoid', label: 'Inverse Sigmoid (Stretch Emphasis)' },
+  { id: 'linear', label: 'Linear Decreasing' }
 ];
 
 export default function GeneratorConfig({ isMobile }) {
@@ -52,7 +52,7 @@ export default function GeneratorConfig({ isMobile }) {
 
   const calculateSoftmax = (wObj) => {
     const keys = Object.keys(wObj);
-    // Trucco di stabilizzazione numerica per Softmax: sottrarre il massimo per evitare Infinity
+    // Numerical stabilization trick for Softmax: subtract maximum to avoid Infinity
     const maxVal = Math.max(...keys.map(k => wObj[k]));
     const expValues = keys.map(k => Math.exp(wObj[k] - maxVal));
     const sumExp = expValues.reduce((a, b) => a + b, 0);
@@ -138,7 +138,7 @@ export default function GeneratorConfig({ isMobile }) {
       const exRes = await fetch('/api/exercises');
       const exercises = await exRes.json();
 
-      // Permettiamo al browser di renderizzare lo stato di "caricamento"
+      // Allow the browser to render the "loading" state
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const solver = new WorkoutSolver(payload, exercises);
@@ -197,7 +197,7 @@ export default function GeneratorConfig({ isMobile }) {
       });
     });
 
-    const programName = prompt("Inserisci il nome della nuova scheda (es. AI_Program):", "Scheda_AI");
+    const programName = prompt("Enter the name of the new program (e.g. AI_Program):", "AI_Program");
     if (!programName) return;
 
     try {
@@ -208,9 +208,9 @@ export default function GeneratorConfig({ isMobile }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      alert("Scheda salvata con successo! Ora la trovi nel Logbook.");
+      alert("Program saved successfully! You can now find it in the Logbook.");
     } catch (err) {
-      alert("Errore durante il salvataggio: " + err.message);
+      alert("Error during saving: " + err.message);
     }
   };
 
@@ -257,47 +257,47 @@ export default function GeneratorConfig({ isMobile }) {
       {/* Left Pane: Configuration UI */}
       <div className="config-pane" style={{ flex: '1', overflowY: 'auto', padding: '20px', background: '#1c1c1e', borderRadius: '12px', border: '1px solid #333' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-          <Settings size={20} color="#007aff" /> Configurazione Generatore (WIP)
+          <Settings size={20} color="#007aff" /> Generator Configuration (WIP)
         </h2>
 
         {/* Global Params */}
         <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={16} /> Limiti Globali
+            <Activity size={16} /> Global Limits
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Giorni (D) [3-7]</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Days (D) [3-7]</label>
               <input type="number" min="3" max="7" value={globalParams.days} onChange={e => setGlobalParams({...globalParams, days: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Serie (Min - Max)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Sets (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
                 <input type="number" value={globalParams.minSets} onChange={e => setGlobalParams({...globalParams, minSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
                 <input type="number" value={globalParams.maxSets} onChange={e => setGlobalParams({...globalParams, maxSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Ripetizioni (Min - Max)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Reps (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
                 <input type="number" value={globalParams.minReps} onChange={e => setGlobalParams({...globalParams, minReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
                 <input type="number" value={globalParams.maxReps} onChange={e => setGlobalParams({...globalParams, maxReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Esercizi/Giorno (Min - Max)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Exercises/Day (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
                 <input type="number" value={globalParams.minEx} onChange={e => setGlobalParams({...globalParams, minEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
                 <input type="number" value={globalParams.maxEx} onChange={e => setGlobalParams({...globalParams, maxEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Iterazioni (SA)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Iterations (SA)</label>
               <input type="number" step="1000" min="1000" value={globalParams.iterations} onChange={e => setGlobalParams({...globalParams, iterations: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Calibrazione (Auto-Scale)</label>
-              <input type="number" step="100" min="0" value={globalParams.calibrationSteps} onChange={e => setGlobalParams({...globalParams, calibrationSteps: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} title="Numero di schede casuali per tarare le magnitudo. 0 per disabilitare." />
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Calibration (Auto-Scale)</label>
+              <input type="number" step="100" min="0" value={globalParams.calibrationSteps} onChange={e => setGlobalParams({...globalParams, calibrationSteps: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} title="Number of random programs to calibrate magnitudes. 0 to disable." />
             </div>
           </div>
         </div>
@@ -306,10 +306,10 @@ export default function GeneratorConfig({ isMobile }) {
         <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Target size={16} /> Distribuzione Volumi (Macro/Micro)
+              <Target size={16} /> Volume Distribution (Macro/Micro)
             </h3>
             <span style={{ fontSize: '0.8rem', color: isVolumeValid ? '#30d158' : '#ff453a', fontWeight: 'bold' }}>
-              {isVolumeValid ? 'OK' : 'Errori % (Somma != 100)'}
+              {isVolumeValid ? 'OK' : '% Errors (Sum != 100)'}
             </span>
           </div>
 
@@ -341,8 +341,8 @@ export default function GeneratorConfig({ isMobile }) {
                   {isExpanded && (
                     <div style={{ marginTop: '15px', paddingLeft: '15px', borderLeft: '2px solid #3a3a3c', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '4px' }}>
-                        <span>Sottogruppi ({m})</span>
-                        <span style={{ color: mValid ? '#30d158' : '#ff453a' }}>Somma: {mSum}%</span>
+                        <span>Subgroups ({m})</span>
+                        <span style={{ color: mValid ? '#30d158' : '#ff453a' }}>Sum: {mSum}%</span>
                       </div>
                       {MACRO_SUB_MAP[m].map(sub => (
                         <div key={sub} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -370,7 +370,7 @@ export default function GeneratorConfig({ isMobile }) {
         <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Scale size={16} /> Pesi Obiettivo (Valori Reali)
+              <Scale size={16} /> Objective Weights (Real Values)
             </h3>
           </div>
 
@@ -389,14 +389,14 @@ export default function GeneratorConfig({ isMobile }) {
             ))}
           </div>
           <p style={{ fontSize: '0.75rem', color: '#8e8e93', marginTop: '12px', textAlign: 'center' }}>
-            I numeri reali vengono convertiti in percentuali (Somma = 100%) tramite funzione Softmax.
+            Real numbers are converted to percentages (Sum = 100%) via Softmax function.
           </p>
         </div>
 
         {/* Target Ratios */}
         <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Target size={16} /> Efficienza Target (0-100%)
+            <Target size={16} /> Target Efficiency (0-100%)
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {Object.entries(targets).map(([key, val]) => (
@@ -412,7 +412,7 @@ export default function GeneratorConfig({ isMobile }) {
         {/* Muscle Target Curves */}
         <div className="config-section" style={{ background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sliders size={16} /> Target Curve per Muscolo
+            <Sliders size={16} /> Target Curves by Muscle
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
             {MACRO_MUSCLES.map(m => (
@@ -438,12 +438,12 @@ export default function GeneratorConfig({ isMobile }) {
           style={{ marginTop: '20px', width: '100%', padding: '12px', background: (isGenerating || !isVolumeValid) ? '#636366' : '#30d158', color: (isGenerating || !isVolumeValid) ? '#aeaeb2' : 'black', border: 'none', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (isGenerating || !isVolumeValid) ? 'not-allowed' : 'pointer' }}
         >
           {isGenerating ? <Activity size={18} className="spin" /> : <Play size={18} />}
-          {isGenerating ? 'Calcolo in corso...' : 'Avvia Risolutore (Numpy)'}
+          {isGenerating ? 'Calculating...' : 'Start Solver (Numpy)'}
         </button>
 
         {error && (
           <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(255, 69, 58, 0.2)', color: '#ff453a', borderRadius: '8px', fontSize: '0.9rem' }}>
-            <strong>Errore:</strong> {error}
+            <strong>Error:</strong> {error}
           </div>
         )}
       </div>
@@ -456,14 +456,14 @@ export default function GeneratorConfig({ isMobile }) {
             onClick={() => setRightTab('info')}
             style={{ padding: '8px 16px', background: rightTab === 'info' ? '#007aff' : 'transparent', color: rightTab === 'info' ? 'white' : '#8e8e93', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'info' ? 'bold' : 'normal' }}
           >
-            <BookOpen size={18} /> Modello Matematico
+            <BookOpen size={18} /> Mathematical Model
           </button>
           <button
             onClick={() => setRightTab('result')}
             disabled={!generatedResult}
             style={{ padding: '8px 16px', background: rightTab === 'result' ? '#30d158' : 'transparent', color: rightTab === 'result' ? 'black' : (generatedResult ? 'white' : '#48484a'), border: 'none', borderRadius: '8px', cursor: generatedResult ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'result' ? 'bold' : 'normal' }}
           >
-            <Activity size={18} /> Risultato Generato
+            <Activity size={18} /> Generated Result
           </button>
         </div>
 
@@ -486,7 +486,7 @@ export default function GeneratorConfig({ isMobile }) {
                 {markdownContent}
               </ReactMarkdown>
             ) : (
-              <p>Caricamento documentazione in corso...</p>
+              <p>Loading documentation...</p>
             )}
           </div>
         )}
@@ -494,13 +494,13 @@ export default function GeneratorConfig({ isMobile }) {
         {rightTab === 'result' && generatedResult && (
           <div style={{ flex: '1', overflowY: 'auto', display: 'flex', flexDirection: 'column', paddingRight: '10px' }}>
             <h3 style={{ color: '#30d158', marginBottom: '20px', fontSize: '1.4rem' }}>
-              Scheda Ottimizzata (Costo: {generatedResult.final_cost.toFixed(2)})
+              Optimized Program (Cost: {generatedResult.final_cost.toFixed(2)})
             </h3>
 
             <div style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '20px' }}>
               {generatedResult.days.map((day, dIdx) => (
                 <div key={dIdx} style={{ minWidth: '320px', flex: '0 0 auto', display: 'flex', flexDirection: 'column' }}>
-                  <h4 style={{ color: '#007aff', marginBottom: '15px', fontSize: '1.2rem', borderBottom: '2px solid #3a3a3c', paddingBottom: '10px' }}>Giorno {dIdx + 1}</h4>
+                  <h4 style={{ color: '#007aff', marginBottom: '15px', fontSize: '1.2rem', borderBottom: '2px solid #3a3a3c', paddingBottom: '10px' }}>Day {dIdx + 1}</h4>
                   {day.map((ex, exIdx) => (
                     <div key={exIdx} style={{ background: '#1c1c1e', border: '1px solid #3a3a3c', borderRadius: '10px', padding: '15px', marginBottom: '15px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -532,7 +532,7 @@ export default function GeneratorConfig({ isMobile }) {
               onClick={handleSaveProgram}
               style={{ marginTop: 'auto', width: '100%', padding: '15px', background: '#007aff', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer' }}
             >
-              <Save size={20} /> Salva Scheda nel Logbook
+              <Save size={20} /> Save Program to Logbook
             </button>
           </div>
         )}
