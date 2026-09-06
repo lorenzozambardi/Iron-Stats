@@ -226,6 +226,12 @@ export function matchExercise(rawName, exercises) {
     }
   }
 
+  for (const key of SORTED_HARD_MAP_KEYS) {
+    if (rawLower.includes(key)) {
+      return exercises.find(e => e.name === HARD_MAP[key]) || null;
+    }
+  }
+
   const cleanRegex = /(?:\d+s|\d+"|\d+'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|reps|pause|down|up|cheated|machine|contraction)/gi;
   const rawClean = namePart.replace(cleanRegex, '').replace(/\|/g, '').toLowerCase().trim();
 
