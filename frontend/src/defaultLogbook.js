@@ -1,20 +1,20 @@
 export const defaultLogbook = `
 # 1
-Lat Machine | 3' | ultime mezze rep
+Lat Machine | 3' | last half reps
 90..9+2.7+2
 90..9+2.8+2
 90..10+2.8+2
 95..10+2.7+2
 100..8+2.6+2
 
-Machine T-Bar | 2'30" | 1" fermo giù, ultime mezze rep
+Machine T-Bar | 2'30" | 1" pause down, last half reps
 60..9+2.6+2
 60..9+2.7+2
 60..10+2.8+3
 60..11+2.9+2
 70..8+2.7+2
 
-DB Hammer | 2' | ultime mezze rep
+DB Hammer | 2' | last half reps
 22..8.6
 22..8.6
 22..8.6
@@ -28,21 +28,21 @@ Chin-Ups | 2' | max
 79..12
 80..12
 
-Flat DB Bench | 2'30" | 1s fermo giù
+Flat DB Bench | 2'30" | 1s pause down
 40..5
 40..6
 40..6
 40..7
 40..7
 
-DB Flies | 2'20" | ultime forzate
+DB Flies | 2'20" | last forced reps
 20..12(2).8(2)
 20..12(2).10(3)
 20..12(2).8(2)
 22..10(2).6(2)
 22..10(2).7(2)
 
-Bench 54 Pushdown | 2' | ultime mezze rep
+Bench 54 Pushdown | 2' | last half reps
 30..9.8.6
 30..9.8.6
 30..9.8.6
@@ -56,7 +56,7 @@ LR | 2'
 20..12.10.8
 20..12.10.9
 
-RDL | 3' | 1" fermo giù
+RDL | 3' | 1" pause down
 140..9
 140..9
 140..9
@@ -71,7 +71,7 @@ Leg Curl | 2'
 50..15.12
 
 # 2
-20 SM Bench | 3' | fermo in basso 1"
+20 SM Bench | 3' | pause at bottom 1"
 37..5.30..8
 37..5.30..8
 37..5.30..8
@@ -99,7 +99,7 @@ Close Pulley | 2'30"
 75..13(2).11(2)
 75..13(2).11(2)
 
-SA Machine Pulldown | 2' | ultime mezze rep
+SA Machine Pulldown | 2' | last half reps
 100..10(2).8(1)
 100..10(2).8(1)
 100..11(2).9(2)
@@ -113,14 +113,14 @@ Preacher Curl | 2'
 15..7.5
 17..6.5
 
-LRC | 2' | ultime mezze rep
+LRC | 2' | last half reps
 20..10.8.7
 20..11.9.8
 20..11.9.8
 20..11.9.8
 20..11.9.9
 
-Sissy Squat | 2' | 1" fermo giù
+Sissy Squat | 2' | 1" pause down
 140..7
 140..8
 150..7
@@ -135,7 +135,7 @@ Leg Extension | 2'
 50..15.12
 
 # 3
-Lat Machine Alternative | 2'40" | stretta fullrom, ultime cheattate
+Lat Machine Alternative | 2'40" | close fullrom, last cheated
 120..7+2.6+3.5+3
 120..8+2.6+3.5+2
 120..8+3.6+3.6+2
@@ -177,7 +177,7 @@ Bench 54 Pushdown | 2'
 30..12.9.7
 30..12.9.8
 
-LRC | 2' | ultime mezze rep
+LRC | 2' | last half reps
 20..10.8.7
 20..10.8.7
 20..10.8.7
@@ -192,7 +192,7 @@ Leg Curl | 2'
 50..12.12
 
 # 4
-32 SM Bench | 3' | 3" eccentrica
+32 SM Bench | 3' | 3" eccentric
 35..30..5.7
 35..30..5.8
 35..30..6.7
@@ -227,7 +227,7 @@ Pullover | 2' | dds
 50/35/25..15/9/8
 50/35/25..15/9/8
 
-Preacher Curl | 2' | ultime aiutato
+Preacher Curl | 2' | last assisted
 15..7(2).4(2)
 15..8(2).6(2)
 15..8(2).6(2)
@@ -241,14 +241,14 @@ Chin-Ups | 2' | bw
 79..8
 80..8
 
-LR | 2' | ultime mezze rep
+LR | 2' | last half reps
 20..10.9.8
 20..12.10.8
 20..12.10.9
 20..12.10.9
 20..12.10.9
 
-Leg Extension | 2' | 1" fermo su
+Leg Extension | 2' | 1" pause up
 50..12.10
 50..14.12
 50..14.12
