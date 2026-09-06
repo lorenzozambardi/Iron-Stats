@@ -10,7 +10,7 @@ from .models import Exercise, SetData, WeekData, WorkoutExercise
 # Precompiled regular expressions for performance optimization
 # Matches fluff text in exercise names to be cleaned out (e.g. '10s', 'rep', 'cluster')
 RE_CLEAN_EXERCISE = re.compile(
-    r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|reps|pause|down|up|cheated|machine|contraction)'
+    r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|reps|pause|\bdown\b|up|cheated|machine|contraction)'
 )
 # Matches rest times in the format | 2' | or | 90" | or | 1'30" |
 RE_REST_TIME = re.compile(r'\|\s*(?:(\d+)\')?(?:(\d+)")?\s*(?:\||$)')
