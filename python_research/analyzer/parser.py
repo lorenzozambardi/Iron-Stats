@@ -42,6 +42,10 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
         if ex.name.lower() == raw_lower:
             return ex
 
+    for key in SORTED_HARD_MAP_KEYS:
+        if key in raw_lower:
+            return next((e for e in exercises if e.name == HARD_MAP[key]), None)
+
     raw_clean = RE_CLEAN_EXERCISE.sub("", name_part).lower().strip()
 
     for ex in exercises:
