@@ -36,6 +36,12 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
     uses fuzzy string matching with a cutoff to avoid false positives.
     """
     name_part = raw_name.split("|")[0]
+    raw_lower = name_part.strip().lower()
+
+    for ex in exercises:
+        if ex.name.lower() == raw_lower:
+            return ex
+
     raw_clean = RE_CLEAN_EXERCISE.sub("", name_part).lower().strip()
 
     for ex in exercises:

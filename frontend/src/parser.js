@@ -218,6 +218,14 @@ const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.l
 
 export function matchExercise(rawName, exercises) {
   const namePart = rawName.split('|')[0];
+  const rawLower = namePart.trim().toLowerCase();
+
+  for (const ex of exercises) {
+    if (ex.name.toLowerCase() === rawLower) {
+      return ex;
+    }
+  }
+
   const cleanRegex = /(?:\d+s|\d+"|\d+'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|reps|pause|down|up|cheated|machine|contraction)/gi;
   const rawClean = namePart.replace(cleanRegex, '').replace(/\|/g, '').toLowerCase().trim();
 
