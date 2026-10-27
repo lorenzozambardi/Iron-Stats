@@ -352,6 +352,37 @@ h1, h2, h3, h4, h5, h6 {
   overflow-wrap: anywhere;
 }
 
+.foldable-editor-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.foldable-editor-root > div,
+.foldable-editor-root .cm-theme,
+.foldable-editor-root .cm-editor {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.foldable-editor-root .cm-scroller {
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
 /* Quick Tools Bar */
 .editor-tools {
   display: flex;
@@ -1834,7 +1865,7 @@ input::-webkit-list-button {
   .easy-editor-container,
   .config-pane,
   .docs-pane,
-  .foldable-editor-root .cm-scroller {
+  .foldable-editor-root .cm-content {
     padding-top: 84px !important;
     padding-bottom: 100px !important;
   }

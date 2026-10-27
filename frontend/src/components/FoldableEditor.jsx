@@ -16,14 +16,17 @@ const editorTheme = EditorView.theme({
     fontSize: 'inherit'
   },
   '.cm-scroller': {
-    overflow: 'auto',
+    overflow: 'auto !important',
+    height: '100% !important',
     fontFamily: 'inherit',
-    lineHeight: '1.6'
+    lineHeight: '1.6',
+    touchAction: 'pan-y',
+    WebkitOverflowScrolling: 'touch'
   },
   '.cm-content': {
     caretColor: '#fff',
     minHeight: '100%',
-    padding: '14px 4px'
+    padding: '14px 4px 120px 4px'
   },
   '.cm-line': {
     padding: '0 2px'
@@ -172,7 +175,7 @@ export default function FoldableEditor({
   }, [onChange]);
 
   return (
-    <div className="foldable-editor-root" style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div className="foldable-editor-root">
       <CodeMirror
         value={value}
         height="100%"
