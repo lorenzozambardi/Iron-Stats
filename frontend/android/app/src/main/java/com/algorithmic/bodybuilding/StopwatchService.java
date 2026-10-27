@@ -32,7 +32,7 @@ public class StopwatchService extends Service {
     private static final String PREF_ACCUMULATED_TIME = "accumulated_time";
 
     public interface StateChangeListener {
-        void onStateChanged(boolean isRunning, long elapsedMs);
+        void onStateChanged(boolean isRunning, long startTime, long accumulatedMs);
     }
 
     private static StateChangeListener stateListener = null;
@@ -61,11 +61,15 @@ public class StopwatchService extends Service {
         }
 
         // Show persistent foreground notification
-        Notification notification = buildNotification();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else {
-            startForeground(NOTIFICATION_ID, notification);
+        try {
+            Notification notification = buildNotification();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+        } catch (SecurityException e) {
+            // Handled safely if notification permission is pending
         }
 
         return START_STICKY;
@@ -101,7 +105,7 @@ public class StopwatchService extends Service {
                 .apply();
 
             updateNotification();
-            notifyListener(true, accumulated);
+            notifyListener(true, now, accumulated);
         }
     }
 
@@ -121,7 +125,7 @@ public class StopwatchService extends Service {
                 .apply();
 
             updateNotification();
-            notifyListener(false, newAccumulated);
+            notifyListener(false, 0, newAccumulated);
         }
     }
 
@@ -134,18 +138,22 @@ public class StopwatchService extends Service {
             .apply();
 
         updateNotification();
-        notifyListener(false, 0);
+        notifyListener(false, 0, 0);
     }
 
-    private void notifyListener(boolean running, long elapsedMs) {
+    private void notifyListener(boolean running, long startTime, long accumulatedMs) {
         if (stateListener != null) {
-            stateListener.onStateChanged(running, elapsedMs);
+            stateListener.onStateChanged(running, startTime, accumulatedMs);
         }
     }
 
     private void updateNotification() {
-        NotificationManagerCompat manager = NotificationManagerCompat.from(this);
-        manager.notify(NOTIFICATION_ID, buildNotification());
+        try {
+            NotificationManagerCompat manager = NotificationManagerCompat.from(this);
+            manager.notify(NOTIFICATION_ID, buildNotification());
+        } catch (SecurityException e) {
+            // Handled safely
+        }
     }
 
     private Notification buildNotification() {
@@ -249,6 +257,23 @@ public class StopwatchService extends Service {
             if (manager != null) {
                 manager.createNotificationChannel(channel);
             }
+        }
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
+        long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
+
+        if (!isRunning && accumulated == 0) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE);
+            } else {
+                stopForeground(true);
+            }
+            stopSelf();
         }
     }
 

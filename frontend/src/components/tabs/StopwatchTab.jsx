@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 
 const Stopwatch = registerPlugin('Stopwatch');
 
@@ -19,7 +20,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
   const isRunningRef = useRef(false);
   const animFrameRef = useRef(null);
 
-  // Sync ref with state
+  // Sync ref with state & localStorage
   const setRunningState = (running) => {
     isRunningRef.current = running;
     setIsRunning(running);
@@ -74,6 +75,11 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         Stopwatch.requestNotificationPermission().catch(() => {});
       }
 
+      // Initialize persistent notification service
+      if (Stopwatch.init) {
+        Stopwatch.init().catch(() => {});
+      }
+
       // Query native state
       Stopwatch.getState()
         .then((state) => {
@@ -94,16 +100,16 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       Stopwatch.addListener('stopwatchChange', (data) => {
         if (data) {
           const running = !!data.isRunning;
-          const elapsed = data.time || 0;
-          if (running) {
-            startTimeRef.current = Date.now();
-            accumulatedRef.current = elapsed;
-          } else {
-            startTimeRef.current = 0;
-            accumulatedRef.current = elapsed;
-          }
+          accumulatedRef.current = data.accumulatedTime || 0;
+          startTimeRef.current = data.startTime || 0;
           setRunningState(running);
-          setTime(elapsed);
+
+          const currentElapsed = data.time != null
+            ? data.time
+            : (running && data.startTime > 0
+                ? (data.accumulatedTime + Math.max(0, Date.now() - data.startTime))
+                : data.accumulatedTime);
+          setTime(currentElapsed);
         }
       }).then((handle) => {
         listenerHandle = handle;
@@ -137,29 +143,48 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
 
   // When app returns to foreground / visibility change, resync display immediately
   useEffect(() => {
+    const resync = () => {
+      const isNative = Capacitor.isNativePlatform();
+      if (isNative) {
+        Stopwatch.getState().then((state) => {
+          if (state) {
+            const running = !!state.isRunning;
+            accumulatedRef.current = state.accumulatedTime || 0;
+            startTimeRef.current = state.startTime || 0;
+            setRunningState(running);
+            setTime(state.time || 0);
+          }
+        }).catch(() => {
+          setTime(calculateElapsed());
+        });
+      } else {
+        setTime(calculateElapsed());
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        const isNative = Capacitor.isNativePlatform();
-        if (isNative) {
-          Stopwatch.getState().then((state) => {
-            if (state) {
-              const running = !!state.isRunning;
-              accumulatedRef.current = state.accumulatedTime || 0;
-              startTimeRef.current = state.startTime || 0;
-              setRunningState(running);
-              setTime(state.time || 0);
-            }
-          }).catch(() => {
-            setTime(calculateElapsed());
-          });
-        } else {
-          setTime(calculateElapsed());
-        }
+        resync();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+    let appStateHandle = null;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        resync();
+      }
+    }).then((handle) => {
+      appStateHandle = handle;
+    });
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (appStateHandle && appStateHandle.remove) {
+        appStateHandle.remove();
+      }
+    };
   }, [calculateElapsed]);
 
   const handleStartStop = async () => {
@@ -180,7 +205,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         try {
           await Stopwatch.pause();
         } catch {
-          // ignore
+          // Handled safely
         }
       }
     } else {
@@ -195,7 +220,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         try {
           await Stopwatch.start();
         } catch {
-          // ignore
+          // Handled safely
         }
       }
     }
@@ -215,7 +240,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       try {
         await Stopwatch.reset();
       } catch {
-        // ignore
+        // Handled safely
       }
     }
   };
