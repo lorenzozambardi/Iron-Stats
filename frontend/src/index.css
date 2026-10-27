@@ -1833,7 +1833,8 @@ input::-webkit-list-button {
   .editor-textarea,
   .easy-editor-container,
   .config-pane,
-  .docs-pane {
+  .docs-pane,
+  .foldable-editor-root .cm-scroller {
     padding-top: 84px !important;
     padding-bottom: 100px !important;
   }
@@ -1882,7 +1883,7 @@ input::-webkit-list-button {
   }
 
   /* 4 & 5. Smaller font, Google Pixel 6a standard font (Roboto/sans-serif) */
-  .editor-textarea, .editor-line-numbers {
+  .editor-textarea, .editor-line-numbers, .foldable-editor-root .cm-content {
     font-size: 0.95rem !important;
     font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
   }
