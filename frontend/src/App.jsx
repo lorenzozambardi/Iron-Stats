@@ -19,19 +19,18 @@ import {
 } from 'lucide-react';
 import {
   parseLogbook,
-  MUSCLES,
   getExercisesWithOverrides
 } from './parser';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 import { App as CapacitorApp } from '@capacitor/app';
 
 import LogbookPreview from './components/LogbookPreview';
-import { fuzzyScore } from './components/helpers';
 const GeneratorConfig = lazy(() => import('./components/GeneratorConfig'));
 import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
 import StopwatchTab from './components/tabs/StopwatchTab';
 import EasyEditor from './components/EasyEditor';
+import RawFoldableEditor from './components/RawFoldableEditor';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ExerciseModal } from './components/ExerciseModal';
 
@@ -487,12 +486,6 @@ export default function App() {
   const [syncError, setSyncError] = useState('');
   const saveTimeoutRef = useRef(null); // useRef instead of useState to avoid re-render on debounce
 
-  // Autocomplete State
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestionIndex, setSuggestionIndex] = useState(0);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [cursorPos, setCursorPos] = useState({ top: 0, left: 0 });
-
   useEffect(() => {
     let backListener;
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
@@ -501,7 +494,6 @@ export default function App() {
       else if (showExerciseModal) setShowExerciseModal(false);
       else if (showMobileSettings) setShowMobileSettings(false);
       else if (showStorageSettings) setShowStorageSettings(false);
-      else if (showSuggestions) setShowSuggestions(false);
       else if (canGoBack) window.history.back();
       else CapacitorApp.exitApp();
     }).then(listener => {
@@ -511,9 +503,7 @@ export default function App() {
     return () => {
       if (backListener) backListener.remove();
     };
-  }, [selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings, showStorageSettings, showSuggestions]);
-
-  const textareaRef = useRef(null);
+  }, [selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings, showStorageSettings]);
 
   // Load initial data
   useEffect(() => {
@@ -597,14 +587,6 @@ export default function App() {
     }
     return null;
   }, [activeCursorLine, workoutData]);
-
-  const handleCursorMove = (e) => {
-    const text = e.target.value;
-    const start = e.target.selectionStart;
-    const textBefore = text.substring(0, start);
-    const lineNum = textBefore.split('\n').length - 1;
-    setActiveCursorLine(lineNum);
-  };
 
   // Load a program's markdown content dynamically
   const loadProgram = (progName) => {
@@ -945,127 +927,7 @@ export default function App() {
       });
   };
 
-  const handleTextChange = (e) => {
-    const newText = e.target.value;
-    setLogbookText(newText);
-    setSyncStatus('syncing');
 
-    // Update active cursor line on change too
-    const start = e.target.selectionStart;
-    const textBefore = newText.substring(0, start);
-    const lineNum = textBefore.split('\n').length - 1;
-    setActiveCursorLine(lineNum);
-
-    // Debounce saving
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      saveLogbookContent(newText, currentProgram);
-    }, 1500);
-
-    // Handle autocomplete triggers
-    handleAutocomplete(e);
-  };
-
-  // Autocomplete Logic
-  const handleAutocomplete = (e) => {
-    const val = e.target.value;
-    const selectionStart = e.target.selectionStart;
-    const beforeCursor = val.substring(0, selectionStart);
-    const lines = beforeCursor.split('\n');
-    const currentLine = lines[lines.length - 1];
-
-    // Trigger autocomplete only on clean exercise-name lines:
-    // - not empty, not a session header (#), not a log line (starts with digit)
-    // - no | already typed (line is still just the name being written)
-    const isHeaderLine =
-      currentLine.trim() &&
-      !currentLine.includes('#') &&
-      !currentLine.includes('|') &&
-      !/^\d/.test(currentLine.trim());
-    
-    if (isHeaderLine && currentLine.length >= 2) {
-      // Clean string for matching
-      const cleanQuery = currentLine.replace(/\|.*/, '').trim();
-      if (cleanQuery.length >= 1) {
-        const scored = activeExercises
-          .map(ex => ({ ex, score: fuzzyScore(cleanQuery, ex.name) }))
-          .filter(({ score }) => score >= 0)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 6)
-          .map(({ ex }) => ex);
-
-        setSuggestions(scored);
-        setSuggestionIndex(0);
-        setShowSuggestions(scored.length > 0);
-        
-        // Simple heuristic for placing suggestions box near cursor
-        const textarea = textareaRef.current;
-        if (textarea) {
-          const lineCount = beforeCursor.split('\n').length;
-          const charCount = currentLine.length;
-          setCursorPos({
-            top: lineCount * 21.6 + 10 - textarea.scrollTop,
-            left: Math.min(charCount * 8 + 30, textarea.clientWidth - 260)
-          });
-        }
-        return;
-      }
-    }
-    setShowSuggestions(false);
-  };
-
-  const selectSuggestion = (exName) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const val = logbookText;
-    const start = textarea.selectionStart;
-    const beforeCursor = val.substring(0, start);
-    
-    const lines = beforeCursor.split('\n');
-    const currentLine = lines[lines.length - 1];
-    
-    const lineStartIndex = start - currentLine.length;
-    let lineEndIndex = val.indexOf('\n', start);
-    if (lineEndIndex === -1) lineEndIndex = val.length;
-
-    // Check if the full line already has a | after the cursor
-    const fullLine = val.substring(lineStartIndex, lineEndIndex);
-    const pipeIndex = fullLine.indexOf('|');
-    
-    // If there's a pipe, keep everything from | onwards; otherwise just append ' |'
-    const afterPipe = pipeIndex !== -1 ? fullLine.substring(pipeIndex) : '|';
-    const newLineContent = exName + ' ' + afterPipe;
-    const newText = val.substring(0, lineStartIndex) + newLineContent + val.substring(lineEndIndex);
-
-    setLogbookText(newText);
-    saveLogbookContent(newText, currentProgram);
-    setShowSuggestions(false);
-
-    // Place cursor right after the first pipe
-    const cursorAfterPipe = lineStartIndex + exName.length + 1 + 1; // name + space + pipe
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(cursorAfterPipe, cursorAfterPipe);
-    }, 0);
-  };
-
-  const handleKeyDown = (e) => {
-    if (showSuggestions && suggestions.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSuggestionIndex(prev => (prev + 1) % suggestions.length);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
-      } else if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        selectSuggestion(suggestions[suggestionIndex].name);
-      } else if (e.key === 'Escape') {
-        setShowSuggestions(false);
-      }
-    }
-  };
 
 
   return (
@@ -1400,40 +1262,20 @@ export default function App() {
                         exercisesDb={exercisesDb}
                       />
                     ) : (
-                      <>
-                        <textarea
-                          ref={textareaRef}
-                          className="editor-textarea"
-                          value={logbookText}
-                          onChange={handleTextChange}
-                          onKeyDown={handleKeyDown}
-                          onKeyUp={handleCursorMove}
-                          onClick={handleCursorMove}
-                          onFocus={handleCursorMove}
-                          placeholder="# 1&#10;Lat machine | 3'&#10;90..9+2.7+2&#10;90..9+2.8+2"
-                          spellCheck="false"
-                        />
-                        {/* Autocomplete Suggestions Box */}
-                        {showSuggestions && (
-                          <div 
-                            className="autocomplete-container"
-                            style={{ top: cursorPos.top, left: cursorPos.left }}
-                          >
-                            {suggestions.map((ex, index) => (
-                              <div 
-                                key={ex.name}
-                                className={`autocomplete-item ${index === suggestionIndex ? 'active' : ''}`}
-                                onClick={() => selectSuggestion(ex.name)}
-                              >
-                                <span>{ex.name}</span>
-                                <span className="autocomplete-muscle">
-                                  {MUSCLES[Object.keys(ex.muscles_distr)[0]] || Object.keys(ex.muscles_distr)[0]}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                      <RawFoldableEditor
+                        value={logbookText}
+                        onChange={(newText) => {
+                          setLogbookText(newText);
+                          setDebouncedLogbookText(newText);
+                          setSyncStatus('syncing');
+                          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                          saveTimeoutRef.current = setTimeout(() => {
+                            saveLogbookContent(newText, currentProgram);
+                          }, 1500);
+                        }}
+                        exercisesDb={activeExercises}
+                        onCursorLineChange={setActiveCursorLine}
+                      />
                     )}
                   </div>
                 </div>
