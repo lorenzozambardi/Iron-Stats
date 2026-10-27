@@ -30,7 +30,7 @@ import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
 import StopwatchTab from './components/tabs/StopwatchTab';
 import EasyEditor from './components/EasyEditor';
-import RawFoldableEditor from './components/RawFoldableEditor';
+import FoldableEditor from './components/FoldableEditor';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ExerciseModal } from './components/ExerciseModal';
 
@@ -588,6 +588,7 @@ export default function App() {
     return null;
   }, [activeCursorLine, workoutData]);
 
+
   // Load a program's markdown content dynamically
   const loadProgram = (progName) => {
     setSyncStatus('syncing');
@@ -927,9 +928,6 @@ export default function App() {
       });
   };
 
-
-
-
   return (
     <div className="app-container">
       {/* Header */}
@@ -1262,7 +1260,7 @@ export default function App() {
                         exercisesDb={exercisesDb}
                       />
                     ) : (
-                      <RawFoldableEditor
+                      <FoldableEditor
                         value={logbookText}
                         onChange={(newText) => {
                           setLogbookText(newText);
