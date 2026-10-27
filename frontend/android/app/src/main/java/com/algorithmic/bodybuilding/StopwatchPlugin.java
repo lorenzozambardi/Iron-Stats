@@ -35,12 +35,37 @@ public class StopwatchPlugin extends Plugin {
     @Override
     public void load() {
         super.load();
-        StopwatchService.setStateListener((isRunning, elapsedMs) -> {
+        StopwatchService.setStateListener((isRunning, startTime, accumulatedMs) -> {
             JSObject ret = new JSObject();
             ret.put("isRunning", isRunning);
-            ret.put("time", elapsedMs);
+            ret.put("startTime", startTime);
+            ret.put("accumulatedTime", accumulatedMs);
+
+            long currentElapsed = accumulatedMs;
+            if (isRunning && startTime > 0) {
+                currentElapsed += Math.max(0, System.currentTimeMillis() - startTime);
+            }
+            ret.put("time", currentElapsed);
+
             notifyListeners("stopwatchChange", ret);
         });
+    }
+
+    private void ensureServiceRunning() {
+        Intent intent = new Intent(getContext(), StopwatchService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(getContext(), intent);
+        } else {
+            getContext().startService(intent);
+        }
+    }
+
+    @PluginMethod
+    public void init(PluginCall call) {
+        ensureServiceRunning();
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        call.resolve(ret);
     }
 
     @PluginMethod
