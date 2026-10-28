@@ -69,6 +69,9 @@ const editorTheme = EditorView.theme({
   '.cm-activeLine': {
     backgroundColor: 'rgba(255, 255, 255, 0.03)'
   },
+  '.cm-selectionMatch': {
+    backgroundColor: 'transparent !important'
+  },
   '.cm-tooltip-autocomplete': {
     backgroundColor: 'var(--bg-glass-active, #18181b) !important',
     border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important',
@@ -186,6 +189,8 @@ export default function FoldableEditor({
           foldGutter: false,
           highlightActiveLineGutter: false,
           highlightActiveLine: true,
+          highlightSelectionMatches: false,
+          searchKeymap: false,
           history: true,
           bracketMatching: false,
           closeBrackets: false,
