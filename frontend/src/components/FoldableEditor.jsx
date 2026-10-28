@@ -20,7 +20,6 @@ const editorTheme = EditorView.theme({
     height: '100% !important',
     fontFamily: 'inherit',
     lineHeight: '1.6',
-    touchAction: 'pan-y',
     WebkitOverflowScrolling: 'touch'
   },
   '.cm-content': {

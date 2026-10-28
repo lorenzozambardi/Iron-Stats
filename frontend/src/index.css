@@ -379,7 +379,6 @@ h1, h2, h3, h4, h5, h6 {
   height: 100% !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch !important;
 }
 
