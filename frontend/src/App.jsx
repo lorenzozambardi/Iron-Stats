@@ -300,6 +300,10 @@ export default function App() {
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
+    // Dismiss virtual keyboard if user touches to scroll or swipe
+    if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
   }, []);
 
   const handleTouchEnd = useCallback(() => {
@@ -313,11 +317,6 @@ export default function App() {
 
   const handleScroll = useCallback((e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
-
-    // Dismiss virtual keyboard if user is scrolling to change pages
-    if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== document.body) {
-      document.activeElement.blur();
-    }
 
     if (isScrollingToTab.current) return; // Ignore programmatic scrolls to prevent transition conflicts
     
