@@ -32,7 +32,7 @@ import StopwatchTab from './components/tabs/StopwatchTab';
 import EasyEditor from './components/EasyEditor';
 import FoldableEditor from './components/FoldableEditor';
 import { SettingsPanel } from './components/SettingsPanel';
-import { ExerciseModal } from './components/ExerciseModal';
+const ExerciseModal = lazy(() => import('./components/ExerciseModal').then(m => ({ default: m.ExerciseModal })));
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
 
@@ -1438,29 +1438,31 @@ export default function App() {
       )}
 
       {/* Exercise CRUD Modal Dialog */}
-      <ExerciseModal
-        showExerciseModal={showExerciseModal}
-        setShowExerciseModal={setShowExerciseModal}
-        editingExercise={editingExercise}
-        handleDeleteExercise={handleDeleteExercise}
-        exerciseForm={exerciseForm}
-        setExerciseForm={setExerciseForm}
-        exerciseError={exerciseError}
-        setExerciseError={setExerciseError}
-        isMobile={isMobile}
-        tensionSliderPos={tensionSliderPos}
-        setTensionSliderPos={setTensionSliderPos}
-        editingCurveIndex={editingCurveIndex}
-        setEditingCurveIndex={setEditingCurveIndex}
-        muscleSearch={muscleSearch}
-        setMuscleSearch={setMuscleSearch}
-        currentHasOverride={currentHasOverride}
-        handleRemoveOverride={handleRemoveOverride}
-        handleSaveExerciseForProgramOnly={handleSaveExerciseForProgramOnly}
-        handleSaveExercise={handleSaveExercise}
-        currentProgram={currentProgram}
-        chartColors={CHART_COLORS}
-      />
+      <Suspense fallback={null}>
+        <ExerciseModal
+          showExerciseModal={showExerciseModal}
+          setShowExerciseModal={setShowExerciseModal}
+          editingExercise={editingExercise}
+          handleDeleteExercise={handleDeleteExercise}
+          exerciseForm={exerciseForm}
+          setExerciseForm={setExerciseForm}
+          exerciseError={exerciseError}
+          setExerciseError={setExerciseError}
+          isMobile={isMobile}
+          tensionSliderPos={tensionSliderPos}
+          setTensionSliderPos={setTensionSliderPos}
+          editingCurveIndex={editingCurveIndex}
+          setEditingCurveIndex={setEditingCurveIndex}
+          muscleSearch={muscleSearch}
+          setMuscleSearch={setMuscleSearch}
+          currentHasOverride={currentHasOverride}
+          handleRemoveOverride={handleRemoveOverride}
+          handleSaveExerciseForProgramOnly={handleSaveExerciseForProgramOnly}
+          handleSaveExercise={handleSaveExercise}
+          currentProgram={currentProgram}
+          chartColors={CHART_COLORS}
+        />
+      </Suspense>
 
       {/* Mobile Bottom Navigation Bar */}
       {(!isMobile || !showMobileSettings) && (

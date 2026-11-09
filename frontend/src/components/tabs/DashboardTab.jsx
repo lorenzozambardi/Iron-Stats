@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 import { Info } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
-import MetricDetailsPage from '../MetricDetails';
+const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 import { renderMetricTooltip } from '../Tooltips';
 import { solveBezierY } from '../helpers';
 
@@ -1365,10 +1365,12 @@ const DashboardTab = ({
 
           {/* Metric Detail Popup Overlay — copy of settings popup */}
           {selectedMetricDetail && (
-            <MetricDetailsPage
-              metric={selectedMetricDetail}
-              onBack={() => setSelectedMetricDetail(null)}
-            />
+            <React.Suspense fallback={<div className="loading-spinner">Loading details...</div>}>
+              <MetricDetailsPage
+                metric={selectedMetricDetail}
+                onBack={() => setSelectedMetricDetail(null)}
+              />
+            </React.Suspense>
           )}
         </div>
     </>

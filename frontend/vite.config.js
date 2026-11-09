@@ -144,5 +144,26 @@ export default defineConfig({
         });
       }
     }
-  ]
+  ],
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
+            return 'vendor-recharts';
+          }
+          if (id.includes('node_modules/@codemirror') || id.includes('node_modules/@uiw/react-codemirror')) {
+            return 'vendor-codemirror';
+          }
+          if (id.includes('node_modules/katex')) {
+            return 'vendor-katex';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+        }
+      }
+    }
+  }
 })
