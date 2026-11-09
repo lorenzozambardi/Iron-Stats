@@ -243,4 +243,4 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
 }
 
 
-export default LogbookPreview;
+export default React.memo(LogbookPreview);

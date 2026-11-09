@@ -606,6 +606,12 @@ export default function App() {
   // Cursor Tracking State for scroll sync
   const [activeCursorLine, setActiveCursorLine] = useState(null);
 
+  const handleCursorLineChange = useCallback((line) => {
+    if (!isMobile && (editorMode === 'preview' || editorMode === 'split')) {
+      setActiveCursorLine(line);
+    }
+  }, [isMobile, editorMode]);
+
   const activeExerciseStartLine = useMemo(() => {
     if (activeCursorLine === null || !workoutData || workoutData.length === 0) return null;
     let currentExStartLine = null;
@@ -1324,7 +1330,7 @@ export default function App() {
                           }, 1500);
                         }}
                         exercisesDb={activeExercises}
-                        onCursorLineChange={setActiveCursorLine}
+                        onCursorLineChange={!isMobile && (editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
                       />
                     )}
                   </div>
