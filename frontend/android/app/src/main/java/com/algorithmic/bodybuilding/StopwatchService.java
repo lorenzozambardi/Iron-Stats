@@ -57,7 +57,26 @@ public class StopwatchService extends Service {
                 pauseStopwatch();
             } else if (ACTION_RESET.equals(action)) {
                 resetStopwatch();
+                return START_NOT_STICKY;
             }
+        }
+
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
+        long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
+
+        // If not running and at 0, don't show notification and terminate service
+        if (!isRunning && accumulated == 0) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE);
+            } else {
+                stopForeground(true);
+            }
+            try {
+                NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
+            } catch (Exception ignored) {}
+            stopSelf();
+            return START_NOT_STICKY;
         }
 
         // Show persistent foreground notification
@@ -137,8 +156,17 @@ public class StopwatchService extends Service {
             .putLong(PREF_ACCUMULATED_TIME, 0)
             .apply();
 
-        updateNotification();
         notifyListener(false, 0, 0);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE);
+        } else {
+            stopForeground(true);
+        }
+        try {
+            NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
+        } catch (Exception ignored) {}
+        stopSelf();
     }
 
     private void notifyListener(boolean running, long startTime, long accumulatedMs) {

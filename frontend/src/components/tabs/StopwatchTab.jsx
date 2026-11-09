@@ -104,6 +104,14 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
           startTimeRef.current = data.startTime || 0;
           setRunningState(running);
 
+          if (!running) {
+            localStorage.setItem(STORAGE_KEYS.ACCUMULATED, (data.accumulatedTime || 0).toString());
+            localStorage.setItem(STORAGE_KEYS.START_TIME, '0');
+          } else {
+            localStorage.setItem(STORAGE_KEYS.START_TIME, (data.startTime || 0).toString());
+            localStorage.setItem(STORAGE_KEYS.ACCUMULATED, (data.accumulatedTime || 0).toString());
+          }
+
           const currentElapsed = data.time != null
             ? data.time
             : (running && data.startTime > 0

@@ -62,7 +62,15 @@ public class StopwatchPlugin extends Plugin {
 
     @PluginMethod
     public void init(PluginCall call) {
-        ensureServiceRunning();
+        Context context = getContext();
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
+        long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
+
+        // Lazy start: only launch the persistent foreground service if the clock was already active
+        if (isRunning || accumulated > 0) {
+            ensureServiceRunning();
+        }
         JSObject ret = new JSObject();
         ret.put("success", true);
         call.resolve(ret);
@@ -121,12 +129,25 @@ public class StopwatchPlugin extends Plugin {
 
     @PluginMethod
     public void reset(PluginCall call) {
-        Intent intent = new Intent(getContext(), StopwatchService.class);
-        intent.setAction(StopwatchService.ACTION_RESET);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(getContext(), intent);
-        } else {
-            getContext().startService(intent);
+        Context context = getContext();
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
+        long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
+
+        prefs.edit()
+            .putBoolean(PREF_IS_RUNNING, false)
+            .putLong(PREF_START_TIME, 0)
+            .putLong(PREF_ACCUMULATED_TIME, 0)
+            .apply();
+
+        if (isRunning || accumulated > 0) {
+            Intent intent = new Intent(context, StopwatchService.class);
+            intent.setAction(StopwatchService.ACTION_RESET);
+            try {
+                context.startService(intent);
+            } catch (Exception e) {
+                context.stopService(intent);
+            }
         }
 
         JSObject ret = new JSObject();
