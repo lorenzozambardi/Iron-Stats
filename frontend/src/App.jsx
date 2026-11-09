@@ -260,9 +260,13 @@ export default function App() {
   const scrollTimeoutRef = useRef(null);
   const isScrollingToTab = useRef(false);
   const scrollTabTimeout = useRef(null);
+  const isTouchingRef = useRef(false);
+  const hasMountedRef = useRef(false);
 
   // Sync initial scroll position on mount for mobile
   useEffect(() => {
+    if (hasMountedRef.current) return;
+    hasMountedRef.current = true;
     if (swipeContainerRef.current && window.innerWidth <= 768) {
       const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
       const index = tabOrder.indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab);
@@ -271,6 +275,41 @@ export default function App() {
       }
     }
   }, [activeTab]);
+
+  const syncCurrentTab = useCallback(() => {
+    if (isTouchingRef.current || !swipeContainerRef.current) return;
+    const container = swipeContainerRef.current;
+    const width = container.clientWidth;
+    if (width === 0) return;
+
+    const index = Math.round(container.scrollLeft / width);
+    const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
+    if (index >= 0 && index < tabOrder.length) {
+      const currentTab = tabOrder[index];
+      if (activeTab !== currentTab && activeTab !== 'metric-details') {
+        setActiveTab(currentTab);
+      } else if (activeTab === 'metric-details' && currentTab !== 'dashboard') {
+        setActiveTab(currentTab);
+        setSelectedMetricDetail(null);
+      }
+    }
+  }, [activeTab]);
+
+  const handleTouchStart = useCallback(() => {
+    isTouchingRef.current = true;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    isTouchingRef.current = false;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    // Allow momentum or CSS snap to settle before committing final tab state
+    scrollTimeoutRef.current = setTimeout(syncCurrentTab, 150);
+  }, [syncCurrentTab]);
 
   const handleScroll = useCallback((e) => {
     if (window.innerWidth > 768) return; // Only apply activeTab scroll sync on mobile
@@ -295,27 +334,33 @@ export default function App() {
       bottomNavIndicatorRef.current.style.transform = `translateX(${exactIndex * 52}px)`;
     }
     
-    // Debounce the heavy state update to prevent lag during the swipe
+    // Do NOT commit tab changes while user's finger is on the screen
+    if (isTouchingRef.current) return;
+
+    // Settle debounce when not touching (e.g. momentum or snap animation after finger release)
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
     
-    scrollTimeoutRef.current = setTimeout(() => {
-      // Calculate which tab is mostly visible
-      const index = Math.round(exactIndex);
-      const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
-      if (index >= 0 && index < tabOrder.length) {
-        const currentTab = tabOrder[index];
-        if (activeTab !== currentTab && activeTab !== 'metric-details') {
-          setActiveTab(currentTab);
-        } else if (activeTab === 'metric-details' && currentTab !== 'dashboard') {
-           // If we are on metric-details and scroll away from dashboard, update activeTab
-           setActiveTab(currentTab);
-           setSelectedMetricDetail(null);
-        }
+    scrollTimeoutRef.current = setTimeout(syncCurrentTab, 100);
+  }, [syncCurrentTab]);
+
+  // Listen to native scrollend event when browser snap animation finishes
+  useEffect(() => {
+    const container = swipeContainerRef.current;
+    if (!container) return;
+
+    const handleScrollEnd = () => {
+      if (!isTouchingRef.current && !isScrollingToTab.current) {
+        syncCurrentTab();
       }
-    }, 100); // Wait 100ms after last scroll event before triggering full React re-render
-  }, [activeTab]);
+    };
+
+    container.addEventListener('scrollend', handleScrollEnd);
+    return () => {
+      container.removeEventListener('scrollend', handleScrollEnd);
+    };
+  }, [syncCurrentTab]);
 
   // Helper to scroll to tab programmatically
   const scrollToTab = useCallback((tabName) => {
@@ -1152,7 +1197,14 @@ export default function App() {
 
       {/* Workspace Area */}
       <div className="main-workspace">
-        <div className="swipe-views-container" ref={swipeContainerRef} onScroll={handleScroll}>
+        <div 
+          className="swipe-views-container" 
+          ref={swipeContainerRef} 
+          onScroll={handleScroll}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
         
         {/* Full-Page Stopwatch Tab */}
         <StopwatchTab activeTab={activeTab} isMobile={isMobile} />
