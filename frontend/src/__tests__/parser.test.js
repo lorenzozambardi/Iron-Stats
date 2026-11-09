@@ -172,6 +172,34 @@ Lat Machine | 2' |
       expect(benchMetric.volume).toBe(18);
       expect(benchMetric.tonnage).toBe(1800);
       expect(benchMetric.fatigue).toBeGreaterThan(0);
+
+      // Verify precalculated fatigue on sets
+      const benchSet0 = workoutData[0].weeks[0].sets[0];
+      expect(benchSet0.fatigue).toBeDefined();
+      expect(benchSet0.fatigue).toBeGreaterThan(0);
+      expect(benchSet0.totalTut).toBeGreaterThan(0);
+      expect(benchSet0.effectiveTut).toBeGreaterThan(0);
+    });
+
+    it('precalculates fatigue on sets and carries it forward when load is updated across weeks', () => {
+      const log = `# 1
+Flat Barbell Bench | 3' | 1-0-2-0
+100..10.8
+105..`;
+
+      const workoutData = parseLogbook(log, mockExercises);
+      expect(workoutData[0].weeks.length).toBe(2);
+      const week1Sets = workoutData[0].weeks[0].sets;
+      const week2Sets = workoutData[0].weeks[1].sets;
+
+      expect(week1Sets[0].fatigue).toBeDefined();
+      expect(week2Sets[0].fatigue).toBeDefined();
+      expect(week2Sets[0].fatigue).toBe(week1Sets[0].fatigue);
+      expect(week2Sets[1].fatigue).toBe(week1Sets[1].fatigue);
+
+      const metricsW1 = calculateMetrics(workoutData, null, 1, null, null);
+      const metricsW2 = calculateMetrics(workoutData, null, 2, null, null);
+      expect(metricsW1[0].fatigue).toBe(metricsW2[0].fatigue);
     });
   });
 });

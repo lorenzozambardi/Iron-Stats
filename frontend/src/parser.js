@@ -568,7 +568,8 @@ export function parseLogbook(logText, exercises) {
                   ...s,
                   load,
                   effectiveReps,
-                  totalReps
+                  totalReps,
+                  fatigue: s.fatigue
                 };
               });
             }
@@ -585,6 +586,19 @@ export function parseLogbook(logText, exercises) {
               currentExercise.eccentric,
               currentExercise.lengthening_pause
             );
+            const fatigue = s.fatigue !== undefined ? s.fatigue : calculateSetFatigue(
+              s.base_reps,
+              s.assisted_reps,
+              s.partial_reps,
+              s.rpe,
+              currentExercise.concentric,
+              currentExercise.shortening_pause,
+              currentExercise.eccentric,
+              currentExercise.lengthening_pause,
+              currentExercise.exercise_obj ? currentExercise.exercise_obj.fatigue : 5.0,
+              currentExercise.exercise_obj ? currentExercise.exercise_obj.load_coeff : 0.5,
+              tuts
+            );
             const totalTut = tuts.reduce((sum, val) => sum + val, 0);
             const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
             const effBaseCount = Math.round(effBase);
@@ -596,7 +610,8 @@ export function parseLogbook(logText, exercises) {
               ...s,
               tuts,
               totalTut,
-              effectiveTut
+              effectiveTut,
+              fatigue
             };
           });
 
@@ -691,7 +706,7 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
         weightedTon += actualLoad * reps * distrSum * ex.load_coeff;
         weightedEffTon += actualLoad * s.effectiveReps * distrSum * ex.load_coeff;
         
-        const setFat = calculateSetFatigue(
+        const setFat = s.fatigue !== undefined ? s.fatigue : calculateSetFatigue(
           s.base_reps,
           s.assisted_reps,
           s.partial_reps,
