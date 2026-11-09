@@ -1,4 +1,5 @@
-import { useMemo, useCallback } from 'react';
+/* eslint-disable react-hooks/refs */
+import { useMemo, useCallback, useRef } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
@@ -111,6 +112,12 @@ export default function FoldableEditor({
   exercisesDb = [],
   onCursorLineChange
 }) {
+  const exercisesDbRef = useRef(exercisesDb);
+  exercisesDbRef.current = exercisesDb;
+
+  const onCursorLineChangeRef = useRef(onCursorLineChange);
+  onCursorLineChangeRef.current = onCursorLineChange;
+
   const exerciseCompletion = useMemo(() => {
     return autocompletion({
       override: [
@@ -129,11 +136,12 @@ export default function FoldableEditor({
           }
 
           const query = trimmedBefore.toLowerCase();
-          if (query.length < 2 || !exercisesDb || exercisesDb.length === 0) {
+          const currentExercisesDb = exercisesDbRef.current;
+          if (query.length < 2 || !currentExercisesDb || currentExercisesDb.length === 0) {
             return null;
           }
 
-          const scored = exercisesDb
+          const scored = currentExercisesDb
             .map(ex => ({ ex, score: fuzzyScore(query, ex.name) }))
             .filter(({ score }) => score >= 0)
             .sort((a, b) => b.score - a.score)
@@ -155,7 +163,7 @@ export default function FoldableEditor({
         }
       ]
     });
-  }, [exercisesDb]);
+  }, []);
 
   const extensions = useMemo(() => [
     customFoldService,
@@ -164,13 +172,13 @@ export default function FoldableEditor({
     exerciseCompletion,
     editorTheme,
     EditorView.updateListener.of((update) => {
-      if (update.selectionSet && onCursorLineChange) {
+      if (update.selectionSet && onCursorLineChangeRef.current) {
         const head = update.state.selection.main.head;
         const line = update.state.doc.lineAt(head);
-        onCursorLineChange(line.number - 1);
+        onCursorLineChangeRef.current(line.number - 1);
       }
     })
-  ], [exerciseCompletion, onCursorLineChange]);
+  ], [exerciseCompletion]);
 
   const handleChange = useCallback((val) => {
     onChange(val);
