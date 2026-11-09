@@ -73,14 +73,14 @@ const BG_PALETTES = [
   { id: 'darkest', primary: '#050505', label: 'Darkest' },
   { id: 'dark', primary: '#0a0a0a', label: 'Dark' },
   { id: 'zinc', primary: '#111111', label: 'Zinc' },
-  { id: 'charcoal', primary: '#18181b', label: 'Charcoal' }
+  { id: 'charcoal', primary: '#181818', label: 'Charcoal' }
 ];
 
 const SEC_PALETTES = [
   { id: 'black', color: '#000000', glass: 'rgba(0, 0, 0, 0.6)', glassActive: 'rgba(0, 0, 0, 0.85)', label: 'Pure Black' },
-  { id: 'darkest', color: '#09090b', glass: 'rgba(9, 9, 11, 0.6)', glassActive: 'rgba(9, 9, 11, 0.85)', label: 'Darkest' },
-  { id: 'dark', color: '#18181b', glass: 'rgba(24, 24, 27, 0.6)', glassActive: 'rgba(24, 24, 27, 0.85)', label: 'Dark' },
-  { id: 'zinc', color: '#27272a', glass: 'rgba(39, 39, 42, 0.6)', glassActive: 'rgba(39, 39, 42, 0.85)', label: 'Zinc' },
+  { id: 'darkest', color: '#090909', glass: 'rgba(9, 9, 9, 0.6)', glassActive: 'rgba(9, 9, 9, 0.85)', label: 'Darkest' },
+  { id: 'dark', color: '#181818', glass: 'rgba(24, 24, 24, 0.6)', glassActive: 'rgba(24, 24, 24, 0.85)', label: 'Dark' },
+  { id: 'zinc', color: '#272727', glass: 'rgba(39, 39, 39, 0.6)', glassActive: 'rgba(39, 39, 39, 0.85)', label: 'Zinc' },
   { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
 ];
 

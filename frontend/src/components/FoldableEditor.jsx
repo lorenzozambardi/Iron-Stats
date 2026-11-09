@@ -73,7 +73,7 @@ const editorTheme = EditorView.theme({
     backgroundColor: 'transparent !important'
   },
   '.cm-tooltip-autocomplete': {
-    backgroundColor: 'var(--bg-glass-active, #18181b) !important',
+    backgroundColor: 'var(--bg-glass-active, #181818) !important',
     border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important',
     borderRadius: '8px !important',
     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.7) !important',
