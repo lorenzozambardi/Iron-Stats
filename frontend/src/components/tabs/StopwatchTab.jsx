@@ -36,7 +36,11 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
 
   // Update timer loop using requestAnimationFrame for smooth display
   useEffect(() => {
-    if (!isRunning) {
+    if (activeTab === 'stopwatch') {
+      setTime(calculateElapsed());
+    }
+
+    if (!isRunning || activeTab !== 'stopwatch') {
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
@@ -63,7 +67,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         animFrameRef.current = null;
       }
     };
-  }, [isRunning, calculateElapsed]);
+  }, [isRunning, activeTab, calculateElapsed]);
 
   // Initial load: sync with native plugin or localStorage
   useEffect(() => {
