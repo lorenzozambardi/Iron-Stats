@@ -6,6 +6,35 @@ import MetricDetailsPage from '../MetricDetails';
 import { renderMetricTooltip } from '../Tooltips';
 import { solveBezierY } from '../helpers';
 
+const CURVE_RESOLUTION = 50;
+const normalizedCurveCache = new Map();
+
+const getNormalizedCurve = (distr) => {
+  const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
+  const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
+  const x1 = typeof distr === 'object' ? (distr.x1 ?? 0.33) : 0.33;
+  const y1 = typeof distr === 'object' ? (distr.y1 ?? 1.0) : 1.0;
+  const x2 = typeof distr === 'object' ? (distr.x2 ?? 0.66) : 0.66;
+  const y2 = typeof distr === 'object' ? (distr.y2 ?? 1.0) : 1.0;
+  const x3 = typeof distr === 'object' ? (distr.x3 ?? 1.0) : 1.0;
+  const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
+  const magnitude = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
+
+  const rawY = new Float32Array(CURVE_RESOLUTION + 1);
+  let areaSum = 0;
+  for (let i = 0; i <= CURVE_RESOLUTION; i++) {
+    const y = solveBezierY(i / CURVE_RESOLUTION, x0, y0, x1, y1, x2, y2, x3, y3);
+    rawY[i] = y;
+    areaSum += y;
+  }
+  const area = areaSum / CURVE_RESOLUTION;
+  const factor = area > 0 ? (magnitude / area) : 0;
+  for (let i = 0; i <= CURVE_RESOLUTION; i++) {
+    rawY[i] *= factor;
+  }
+  return rawY;
+};
+
 const DashboardTab = ({
   isMobile,
   activeTab,
@@ -262,50 +291,29 @@ const DashboardTab = ({
     const topMuscles = displayMuscleData.slice(0, 6).map(m => m.name);
     if (topMuscles.length === 0) return [];
 
-    const resolution = 50;
+    const resolution = CURVE_RESOLUTION;
     const data = [];
     for (let i = 0; i <= resolution; i++) {
       const x = i / resolution;
       const pt = { rom: x };
-      topMuscles.forEach(m => pt[m] = 0);
+      topMuscles.forEach(m => { pt[m] = 0; });
       data.push(pt);
     }
 
-    const curveCache = new Map();
-
-    const getNormalizedCurve = (distr) => {
-      const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
-      const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
-      const x1 = typeof distr === 'object' ? (distr.x1 ?? 0.33) : 0.33;
-      const y1 = typeof distr === 'object' ? (distr.y1 ?? 1.0) : 1.0;
-      const x2 = typeof distr === 'object' ? (distr.x2 ?? 0.66) : 0.66;
-      const y2 = typeof distr === 'object' ? (distr.y2 ?? 1.0) : 1.0;
-      const x3 = typeof distr === 'object' ? (distr.x3 ?? 1.0) : 1.0;
-      const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
-      const magnitude = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
-
-      const rawY = new Float32Array(resolution + 1);
-      let areaSum = 0;
-      for (let i = 0; i <= resolution; i++) {
-        const y = solveBezierY(i / resolution, x0, y0, x1, y1, x2, y2, x3, y3);
-        rawY[i] = y;
-        areaSum += y;
-      }
-      const area = areaSum / resolution;
-      const factor = area > 0 ? (magnitude / area) : 0;
-      for (let i = 0; i <= resolution; i++) {
-        rawY[i] *= factor;
-      }
-      return rawY;
-    };
+    const exMap = new Map((activeExercises || []).map(e => [e.name, e]));
+    const topMusclesSet = new Set(topMuscles);
 
     dashFilteredData.forEach(wEx => {
-      const ex = activeExercises.find(e => e.name === wEx.name) || wEx.exercise_obj;
+      const ex = exMap.get(wEx.name) || wEx.exercise_obj;
       if (!ex) return;
       
+      const maxWeekNum = dashFilterWeek === 'all' && wEx.weeks.length > 0
+        ? Math.max(...wEx.weeks.map(w => w.week_num))
+        : null;
+
       wEx.weeks.forEach(wData => {
         if (dashFilterWeek !== 'all' && wData.week_num !== parseInt(dashFilterWeek, 10)) return;
-        if (dashFilterWeek === 'all' && wData.week_num !== Math.max(...wEx.weeks.map(w => w.week_num))) return;
+        if (dashFilterWeek === 'all' && wData.week_num !== maxWeekNum) return;
         
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
@@ -313,7 +321,7 @@ const DashboardTab = ({
             const isMacroView = dashMuscleMacro === 'all';
             const targetMuscle = isMacroView ? macro : subMuscle;
             
-            if (topMuscles.includes(targetMuscle)) {
+            if (topMusclesSet.has(targetMuscle)) {
               let baseMetricValue = 0;
               let partialMetricValue = 0;
               
@@ -330,11 +338,13 @@ const DashboardTab = ({
                 partialMetricValue = 0;
               }
               
-              const cacheKey = `${ex.name}_${subMuscle}`;
-              let normCurve = curveCache.get(cacheKey);
+              const cacheKey = typeof distr === 'object'
+                ? `${ex.name}_${subMuscle}_${distr.x0}_${distr.y0}_${distr.x1}_${distr.y1}_${distr.x2}_${distr.y2}_${distr.x3}_${distr.y3}_${distr.magnitude}`
+                : `${ex.name}_${subMuscle}_${distr}`;
+              let normCurve = normalizedCurveCache.get(cacheKey);
               if (!normCurve) {
                 normCurve = getNormalizedCurve(distr);
-                curveCache.set(cacheKey, normCurve);
+                normalizedCurveCache.set(cacheKey, normCurve);
               }
               
               for (let i = 0; i <= resolution; i++) {
@@ -1072,7 +1082,7 @@ const DashboardTab = ({
                                   activeDot={{ r: 6, fill: getMetricColor(overallChartMetric), stroke: '#fff', strokeWidth: 2 }}
                                   name={compareMode ? `${overallMetricInfo.name} — Selection A` : nameStr} 
                                   connectNulls={true}
-                                  animationDuration={400}
+                                  isAnimationActive={false}
                                 />
                                 
                                 {compareMode && (
@@ -1087,7 +1097,7 @@ const DashboardTab = ({
                                     activeDot={{ r: 6, fill: getMetricColorB(overallChartMetric), stroke: '#fff', strokeWidth: 2 }}
                                     name={`${overallMetricInfo.name} — Selection B`} 
                                     connectNulls={true}
-                                    animationDuration={400}
+                                    isAnimationActive={false}
                                   />
                                 )}
                               </LineChart>
@@ -1115,12 +1125,12 @@ const DashboardTab = ({
                               />
                               <Tooltip contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} />
                               <Legend fontSize={10} />
-                              <Line yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--accent-primary)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? 'Tonnage — Selection A' : 'Tonnage (kg)'} />
-                              <Line yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--accent-secondary)" strokeWidth={2.5} name={compareMode ? 'Volume — Selection A' : 'Volume (reps)'} />
+                              <Line isAnimationActive={false} yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--accent-primary)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? 'Tonnage — Selection A' : 'Tonnage (kg)'} />
+                              <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--accent-secondary)" strokeWidth={2.5} name={compareMode ? 'Volume — Selection A' : 'Volume (reps)'} />
                               {compareMode && compareProgram && (
                                 <>
-                                  <Line yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="#fda4af" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name="Tonnage — Selection B" />
-                                  <Line yAxisId="right" type="monotone" dataKey="Volume_B" stroke="#a855f7" strokeWidth={1.5} strokeDasharray="4 2" name="Volume — Selection B" />
+                                  <Line isAnimationActive={false} yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="#fda4af" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name="Tonnage — Selection B" />
+                                  <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="Volume_B" stroke="#a855f7" strokeWidth={1.5} strokeDasharray="4 2" name="Volume — Selection B" />
                                 </>
                               )}
                             </LineChart>
@@ -1287,6 +1297,7 @@ const DashboardTab = ({
                                     strokeWidth={2.5}
                                     dot={false}
                                     activeDot={{ r: 4 }}
+                                    isAnimationActive={false}
                                   />
                                 );
                               })}
