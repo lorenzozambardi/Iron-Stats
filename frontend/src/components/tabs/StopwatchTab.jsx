@@ -11,14 +11,31 @@ const STORAGE_KEYS = {
   ACCUMULATED: 'iron_stats_stopwatch_accumulated'
 };
 
+const formatTime = (ms) => {
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  const centiseconds = Math.floor((ms % 1000) / 10);
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+};
+
 const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
 
+  const containerRef = useRef(null);
+  const timeDisplayRef = useRef(null);
+  const isVisibleRef = useRef(false);
   const startTimeRef = useRef(0);
   const accumulatedRef = useRef(0);
   const isRunningRef = useRef(false);
   const animFrameRef = useRef(null);
+
+  // Directly update DOM element text without causing React component re-renders
+  const updateDisplay = useCallback((ms) => {
+    if (timeDisplayRef.current) {
+      timeDisplayRef.current.textContent = formatTime(ms);
+    }
+  }, []);
 
   // Sync ref with state & localStorage
   const setRunningState = (running) => {
@@ -34,40 +51,75 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     return accumulatedRef.current;
   }, []);
 
-  // Update timer loop using requestAnimationFrame for smooth display
-  useEffect(() => {
-    if (activeTab === 'stopwatch') {
-      setTime(calculateElapsed());
+  const stopLoop = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
     }
+  }, []);
 
-    if (!isRunning || activeTab !== 'stopwatch') {
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
-      return;
-    }
-
+  const startLoop = useCallback(() => {
+    stopLoop();
     let lastRender = 0;
     const tick = (now) => {
-      // Update UI every ~20ms (50fps) to save battery while keeping smooth centiseconds
+      // Update DOM directly every ~20ms (50fps) without React state reconciliation
       if (now - lastRender >= 20) {
         lastRender = now;
-        setTime(calculateElapsed());
+        updateDisplay(calculateElapsed());
       }
-      if (isRunningRef.current) {
+      const isVisible = isMobile ? isVisibleRef.current : (activeTab === 'stopwatch');
+      if (isRunningRef.current && isVisible) {
         animFrameRef.current = requestAnimationFrame(tick);
       }
     };
-
     animFrameRef.current = requestAnimationFrame(tick);
+  }, [calculateElapsed, isMobile, activeTab, stopLoop, updateDisplay]);
+
+  // Option A: IntersectionObserver on container element to detect viewport entry instantly during swipe
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        const visible = entry.isIntersecting && entry.intersectionRatio > 0;
+        isVisibleRef.current = visible;
+
+        if (visible) {
+          const current = calculateElapsed();
+          updateDisplay(current);
+          if (isRunningRef.current) {
+            startLoop();
+          }
+        } else {
+          stopLoop();
+        }
+      },
+      { threshold: [0, 0.01] }
+    );
+
+    observer.observe(el);
+
     return () => {
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
+      observer.disconnect();
     };
-  }, [isRunning, activeTab, calculateElapsed]);
+  }, [calculateElapsed, startLoop, stopLoop, updateDisplay]);
+
+  // Handle desktop tab activation
+  useEffect(() => {
+    if (!isMobile) {
+      if (activeTab === 'stopwatch') {
+        const current = calculateElapsed();
+        updateDisplay(current);
+        if (isRunningRef.current) {
+          startLoop();
+        }
+      } else {
+        stopLoop();
+      }
+    }
+  }, [activeTab, isMobile, calculateElapsed, startLoop, stopLoop, updateDisplay]);
 
   // Initial load: sync with native plugin or localStorage
   useEffect(() => {
@@ -92,7 +144,12 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
             accumulatedRef.current = state.accumulatedTime || 0;
             startTimeRef.current = state.startTime || 0;
             setRunningState(running);
-            setTime(state.time || 0);
+            const t = state.time || 0;
+            setTime(t);
+            updateDisplay(t);
+            if (running && (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch'))) {
+              startLoop();
+            }
           }
         })
         .catch(() => {
@@ -122,6 +179,12 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                 ? (data.accumulatedTime + Math.max(0, Date.now() - data.startTime))
                 : data.accumulatedTime);
           setTime(currentElapsed);
+          updateDisplay(currentElapsed);
+          if (running && (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch'))) {
+            startLoop();
+          } else {
+            stopLoop();
+          }
         }
       }).then((handle) => {
         listenerHandle = handle;
@@ -146,12 +209,18 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       setRunningState(storedRunning);
 
       if (storedRunning && storedStartTime > 0) {
-        setTime(storedAccumulated + Math.max(0, Date.now() - storedStartTime));
+        const cur = storedAccumulated + Math.max(0, Date.now() - storedStartTime);
+        setTime(cur);
+        updateDisplay(cur);
+        if (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch')) {
+          startLoop();
+        }
       } else {
         setTime(storedAccumulated);
+        updateDisplay(storedAccumulated);
       }
     }
-  }, []);
+  }, [activeTab, isMobile, startLoop, stopLoop, updateDisplay]);
 
   // When app returns to foreground / visibility change, resync display immediately
   useEffect(() => {
@@ -164,13 +233,22 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
             accumulatedRef.current = state.accumulatedTime || 0;
             startTimeRef.current = state.startTime || 0;
             setRunningState(running);
-            setTime(state.time || 0);
+            const t = state.time || 0;
+            setTime(t);
+            updateDisplay(t);
+            if (running && (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch'))) {
+              startLoop();
+            }
           }
         }).catch(() => {
-          setTime(calculateElapsed());
+          const t = calculateElapsed();
+          setTime(t);
+          updateDisplay(t);
         });
       } else {
-        setTime(calculateElapsed());
+        const t = calculateElapsed();
+        setTime(t);
+        updateDisplay(t);
       }
     };
 
@@ -197,7 +275,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         appStateHandle.remove();
       }
     };
-  }, [calculateElapsed]);
+  }, [activeTab, calculateElapsed, isMobile, startLoop, updateDisplay]);
 
   const handleStartStop = async () => {
     const isNative = Capacitor.isNativePlatform();
@@ -208,7 +286,9 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       accumulatedRef.current = currentElapsed;
       startTimeRef.current = 0;
       setRunningState(false);
+      stopLoop();
       setTime(currentElapsed);
+      updateDisplay(currentElapsed);
 
       localStorage.setItem(STORAGE_KEYS.ACCUMULATED, currentElapsed.toString());
       localStorage.setItem(STORAGE_KEYS.START_TIME, '0');
@@ -225,6 +305,8 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       const now = Date.now();
       startTimeRef.current = now;
       setRunningState(true);
+      updateDisplay(calculateElapsed());
+      startLoop();
 
       localStorage.setItem(STORAGE_KEYS.START_TIME, now.toString());
 
@@ -243,7 +325,9 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     accumulatedRef.current = 0;
     startTimeRef.current = 0;
     setRunningState(false);
+    stopLoop();
     setTime(0);
+    updateDisplay(0);
 
     localStorage.setItem(STORAGE_KEYS.ACCUMULATED, '0');
     localStorage.setItem(STORAGE_KEYS.START_TIME, '0');
@@ -257,25 +341,26 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     }
   };
 
-  const formatTime = (ms) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    const centiseconds = Math.floor((ms % 1000) / 10);
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
-  };
-
   return (
-    <div className={`swipe-view ${activeTab === 'stopwatch' ? 'active-desktop' : ''}`} id="view-stopwatch" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}>
+    <div
+      ref={containerRef}
+      className={`swipe-view ${activeTab === 'stopwatch' ? 'active-desktop' : ''}`}
+      id="view-stopwatch"
+      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}
+    >
       {(isMobile || activeTab === 'stopwatch') && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', width: '100%', maxWidth: '360px', padding: '20px' }}>
           
-          <div style={{
-            fontSize: '4.5rem',
-            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-            color: '#fff',
-            fontVariantNumeric: 'tabular-nums',
-            letterSpacing: '-2px'
-          }}>
+          <div
+            ref={timeDisplayRef}
+            style={{
+              fontSize: '4.5rem',
+              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+              color: '#fff',
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '-2px'
+            }}
+          >
             {formatTime(time)}
           </div>
 
