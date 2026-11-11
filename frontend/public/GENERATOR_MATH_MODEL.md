@@ -19,7 +19,7 @@
     *   **Sigmoid:** Peak-normalized $S_{\mathrm{sig}}(x) / \max_{x'} S_{\mathrm{sig}}(x')$ where $S_{\mathrm{sig}}(x) = 1 / (1 + e^{-10(x - 0.5)})$ (emphasis on peak contraction).
     *   **Inverse Sigmoid:** Peak-normalized $S_{\mathrm{inv}}(x) / \max_{x'} S_{\mathrm{inv}}(x')$ where $S_{\mathrm{inv}}(x) = 1 / (1 + e^{10(x - 0.5)})$ (emphasis on maximal stretch).
     *   **Linear:** $1 - x$ (decreasing linearly from stretch to contraction).
-*   $F_e \in [1, 10]$: Systemic fatigue cost of exercise $e$.
+*   $F_e \ge 0$: Systemic fatigue cost of exercise $e$ ($F_e \in [1, 10]$ across the default catalog; UI modal bounds $[0, 10]$).
 
 **Operational Limits (Generator UI Defaults):**
 *   **Set Limits:** $S_{\min} = 1$, $S_{\max} = 6$.
@@ -47,8 +47,8 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
 2.  **Volume Error:** $E_{\text{vol}} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - \rho_{\text{vol}}^* \right)^2$
 3.  **Tonnage Error:** $E_{\text{ton}} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - \rho_{\text{ton}}^* \right)^2$
 4.  **TUT Error:** $E_{\text{tut}} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - \rho_{\text{tut}}^* \right)^2$
-5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured; raw shares are divided by $100$ and normalized onto the simplex, and partial reps credit $W_m$ proportionally to the exact stretched-ROM integral $M_{e,m,\text{part}} = \int_0^{0.3333} B_{e,m}(x)\,dx$):
-    $$\text{Target}_{\text{raw}}(m) = \frac{\text{Macro}\%(M)}{100} \times \frac{\text{Sub}\%(m)}{100}, \qquad \text{Target}_{\text{global}}(m) = \frac{\text{Target}_{\text{raw}}(m)}{\sum_{m'} \text{Target}_{\text{raw}}(m')}$$
+5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured; each non-empty `subs` map is normalized to sum to $1$ within its macro when positive—yielding $0$ if an explicit `subs` map sums to $0$, and falling back to uniform division across the macro's database or catalog sub-muscles when omitted—before global simplex normalization, and partial reps credit $W_m$ proportionally to the exact stretched-ROM integral $M_{e,m,\text{part}} = \int_0^{0.3333} B_{e,m}(x)\,dx$):
+    $$\text{Target}_{\text{raw}}(m) = \frac{\text{Macro}\%(M)}{100} \cdot \frac{\text{Sub}\%(m)}{\sum_{m' \in M} \text{Sub}\%(m')}, \qquad \text{Target}_{\text{global}}(m) = \frac{\text{Target}_{\text{raw}}(m)}{\sum_{m'} \text{Target}_{\text{raw}}(m')}$$
     $$E_{\text{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{W_m}{\sum_{m'} W_{m'}} - \text{Target}_{\text{global}}(m) \right)^2$$
 6.  **Variety Error:**
     $$E_{\text{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$

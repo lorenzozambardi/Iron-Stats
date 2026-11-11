@@ -29,18 +29,18 @@ const TensionProfileExplainer = () => {
       <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         The cumulative tension profile shown in the chart above is the mathematical sum of the individual tension curves for all exercises performed for this muscle group, scaled by their respective volumes. Below is the formal derivation of how each individual exercise curve is modeled and evaluated.
       </p>
-      <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>1. Parametric Spline Definition</h3>
+      <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>1. Parametric Cubic Bézier Definition</h3>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        The tension curve for a given exercise is modeled mathematically as a Parametric Cubic Bezier Curve. The generic vector function <Latex math={String.raw`\mathbf{B}(t)`} /> is defined as the weighted sum of four control vectors <Latex math={String.raw`\mathbf{P}_i`} />, governed by the Bernstein basis polynomials for <Latex math={String.raw`t \in [0, 1]`} />:
+        The tension curve for a given exercise is modeled mathematically as a Parametric Cubic Bézier Curve. The generic vector function <Latex math={String.raw`\mathbf{P}(t)`} /> is defined as the weighted sum of four control vectors <Latex math={String.raw`\mathbf{P}_i`} />, governed by the Bernstein basis polynomials for <Latex math={String.raw`t \in [0, 1]`} />:
       </p>
       <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-        <Latex block math={String.raw`\mathbf{B}(t) = \sum_{i=0}^{3} \binom{3}{i} (1-t)^{3-i} t^i \mathbf{P}_i`} />
+        <Latex block math={String.raw`\mathbf{P}(t) = \sum_{i=0}^{3} \binom{3}{i} (1-t)^{3-i} t^i \mathbf{P}_i`} />
       </div>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Expanding the summation yields the explicit parametric equation:
       </p>
       <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-        <Latex block math={String.raw`\mathbf{B}(t) = (1-t)^3\mathbf{P}_0 + 3(1-t)^2t\mathbf{P}_1 + 3(1-t)t^2\mathbf{P}_2 + t^3\mathbf{P}_3`} />
+        <Latex block math={String.raw`\mathbf{P}(t) = (1-t)^3\mathbf{P}_0 + 3(1-t)^2t\mathbf{P}_1 + 3(1-t)t^2\mathbf{P}_2 + t^3\mathbf{P}_3`} />
       </div>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Decomposing the vector function into its Cartesian components yields the system of equations that dictates the Range of Motion <Latex math={String.raw`x(t)`} /> and the resulting Tension <Latex math={String.raw`y(t)`} />:
@@ -52,22 +52,22 @@ const TensionProfileExplainer = () => {
 
       <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>2. Differential Constraints (Derivatives)</h3>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        The intermediate vectors <Latex math={String.raw`\mathbf{P}_1`} /> and <Latex math={String.raw`\mathbf{P}_2`} /> serve as tangent and acceleration handles. Their position is determined by enforcing differential constraints at the boundary limits. Differentiating <Latex math={String.raw`\mathbf{B}(t)`} /> gives the first derivative (velocity):
+        The intermediate vectors <Latex math={String.raw`\mathbf{P}_1`} /> and <Latex math={String.raw`\mathbf{P}_2`} /> serve as tangent and acceleration handles. Their position is determined by enforcing differential constraints at the boundary limits. Differentiating <Latex math={String.raw`\mathbf{P}(t)`} /> gives the first derivative (parametric tangent vector):
       </p>
       <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-        <Latex block math={String.raw`\mathbf{B}'(t) = 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2)`} />
+        <Latex block math={String.raw`\mathbf{P}'(t) = 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2)`} />
       </div>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Evaluating the limits at the anchors <Latex math={String.raw`t=0`} /> and <Latex math={String.raw`t=1`} /> proves that the initial and final tangents are strictly collinear with the difference vectors:
       </p>
       <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '30px' }}>
-        <Latex block math={String.raw`\mathbf{B}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0) \quad \text{and} \quad \mathbf{B}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
+        <Latex block math={String.raw`\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0) \quad \text{and} \quad \mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
       </div>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Similarly, the second derivative (acceleration) evaluated at <Latex math={String.raw`t=0`} /> defines the initial concavity of the tension curve:
+        Similarly, the second derivative evaluated at <Latex math={String.raw`t=0`} /> defines the initial parametric curvature term:
       </p>
       <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '30px' }}>
-        <Latex block math={String.raw`\mathbf{B}''(0) = 6(\mathbf{P}_2 - 2\mathbf{P}_1 + \mathbf{P}_0)`} />
+        <Latex block math={String.raw`\mathbf{P}''(0) = 6(\mathbf{P}_2 - 2\mathbf{P}_1 + \mathbf{P}_0)`} />
       </div>
 
       {/* Interactive Graph */}
@@ -392,7 +392,8 @@ export default function MetricDetailsPage({ metric, onBack }) {
           variables: [
             { symbol: '\\text{TUT}_{\\text{eff}}', desc: 'Total duration in seconds spent under high mechanical tension.' },
             { symbol: 'N_s', desc: 'Continuous count of effective unassisted base repetitions in set s (integer part plus fractional remainder).' },
-            { symbol: 'T_{\\text{base}, i}', desc: 'Duration of base repetition i, including the fatigue slowdown.' },
+            { symbol: 'T_{\\text{base}, i}', desc: 'Duration of 0-indexed base repetition i (from max(0, R_{base,s} - floor(N_s)) to R_{base,s} - 1), including fatigue slowdown.' },
+            { symbol: 'T_{\\text{base}, \\text{frac}}', desc: 'Duration of the boundary base repetition at index R_{base,s} - floor(N_s) - 1 when {N_s} > 0.' },
             { symbol: 'T_{\\text{extended}, s}', desc: 'Total duration of assisted and partial reps in set s.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
@@ -413,9 +414,10 @@ export default function MetricDetailsPage({ metric, onBack }) {
           variables: [
             { symbol: '\\text{Fatigue}', desc: 'Accumulated fatigue units for the targeted muscles.' },
             { symbol: 'T_i', desc: 'Duration of repetition i (seconds).' },
-            { symbol: 'R_i', desc: 'RPE equivalent score for rep i (increases from early reps to the final rep; 10.0 for past-failure assisted and partial reps).' },
+            { symbol: '\\text{rir}_i', desc: 'Instantaneous Reps in Reserve on base repetition i: (10 - RPE_s) + (R_{base,s} - 1 - i) for 0-indexed i.' },
+            { symbol: 'R_i', desc: 'RPE equivalent score for rep i (max(0, 10 - rir_i) for base reps; 10.0 for past-failure assisted and partial reps).' },
             { symbol: '1.1^{R_i - 7.5}', desc: 'Exponential multiplier penalizing high-intensity reps close to failure.' },
-            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (0 to 10) representing systemic and joint stress.' },
+            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (F_e >= 0; UI editor bounds 0 to 10) representing systemic and joint stress.' },
             { symbol: 'K_i', desc: 'Repetition type penalty factor: base = 1.0, assisted = 0.5, partial = 0.33.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
@@ -439,7 +441,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
       case 'tension-profiles':
         return {
           title: 'Cumulative Tension Profiles',
-          subtitle: '4-Point Cubic Bezier Kinematics',
+          subtitle: '4-Point Cubic Bézier Tension Modeling',
           color: 'var(--accent-primary)',
           customRender: <TensionProfileExplainer />
         };

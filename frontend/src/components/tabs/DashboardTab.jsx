@@ -209,7 +209,8 @@ const DashboardTab = ({
   // Merged chart data for compare mode
   const mergedChartData = useMemo(() => {
     if (!compareMode || compareMetricsByWeek.length === 0) return metricsByWeek;
-    const allWeeks = Array.from(new Set([...metricsByWeek.map(m => m.week), ...compareMetricsByWeek.map(m => m.week)])).sort();
+    const allWeeks = Array.from(new Set([...metricsByWeek.map(m => m.week), ...compareMetricsByWeek.map(m => m.week)]))
+      .sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10));
     return allWeeks.map(w => ({
       week: w,
       ...((metricsByWeek.find(m => m.week === w)) || {}),
