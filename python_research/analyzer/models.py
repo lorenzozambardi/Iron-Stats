@@ -1,7 +1,13 @@
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+
+# 3-point Gauss-Legendre nodes and weights mapped to [0, 1] (exact up to degree 5).
+_GL3_HALF_STEP = math.sqrt(3.0 / 5.0) * 0.5
+_GL3_T = (0.5 - _GL3_HALF_STEP, 0.5, 0.5 + _GL3_HALF_STEP)
+_GL3_W = (5.0 / 18.0, 8.0 / 18.0, 5.0 / 18.0)
 
 try:
     from .constants import COEFF_ASSISTED, COEFF_PARTIAL
@@ -25,10 +31,16 @@ class BezierProfile:
     magnitude: float
 
     def __post_init__(self) -> None:
-        if not (self.x0 < self.x1 < self.x2 < self.x3):
+        if not (0.0 <= self.x0 < self.x1 < self.x2 < self.x3 <= 1.0):
             raise ValueError(
-                f"Non-monotone Bezier profile: {self.x0}, {self.x1}, {self.x2}, {self.x3}"
+                f"Non-monotone or out-of-domain Bezier x profile: {self.x0}, {self.x1}, {self.x2}, {self.x3}"
             )
+        if min(self.y0, self.y1, self.y2, self.y3) < 0.0:
+            raise ValueError(
+                f"Negative Bezier y control point: {self.y0}, {self.y1}, {self.y2}, {self.y3}"
+            )
+        if self.magnitude < 0.0:
+            raise ValueError(f"Negative Bezier magnitude: {self.magnitude}")
 
     def _eval_xy(self, t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         u = 1.0 - t
@@ -40,14 +52,26 @@ class BezierProfile:
         y = u3 * self.y0 + 3.0 * u2 * t * self.y1 + 3.0 * u * t2 * self.y2 + t3 * self.y3
         return x, y
 
+    def exact_area(self) -> float:
+        """Compute exact area integral int_0^1 y(t) x'(t) dt via 3-point Gauss-Legendre."""
+        dx0 = self.x1 - self.x0
+        dx1 = self.x2 - self.x1
+        dx2 = self.x3 - self.x2
+        area = 0.0
+        for t, w in zip(_GL3_T, _GL3_W, strict=True):
+            u = 1.0 - t
+            u2 = u * u
+            t2 = t * t
+            y = (u2 * u) * self.y0 + 3.0 * u2 * t * self.y1 + 3.0 * u * t2 * self.y2 + (t2 * t) * self.y3
+            xp = 3.0 * u2 * dx0 + 6.0 * u * t * dx1 + 3.0 * t2 * dx2
+            area += w * y * xp
+        return float(area)
+
     def get_curve(self, resolution: int = 50) -> np.ndarray:
         """Evaluate the area-normalized cubic Bezier tension curve at uniform parameter t."""
         t = np.linspace(0.0, 1.0, resolution)
-        x, y = self._eval_xy(t)
-
-        dx = np.diff(x)
-        y_avg = (y[:-1] + y[1:]) / 2.0
-        area = float(np.sum(y_avg * dx))
+        _, y = self._eval_xy(t)
+        area = self.exact_area()
 
         if area > 0.0:
             return y * (self.magnitude / area)
@@ -91,9 +115,7 @@ class BezierProfile:
 
     def get_physical_curve(self, resolution: int = 50) -> np.ndarray:
         """Sample the area-normalized tension curve on a uniform physical ROM grid x in [0, 1]."""
-        t = np.linspace(0.0, 1.0, resolution)
-        x, y = self._eval_xy(t)
-        area = float(np.sum(((y[:-1] + y[1:]) / 2.0) * np.diff(x)))
+        area = self.exact_area()
         if area <= 0.0:
             return np.zeros(resolution, dtype=float)
         scale = self.magnitude / area
@@ -123,7 +145,7 @@ def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProf
             new_distr[m] = val
 
     total_mag = sum(tp.magnitude for tp in new_distr.values())
-    if total_mag > 0 and abs(total_mag - 1.0) > 1e-4:
+    if total_mag > 0 and abs(total_mag - 1.0) > 1e-12:
         for tp in new_distr.values():
             tp.magnitude = tp.magnitude / total_mag
     return new_distr

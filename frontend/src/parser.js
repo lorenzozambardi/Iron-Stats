@@ -98,15 +98,30 @@ export function getExercisesWithOverrides(logText, globalExercises) {
                 let totalMag = 0.0;
                 for (const prof of Object.values(parsedDistr)) {
                   if (prof && typeof prof === 'object') {
-                    if (!(prof.x0 < prof.x1 && prof.x1 < prof.x2 && prof.x2 < prof.x3)) {
-                      throw new RangeError(`Non-monotone Bezier profile: ${prof.x0}, ${prof.x1}, ${prof.x2}, ${prof.x3}`);
+                    const x0 = Number(prof.x0 ?? 0.0);
+                    const y0 = Number(prof.y0 ?? 1.0);
+                    const x1 = Number(prof.x1 ?? 0.33);
+                    const y1 = Number(prof.y1 ?? 1.0);
+                    const x2 = Number(prof.x2 ?? 0.66);
+                    const y2 = Number(prof.y2 ?? 1.0);
+                    const x3 = Number(prof.x3 ?? 1.0);
+                    const y3 = Number(prof.y3 ?? 1.0);
+                    const mag = Number(prof.magnitude ?? 0.0);
+                    if (!(0.0 <= x0 && x0 < x1 && x1 < x2 && x2 < x3 && x3 <= 1.0)) {
+                      throw new RangeError(`Non-monotone or out-of-domain Bezier x profile: ${x0}, ${x1}, ${x2}, ${x3}`);
                     }
-                    totalMag += Number(prof.magnitude || 0);
+                    if (Math.min(y0, y1, y2, y3) < 0.0 || mag < 0.0) {
+                      throw new RangeError(`Negative Bezier y or magnitude in override`);
+                    }
+                    totalMag += mag;
                   } else if (typeof prof === 'number') {
+                    if (prof < 0.0) {
+                      throw new RangeError(`Negative muscle magnitude: ${prof}`);
+                    }
                     totalMag += prof;
                   }
                 }
-                if (totalMag > 0 && Math.abs(totalMag - 1.0) > 1e-4) {
+                if (totalMag > 0 && Math.abs(totalMag - 1.0) > 1e-12) {
                   for (const [mKey, prof] of Object.entries(parsedDistr)) {
                     if (prof && typeof prof === 'object') {
                       prof.magnitude = Number(prof.magnitude || 0) / totalMag;

@@ -4,7 +4,7 @@ import { Info } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 import { renderMetricTooltip } from '../Tooltips';
-import { solveBezierY } from '../helpers';
+import { bezierArea, solveBezierY } from '../helpers';
 
 const CURVE_RESOLUTION = 50;
 const normalizedCurveCache = new Map();
@@ -20,18 +20,11 @@ const getNormalizedCurve = (distr) => {
   const y3 = typeof distr === 'object' ? (distr.y3 ?? 1.0) : 1.0;
   const magnitude = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
 
-  const rawY = new Float32Array(CURVE_RESOLUTION + 1);
-  let areaSum = 0;
-  for (let i = 0; i <= CURVE_RESOLUTION; i++) {
-    const y = solveBezierY(i / CURVE_RESOLUTION, x0, y0, x1, y1, x2, y2, x3, y3);
-    rawY[i] = y;
-    const weight = (i === 0 || i === CURVE_RESOLUTION) ? 0.5 : 1.0;
-    areaSum += weight * y;
-  }
-  const area = areaSum / CURVE_RESOLUTION;
+  const area = bezierArea(x0, y0, x1, y1, x2, y2, x3, y3);
   const factor = area > 0 ? (magnitude / area) : 0;
+  const rawY = new Float32Array(CURVE_RESOLUTION + 1);
   for (let i = 0; i <= CURVE_RESOLUTION; i++) {
-    rawY[i] *= factor;
+    rawY[i] = solveBezierY(i / CURVE_RESOLUTION, x0, y0, x1, y1, x2, y2, x3, y3) * factor;
   }
   return rawY;
 };

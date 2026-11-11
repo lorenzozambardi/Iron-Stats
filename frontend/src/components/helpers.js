@@ -11,10 +11,43 @@ export const formatRestTime = (seconds) => {
   }
 };
 
-export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
-  if (!(x0 < x1 && x1 < x2 && x2 < x3)) {
-    throw new RangeError(`Non-monotone Bezier profile: ${x0}, ${x1}, ${x2}, ${x3}`);
+// 3-point Gauss-Legendre nodes and weights mapped to [0, 1] (exact up to degree 5).
+const GL3_HALF_STEP = Math.sqrt(3.0 / 5.0) * 0.5;
+const GL3_T = [0.5 - GL3_HALF_STEP, 0.5, 0.5 + GL3_HALF_STEP];
+const GL3_W = [5.0 / 18.0, 8.0 / 18.0, 5.0 / 18.0];
+
+export const validateBezierProfile = (x0, y0, x1, y1, x2, y2, x3, y3, magnitude = 0) => {
+  if (!(0.0 <= x0 && x0 < x1 && x1 < x2 && x2 < x3 && x3 <= 1.0)) {
+    throw new RangeError(`Non-monotone or out-of-domain Bezier x profile: ${x0}, ${x1}, ${x2}, ${x3}`);
   }
+  if (Math.min(y0, y1, y2, y3) < 0.0) {
+    throw new RangeError(`Negative Bezier y control point: ${y0}, ${y1}, ${y2}, ${y3}`);
+  }
+  if (magnitude < 0.0) {
+    throw new RangeError(`Negative Bezier magnitude: ${magnitude}`);
+  }
+};
+
+export const bezierArea = (x0, y0, x1, y1, x2, y2, x3, y3) => {
+  validateBezierProfile(x0, y0, x1, y1, x2, y2, x3, y3);
+  const dx0 = x1 - x0;
+  const dx1 = x2 - x1;
+  const dx2 = x3 - x2;
+  let area = 0.0;
+  for (let k = 0; k < 3; k++) {
+    const t = GL3_T[k];
+    const u = 1.0 - t;
+    const u2 = u * u;
+    const t2 = t * t;
+    const y = (u2 * u) * y0 + 3.0 * u2 * t * y1 + 3.0 * u * t2 * y2 + (t2 * t) * y3;
+    const xp = 3.0 * u2 * dx0 + 6.0 * u * t * dx1 + 3.0 * t2 * dx2;
+    area += GL3_W[k] * y * xp;
+  }
+  return area;
+};
+
+export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
+  validateBezierProfile(x0, y0, x1, y1, x2, y2, x3, y3);
   if (targetX < x0) return 0.0;
   if (targetX > x3) return 0.0;
   if (targetX === x0) return y0;
