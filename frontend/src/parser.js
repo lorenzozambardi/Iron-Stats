@@ -211,6 +211,7 @@ const HARD_MAP = {
   // --- CORE ---
   "dragon flag": "Dragon Flag Raises", "dragon flag raises": "Dragon Flag Raises",
   "hanging leg": "Hanging Leg Raises", "hanging leg raises": "Hanging Leg Raises", "leg raises": "Hanging Leg Raises",
+  "knee raises": "Hanging Leg Raises",
   "crunch": "Crunch"
 };
 

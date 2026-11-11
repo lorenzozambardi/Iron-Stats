@@ -1,11 +1,37 @@
 import json
 import re
 import sys
-from difflib import get_close_matches
 
 from .constants import HARD_MAP, SORTED_HARD_MAP_KEYS
 from .metrics import calculate_set_fatigue, calculate_set_tuts
 from .models import Exercise, SetData, WeekData, WorkoutExercise
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    m = len(s1)
+    n = len(s2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            cost = 0 if s1[i - 1] == s2[j - 1] else 1
+            dp[i][j] = min(
+                dp[i - 1][j] + 1,
+                dp[i][j - 1] + 1,
+                dp[i - 1][j - 1] + cost,
+            )
+    return dp[m][n]
+
+
+def get_string_similarity(s1: str, s2: str) -> float:
+    dist = levenshtein_distance(s1, s2)
+    max_len = max(len(s1), len(s2))
+    if max_len == 0:
+        return 1.0
+    return 1.0 - dist / max_len
 
 # Precompiled regular expressions for performance optimization
 # Matches fluff text in exercise names to be cleaned out (e.g. '10s', 'rep', 'cluster')
@@ -55,11 +81,18 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
         if key in raw_clean:
             return next((e for e in exercises if e.name == HARD_MAP[key]), None)
 
-    names = [e.name for e in exercises]
-    matches = get_close_matches(raw_clean, names, n=1, cutoff=0.6)  # Increased cutoff to 0.6 to prevent false positives
-    if matches:
-        return next((e for e in exercises if e.name == matches[0]), None)
-    return None
+    # Fallback to fuzzy matching
+    best_match = None
+    best_score = -1.0
+    cutoff = 0.4
+
+    for ex in exercises:
+        score = get_string_similarity(raw_clean, ex.name.lower())
+        if score > best_score and score >= cutoff:
+            best_score = score
+            best_match = ex
+
+    return best_match
 
 
 def parse_rest_time(line: str) -> int:

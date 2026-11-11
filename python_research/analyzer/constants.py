@@ -219,6 +219,7 @@ HARD_MAP = {
     "hanging leg": "Hanging Leg Raises",
     "hanging leg raises": "Hanging Leg Raises",
     "leg raises": "Hanging Leg Raises",
+    "knee raises": "Hanging Leg Raises",
     "crunch": "Crunch",
 }
 

@@ -121,10 +121,10 @@ def calculate_set_fatigue(
 
 def calculate_metrics(
     workout_data: list[WorkoutExercise],
-    target_session: int | None,
-    target_week: int | None,
-    target_macro: str | None,
-    target_sub: str | None,
+    target_session: int | None = None,
+    target_week: int | None = None,
+    target_macro: str | None = None,
+    target_sub: str | None = None,
 ):
     """
     Aggregates metrics (Volume, Tonnage, Fatigue, TUT) across the parsed workout log.
