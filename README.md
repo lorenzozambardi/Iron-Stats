@@ -13,7 +13,7 @@
 
 ## Abstract
 
-Conventional resistance-training analytics rely on coarse scalar aggregates—such as raw set count, repetition volume, and mechanical tonnage ($\text{load} \times \text{reps}$)—which treat all repetitions, loading profiles, and effort levels as physiologically equivalent. **Iron Stats** replaces these naive scalars with a unified computational framework that models resistance training over three coupled domains: **(i) continuous biomechanical tension fields**, parameterizing per-muscle resistance profiles across normalized Range of Motion (ROM) $t \in [0, 1]$ via area-normalized cubic Bézier curves; **(ii) physiological fatigue and stimulus dynamics**, quantifying High-Threshold Motor Unit (HTMU) recruitment through an RPE-gated effective-repetition threshold, RIR-dependent concentric Time Under Tension (TUT) slowdown, and exponential central nervous system (CNS) fatigue accumulation; and **(iii) constrained combinatorial optimization**, synthesizing balanced multi-day training mesocycles via calibrated scalarized Simulated Annealing. Paired with a domain-specific workout log parser and an interactive React/Vite client, Iron Stats bridges empirical training logbooks with reproducible quantitative exercise science.
+Conventional resistance-training analytics rely on coarse scalar aggregates—such as raw set count, repetition volume, and mechanical tonnage ($\text{load} \times \text{reps}$)—which treat all repetitions, loading profiles, and effort levels as physiologically equivalent. **Iron Stats** replaces these naive scalars with a unified computational framework that models resistance training over three coupled domains: **(i) continuous biomechanical tension fields**, parameterizing per-muscle resistance profiles across normalized Range of Motion (ROM) $x \in [0, 1]$ via area-normalized cubic Bézier curves; **(ii) physiological fatigue and stimulus dynamics**, quantifying High-Threshold Motor Unit (HTMU) recruitment through an RPE-gated effective-repetition threshold, RIR-dependent concentric Time Under Tension (TUT) slowdown, and exponential central nervous system (CNS) fatigue accumulation; and **(iii) constrained combinatorial optimization**, synthesizing balanced multi-day training mesocycles via calibrated scalarized Simulated Annealing. Paired with a domain-specific workout log parser and an interactive React/Vite client, Iron Stats bridges empirical training logbooks with reproducible quantitative exercise science.
 
 ---
 
@@ -95,7 +95,7 @@ Assisted repetitions take $\tau_0$, and partial repetitions take $0.5 \, \tau_0$
 In `calculate_set_fatigue`, per-rep RPE is $\text{RPE}_j = \max(0, 10.0 - \text{RIR}_j)$, and CNS fatigue scales continuously as $\mu(\text{RPE}_j) = 1.1^{\text{RPE}_j - 7.5}$ for all $\text{RPE}_j \ge 0$. Weighted by exercise fatigue factor $F_{\text{ex}}$ (`fatigue`), total set fatigue is:
 
 $$
-\Phi_{\text{set}} = F_{\text{ex}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{7.0 - 7.5} \sum_{a=0}^{n_a - 1} \tau_0 \;+\; \frac{\alpha_{\text{part}}}{0.5} \sum_{p=0}^{n_p - 1} 0.5 \, \tau_0 \right]
+\Phi_{\text{set}} = F_{\text{ex}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{10.0 - 7.5} \, n_a \tau_0 \;+\; 0.5 \, \alpha_{\text{part}} \, 1.1^{10.0 - 7.5} \, n_p \tau_0 \right]
 $$
 
 For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text{raw}} \cdot \text{load\_multiplier} + \text{load\_offset}$, yielding set tonnage $L \cdot R_{\text{tot}}$ and effective tonnage $L \cdot R_{\text{eff}}$ scaled by the queried muscle's `magnitude` coefficient $M_m$.
@@ -117,17 +117,17 @@ $$
 The solver evaluates seven dimensionless error terms $\mathcal{I} = \{\text{curve}, \text{vol}, \text{ton}, \text{tut}, \text{distr}, \text{variety}, \text{balance}\}$:
 
 $$
-E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\text{trained}}|} \sum_{m \in \mathcal{M}_{\text{trained}}} \frac{1}{R} \sum_{i=0}^{R-1} \left( \frac{V_m(x_i)}{\max_r V_m(x_r)} - T_m(x_i) \right)^2
+E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\text{eval}}|} \sum_{m \in \mathcal{M}_{\text{eval}}} \frac{1}{R} \sum_{i=0}^{R-1} \left( \hat{V}_m(x_i) - T_m(x_i) \right)^2
 $$
 
 $$
 E_q = \left( \frac{X_{q,\text{eff}}}{X_{q,\text{tot}}} - \rho_q^* \right)^2 \quad \forall q \in \{\text{vol}, \text{ton}, \text{tut}\}, \qquad
-E_{\text{distr}} = \frac{1}{2} \sum_{m} \bigl( p_m^{\text{actual}} - p_m^{\text{target}} \bigr)^2
+E_{\text{distr}} = \begin{cases} \frac{1}{2} \sum_{m} \bigl( p_m^{\text{actual}} - p_m^{\text{target}} \bigr)^2, & \text{if targets set} \\ 0, & \text{otherwise} \end{cases}
 $$
 
 $$
 E_{\text{variety}} = \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\text{tot}}(x)} \right)^2, \qquad
-E_{\text{balance}} = \frac{1}{2} \left( \frac{\operatorname{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\operatorname{Var}_d(V_d)}{(V_{\max}/2)^2} \right)
+E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\operatorname{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\operatorname{Var}_d(V_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}
 $$
 
 During `calibrate()`, Monte Carlo sampling over $K = 500$ random states estimates scaling denominators $s_i = 2 \cdot \hat{\mu}_i$ (empirical sample mean, guarded at $10^{-6}$). `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(x) = 150 \cdot N_{\text{dup}}(x)$ via Simulated Annealing ($T_0 = 50.0$, $T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):

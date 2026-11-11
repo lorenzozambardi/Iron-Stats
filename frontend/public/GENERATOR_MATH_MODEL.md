@@ -47,7 +47,7 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
 2.  **Volume Error:** $E_{\text{vol}} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - \rho_{\text{vol}}^* \right)^2$
 3.  **Tonnage Error:** $E_{\text{ton}} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - \rho_{\text{ton}}^* \right)^2$
 4.  **TUT Error:** $E_{\text{tut}} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - \rho_{\text{tut}}^* \right)^2$
-5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured; raw shares are divided by $100$ and normalized onto the simplex, and partial reps credit $W_m$ only when $B_{e,m}$ has positive area and intersects $x \le 0.3333$):
+5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured; raw shares are divided by $100$ and normalized onto the simplex, and partial reps credit $W_m$ proportionally to the exact stretched-ROM integral $M_{e,m,\text{part}} = \int_0^{0.3333} B_{e,m}(x)\,dx$):
     $$\text{Target}_{\text{raw}}(m) = \frac{\text{Macro}\%(M)}{100} \times \frac{\text{Sub}\%(m)}{100}, \qquad \text{Target}_{\text{global}}(m) = \frac{\text{Target}_{\text{raw}}(m)}{\sum_{m'} \text{Target}_{\text{raw}}(m')}$$
     $$E_{\text{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{W_m}{\sum_{m'} W_{m'}} - \text{Target}_{\text{global}}(m) \right)^2$$
 6.  **Variety Error:**

@@ -193,7 +193,7 @@ Both \texttt{solve\_y} and \texttt{solveBezierY} run up to $K = 30$ iterations, 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.96\textwidth]{bezier_comparison.png}
-  \caption{Synoptic comparison on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs overshoot at $x_3 = 0.90$ for continuous global interpolants. Right: restricted domain $[0.25, 0.85]$ ($\delta = 0.05$), isolating smooth interior errors ($L^\infty = 6.29 \times 10^{-5}$ for Lagrange $d=7$, $2.46 \times 10^{-3}$ for $C^2$ spline).}
+  \caption{Synoptic comparison on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs overshoot at $x_3 = 0.90$ for continuous global interpolants. Right: restricted domain $[0.25, 0.85]$ ($\delta = 0.05$), isolating smooth interior errors ($L^\infty = 6.29 \times 10^{-5}$ for Lagrange $d=7$, $2.46 \times 10^{-3}$ for $N=6$ $C^2$ spline).}
   \label{fig:comparison}
 \end{figure*}
 
@@ -220,11 +220,11 @@ To conserve muscle contribution magnitude $M_{e,m}$ under arbitrary control-poin
 \begin{equation}
   I_{\mathrm{trap}} = \sum_{k=0}^{R-2} \frac{y(t_k) + y(t_{k+1})}{2}\,\Delta x_k.
 \end{equation}
-Because $t_k$ is uniform while $x(t_k)$ is \emph{non-uniformly spaced}, the classical uniform-grid formula $-\frac{(x_3 - x_0)^3}{12(R-1)^2} y''(\xi)$ does \emph{not} apply. Under strict monotonicity ($x_0 < x_1 < x_2 < x_3$, ensuring $\Delta x_k > 0$), the quadrature error $E_{\mathrm{trap}} = I_{\mathrm{exact}} - I_{\mathrm{trap}}$ over non-uniform nodes is
+Because $t_k$ is uniform while $x(t_k)$ is \emph{non-uniformly spaced}, the classical uniform-grid formula $-\frac{(x_3 - x_0)^3}{12(R-1)^2} y''(\xi)$ does \emph{not} apply. Under strict monotonicity ($x_0 < x_1 < x_2 < x_3$, ensuring $\Delta x_k > 0$ and $y \circ x^{-1} \in C^\infty([x_0, x_3])$), expanding $y(x)$ symmetrically around each spatial midpoint $m_k = \frac{1}{2}\bigl(x(t_k) + x(t_{k+1})\bigr)$ cancels all odd-degree terms in the single-interval error $e_k = \int_{x(t_k)}^{x(t_{k+1})} y(x)\,dx - \frac{y(t_k) + y(t_{k+1})}{2}\Delta x_k$, giving
 \begin{equation}
-  E_{\mathrm{trap}} = -\frac{1}{12} \sum_{k=0}^{R-2} y''(\xi_k)\,(\Delta x_k)^3,
+  E_{\mathrm{trap}} = I_{\mathrm{exact}} - I_{\mathrm{trap}} = -\frac{1}{12} \sum_{k=0}^{R-2} y''(m_k)\,(\Delta x_k)^3 + \mathcal{O}\!\left(\sum_{k=0}^{R-2} (\Delta x_k)^5\right),
 \end{equation}
-with $\xi_k \in [x(t_k), x(t_{k+1})]$ and $y'' = d^2y/dx^2$. Substituting $\Delta x_k = h x'(t_{k+1/2}) + \mathcal{O}(h^3)$ and $y''(x) = \bigl(y''(t)x'(t) - y'(t)x''(t)\bigr)/(x'(t))^3$ yields the $\mathcal{O}(h^2)$ parametric asymptotic expansion
+with $y'' = d^2y/dx^2$. Since $m_k = x(t_{k+1/2}) + \mathcal{O}(h^2)$, $\Delta x_k = h x'(t_{k+1/2}) + \mathcal{O}(h^3)$, and $y''(x) = \bigl(y''(t)x'(t) - y'(t)x''(t)\bigr)/(x'(t))^3$, the midpoint Riemann sum has $\mathcal{O}(h^2)$ quadrature error and yields the $\mathcal{O}(h^2)$ parametric asymptotic expansion
 \begin{equation}
   E_{\mathrm{trap}} = -\frac{h^2}{12} \int_0^1 \bigl(y''(t)x'(t) - y'(t)x''(t)\bigr)\,dt + \mathcal{O}(h^4),
 \end{equation}
@@ -237,7 +237,7 @@ with standard nodes $\xi_k \in \{-\sqrt{3/5}, 0, \sqrt{3/5}\}$ and weights $\til
 \begin{equation}
   B_{e,m}(x) =
   \begin{cases}
-    \dfrac{M_{e,m}}{I_{\mathrm{GL3}}}\, y_{e,m}\bigl(x_{e,m}^{-1}(x)\bigr), & x \in [x_{0}, x_{3}] \text{ and } I_{\mathrm{GL3}} > 0, \\
+    \dfrac{M_{e,m}}{I_{\mathrm{GL3},e,m}}\, y_{e,m}\bigl(x_{e,m}^{-1}(x)\bigr), & x \in [x_{0,e,m}, x_{3,e,m}] \text{ and } I_{\mathrm{GL3},e,m} > 0, \\
     0, & \text{otherwise},
   \end{cases}
   \label{eq:normalized_density}
@@ -254,7 +254,7 @@ In \texttt{constants.py} and \texttt{models.py} (\texttt{SetData}), each set con
   R_{\mathrm{tot}} &= n_b + \alpha_{\mathrm{ass}} n_a + \alpha_{\mathrm{part}} n_p, \\
   R_{\mathrm{eff}} &= n_{b,\mathrm{eff}} + \alpha_{\mathrm{ass}} n_a + \alpha_{\mathrm{part}} n_p.
 \end{align}
-Base repetitions recruit high-threshold motor units when $\mathrm{RIR} < 6$ ($\mathrm{RPE} > 4.0$).
+Base repetitions recruit high-threshold motor units when $\mathrm{RIR} < 6$ ($\mathrm{RPE} > 4.0$). Note that logbook-level summaries (\texttt{SetData}, \texttt{metrics.py}) credit $\alpha_{\mathrm{ass}} n_a$ and $\alpha_{\mathrm{part}} n_p$ unconditionally at the set level, whereas the mesocycle solver (\S\ref{sec:metrics_solver}.2) specifically restricts $n_p$ to stretched-ROM partials on $[0, 0.3333]$ with $\mathrm{RPE} \ge 9.0$.
 
 In \texttt{metrics.py} (\texttt{calculate\_set\_tuts}), given execution tempo $(c, p_s, e, p_l)$ (default $1\text{-}0\text{-}2\text{-}0\,\text{s}$) with nominal duration $\tau_0 = c + p_s + e + p_l$, each base repetition $j \in \{0, \dots, n_b - 1\}$ experiences instantaneous $\mathrm{RIR}_j = (10.0 - \mathrm{RPE}) + (n_b - 1 - j)$ and concentric slowdown $\Delta c(\mathrm{RIR}_j)$:
 \begin{equation}
@@ -291,7 +291,7 @@ where $\chi_{\mathrm{part}}(x_i) = \mathbb{I}[x_i \le 0.3333]$ restricts partial
 \begin{itemize}
   \item \emph{Load:} $\hat{L} = \frac{100.0}{1.0 + 0.033\,\bigl(n_b + \max(0, 10 - \mathrm{RPE})\bigr)} \cdot c_{\mathrm{load}}$ (RPE-aware 100\,kg normalized 1RM Epley load weighted by articular efficiency $c_{\mathrm{load}}$, avoiding logbook $\mu_{\mathrm{load}}/q_{\mathrm{load}}$ input-unit distortion).
   \item \emph{TUT:} lightweight RIR-slowdown dynamic TUT matching \S4.1 at default $1\text{-}0\text{-}2\text{-}0\,\text{s}$ tempo ($\tau_0 = 3.0\,\text{s}$, partials $0.5\tau_0$), keeping $E_{\mathrm{tut}}$ genuinely distinct from $E_{\mathrm{vol}}$.
-  \item \emph{Fatigue:} linear $R_{\mathrm{tot}} f_{\mathrm{base}}$, omitting exponential RPE scaling and dynamic TUT while preserving exercise fatigue ordering.
+  \item \emph{Fatigue:} linear $R_{\mathrm{tot}} f_{\mathrm{base}}$, omitting exponential RPE scaling and dynamic TUT (preserving exercise fatigue ordering for fixed set parameters, while treating daily balance $F_d$ as RPE-invariant).
 \end{itemize}
 
 Letting $\mathcal{M}_{\mathrm{eval}} = \{m : \max_r V_m(x_r) > 0 \text{ or } p_m^{\mathrm{target}} > 0\}$, with $\hat{V}_m(x_i) = V_m(x_i)/\max_r V_m(x_r)$ when $\max_r V_m(x_r) > 0$ (and $\hat{V}_m \equiv 0$ otherwise), seven dimensionless error metrics $\mathcal{I} = \{\mathrm{curve}, \mathrm{vol}, \mathrm{ton}, \mathrm{tut}, \mathrm{distr}, \mathrm{variety}, \mathrm{balance}\}$ evaluate mesocycle quality:
@@ -308,7 +308,7 @@ Letting $\mathcal{M}_{\mathrm{eval}} = \{m : \max_r V_m(x_r) > 0 \text{ or } p_m
     0, & D \le 1,
   \end{cases}
 \end{align}
-where $T_m(x)$ defaults to \texttt{constant} ($1$) for unconfigured muscles and selects among \texttt{constant} ($1$), \texttt{linear} ($1 - x$), \texttt{sigmoid} ($1 / (1 + e^{-10(x - 0.5)})$), and \texttt{inv\_sigmoid} ($1 / (1 + e^{10(x - 0.5)})$) (expanded across macro sub-muscles in \texttt{MUSCLES} with explicit sub-muscle keys overriding macros; note the logistic forms span $[0.00669, 0.99331]$ against peak-normalized $\hat{V}_m \in [0, 1]$), $(X_{\mathrm{vol,tot}}, X_{\mathrm{vol,eff}}) = \sum_{d,k,s}(R_{\mathrm{tot}}, R_{\mathrm{eff}})$, $(X_{\mathrm{ton,tot}}, X_{\mathrm{ton,eff}}) = \sum_{d,k,s}\hat{L}(R_{\mathrm{tot}}, R_{\mathrm{eff}})$, and $(X_{\mathrm{tut,tot}}, X_{\mathrm{tut,eff}}) = \sum_{d,k,s}(\mathrm{TUT}_{\mathrm{tot}}, \mathrm{TUT}_{\mathrm{eff}})$ with default $\rho_q^* = 0.70$, $p_m^{\mathrm{target}}$ is the simplex-normalized user-configured target share from \texttt{volume\_dist}, $p_m^{\mathrm{actual}} = W_m / \sum_{m'} W_{m'}$ is the actual share of muscle-weighted ROM-active volume $W_m = \sum_{d,k} M_{e,m} \bigl(N_{b,d,k} + \alpha_{\mathrm{part}} \mathbb{I}[\mathrm{supp}(B_{e,m}) \cap [0, 0.3333] \ne \emptyset] N_{p,d,k}\bigr) \mathbb{I}[I_{\mathrm{GL3},e,m} > 0]$ (consistent with~\eqref{eq:agg_curve} whenever $B_{e,m}$ has positive area), $\mathcal{U}(\omega)$ is the set of distinct scheduled exercise names, $N_{\mathrm{tot}}(\omega) = \sum_{d=1}^D N_d$ is total scheduled slots, $D_d$ and $F_d = \sum_{k=1}^{N_d} \sum_{s=1}^{S_{d,k}} R_{\mathrm{tot},d,k,s}\, f_{\mathrm{base},e(d,k)}$ denote daily total reps and linear fatigue, $\mathrm{Var}_d(\cdot)$ denotes the population variance (\texttt{np.var}, $\mathrm{ddof}=0$) across days $d = 1,\dots,D$, $V_{\max} = N_{\max} S_{\max} (r_{\max} + 6 \alpha_{\mathrm{part}})$, and $F_{\max} = \max(10, \max_e f_{\mathrm{base},e})\,V_{\max}$ (noting Popoviciu's $(V_{\max}/2)^2$ denominator is conservative since $D_d \ge N_{\min} S_{\min} r_{\min} > 0$).
+where $T_m(x)$ defaults to \texttt{constant} ($1$) for unconfigured muscles and selects among \texttt{constant} ($1$), \texttt{linear} ($1 - x$), \texttt{sigmoid} ($1 / (1 + e^{-10(x - 0.5)})$), and \texttt{inv\_sigmoid} ($1 / (1 + e^{10(x - 0.5)})$) (expanded across macro sub-muscles in \texttt{MUSCLES} with explicit sub-muscle keys overriding macros; note the logistic forms span $[0.00669, 0.99331]$ against peak-normalized $\hat{V}_m \in [0, 1]$), $(X_{\mathrm{vol,tot}}, X_{\mathrm{vol,eff}}) = \sum_{d,k,s}(R_{\mathrm{tot}}, R_{\mathrm{eff}})$, $(X_{\mathrm{ton,tot}}, X_{\mathrm{ton,eff}}) = \sum_{d,k,s}\hat{L}(R_{\mathrm{tot}}, R_{\mathrm{eff}})$, and $(X_{\mathrm{tut,tot}}, X_{\mathrm{tut,eff}}) = \sum_{d,k,s}(\mathrm{TUT}_{\mathrm{tot}}, \mathrm{TUT}_{\mathrm{eff}})$ with default $\rho_q^* = 0.70$, $p_m^{\mathrm{target}}$ is the simplex-normalized user-configured target share from \texttt{volume\_dist} (falling back to uniform division across a macro's database sub-muscles when \texttt{subs} omits that macro), $p_m^{\mathrm{actual}} = W_m / \sum_{m'} W_{m'}$ is the actual share of muscle-weighted ROM-active volume $W_m = \sum_{d,k} \bigl( M_{e,m} \mathbb{I}[I_{\mathrm{GL3},e,m} > 0] N_{b,d,k} + \alpha_{\mathrm{part}} M_{e,m,\mathrm{part}} N_{p,d,k} \bigr)$, where $M_{e,m,\mathrm{part}} = \int_0^{0.3333} B_{e,m}(x)\,dx$ is computed exactly via 3-point Gauss--Legendre quadrature on $[0, x_{e,m}^{-1}(0.3333)]$ (matching $\int_0^1 V_m(x)\,dx$ in~\eqref{eq:agg_curve}), $\mathcal{U}(\omega)$ is the set of distinct scheduled exercise names, $N_{\mathrm{tot}}(\omega) = \sum_{d=1}^D N_d$ is total scheduled slots, $D_d$ and $F_d = \sum_{k=1}^{N_d} \sum_{s=1}^{S_{d,k}} R_{\mathrm{tot},d,k,s}\, f_{\mathrm{base},e(d,k)}$ denote daily total reps and linear fatigue, $\mathrm{Var}_d(\cdot)$ denotes the population variance (\texttt{np.var}, $\mathrm{ddof}=0$) across days $d = 1,\dots,D$, $V_{\max} = N_{\max} S_{\max} (r_{\max} + 6 \alpha_{\mathrm{part}})$, and $F_{\max} = \max(10, \max_e f_{\mathrm{base},e})\,V_{\max}$ (noting Popoviciu's $(V_{\max}/2)^2$ denominator is conservative since $D_d \ge N_{\min} S_{\min} r_{\min} > 0$).
 
 Prior to optimization, \texttt{calibrate()} estimates normalization denominators via the empirical sample mean $\hat{\mu}_i = \frac{1}{K}\sum_{r=1}^{K} E_i(\omega^{(r)})$ over $K = 500$ random states (\texttt{SolverConfig} default; \texttt{GeneratorConfig.jsx} UI defaults to $K = 1000$, Softmax-uniform weights $w_i = 1/7$, \texttt{inv\_sigmoid} targets, and uniform active \texttt{volume\_dist}, with $K=0$ disabling calibration cleanly in both engines), setting $s_i = 2 \hat{\mu}_i$ (with $\mathcal{O}(K^{-1/2})$ standard error, $\mathcal{O}(K^{-1})$ sampling variance, and zero-guard $s_i \leftarrow 10^{-6}$ applied inside \texttt{evaluate\_workout} whenever $s_i = 0$). \texttt{solve()} then minimizes
 \begin{equation}
