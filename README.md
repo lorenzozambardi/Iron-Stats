@@ -104,20 +104,20 @@ For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text
 
 ### 3. Multi-Objective Combinatorial Optimization
 
-In [`solver.py`](python_research/analyzer/solver.py) (`WorkoutSolver`), a candidate mesocycle $x$ specifies $D$ training days, each assigning $N_d \in [N_{\min}, N_{\max}]$ exercises with $S_{d,e} \in [S_{\min}, S_{\max}]$ sets, base reps $r \in [r_{\min}, r_{\max}]$, $\text{RPE} \in \{7.0, 8.0, 8.5, 9.0, 10.0\}$, and partials $p \in \{0, 2, 4, 6\}$ (active only when $\text{RPE} \ge 9.0$).
+In [`solver.py`](python_research/analyzer/solver.py) (`WorkoutSolver`), a candidate mesocycle $\omega \in \Omega$ specifies $D$ training days, each assigning $N_d \in [N_{\min}, N_{\max}]$ exercise slots $(d, k)$ with $S_{d,k} \in [S_{\min}, S_{\max}]$ sets, base reps $r \in [r_{\min}, r_{\max}]$, $\text{RPE}$ initialized in $\{7.0, 8.0, 8.5, 9.0, 10.0\}$ (mutated in $0.5$ steps within $[5.0, 10.0]$), and partials $p \in \{0, 2, 4, 6\}$ (active only when $\text{RPE} \ge 9.0$).
 
-Cumulative muscle tension $V_m(x_i)$ is evaluated on a common physical ROM grid $x_i = i/(R - 1)$ via bisection ($t_{e,i} = x_e^{-1}(x_i)$) over exercise-summed base reps $N_{b,e}$ and $\alpha_{\text{part}}$-weighted stretched-range partials ($x_i \le 0.3333$):
+Writing $e = e(d, k)$ for the exercise at slot $(d, k)$ and $N_{b,d,k}, N_{p,d,k}$ for its slot-level base and partial rep sums, cumulative muscle tension $V_m(x_i)$ is evaluated on a common physical ROM grid $x_i = i/(R - 1)$ via bisection ($t_{e,i} = x_e^{-1}(x_i)$) over base reps and $\alpha_{\text{part}}$-weighted stretched-range partials ($x_i \le 0.3333$):
 
 $$
-V_m(x_i) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(x_i) \Bigl( N_{b,e} + \alpha_{\text{part}} N_{p,e} \, \mathbb{I}[x_i \le 0.3333] \Bigr)
+V_m(x_i) = \sum_{d=1}^{D} \sum_{k=1}^{N_d} B_{e,m}(x_i) \Bigl( N_{b,d,k} + \alpha_{\text{part}} N_{p,d,k} \, \mathbb{I}[x_i \le 0.3333] \Bigr)
 $$
 
 *(Note: for Simulated Annealing speed, `evaluate_workout` uses lightweight surrogates for load—Epley-like $\hat{L}$—and linear fatigue, while retaining dynamic RIR-slowdown TUT at default `1-0-2-0` tempo so $E_{\mathrm{tut}}$ remains distinct from $E_{\mathrm{vol}}$.)*
 
-The solver evaluates seven dimensionless error terms $\mathcal{I} = \{\text{curve}, \text{vol}, \text{ton}, \text{tut}, \text{distr}, \text{variety}, \text{balance}\}$:
+The solver evaluates seven dimensionless error terms $\mathcal{I} = \{\text{curve}, \text{vol}, \text{ton}, \text{tut}, \text{distr}, \text{variety}, \text{balance}\}$, weighting $E_{\text{curve}}$ by simplex target shares $\omega_m = p_m^{\text{target}}$ over $\mathcal{M}_{\text{eval}} = \{m : p_m^{\text{target}} > 0\}$ when targets are configured, or by active-ROM volume shares $\omega_m = W_m / \sum_{m' \in \mathcal{M}_{\text{eval}}} W_{m'}$ over $\mathcal{M}_{\text{eval}} = \{m : \max_r V_m(x_r) > 0\}$ otherwise:
 
 $$
-E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\text{eval}}|} \sum_{m \in \mathcal{M}_{\text{eval}}} \frac{1}{R} \sum_{i=0}^{R-1} \left( \hat{V}_m(x_i) - T_m(x_i) \right)^2
+E_{\text{curve}} = \sum_{m \in \mathcal{M}_{\text{eval}}} \omega_m \frac{1}{R} \sum_{i=0}^{R-1} \left( \hat{V}_m(x_i) - T_m(x_i) \right)^2
 $$
 
 $$
@@ -125,15 +125,17 @@ E_q = \left( \frac{X_{q,\text{eff}}}{X_{q,\text{tot}}} - \rho_q^* \right)^2 \qua
 E_{\text{distr}} = \begin{cases} \frac{1}{2} \sum_{m} \bigl( p_m^{\text{actual}} - p_m^{\text{target}} \bigr)^2, & \text{if targets set} \\ 0, & \text{otherwise} \end{cases}
 $$
 
+where $p_m^{\text{actual}} = W_m / \sum_{m'} W_{m'}$ aggregates ROM-active base volume $M_{e,m}\mathbb{I}[I_{\mathrm{GL3},e,m}>0]N_{b,d,k}$ and stretched-ROM partial volume $\alpha_{\text{part}} M_{e,m,\text{part}} N_{p,d,k}$ with $M_{e,m,\text{part}} = \int_0^{0.3333} B_{e,m}(x)\,dx$:
+
 $$
-E_{\text{variety}} = \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\text{tot}}(x)} \right)^2, \qquad
+E_{\text{variety}} = \left( 1 - \frac{|\mathcal{U}(\omega)|}{N_{\text{tot}}(\omega)} \right)^2, \qquad
 E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\operatorname{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\operatorname{Var}_d(V_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}
 $$
 
-During `calibrate()`, Monte Carlo sampling over $K = 500$ random states estimates scaling denominators $s_i = 2 \cdot \hat{\mu}_i$ (empirical sample mean, guarded at $10^{-6}$). `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(x) = 150 \cdot N_{\text{dup}}(x)$ via Simulated Annealing ($T_0 = 50.0$, $T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):
+During `calibrate()`, Monte Carlo sampling over $K = 500$ random states estimates scaling denominators $s_i = 2 \cdot \hat{\mu}_i$ (empirical sample mean, guarded at $10^{-6}$). `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(\omega) = 150 \cdot N_{\text{dup}}(\omega)$ via Simulated Annealing ($T_0 = 50.0$, $T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):
 
 $$
-\min_{x \in \mathcal{X}} \; J(x) = 10^4 \sum_{i \in \mathcal{I}} w_i \, \frac{E_i(x)}{s_i} + 10^3 \, P_{\text{dup}}(x)
+\min_{\omega \in \Omega} \; J(\omega) = 10^4 \sum_{i \in \mathcal{I}} w_i \, \frac{E_i(\omega)}{s_i} + 10^3 \, P_{\text{dup}}(\omega)
 $$
 
 ---
