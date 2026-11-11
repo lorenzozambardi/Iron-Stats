@@ -98,7 +98,7 @@ $$
 \Phi_{\text{set}} = F_{\text{ex}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{10.0 - 7.5} \, n_a \tau_0 \;+\; 0.5 \, \alpha_{\text{part}} \, 1.1^{10.0 - 7.5} \, n_p \tau_0 \right]
 $$
 
-For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text{raw}} \cdot \text{load\_multiplier} + \text{load\_offset}$, yielding set tonnage $L \cdot R_{\text{tot}}$ and effective tonnage $L \cdot R_{\text{eff}}$ scaled by the queried muscle's `magnitude` coefficient $M_m$.
+For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text{raw}} \cdot \mu_{\text{load}} + q_{\text{load}}$ (`load_multiplier` and `load_offset`), yielding set tonnage $L \cdot R_{\text{tot}}$ and effective tonnage $L \cdot R_{\text{eff}}$ scaled by the queried muscle's `magnitude` coefficient $M_m$.
 
 ---
 
@@ -129,7 +129,7 @@ where $p_m^{\text{actual}} = W_m / \sum_{m'} W_{m'}$ aggregates ROM-active base 
 
 $$
 E_{\text{variety}} = \left( 1 - \frac{|\mathcal{U}(\omega)|}{N_{\text{tot}}(\omega)} \right)^2, \qquad
-E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\operatorname{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\operatorname{Var}_d(V_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}
+E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(V_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}
 $$
 
 During `calibrate()`, Monte Carlo sampling over $K = 500$ random states estimates scaling denominators $s_i = 2 \cdot \hat{\mu}_i$ (empirical sample mean, guarded at $10^{-6}$). `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(\omega) = 150 \cdot N_{\text{dup}}(\omega)$ via Simulated Annealing ($T_0 = 50.0$, $T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):
