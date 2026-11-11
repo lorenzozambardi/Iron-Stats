@@ -111,6 +111,9 @@ export function getExercisesWithOverrides(logText, globalExercises) {
                     const x3 = Number(prof.x3 ?? 1.0);
                     const y3 = Number(prof.y3 ?? 1.0);
                     const mag = Number(prof.magnitude ?? 0.0);
+                    if (![x0, y0, x1, y1, x2, y2, x3, y3, mag].every(Number.isFinite)) {
+                      throw new RangeError(`Non-finite Bezier value in override`);
+                    }
                     if (!(0.0 <= x0 && x0 < x1 && x1 < x2 && x2 < x3 && x3 <= 1.0)) {
                       throw new RangeError(`Non-monotone or out-of-domain Bezier x profile: ${x0}, ${x1}, ${x2}, ${x3}`);
                     }
@@ -119,8 +122,8 @@ export function getExercisesWithOverrides(logText, globalExercises) {
                     }
                     totalMag += mag;
                   } else if (typeof prof === 'number') {
-                    if (prof < 0.0) {
-                      throw new RangeError(`Negative muscle magnitude: ${prof}`);
+                    if (!Number.isFinite(prof) || prof < 0.0) {
+                      throw new RangeError(`Invalid muscle magnitude: ${prof}`);
                     }
                     totalMag += prof;
                   }

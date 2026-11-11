@@ -17,6 +17,9 @@ const GL3_T = [0.5 - GL3_HALF_STEP, 0.5, 0.5 + GL3_HALF_STEP];
 const GL3_W = [5.0 / 18.0, 8.0 / 18.0, 5.0 / 18.0];
 
 export const validateBezierProfile = (x0, y0, x1, y1, x2, y2, x3, y3, magnitude = 0) => {
+  if (![x0, y0, x1, y1, x2, y2, x3, y3, magnitude].every(Number.isFinite)) {
+    throw new RangeError('Non-finite value in Bezier profile');
+  }
   if (!(0.0 <= x0 && x0 < x1 && x1 < x2 && x2 < x3 && x3 <= 1.0)) {
     throw new RangeError(`Non-monotone or out-of-domain Bezier x profile: ${x0}, ${x1}, ${x2}, ${x3}`);
   }

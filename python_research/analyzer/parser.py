@@ -44,7 +44,7 @@ RE_REST_TIME = re.compile(r'\|\s*(?:(\d+)\')?(?:(\d+)")?\s*(?:\||$)')
 RE_TEMPO_COMMENT = re.compile(r"\b(\d+)-(\d+)-(\d+)-(\d+)\b")
 # Matches set structures like "10(2)+3@8.5" (10 base reps, 2 assisted, 3 partials, @8.5 RPE)
 RE_REP_TOKEN = re.compile(r"(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?")
-RE_OLD_PREFIX = re.compile(r"(?i)old\s+")
+RE_OLD_PREFIX = re.compile(r"(?i)(?:\b|(?<=^))old\s+")
 # Matches lines that contain only short numerical sets (e.g. "10, 9, 8")
 RE_LOG_LINE_SHORT = re.compile(r"^[\d\.\(\)\+@,\s]+$")
 # Matches exercise override syntax: "override: Lat Machine | fatigue=6.0 | load_coeff=0.8"

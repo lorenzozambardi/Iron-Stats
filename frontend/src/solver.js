@@ -211,15 +211,15 @@ export class WorkoutSolver {
             for (const m in rawDistr) {
                 const entry = rawDistr[m];
                 if (typeof entry === 'number') {
-                    if (entry < 0.0) {
-                        throw new RangeError(`Negative muscle magnitude: ${entry}`);
+                    if (!Number.isFinite(entry) || entry < 0.0) {
+                        throw new RangeError(`Invalid muscle magnitude: ${entry}`);
                     }
                     clonedDistr[m] = { x0: 0.0, y0: 1.0, x1: 0.33, y1: 1.0, x2: 0.66, y2: 1.0, x3: 1.0, y3: 1.0, magnitude: entry };
                     totalMag += entry;
                 } else {
                     const mag = Number(entry?.magnitude ?? 0.0);
-                    if (mag < 0.0) {
-                        throw new RangeError(`Negative Bezier magnitude: ${mag}`);
+                    if (!Number.isFinite(mag) || mag < 0.0) {
+                        throw new RangeError(`Invalid Bezier magnitude: ${mag}`);
                     }
                     clonedDistr[m] = { ...entry, magnitude: mag };
                     totalMag += mag;
@@ -723,7 +723,10 @@ export class WorkoutSolver {
      */
     calibrate() {
         const steps = this.config.calibration_steps ?? 500;
-        if (steps <= 0) return;
+        if (steps <= 0) {
+            this.scales = {};
+            return;
+        }
 
         this._return_raw = true;
         const sums = { curve: 0, vol: 0, ton: 0, tut: 0, distr: 0, variety: 0, balance: 0 };

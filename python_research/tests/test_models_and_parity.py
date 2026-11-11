@@ -455,3 +455,29 @@ def test_per_macro_subs_normalization_and_unique_swap_guard() -> None:
         assert s_slv.unique_ex_count == 1
     finally:
         solver_mod.exercises_list = orig_db
+
+
+def test_nan_rejection_old_prefix_boundary_and_calibrate_reset() -> None:
+    nan = float("nan")
+    with pytest.raises(ValueError, match="Non-finite"):
+        BezierProfile(0.0, 0.0, 0.3, nan, 0.6, 1.0, 1.0, 1.0, 1.0)
+    with pytest.raises(ValueError, match="Non-finite"):
+        BezierProfile(0.0, 0.0, 0.3, 0.5, 0.6, 1.0, 1.0, 1.0, nan)
+    with pytest.raises(ValueError, match="Non-finite"):
+        Exercise(name="NaNEx", muscles_distr={"Lateral Deltoid": 1.0}, fatigue=nan, load_coeff=0.5)
+    with pytest.raises(ValueError, match="Non-finite"):
+        SetData(load=50.0, base_reps=10, rpe=nan)
+
+    # Word boundary in RE_OLD_PREFIX must not strip "old " inside "bold 10"
+    parsed = analyze_workout_log("# 1\nLR\nbold 10\n10.. 10\n", exercises_list)
+    assert len(parsed) == 1 and len(parsed[0].weeks) == 1
+
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 5
+    slv = WorkoutSolver(cfg)
+    slv.calibrate()
+    assert slv.scales
+    slv.config.calibration_steps = 0
+    slv.calibrate()
+    assert slv.scales == {}

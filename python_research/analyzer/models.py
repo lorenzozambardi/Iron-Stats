@@ -31,6 +31,21 @@ class BezierProfile:
     magnitude: float
 
     def __post_init__(self) -> None:
+        if not all(
+            math.isfinite(v)
+            for v in (
+                self.x0,
+                self.y0,
+                self.x1,
+                self.y1,
+                self.x2,
+                self.y2,
+                self.x3,
+                self.y3,
+                self.magnitude,
+            )
+        ):
+            raise ValueError("Non-finite value in BezierProfile")
         if not (0.0 <= self.x0 < self.x1 < self.x2 < self.x3 <= 1.0):
             raise ValueError(
                 f"Non-monotone or out-of-domain Bezier x profile: {self.x0}, {self.x1}, {self.x2}, {self.x3}"
@@ -215,6 +230,11 @@ class Exercise:
     is_isolation: bool = False
 
     def __post_init__(self):
+        if not all(
+            math.isfinite(v)
+            for v in (self.fatigue, self.load_coeff, self.load_multiplier, self.load_offset)
+        ):
+            raise ValueError("Non-finite parameter in Exercise")
         if self.fatigue < 0.0:
             raise ValueError(f"Negative exercise fatigue: {self.fatigue}")
         if self.load_coeff < 0.0:
@@ -260,6 +280,8 @@ class SetData:
     tuts: list[float] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        if not (math.isfinite(self.load) and math.isfinite(self.rpe)):
+            raise ValueError(f"Non-finite SetData field: load={self.load}, rpe={self.rpe}")
         if self.base_reps < 0 or self.assisted_reps < 0 or self.partial_reps < 0:
             raise ValueError(
                 f"Negative repetition count in SetData: {self.base_reps}, {self.assisted_reps}, {self.partial_reps}"

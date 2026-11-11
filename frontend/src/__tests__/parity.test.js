@@ -286,4 +286,25 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     const parsed = parseLogbook('override: LR | is_isolation=1\n# 1\nLR\n10.. 10\n', defaultExercises);
     expect(parsed[0].exercise_obj.is_isolation).toBe(true);
   });
+
+  it('rejects NaN/Infinity in Bezier validation and clears stale scales when calibrationSteps is 0', () => {
+    expect(() => solveBezierY(0.5, 0.0, 0.0, 0.3, Number.NaN, 0.6, 1.0, 1.0, 1.0)).toThrow(RangeError);
+    const nanDb = [{
+      name: 'NaNEx',
+      fatigue: 5,
+      load_coeff: 0.5,
+      load_multiplier: 1,
+      load_offset: 0,
+      is_isolation: true,
+      muscles_distr: { 'Lateral Deltoid': Number.NaN }
+    }];
+    expect(() => new WorkoutSolver({}, nanDb)).toThrow(RangeError);
+
+    const solver = new WorkoutSolver({ days: 1, calibration_steps: 5 }, defaultExercises);
+    solver.calibrate();
+    expect(Object.keys(solver.scales).length).toBeGreaterThan(0);
+    solver.config.calibration_steps = 0;
+    solver.calibrate();
+    expect(Object.keys(solver.scales)).toHaveLength(0);
+  });
 });

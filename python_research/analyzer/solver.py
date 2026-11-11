@@ -563,6 +563,7 @@ class WorkoutSolver:
         """
         steps = getattr(self.config, 'calibration_steps', 500)
         if steps <= 0:
+            self.scales.clear()
             return
             
         print(f"Calibrating scales with {steps} random states...", file=sys.stderr)
