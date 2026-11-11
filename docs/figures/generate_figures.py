@@ -194,9 +194,9 @@ def plot_lagrange_runge(
     ax1.axvspan(0.0, x0, color="#e74c3c", alpha=0.10)
     ax1.axvspan(x3 - 0.05, 1.0, color="#e74c3c", alpha=0.10, label="Jump / Boundary Regions")
     ax1.annotate(
-        f"Gibbs + Runge\n$\\kappa(V) = {cond_full:.2e}$\n$L^\\infty = {linf_full:.2f}$",
-        xy=(0.06, float(y_poly_full[60])),
-        xytext=(0.05, 1.15),
+        f"Jump + Boundary Ripples\n$\\kappa(V) = {cond_full:.2e}$\n$L^\\infty = {linf_full:.2f}$",
+        xy=(x3, float(np.polyval(coeffs_full, x3))),
+        xytext=(0.12, 1.15),
         arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 1.3},
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "#fadbd8", "edgecolor": "#e74c3c", "alpha": 0.92},
         fontsize=8.5,
