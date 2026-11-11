@@ -136,7 +136,7 @@ const MINI_DB = [
 
 describe('parseLine', () => {
   it('parses simple rep-only notation (no load)', () => {
-    const result = parseLine('10.9.8');
+    const result = parseLine('10, 9, 8');
     expect(result).toHaveLength(3);
     expect(result[0].base_reps).toBe(10);
     expect(result[1].base_reps).toBe(9);
@@ -169,7 +169,7 @@ describe('parseLine', () => {
   });
 
   it('parses load..reps format', () => {
-    const result = parseLine('90..10.9.8');
+    const result = parseLine('90.. 10, 9, 8');
     expect(result).toHaveLength(3);
     expect(result[0].load).toBe(90);
     expect(result[0].base_reps).toBe(10);
@@ -177,8 +177,8 @@ describe('parseLine', () => {
     expect(result[2].load).toBe(90);
   });
 
-  it('parses multi-load format: 90..80..10.9', () => {
-    const result = parseLine('90..80..10.9');
+  it('parses multi-load format: 90.. 10, 80.. 9', () => {
+    const result = parseLine('90.. 10, 80.. 9');
     expect(result).toHaveLength(2);
     expect(result[0].load).toBe(90);
     expect(result[0].base_reps).toBe(10);
@@ -294,9 +294,9 @@ describe('parseLogbook', () => {
   it('parses a complete workout logbook', () => {
     const logbook = `# 1
 Squat | 3' | 1-0-2-0
-100..10.9.8
+100.. 10, 9, 8
 Lat Machine | 2' |
-80..12@8.10@8.5`;
+80.. 12@8, 10@8.5`;
 
     const result = parseLogbook(logbook, MINI_DB);
     expect(result).toHaveLength(2);
@@ -349,7 +349,7 @@ describe('calculateMetrics', () => {
   it('calculates volume, tonnage, and fatigue metrics', () => {
     const logbook = `# 1
 Squat | 3' |
-100..10.9.8`;
+100.. 10, 9, 8`;
 
     const data = parseLogbook(logbook, MINI_DB);
     const metrics = calculateMetrics(data, null, null, null, null);

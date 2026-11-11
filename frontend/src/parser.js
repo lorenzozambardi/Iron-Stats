@@ -444,61 +444,30 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
 
 export function parseLine(line, lineIndex = 0) {
   let cleanLine = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
-  cleanLine = cleanLine.replace(/\s+/g, '');
   if (!cleanLine) return [];
 
   let dropsetCounter = 0;
   const nextDropsetId = () => `ds_${lineIndex}_${dropsetCounter++}`;
 
-  // Plain numbers separated by single dots (reps only, load-less)
-  // E.g., matches "10.9.8" or "10(2)+3@8.5"
-  if (/^[\d()+@.]+$/.test(cleanLine) && !cleanLine.includes('..')) {
-    const tokens = cleanLine.split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
-    const sets = [];
-    for (const t of tokens) {
-      if (t) {
-        const hasSlash = t.includes('/');
-        const dsId = hasSlash ? nextDropsetId() : null;
-        sets.push(...parseRepToken(t, [0.0], dsId));
-      }
-    }
-    return sets;
-  }
-
-  // Preprocess Format: load1..load2..reps1.reps2 -> load1/load2..reps1/reps2
-  if ((cleanLine.match(/\.\./g) || []).length > 1) {
-    const lastIdx = cleanLine.lastIndexOf('..');
-    if (lastIdx !== -1) {
-      let loadsPart = cleanLine.substring(0, lastIdx);
-      let repsPart = cleanLine.substring(lastIdx + 2);
-      if (repsPart.includes('.') && loadsPart.includes('..')) {
-        if (/^[\d()+@.]+$/.test(repsPart)) {
-          loadsPart = loadsPart.replace(/\.\./g, '/');
-          repsPart = repsPart.replace(/(?<!@\d+)\./g, '/');
-          cleanLine = `${loadsPart}..${repsPart}`;
-        }
-      }
-    }
-  }
-
-  // Split on single dot not part of a decimal or double dot
-  const tokens = cleanLine.split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
+  const tokens = cleanLine.split(',').map(t => t.trim()).filter(Boolean);
   let currentLoads = [0.0];
   const parsedSets = [];
 
   for (const token of tokens) {
-    if (!token) continue;
     const hasSlash = token.includes('/');
     const dsId = hasSlash ? nextDropsetId() : null;
 
     if (token.includes('..')) {
       const subparts = token.split('..');
-      const repStr = subparts[subparts.length - 1];
-      const loadStr = subparts.slice(0, -1).join('/');
-      currentLoads = loadStr.includes('/')
-        ? loadStr.split('/').filter(Boolean).map(Number)
-        : (loadStr ? [parseFloat(loadStr)] : [0.0]);
-      
+      const repStr = subparts[subparts.length - 1].trim();
+      const loadStr = subparts.length > 2
+        ? subparts.slice(0, -1).join('/').trim()
+        : subparts[0].trim();
+      if (loadStr) {
+        currentLoads = loadStr.includes('/')
+          ? loadStr.split('/').filter(Boolean).map(Number)
+          : [parseFloat(loadStr)];
+      }
       if (repStr) {
         parsedSets.push(...parseRepToken(repStr, currentLoads, dsId));
       }
@@ -545,7 +514,7 @@ export function parseLogbook(logText, exercises) {
       }
 
       // Check if it's a rep/set log line (contains '..' or starts with digit/contains only numbers/symbols)
-      const isLogLine = line.includes('..') || /^[old\s]*[\d().+/@\s]+$/i.test(line);
+      const isLogLine = line.includes('..') || /^[old\s]*[\d().+/@,\s]+$/i.test(line);
 
       if (isLogLine) {
         if (currentExercise) {

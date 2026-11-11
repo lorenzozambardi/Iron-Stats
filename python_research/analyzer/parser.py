@@ -19,14 +19,13 @@ RE_TEMPO_COMMENT = re.compile(r"\b(\d+)-(\d+)-(\d+)-(\d+)\b")
 # Matches set structures like "10(2)+3@8.5" (10 base reps, 2 assisted, 3 partials, @8.5 RPE)
 RE_REP_TOKEN = re.compile(r"(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?")
 RE_OLD_PREFIX = re.compile(r"(?i)old\s+")
-# Matches lines that contain only short numerical sets (e.g. "10.9.8")
-RE_LOG_LINE_SHORT = re.compile(r"^[\d\.\(\)\+@]+$")
-RE_DOT_SPLIT = re.compile(r"(?<!@\d)(?<!@\d\d)(?!\d+\.\.)(?<!\.)\.(?!\.)")
+# Matches lines that contain only short numerical sets (e.g. "10, 9, 8")
+RE_LOG_LINE_SHORT = re.compile(r"^[\d\.\(\)\+@,\s]+$")
 # Matches exercise override syntax: "override: Lat Machine | fatigue=6.0 | load_coeff=0.8"
 RE_OVERRIDE = re.compile(r"^override:\s*([^|]+)\|\s*(.*)$", re.IGNORECASE)
 RE_DIGITS = re.compile(r"\d+")
-# Matches general log lines containing sets, weights, and dropsets (e.g. "90/80..10.8")
-RE_LOG_LINE_LONG = re.compile(r"^[\d\.\(\)\+\/@]+$", re.IGNORECASE)
+# Matches general log lines containing sets, weights, and dropsets (e.g. "90/80.. 10, 8")
+RE_LOG_LINE_LONG = re.compile(r"^[\d\.\(\)\+\/@,\s]+$", re.IGNORECASE)
 
 
 def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
@@ -123,66 +122,39 @@ def parse_rep_token(
 
 def parse_line(line: str, line_index: int = 0) -> list[SetData]:
     line = RE_OLD_PREFIX.sub("", line).strip()
-    line = line.replace(" ", "")
     if not line:
         return []
 
-    dropset_counter = 0
-
-    def next_dropset_id() -> str:
-        nonlocal dropset_counter
-        ds_id = f"ds_{line_index}_{dropset_counter}"
-        dropset_counter += 1
-        return ds_id
-
-    if RE_LOG_LINE_SHORT.match(line) and ".." not in line:
-        tokens = RE_DOT_SPLIT.split(line)
-        sets = []
-        for t in tokens:
-            if t:
-                has_slash = "/" in t
-                ds_id = next_dropset_id() if has_slash else None
-                sets.extend(parse_rep_token(t, [0.0], ds_id))
-        return sets
-
-    # Preprocess Format: load1..load2..reps1.reps2 -> load1/load2..reps1/reps2
-    if line.count("..") > 1:
-        last_idx = line.rfind("..")
-        if last_idx != -1:
-            loads_part = line[:last_idx]
-            reps_part = line[last_idx + 2 :]
-            if (
-                "." in reps_part
-                and ".." in loads_part
-                and re.match(r"^[\d()+@.]+$", reps_part)
-            ):
-                loads_part = loads_part.replace("..", "/")
-                reps_part = re.sub(r"(?<!@\d)(?<!@\d\d)\.", "/", reps_part)
-                line = f"{loads_part}..{reps_part}"
-
-    tokens = RE_DOT_SPLIT.split(line)
+    tokens = [t.strip() for t in line.split(",") if t.strip()]
     current_loads = [0.0]
     parsed_sets = []
+    dropset_counter = 0
 
     for token in tokens:
-        if not token:
-            continue
         has_slash = "/" in token
-        ds_id = next_dropset_id() if has_slash else None
+        ds_id = f"ds_{line_index}_{dropset_counter}" if has_slash else None
+        if has_slash:
+            dropset_counter += 1
 
         if ".." in token:
             subparts = token.split("..")
-            rep_str = subparts[-1]
-            load_str = "/".join(subparts[:-1]) if len(subparts) > 2 else subparts[0]
-            current_loads = (
-                [float(x) for x in load_str.split("/") if x]
-                if "/" in load_str
-                else ([float(load_str)] if load_str else [0.0])
+            rep_str = subparts[-1].strip()
+            load_str = (
+                "/".join(subparts[:-1]).strip()
+                if len(subparts) > 2
+                else subparts[0].strip()
             )
+            if load_str:
+                current_loads = (
+                    [float(x) for x in load_str.split("/") if x]
+                    if "/" in load_str
+                    else [float(load_str)]
+                )
             if rep_str:
                 parsed_sets.extend(parse_rep_token(rep_str, current_loads, ds_id))
         else:
             parsed_sets.extend(parse_rep_token(token, current_loads, ds_id))
+
     return parsed_sets
 
 

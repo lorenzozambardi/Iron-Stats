@@ -82,7 +82,7 @@ describe('parser.js', () => {
 
   describe('parseLine', () => {
     it('parses standard load and reps notation', () => {
-      const sets = parseLine('100..8.8.7@9');
+      const sets = parseLine('100.. 8, 8, 7@9');
       expect(sets.length).toBe(3);
       expect(sets[0]).toMatchObject({ load: 100, base_reps: 8, rpe: 9.0 });
       expect(sets[1]).toMatchObject({ load: 100, base_reps: 8, rpe: 9.0 });
@@ -119,7 +119,7 @@ describe('parser.js', () => {
       const overrideText = `override: Flat Barbell Bench | fatigue=9.0 | load_multiplier=1.2 | is_isolation=true
 # 1
 Flat Barbell Bench | 3' |
-100..8.8`;
+100.. 8, 8`;
 
       const exercises = getExercisesWithOverrides(overrideText, mockExercises);
       const bench = exercises.find(e => e.name === 'Flat Barbell Bench');
@@ -153,11 +153,11 @@ Flat Barbell Bench | 3' |
     it('parses full workout and calculates correct volume and tonnage', () => {
       const log = `# 1
 Flat Barbell Bench | 3' | 1-0-2-0
-100..10.8
+100.. 10, 8
 
 # 2
 Lat Machine | 2' |
-80..10.10`;
+80.. 10, 10`;
 
       const workoutData = parseLogbook(log, mockExercises);
       expect(workoutData.length).toBe(2);
@@ -184,7 +184,7 @@ Lat Machine | 2' |
     it('precalculates fatigue on sets and carries it forward when load is updated across weeks', () => {
       const log = `# 1
 Flat Barbell Bench | 3' | 1-0-2-0
-100..10.8
+100.. 10, 8
 105..`;
 
       const workoutData = parseLogbook(log, mockExercises);

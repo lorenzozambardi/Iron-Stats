@@ -4,7 +4,7 @@ export const isSetLine = (str) => {
   if (!str) return false;
   const trimmed = str.trim();
   if (trimmed.includes('..')) return true;
-  return /^(?:old\s+)?[\d().+/@\s-]+$/i.test(trimmed);
+  return /^(?:old\s+)?[\d().+/@,\s-]+$/i.test(trimmed);
 };
 
 export const customFoldService = foldService.of((state, lineStart) => {

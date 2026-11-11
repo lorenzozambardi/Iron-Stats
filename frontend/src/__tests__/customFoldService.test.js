@@ -6,7 +6,7 @@ import { customFoldService, isSetLine } from '../components/customFoldService';
 describe('customFoldService', () => {
   it('identifies set lines correctly', () => {
     expect(isSetLine('90..10')).toBe(true);
-    expect(isSetLine('90..9+2.7+2')).toBe(true);
+    expect(isSetLine('90.. 9+2, 7+2')).toBe(true);
     expect(isSetLine('10@8')).toBe(true);
     expect(isSetLine('old 80..10')).toBe(true);
     expect(isSetLine('Lat Machine | 3\'')).toBe(false);
