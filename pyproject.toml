@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iron-stats"
+version = "0.1.0"
+description = "Computational bodybuilding programming, biomechanical modeling, and workout log analysis engine."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.14,<3",
+    "pytest>=8.0,<10",
+    "ruff>=0.9,<1",
+]
+
+[project.scripts]
+iron-stats = "analyzer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["python_research"]
+include = ["analyzer*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["python_research"]
+testpaths = ["python_research"]
+
+[tool.ruff]
+target-version = "py310"
+src = ["python_research"]
+extend-exclude = ["frontend", "logbooks", "python_research/.venv"]
+
+[tool.mypy]
+mypy_path = "python_research"
+files = ["python_research/analyzer", "python_research/scripts"]
