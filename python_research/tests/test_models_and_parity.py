@@ -216,3 +216,30 @@ def test_solver_macro_curve_expansion_and_partial_rpe_invariant() -> None:
         for s in mut.days[0][0].sets:
             if s.rpe < 9.0:
                 assert s.partial_reps == 0
+
+
+def test_session_zero_filter_and_simplex_target_normalization() -> None:
+    # Exercise before any `# 1` header has session == 0
+    log = "LR | 2' | 1-0-2-0\n10.. 10@9\n# 1\nLR | 2' | 1-0-2-0\n10.. 8@9\n"
+    parsed = analyze_workout_log(log, exercises_list)
+    m_s0 = calculate_metrics(parsed, target_session=0)
+    assert len(m_s0) == 1
+    assert m_s0[0]["Session"] == 0
+    assert m_s0[0]["Volume"] == pytest.approx(10.0)
+
+    # Zero-sum non-empty muscles_distr must be rejected
+    with pytest.raises(ValueError, match="positive"):
+        Exercise(name="ZeroMag", muscles_distr={"Lateral Deltoid": 0.0}, fatigue=3.0, load_coeff=0.5)
+
+    # Unnormalized volume_dist targets are normalized onto the simplex
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 0
+    cfg.volume_dist = {
+        "macros": {"Chest": 40, "Shoulders": 10},
+        "subs": {"Chest": {"Sternal Head": 100}, "Shoulders": {"Lateral Deltoid": 100}},
+    }
+    solver = WorkoutSolver(cfg)
+    assert sum(solver.target_sub_vol.values()) == pytest.approx(1.0, abs=1e-12)
+    assert solver.target_sub_vol["Sternal Head"] == pytest.approx(0.8)
+    assert solver.target_sub_vol["Lateral Deltoid"] == pytest.approx(0.2)

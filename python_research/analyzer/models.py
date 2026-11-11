@@ -145,6 +145,8 @@ def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProf
             new_distr[m] = val
 
     total_mag = sum(tp.magnitude for tp in new_distr.values())
+    if new_distr and total_mag <= 0.0:
+        raise ValueError("Muscle distribution magnitudes must sum to a positive value.")
     if total_mag > 0 and abs(total_mag - 1.0) > 1e-12:
         for tp in new_distr.values():
             tp.magnitude = tp.magnitude / total_mag

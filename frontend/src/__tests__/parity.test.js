@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import defaultExercises from '../defaultExercises.json';
 import { bezierArea, solveBezierY } from '../components/helpers';
 import { WorkoutSolver, calculateRest } from '../solver';
-import { calculateSetTuts, calculateSetFatigue } from '../parser';
+import { calculateMetrics, calculateSetTuts, calculateSetFatigue, parseLogbook } from '../parser';
 
 describe('Mathematical invariants and frontend/solver parity', () => {
   it('enforces strict 0 <= x0 < x1 < x2 < x3 <= 1 and y >= 0 across all default exercises', () => {
@@ -95,5 +95,30 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     }
     expect(Number.isFinite(solver.evaluateWorkout(state))).toBe(true);
     expect(calculateRest(8.5)).toBe("3'30\"");
+  });
+
+  it('filters session 0, computes fallback TUTs in calculateMetrics, and normalizes simplex targets', () => {
+    const log = "LR | 2' | 1-0-2-0\n10.. 10@9\n# 1\nLR | 2' | 1-0-2-0\n10.. 8@9\n";
+    const parsed = parseLogbook(log, defaultExercises);
+    // Strip precomputed TUTs from session 0 to test fallback parity
+    delete parsed[0].weeks[0].sets[0].totalTut;
+    delete parsed[0].weeks[0].sets[0].effectiveTut;
+    const m0 = calculateMetrics(parsed, 0, null, null, null);
+    expect(m0).toHaveLength(1);
+    expect(m0[0].session).toBe(0);
+    expect(m0[0].totalTut).toBeGreaterThan(0);
+    expect(m0[0].effectiveTut).toBeGreaterThan(0);
+
+    const solver = new WorkoutSolver({
+      days: 1,
+      calibration_steps: 0,
+      volume_dist: {
+        macros: { Chest: 40, Shoulders: 10 },
+        subs: { Chest: { 'Sternal Head': 100 }, Shoulders: { 'Lateral Deltoid': 100 } }
+      }
+    }, defaultExercises);
+    const targetSum = Object.values(solver.target_sub_vol).reduce((a, b) => a + b, 0);
+    expect(targetSum).toBeCloseTo(1.0, 12);
+    expect(solver.target_sub_vol['Sternal Head']).toBeCloseTo(0.8, 12);
   });
 });

@@ -180,16 +180,47 @@ export class WorkoutSolver {
         };
 
         if (this.config.iterations !== undefined) {
-            this.config.iterations = Math.min(this.config.iterations, 100000);
+            this.config.iterations = Math.min(Math.max(0, this.config.iterations), 100000);
         }
 
-        this.db = db;
         this.resolution = 50;
 
-        // Process DB to add precalculated fields
-        this.db.forEach(ex => {
-            ex.load_multiplier = ex.load_multiplier ?? 1.0;
-            ex.load_offset = ex.load_offset ?? 0.0;
+        // Clone exercises and enforce partition-of-unity on muscles_distr without mutating caller DB
+        this.db = db.map(ex => {
+            const rawDistr = ex.muscles_distr || {};
+            const clonedDistr = {};
+            let totalMag = 0.0;
+            for (const m in rawDistr) {
+                const entry = rawDistr[m];
+                if (typeof entry === 'number') {
+                    if (entry < 0.0) {
+                        throw new RangeError(`Negative muscle magnitude: ${entry}`);
+                    }
+                    clonedDistr[m] = { x0: 0.0, y0: 1.0, x1: 0.33, y1: 1.0, x2: 0.66, y2: 1.0, x3: 1.0, y3: 1.0, magnitude: entry };
+                    totalMag += entry;
+                } else {
+                    const mag = Number(entry?.magnitude ?? 0.0);
+                    if (mag < 0.0) {
+                        throw new RangeError(`Negative Bezier magnitude: ${mag}`);
+                    }
+                    clonedDistr[m] = { ...entry, magnitude: mag };
+                    totalMag += mag;
+                }
+            }
+            if (Object.keys(clonedDistr).length > 0 && totalMag <= 0.0) {
+                throw new RangeError(`Muscle distribution magnitudes must sum to a positive value for ${ex.name}`);
+            }
+            if (totalMag > 0.0 && Math.abs(totalMag - 1.0) > 1e-12) {
+                for (const m in clonedDistr) {
+                    clonedDistr[m].magnitude /= totalMag;
+                }
+            }
+            return {
+                ...ex,
+                load_multiplier: ex.load_multiplier ?? 1.0,
+                load_offset: ex.load_offset ?? 0.0,
+                muscles_distr: clonedDistr
+            };
         });
 
         this.target_sub_vol = {};
@@ -202,6 +233,14 @@ export class WorkoutSolver {
                         this.target_sub_vol[sub] = (m_val / 100.0) * (s_val / 100.0);
                     }
                 }
+            }
+        }
+        const totalTargetVol = Object.values(this.target_sub_vol).reduce((a, b) => a + b, 0.0);
+        if (totalTargetVol <= 0.0) {
+            this.target_sub_vol = {};
+        } else if (Math.abs(totalTargetVol - 1.0) > 1e-12) {
+            for (const sub in this.target_sub_vol) {
+                this.target_sub_vol[sub] /= totalTargetVol;
             }
         }
 
@@ -506,77 +545,61 @@ export class WorkoutSolver {
         }
 
         const day = newState.days[d];
-        const mutations = ['add_ex', 'remove_ex', 'swap_ex', 'add_set', 'remove_set', 'mut_reps', 'mut_rpe', 'mut_partials'];
-        const mType = randomChoice(mutations);
+        const eligibleAddSet = day.filter(ex => ex.sets.length < this.config.max_sets);
+        const eligibleRemSet = day.filter(ex => ex.sets.length > this.config.min_sets);
+        const setsOnDay = day.flatMap(ex => ex.sets);
+        const eligiblePartialSets = setsOnDay.filter(s => s.rpe >= 9.0);
 
+        const eligibleMutations = [];
+        if (day.length < this.config.max_ex) eligibleMutations.push('add_ex');
+        if (day.length > this.config.min_ex) eligibleMutations.push('remove_ex');
+        if (day.length > 0) eligibleMutations.push('swap_ex');
+        if (eligibleAddSet.length > 0) eligibleMutations.push('add_set');
+        if (eligibleRemSet.length > 0) eligibleMutations.push('remove_set');
+        if (setsOnDay.length > 0 && this.config.min_reps < this.config.max_reps) eligibleMutations.push('mut_reps');
+        if (setsOnDay.length > 0) eligibleMutations.push('mut_rpe');
+        if (eligiblePartialSets.length > 0) eligibleMutations.push('mut_partials');
+
+        if (eligibleMutations.length === 0) {
+            return newState;
+        }
+
+        const mType = randomChoice(eligibleMutations);
         const defaultReps = Math.max(this.config.min_reps, Math.min(this.config.max_reps, 10));
 
         if (mType === 'add_ex') {
-            if (day.length < this.config.max_ex) {
-                const ex = new ScheduledExercise(this.getRandomExercise());
-                for (let i = 0; i < this.config.min_sets; i++) {
-                    ex.sets.push(new ScheduledSet(defaultReps, 0, 8.0));
-                }
-                day.push(ex);
+            const ex = new ScheduledExercise(this.getRandomExercise());
+            for (let i = 0; i < this.config.min_sets; i++) {
+                ex.sets.push(new ScheduledSet(defaultReps, 0, 8.0));
             }
+            day.push(ex);
         } else if (mType === 'remove_ex') {
-            if (day.length > this.config.min_ex) {
-                day.splice(randomInt(0, day.length - 1), 1);
-            }
+            day.splice(randomInt(0, day.length - 1), 1);
         } else if (mType === 'swap_ex') {
-            if (day.length > 0) {
-                const idx = randomInt(0, day.length - 1);
-                const newEx = new ScheduledExercise(this.getRandomExercise());
-                newEx.sets = day[idx].sets.map(s => s.clone());
-                day[idx] = newEx;
-            }
+            const idx = randomInt(0, day.length - 1);
+            const newEx = new ScheduledExercise(this.getRandomExercise());
+            newEx.sets = day[idx].sets.map(s => s.clone());
+            day[idx] = newEx;
         } else if (mType === 'add_set') {
-            if (day.length > 0) {
-                const ex = randomChoice(day);
-                if (ex.sets.length < this.config.max_sets) {
-                    ex.sets.push(new ScheduledSet(defaultReps, 0, 8.0));
-                }
-            }
+            const ex = randomChoice(eligibleAddSet);
+            ex.sets.push(new ScheduledSet(defaultReps, 0, 8.0));
         } else if (mType === 'remove_set') {
-            if (day.length > 0) {
-                const ex = randomChoice(day);
-                if (ex.sets.length > this.config.min_sets) {
-                    ex.sets.pop();
-                }
-            }
+            const ex = randomChoice(eligibleRemSet);
+            ex.sets.splice(randomInt(0, ex.sets.length - 1), 1);
         } else if (mType === 'mut_reps') {
-            if (day.length > 0) {
-                const ex = randomChoice(day);
-                if (ex.sets.length > 0) {
-                    const s = randomChoice(ex.sets);
-                    s.base_reps += randomChoice([-2, -1, 1, 2]);
-                    s.base_reps = Math.max(this.config.min_reps, Math.min(this.config.max_reps, s.base_reps));
-                }
-            }
+            const s = randomChoice(setsOnDay);
+            s.base_reps += randomChoice([-2, -1, 1, 2]);
+            s.base_reps = Math.max(this.config.min_reps, Math.min(this.config.max_reps, s.base_reps));
         } else if (mType === 'mut_rpe') {
-            if (day.length > 0) {
-                const ex = randomChoice(day);
-                if (ex.sets.length > 0) {
-                    const s = randomChoice(ex.sets);
-                    s.rpe += randomChoice([-0.5, 0.5]);
-                    s.rpe = Math.max(5.0, Math.min(10.0, s.rpe));
-                    if (s.rpe < 9.0) {
-                        s.partial_reps = 0;
-                    }
-                }
+            const s = randomChoice(setsOnDay);
+            s.rpe += randomChoice([-0.5, 0.5]);
+            s.rpe = Math.max(5.0, Math.min(10.0, s.rpe));
+            if (s.rpe < 9.0) {
+                s.partial_reps = 0;
             }
         } else if (mType === 'mut_partials') {
-            if (day.length > 0) {
-                const ex = randomChoice(day);
-                if (ex.sets.length > 0) {
-                    const s = randomChoice(ex.sets);
-                    if (s.rpe >= 9.0) {
-                        s.partial_reps = randomChoice([0, 2, 4, 6]);
-                    } else {
-                        s.partial_reps = 0;
-                    }
-                }
-            }
+            const s = randomChoice(eligiblePartialSets);
+            s.partial_reps = randomChoice([0, 2, 4, 6]);
         }
 
         return newState;
@@ -618,8 +641,12 @@ export class WorkoutSolver {
      * is applied and the new state is evaluated.
      */
     async solve(iterations = 10000, initialTemp = 50.0, coolingRate = null, progressCallback = null) {
+        const effectiveIterations = Math.min(
+            Math.max(0, iterations ?? this.config.iterations ?? 10000),
+            100000
+        );
         if (!coolingRate) {
-            coolingRate = iterations > 0 ? Math.pow(0.01 / initialTemp, 1.0 / iterations) : 0.995;
+            coolingRate = effectiveIterations > 0 ? Math.pow(0.01 / initialTemp, 1.0 / effectiveIterations) : 0.995;
         }
 
         this.calibrate();
@@ -632,7 +659,7 @@ export class WorkoutSolver {
 
         let T = initialTemp;
 
-        for (let i = 0; i < iterations; i++) {
+        for (let i = 0; i < effectiveIterations; i++) {
             const neighbor = this.mutateWorkout(currentState);
             const neighborCost = this.evaluateWorkout(neighbor);
 
@@ -657,7 +684,7 @@ export class WorkoutSolver {
                 if (progressCallback) {
                     progressCallback({
                         iteration: i,
-                        total: iterations,
+                        total: effectiveIterations,
                         temp: T,
                         currentCost,
                         bestCost

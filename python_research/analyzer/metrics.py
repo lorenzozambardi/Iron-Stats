@@ -153,7 +153,7 @@ def calculate_metrics(
     """
     results = []
     for w_ex in workout_data:
-        if target_session and w_ex.session != target_session:
+        if target_session is not None and w_ex.session != target_session:
             continue
         ex = w_ex.exercise_obj
         if target_macro and target_macro not in {
@@ -184,7 +184,7 @@ def calculate_metrics(
             distr_sum = 1.0
 
         for w_data in w_ex.weeks:
-            if target_week and w_data.week_num != target_week:
+            if target_week is not None and w_data.week_num != target_week:
                 continue
             
             if not w_data.sets:

@@ -170,6 +170,11 @@ class WorkoutSolver:
                 if macro in self.config.volume_dist.get('subs', {}):
                     for sub, s_val in self.config.volume_dist['subs'][macro].items():
                         self.target_sub_vol[sub] = (m_val / 100.0) * (s_val / 100.0)
+        total_target = sum(self.target_sub_vol.values())
+        if total_target <= 0.0:
+            self.target_sub_vol = {}
+        elif abs(total_target - 1.0) > 1e-12:
+            self.target_sub_vol = {k: v / total_target for k, v in self.target_sub_vol.items()}
         
         # Precompute target curves per muscle based on config
         self.T_m = {}
@@ -404,66 +409,73 @@ class WorkoutSolver:
                 new_state.days[i] = list(state.days[i])
                 
         day = new_state.days[d]
-        
-        mutation_type = random.choice(['add_ex', 'remove_ex', 'swap_ex', 'add_set', 'remove_set', 'mut_reps', 'mut_rpe', 'mut_partials'])
-        
+
+        eligible_add_set = [ex for ex in day if len(ex.sets) < self.config.max_sets]
+        eligible_rem_set = [ex for ex in day if len(ex.sets) > self.config.min_sets]
+        sets_on_day = [s for ex in day for s in ex.sets]
+        eligible_partial_sets = [s for s in sets_on_day if s.rpe >= 9.0]
+
+        eligible_mutations: list[str] = []
+        if len(day) < self.config.max_ex:
+            eligible_mutations.append('add_ex')
+        if len(day) > self.config.min_ex:
+            eligible_mutations.append('remove_ex')
+        if len(day) > 0:
+            eligible_mutations.append('swap_ex')
+        if eligible_add_set:
+            eligible_mutations.append('add_set')
+        if eligible_rem_set:
+            eligible_mutations.append('remove_set')
+        if sets_on_day and self.config.min_reps < self.config.max_reps:
+            eligible_mutations.append('mut_reps')
+        if sets_on_day:
+            eligible_mutations.append('mut_rpe')
+        if eligible_partial_sets:
+            eligible_mutations.append('mut_partials')
+
+        if not eligible_mutations:
+            return new_state
+
+        mutation_type = random.choice(eligible_mutations)
         default_reps = max(self.config.min_reps, min(self.config.max_reps, 10))
 
         if mutation_type == 'add_ex':
-            if len(day) < self.config.max_ex:
-                ex = ScheduledExercise(self.get_random_exercise())
-                ex.sets = [ScheduledSet(default_reps, 0, 8.0) for _ in range(self.config.min_sets)]
-                day.append(ex)
-                
+            ex = ScheduledExercise(self.get_random_exercise())
+            ex.sets = [ScheduledSet(default_reps, 0, 8.0) for _ in range(self.config.min_sets)]
+            day.append(ex)
+
         elif mutation_type == 'remove_ex':
-            if len(day) > self.config.min_ex:
-                day.pop(random.randrange(len(day)))
-                
+            day.pop(random.randrange(len(day)))
+
         elif mutation_type == 'swap_ex':
-            if len(day) > 0:
-                idx = random.randrange(len(day))
-                new_ex = ScheduledExercise(self.get_random_exercise())
-                new_ex.sets = [s.clone() for s in day[idx].sets] # keep sets
-                day[idx] = new_ex
-                
+            idx = random.randrange(len(day))
+            new_ex = ScheduledExercise(self.get_random_exercise())
+            new_ex.sets = [s.clone() for s in day[idx].sets]
+            day[idx] = new_ex
+
         elif mutation_type == 'add_set':
-            if len(day) > 0:
-                ex = random.choice(day)
-                if len(ex.sets) < self.config.max_sets:
-                    ex.sets.append(ScheduledSet(default_reps, 0, 8.0))
-                    
+            ex = random.choice(eligible_add_set)
+            ex.sets.append(ScheduledSet(default_reps, 0, 8.0))
+
         elif mutation_type == 'remove_set':
-            if len(day) > 0:
-                ex = random.choice(day)
-                if len(ex.sets) > self.config.min_sets:
-                    ex.sets.pop()
-                    
+            ex = random.choice(eligible_rem_set)
+            ex.sets.pop(random.randrange(len(ex.sets)))
+
         elif mutation_type == 'mut_reps':
-            if len(day) > 0:
-                ex = random.choice(day)
-                if len(ex.sets) > 0:
-                    s = random.choice(ex.sets)
-                    s.base_reps += random.choice([-2, -1, 1, 2])
-                    s.base_reps = max(self.config.min_reps, min(self.config.max_reps, s.base_reps))
-                    
+            s = random.choice(sets_on_day)
+            s.base_reps += random.choice([-2, -1, 1, 2])
+            s.base_reps = max(self.config.min_reps, min(self.config.max_reps, s.base_reps))
+
         elif mutation_type == 'mut_rpe':
-            if len(day) > 0:
-                ex = random.choice(day)
-                if len(ex.sets) > 0:
-                    s = random.choice(ex.sets)
-                    s.rpe += random.choice([-0.5, 0.5])
-                    s.rpe = max(5.0, min(10.0, s.rpe))
-                    if s.rpe < 9.0:
-                        s.partial_reps = 0
-                    
-        elif mutation_type == 'mut_partials' and len(day) > 0:
-            ex = random.choice(day)
-            if len(ex.sets) > 0:
-                s = random.choice(ex.sets)
-                if s.rpe >= 9.0:
-                    s.partial_reps = random.choice([0, 2, 4, 6])
-                else:
-                    s.partial_reps = 0
+            s = random.choice(sets_on_day)
+            s.rpe += random.choice([-0.5, 0.5])
+            s.rpe = max(5.0, min(10.0, s.rpe))
+            if s.rpe < 9.0:
+                s.partial_reps = 0
+
+        elif mutation_type == 'mut_partials':
+            s = random.choice(eligible_partial_sets)
+            s.partial_reps = random.choice([0, 2, 4, 6])
 
         return new_state
 
