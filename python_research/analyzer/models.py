@@ -97,7 +97,7 @@ class BezierProfile:
                 + 3.0 * u * (t**2) * self.x2
                 + (t**3) * self.x3
             )
-            if abs(x - target_x) < tol:
+            if abs(x - target_x) < tol and (upper - lower) < tol:
                 break
             if x < target_x:
                 lower = t
@@ -148,8 +148,12 @@ def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProf
     if new_distr and total_mag <= 0.0:
         raise ValueError("Muscle distribution magnitudes must sum to a positive value.")
     if total_mag > 0 and abs(total_mag - 1.0) > 1e-12:
-        for tp in new_distr.values():
-            tp.magnitude = tp.magnitude / total_mag
+        new_distr = {
+            m: BezierProfile(
+                tp.x0, tp.y0, tp.x1, tp.y1, tp.x2, tp.y2, tp.x3, tp.y3, tp.magnitude / total_mag
+            )
+            for m, tp in new_distr.items()
+        }
     return new_distr
 
 
@@ -164,6 +168,12 @@ class Exercise:
     is_isolation: bool = False
 
     def __post_init__(self):
+        if self.fatigue < 0.0:
+            raise ValueError(f"Negative exercise fatigue: {self.fatigue}")
+        if self.load_coeff < 0.0:
+            raise ValueError(f"Negative exercise load_coeff: {self.load_coeff}")
+        if self.load_multiplier <= 0.0:
+            raise ValueError(f"Non-positive exercise load_multiplier: {self.load_multiplier}")
         self.muscles_distr = coerce_muscles_distr(self.muscles_distr)
 
 

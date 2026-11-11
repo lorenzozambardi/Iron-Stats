@@ -63,7 +63,7 @@ export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
     const t2 = t * t;
     const t3 = t2 * t;
     const x = u3 * x0 + 3 * u2 * t * x1 + 3 * u * t2 * x2 + t3 * x3;
-    if (Math.abs(x - targetX) < 1e-6) break;
+    if (Math.abs(x - targetX) < 1e-6 && (upper - lower) < 1e-6) break;
     if (x < targetX) lower = t;
     else upper = t;
     t = (lower + upper) * 0.5;

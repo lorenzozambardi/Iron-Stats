@@ -250,11 +250,17 @@ def analyze_workout_log(
                         val = val.strip()
 
                         if key == "fatigue":
-                            ex_obj.fatigue = float(val)
+                            parsed_val = float(val)
+                            if parsed_val >= 0.0:
+                                ex_obj.fatigue = parsed_val
                         elif key == "load_coeff":
-                            ex_obj.load_coeff = float(val)
+                            parsed_val = float(val)
+                            if parsed_val >= 0.0:
+                                ex_obj.load_coeff = parsed_val
                         elif key == "load_multiplier":
-                            ex_obj.load_multiplier = float(val)
+                            parsed_val = float(val)
+                            if parsed_val > 0.0:
+                                ex_obj.load_multiplier = parsed_val
                         elif key == "load_offset":
                             ex_obj.load_offset = float(val)
                         elif key == "is_isolation":

@@ -83,11 +83,14 @@ export function getExercisesWithOverrides(logText, globalExercises) {
             const val = part.substring(eqIdx + 1).trim();
             
             if (key === 'fatigue') {
-              exObj.fatigue = parseFloat(val);
+              const parsedVal = parseFloat(val);
+              if (!Number.isNaN(parsedVal) && parsedVal >= 0.0) exObj.fatigue = parsedVal;
             } else if (key === 'load_coeff') {
-              exObj.load_coeff = parseFloat(val);
+              const parsedVal = parseFloat(val);
+              if (!Number.isNaN(parsedVal) && parsedVal >= 0.0) exObj.load_coeff = parsedVal;
             } else if (key === 'load_multiplier') {
-              exObj.load_multiplier = parseFloat(val);
+              const parsedVal = parseFloat(val);
+              if (!Number.isNaN(parsedVal) && parsedVal > 0.0) exObj.load_multiplier = parsedVal;
             } else if (key === 'load_offset') {
               exObj.load_offset = parseFloat(val);
             } else if (key === 'is_isolation') {
@@ -477,23 +480,21 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
     totalFat += repTut * rpeMult * fatigue;
   }
   
-  // 2. Assisted reps
+  // 2. Assisted reps (forced reps past failure ~RPE 10.0)
+  const failureRpeMult = Math.pow(1.1, 10.0 - 7.5);
   for (let j = 0; j < assistedReps; j++) {
     const idx = baseReps + j;
     if (idx >= actualTuts.length) break;
     const repTut = actualTuts[idx];
-    const repRpe = 7.0;
-    const rpeMult = Math.pow(1.1, repRpe - 7.5);
-    totalFat += repTut * rpeMult * fatigue * COEFF_ASSISTED;
+    totalFat += repTut * failureRpeMult * fatigue * COEFF_ASSISTED;
   }
   
-  // 3. Partial reps
+  // 3. Partial reps (past-failure partials scaled on their 0.5*tau_0 TUT)
   for (let j = 0; j < partialReps; j++) {
     const idx = baseReps + assistedReps + j;
     if (idx >= actualTuts.length) break;
     const repTut = actualTuts[idx];
-    const rpeMult = 1.0;
-    totalFat += repTut * rpeMult * fatigue * (COEFF_PARTIAL / 0.5);
+    totalFat += repTut * failureRpeMult * fatigue * COEFF_PARTIAL;
   }
   
   return totalFat;

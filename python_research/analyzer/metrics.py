@@ -124,15 +124,25 @@ def calculate_set_fatigue(
 
     if assisted_reps > 0 and len(actual_tuts) > base_reps:
         n_ass = min(assisted_reps, len(actual_tuts) - base_reps)
-        rep_rpe = 7.0
-        ass_rpe_mult = 1.1 ** (rep_rpe - 7.5)
-        total_fat += float(np.sum(actual_tuts[base_reps : base_reps + n_ass])) * ass_rpe_mult * fatigue * COEFF_ASSISTED
+        # Assisted and partial reps are forced past failure (~RPE 10.0), so they take the failure multiplier.
+        failure_rpe_mult = 1.1 ** (10.0 - 7.5)
+        total_fat += (
+            float(np.sum(actual_tuts[base_reps : base_reps + n_ass]))
+            * failure_rpe_mult
+            * fatigue
+            * COEFF_ASSISTED
+        )
 
     if partial_reps > 0 and len(actual_tuts) > base_reps + assisted_reps:
         start_idx = base_reps + assisted_reps
         n_part = min(partial_reps, len(actual_tuts) - start_idx)
-        part_rpe_mult = 1.0
-        total_fat += float(np.sum(actual_tuts[start_idx : start_idx + n_part])) * part_rpe_mult * fatigue * (COEFF_PARTIAL / 0.5)
+        failure_rpe_mult = 1.1 ** (10.0 - 7.5)
+        total_fat += (
+            float(np.sum(actual_tuts[start_idx : start_idx + n_part]))
+            * failure_rpe_mult
+            * fatigue
+            * COEFF_PARTIAL
+        )
 
     return float(total_fat)
 
