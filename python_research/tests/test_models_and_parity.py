@@ -10,6 +10,7 @@ from analyzer.metrics import (
     calculate_metrics,
     calculate_set_fatigue,
     calculate_set_tuts,
+    compute_effective_tut,
 )
 from analyzer.models import BezierProfile, Exercise, exercises_list
 from analyzer.parser import analyze_workout_log, parse_rep_token
@@ -19,6 +20,8 @@ from analyzer.solver import (
     SolverConfig,
     WorkoutSolver,
     WorkoutState,
+    _set_tuts,
+    calculate_rest,
 )
 
 
@@ -32,12 +35,16 @@ def test_default_exercises_monotone_and_normalized() -> None:
             assert min(prof.y0, prof.y1, prof.y2, prof.y3) >= 0.0
 
 
-def test_bezier_rejects_non_monotone_x() -> None:
-    with pytest.raises(ValueError, match="Non-monotone Bezier profile"):
+def test_bezier_rejects_non_monotone_x_and_negative_y() -> None:
+    with pytest.raises(ValueError, match="Non-monotone or out-of-domain"):
         BezierProfile(0.4, 1.0, 0.33, 0.8, 0.66, 0.4, 0.6, 0.1, 0.2)
+    with pytest.raises(ValueError, match="Non-monotone or out-of-domain"):
+        BezierProfile(-0.1, 0.0, 0.3, 0.5, 0.6, 0.8, 1.0, 1.0, 0.5)
+    with pytest.raises(ValueError, match="Negative Bezier y"):
+        BezierProfile(0.1, 0.0, 0.3, -0.2, 0.6, 0.8, 0.9, 1.0, 0.5)
 
 
-def test_bezier_option_a_and_trapezoidal_conservation() -> None:
+def test_bezier_option_a_and_gl3_conservation() -> None:
     prof = BezierProfile(0.2, 0.0, 0.33, 0.3, 0.66, 0.8, 0.9, 1.0, 0.9)
     t = np.linspace(0.0, 1.0, 50)
     x, _ = prof._eval_xy(t)
@@ -47,8 +54,19 @@ def test_bezier_option_a_and_trapezoidal_conservation() -> None:
     assert float(x_mid[0]) == pytest.approx(expected_mid, abs=1e-12)
 
     curve = prof.get_curve(resolution=50)
-    area = float(np.sum(((curve[:-1] + curve[1:]) / 2.0) * np.diff(x)))
-    assert area == pytest.approx(prof.magnitude, rel=1e-6)
+    # 3-pt GL normalization matches parametric trapezoidal within O(h^2) (~6e-5)
+    trap_area = float(np.sum(((curve[:-1] + curve[1:]) / 2.0) * np.diff(x)))
+    assert trap_area == pytest.approx(prof.magnitude, rel=1e-4)
+    # Exact 5-pt GL check on get_curve scale
+    scale = prof.magnitude / prof.exact_area()
+    pts, wts = np.polynomial.legendre.leggauss(5)
+    tg = 0.5 * (pts + 1.0)
+    wg = 0.5 * wts
+    ug = 1.0 - tg
+    yg = (ug**3) * prof.y0 + 3 * (ug**2) * tg * prof.y1 + 3 * ug * (tg**2) * prof.y2 + (tg**3) * prof.y3
+    xpg = 3 * (ug**2) * (prof.x1 - prof.x0) + 6 * ug * tg * (prof.x2 - prof.x1) + 3 * (tg**2) * (prof.x3 - prof.x2)
+    gl5_area = float(np.sum(wg * yg * xpg) * scale)
+    assert gl5_area == pytest.approx(prof.magnitude, rel=1e-12)
 
 
 def test_physical_curve_respects_support_and_uniform_grid() -> None:
@@ -75,7 +93,7 @@ def test_fatigue_continuous_at_zero_rep_rpe() -> None:
     assert fat_rpe5 == pytest.approx(expected, rel=1e-9)
 
 
-def test_solver_partial_weighting_and_etut_evol_degeneracy() -> None:
+def test_solver_partial_weighting_and_dynamic_tut() -> None:
     cfg = SolverConfig()
     cfg.days = 1
     cfg.calibration_steps = 0
@@ -92,13 +110,20 @@ def test_solver_partial_weighting_and_etut_evol_degeneracy() -> None:
     ex_p.sets = [ScheduledSet(10, 10, 9.0)]
     state_part.days[0] = [ex_p]
 
-    # Verify E_tut == E_vol identically under 2.0 s/rep surrogate
+    # Verify _set_tuts matches full metrics.py dynamic TUT and differs from E_vol
+    tuts = calculate_set_tuts(10, 0, 10, 9.0, 1.0, 0.0, 2.0, 0.0)
+    tot_t, eff_t = _set_tuts(10, 10, 9.0)
+    assert tot_t == pytest.approx(float(np.sum(tuts)), abs=1e-12)
+    assert eff_t == pytest.approx(compute_effective_tut(tuts, 10, 9.0), abs=1e-12)
+
     solver._return_raw = True
     _, raw_b = solver.evaluate_workout(state_base)
     _, raw_p = solver.evaluate_workout(state_part)
     solver._return_raw = False
-    assert raw_b["tut"] == pytest.approx(raw_b["vol"], abs=1e-12)
-    assert raw_p["tut"] == pytest.approx(raw_p["vol"], abs=1e-12)
+    assert raw_b["tut"] != pytest.approx(raw_b["vol"], abs=1e-4)
+    assert raw_p["tut"] != pytest.approx(raw_p["vol"], abs=1e-4)
+    # Empty volume_dist should yield zero E_distr
+    assert raw_b["distr"] == 0.0
 
     # Verify V_m partial contribution scales by COEFF_PARTIAL (0.33), matching sub_vols
     curve_lr = solver.ex_curves["LR"]["Lateral Deltoid"]
@@ -109,6 +134,26 @@ def test_solver_partial_weighting_and_etut_evol_degeneracy() -> None:
     assert np.any(mask_active)
     ratio = (vm_part[mask_active] - vm_base[mask_active]) / vm_base[mask_active]
     assert np.allclose(ratio, COEFF_PARTIAL, atol=1e-12)
+
+
+def test_solver_mutation_clamps_reps_and_rest_rounding() -> None:
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.min_reps = 12
+    cfg.max_reps = 20
+    cfg.min_ex = 1
+    cfg.max_ex = 5
+    cfg.calibration_steps = 0
+    solver = WorkoutSolver(cfg)
+    state = solver.generate_random_state()
+    for _ in range(100):
+        state = solver.mutate_workout(state)
+        for ex in state.days[0]:
+            for s in ex.sets:
+                assert cfg.min_reps <= s.base_reps <= cfg.max_reps
+
+    # Hack Squat & RDL fatigue=8.5 -> 3.25 mins -> rounds half-up to 3'30" matching JS
+    assert calculate_rest(8.5) == "3'30\""
 
 
 def test_partition_of_unity_exact_three_way_and_override() -> None:

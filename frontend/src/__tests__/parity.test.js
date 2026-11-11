@@ -1,22 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import defaultExercises from '../defaultExercises.json';
-import { solveBezierY } from '../components/helpers';
-import { WorkoutSolver } from '../solver';
+import { bezierArea, solveBezierY } from '../components/helpers';
+import { WorkoutSolver, calculateRest } from '../solver';
 import { calculateSetTuts, calculateSetFatigue } from '../parser';
 
 describe('Mathematical invariants and frontend/solver parity', () => {
-  it('enforces strict x0 < x1 < x2 < x3 monotonicity across all default exercises', () => {
+  it('enforces strict 0 <= x0 < x1 < x2 < x3 <= 1 and y >= 0 across all default exercises', () => {
     for (const ex of defaultExercises) {
       for (const prof of Object.values(ex.muscles_distr)) {
+        expect(prof.x0).toBeGreaterThanOrEqual(0);
         expect(prof.x0).toBeLessThan(prof.x1);
         expect(prof.x1).toBeLessThan(prof.x2);
         expect(prof.x2).toBeLessThan(prof.x3);
+        expect(prof.x3).toBeLessThanOrEqual(1);
+        expect(Math.min(prof.y0, prof.y1, prof.y2, prof.y3)).toBeGreaterThanOrEqual(0);
       }
     }
   });
 
-  it('rejects non-monotone Bezier profiles in solveBezierY and WorkoutSolver', () => {
+  it('rejects non-monotone, out-of-domain, or negative-y Bezier profiles', () => {
     expect(() => solveBezierY(0.5, 0.4, 1, 0.33, 0.8, 0.66, 0.4, 0.6, 0.1)).toThrow(RangeError);
+    expect(() => solveBezierY(0.5, -0.1, 0, 0.3, 0.5, 0.6, 0.8, 1.0, 1.0)).toThrow(RangeError);
+    expect(() => solveBezierY(0.5, 0.1, 0, 0.3, -0.2, 0.6, 0.8, 0.9, 1.0)).toThrow(RangeError);
     const badDb = [
       {
         name: 'BadEx',
@@ -33,35 +38,31 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     expect(() => new WorkoutSolver({}, badDb)).toThrow(RangeError);
   });
 
-  it('matches trapezoidal area normalization vs dashboard Riemann sum within tolerance on LR', () => {
-    const lr = defaultExercises.find((e) => e.name === 'LR');
-    const prof = lr.muscles_distr['Lateral Deltoid'];
+  it('matches exact 3-point Gauss-Legendre area normalization across solver and dashboard', () => {
     const solver = new WorkoutSolver({ calibration_steps: 0 }, defaultExercises);
-    const solverCurve = solver.ex_curves['LR']['Lateral Deltoid'];
 
-    // Physical ROM support: zero outside [x0, x3] = [0.2, 0.9]
-    const resolution = 50;
-    for (let i = 0; i < resolution; i++) {
-      const x = i / (resolution - 1);
-      if (x < prof.x0 || x > prof.x3) {
-        expect(solverCurve[i]).toBe(0);
+    for (const [exName, muscle] of [['LR', 'Lateral Deltoid'], ['Deadlift', 'Erectors'], ['RDL', 'Erectors']]) {
+      const ex = defaultExercises.find((e) => e.name === exName);
+      const prof = ex.muscles_distr[muscle];
+      const solverCurve = solver.ex_curves[exName][muscle];
+
+      // Physical ROM support: zero outside [x0, x3]
+      const resolution = 50;
+      for (let i = 0; i < resolution; i++) {
+        const x = i / (resolution - 1);
+        if (x < prof.x0 || x > prof.x3) {
+          expect(solverCurve[i]).toBe(0);
+        }
       }
-    }
 
-    // Dashboard-style 51-point uniform x trapezoidal normalization
-    let areaSum = 0;
-    const rawY = [];
-    for (let i = 0; i <= 50; i++) {
-      const y = solveBezierY(i / 50, prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3);
-      rawY.push(y);
-      const weight = (i === 0 || i === 50) ? 0.5 : 1.0;
-      areaSum += weight * y;
+      // Dashboard-style GL3 normalization matches solver exactly
+      const area = bezierArea(prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3);
+      const scale = prof.magnitude / area;
+      const midIdx = Math.round(0.5 * (resolution - 1));
+      const dashAtMid = solveBezierY(midIdx / (resolution - 1), prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) * scale;
+      expect(solverCurve[midIdx]).toBeCloseTo(dashAtMid, 6);
+      expect(solverCurve[midIdx]).toBe(Math.fround(dashAtMid));
     }
-    const trapScale = prof.magnitude / (areaSum / 50);
-    // Compare midpoint x = 0.50 between solver trapezoidal scale and dashboard trapezoidal scale
-    const midIdx = Math.round(0.5 * (resolution - 1));
-    const dashAtMid = solveBezierY(midIdx / (resolution - 1), prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) * trapScale;
-    expect(Math.abs(solverCurve[midIdx] - dashAtMid)).toBeLessThan(0.05);
   });
 
   it('evaluates fatigue continuously at rep_rpe = 0 without a 1.0 jump', () => {
@@ -74,5 +75,25 @@ describe('Mathematical invariants and frontend/solver parity', () => {
       expected += tuts[j] * Math.pow(1.1, repRpe - 7.5);
     }
     expect(fat).toBeCloseTo(expected, 9);
+  });
+
+  it('keeps JS zero-scale guard active, clamps mutated reps, and matches rest rounding', () => {
+    const solver = new WorkoutSolver({ days: 1, min_reps: 12, max_reps: 20, calibration_steps: 5 }, defaultExercises);
+    solver.calibrate();
+    // days=1 => scales.balance is 0.0; evaluateWorkout must guard to 1e-6 (not 1.0) and remain finite
+    expect(solver.scales.balance).toBe(0);
+    expect(solver.scales.distr).toBe(0);
+    let state = solver.generateRandomState();
+    for (let i = 0; i < 100; i++) {
+      state = solver.mutateWorkout(state);
+      for (const ex of state.days[0]) {
+        for (const s of ex.sets) {
+          expect(s.base_reps).toBeGreaterThanOrEqual(12);
+          expect(s.base_reps).toBeLessThanOrEqual(20);
+        }
+      }
+    }
+    expect(Number.isFinite(solver.evaluateWorkout(state))).toBe(true);
+    expect(calculateRest(8.5)).toBe("3'30\"");
   });
 });

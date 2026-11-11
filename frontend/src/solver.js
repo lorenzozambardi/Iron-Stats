@@ -1,5 +1,5 @@
 import defaultExercises from './defaultExercises.json';
-import { solveBezierY } from './components/helpers';
+import { bezierArea, solveBezierY } from './components/helpers';
 import { MUSCLES } from './parser';
 
 const COEFF_PARTIAL = 0.33;
@@ -26,30 +26,9 @@ function getBezierCurve(rawProf, resolution = 50) {
         ? { x0: 0.0, y0: 1.0, x1: 0.33, y1: 1.0, x2: 0.66, y2: 1.0, x3: 1.0, y3: 1.0, magnitude: rawProf }
         : rawProf;
 
-    if (!(prof.x0 < prof.x1 && prof.x1 < prof.x2 && prof.x2 < prof.x3)) {
-        throw new RangeError(`Non-monotone Bezier profile: ${prof.x0}, ${prof.x1}, ${prof.x2}, ${prof.x3}`);
-    }
-
-    const t = Array.from({ length: resolution }, (_, i) => i / (resolution - 1));
-    const x = new Float32Array(resolution);
-    const y = new Float32Array(resolution);
-
-    for (let i = 0; i < resolution; i++) {
-        const tv = t[i];
-        const uv = 1 - tv;
-        const uv2 = uv * uv;
-        const uv3 = uv2 * uv;
-        const tv2 = tv * tv;
-        const tv3 = tv2 * tv;
-        x[i] = uv3 * prof.x0 + 3 * uv2 * tv * prof.x1 + 3 * uv * tv2 * prof.x2 + tv3 * prof.x3;
-        y[i] = uv3 * prof.y0 + 3 * uv2 * tv * prof.y1 + 3 * uv * tv2 * prof.y2 + tv3 * prof.y3;
-    }
-
-    let area = 0.0;
-    for (let i = 0; i < resolution - 1; i++) {
-        const dx = x[i + 1] - x[i];
-        const yAvg = (y[i] + y[i + 1]) / 2.0;
-        area += yAvg * dx;
+    const area = bezierArea(prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3);
+    if ((prof.magnitude ?? 0) < 0) {
+        throw new RangeError(`Negative Bezier magnitude: ${prof.magnitude}`);
     }
 
     const res = new Float32Array(resolution);
@@ -61,6 +40,43 @@ function getBezierCurve(rawProf, resolution = 50) {
         }
     }
     return res;
+}
+
+function setTuts(baseReps, partialReps, rpe) {
+    let totalTut = 0.0;
+    let effTut = 0.0;
+    if (baseReps > 0) {
+        const effBase = Math.min(baseReps, Math.max(0.0, rpe - 4.0));
+        const fullEff = Math.floor(effBase);
+        const frac = effBase - fullEff;
+        const startIdx = Math.max(0, baseReps - fullEff);
+        const baseRir = 10.0 - rpe;
+
+        for (let j = 0; j < baseReps; j++) {
+            const rir = baseRir + (baseReps - 1 - j);
+            let slowdown;
+            if (rir < 1.0) slowdown = 1.60;
+            else if (rir < 2.0) slowdown = 1.00;
+            else if (rir < 3.0) slowdown = 0.60;
+            else if (rir < 4.0) slowdown = 0.35;
+            else if (rir < 5.0) slowdown = 0.15;
+            else slowdown = 0.0;
+
+            const repTut = 3.0 + slowdown;
+            totalTut += repTut;
+            if (j >= startIdx) {
+                effTut += repTut;
+            } else if (frac > 0.0 && j === startIdx - 1) {
+                effTut += frac * repTut;
+            }
+        }
+    }
+    if (partialReps > 0) {
+        const partTut = 1.5 * partialReps;
+        totalTut += partTut;
+        effTut += partTut;
+    }
+    return [totalTut, effTut];
 }
 
 // --- REST CALCULATOR ---
@@ -197,18 +213,19 @@ export class WorkoutSolver {
             macroToSubs[macro].push(sub);
         }
         for (const m in this.config.muscle_targets) {
-            const curveType = this.config.muscle_targets[m];
-            const curve = getTargetCurve(curveType, this.resolution);
-            if (subs_dict[m] && Object.keys(subs_dict[m]).length > 0) {
-                for (const sub in subs_dict[m]) {
+            if (macroToSubs[m] || (subs_dict[m] && Object.keys(subs_dict[m]).length > 0)) {
+                const curve = getTargetCurve(this.config.muscle_targets[m], this.resolution);
+                for (const sub of (macroToSubs[m] || [])) {
                     this.T_m[sub] = curve;
                 }
-            } else if (macroToSubs[m]) {
-                for (const sub of macroToSubs[m]) {
+                for (const sub in (subs_dict[m] || {})) {
                     this.T_m[sub] = curve;
                 }
-            } else {
-                this.T_m[m] = curve;
+            }
+        }
+        for (const m in this.config.muscle_targets) {
+            if (!macroToSubs[m] && !(subs_dict[m] && Object.keys(subs_dict[m]).length > 0)) {
+                this.T_m[m] = getTargetCurve(this.config.muscle_targets[m], this.resolution);
             }
         }
 
@@ -259,7 +276,7 @@ export class WorkoutSolver {
                 for (let s = 0; s < numSets; s++) {
                     const reps = randomInt(this.config.min_reps, this.config.max_reps);
                     const rpe = randomChoice([7.0, 8.0, 8.5, 9.0, 10.0]);
-                    const partials = rpe >= 9.0 ? randomChoice([0, 0, 0, 2, 4]) : 0;
+                    const partials = rpe >= 9.0 ? randomChoice([0, 0, 0, 2, 4, 6]) : 0;
                     ex.sets.push(new ScheduledSet(reps, partials, rpe));
                 }
                 state.days[d].push(ex);
@@ -275,7 +292,7 @@ export class WorkoutSolver {
      *
      * Fast SA surrogates:
      * - Load: Epley-like ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
-     * - TUT: constant ``2.0`` s/rep (so ``E_tut == E_vol`` identically during search).
+     * - TUT: RIR-slowdown dynamic TUT at default ``1-0-2-0`` tempo (distinct from ``E_vol``).
      * - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue in [1, 10]``).
      */
     evaluateWorkout(state) {
@@ -327,8 +344,9 @@ export class WorkoutSolver {
                     totalTon += sTotal * load;
                     effTon += sEff * load;
 
-                    totalTut += sTotal * 2.0;
-                    effTut += sEff * 2.0;
+                    const [sTotTut, sEffTut] = setTuts(s.base_reps, s.partial_reps, s.rpe);
+                    totalTut += sTotTut;
+                    effTut += sEffTut;
 
                     exFatigue += sTotal * ex.fatigue;
 
@@ -393,8 +411,9 @@ export class WorkoutSolver {
         let E_distr = 0.0;
         let totalSubVol = 0.0;
         for (const m in subVols) totalSubVol += subVols[m];
+        const hasTargetDistr = Object.keys(this.target_sub_vol).length > 0;
         
-        if (totalSubVol > 0) {
+        if (totalSubVol > 0 && hasTargetDistr) {
             for (const m of this.distr_muscles) {
                 const targetPct = this.target_sub_vol[m] || 0.0;
                 const actualPct = (subVols[m] || 0.0) / totalSubVol;
@@ -451,7 +470,7 @@ export class WorkoutSolver {
 
         const scaled = {};
         for (const k in rawMetrics) {
-            let scale = this.scales[k] || 1.0;
+            let scale = this.scales[k] ?? 1.0;
             if (scale === 0.0) scale = 1e-6;
             scaled[k] = rawMetrics[k] / scale;
         }
@@ -490,11 +509,13 @@ export class WorkoutSolver {
         const mutations = ['add_ex', 'remove_ex', 'swap_ex', 'add_set', 'remove_set', 'mut_reps', 'mut_rpe', 'mut_partials'];
         const mType = randomChoice(mutations);
 
+        const defaultReps = Math.max(this.config.min_reps, Math.min(this.config.max_reps, 10));
+
         if (mType === 'add_ex') {
             if (day.length < this.config.max_ex) {
                 const ex = new ScheduledExercise(this.getRandomExercise());
                 for (let i = 0; i < this.config.min_sets; i++) {
-                    ex.sets.push(new ScheduledSet(10, 0, 8.0));
+                    ex.sets.push(new ScheduledSet(defaultReps, 0, 8.0));
                 }
                 day.push(ex);
             }
@@ -513,7 +534,7 @@ export class WorkoutSolver {
             if (day.length > 0) {
                 const ex = randomChoice(day);
                 if (ex.sets.length < this.config.max_sets) {
-                    ex.sets.push(new ScheduledSet(10, 0, 8.0));
+                    ex.sets.push(new ScheduledSet(defaultReps, 0, 8.0));
                 }
             }
         } else if (mType === 'remove_set') {

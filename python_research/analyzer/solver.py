@@ -43,12 +43,52 @@ def calculate_rest(fatigue: float) -> str:
     else:
         # 7.0 -> 10.0 mapped to 3.0 -> 3.5
         mins = 3.0 + (fatigue - 7.0) * (0.5 / 3.0)
-        
-    rounded_mins = round(mins * 2) / 2
+
+    rounded_mins = math.floor(mins * 2.0 + 0.5) / 2.0
     if rounded_mins == int(rounded_mins):
         return f"{int(rounded_mins)}'"
     else:
         return f"{int(rounded_mins)}'30\""
+
+
+def _set_tuts(base_reps: int, partial_reps: int, rpe: float) -> tuple[float, float]:
+    """Compute (total_tut, effective_tut) using default 1-0-2-0 tempo (3.0s) and RIR slowdown."""
+    total_tut = 0.0
+    eff_tut = 0.0
+    if base_reps > 0:
+        eff_base = min(float(base_reps), max(0.0, rpe - 4.0))
+        full_eff = int(eff_base)
+        frac = eff_base - full_eff
+        start_idx = max(0, base_reps - full_eff)
+        base_rir = 10.0 - rpe
+
+        for j in range(base_reps):
+            rir = base_rir + (base_reps - 1 - j)
+            if rir < 1.0:
+                slowdown = 1.60
+            elif rir < 2.0:
+                slowdown = 1.00
+            elif rir < 3.0:
+                slowdown = 0.60
+            elif rir < 4.0:
+                slowdown = 0.35
+            elif rir < 5.0:
+                slowdown = 0.15
+            else:
+                slowdown = 0.0
+            rep_tut = 3.0 + slowdown
+            total_tut += rep_tut
+            if j >= start_idx:
+                eff_tut += rep_tut
+            elif frac > 0.0 and j == start_idx - 1:
+                eff_tut += frac * rep_tut
+
+    if partial_reps > 0:
+        part_tut = 1.5 * partial_reps
+        total_tut += part_tut
+        eff_tut += part_tut
+
+    return total_tut, eff_tut
 
 # --- WORKOUT STATE DEFINITION ---
 class ScheduledSet:
@@ -138,15 +178,15 @@ class WorkoutSolver:
         for sub, macro in MUSCLES.items():
             macro_to_subs.setdefault(macro, []).append(sub)
         for m, curve_type in self.config.muscle_targets.items():
-            curve = get_target_curve(curve_type, self.resolution)
-            if subs_dict.get(m):
-                for sub in subs_dict[m]:
+            if m in macro_to_subs or subs_dict.get(m):
+                curve = get_target_curve(curve_type, self.resolution)
+                for sub in macro_to_subs.get(m, []):
                     self.T_m[sub] = curve
-            elif m in macro_to_subs:
-                for sub in macro_to_subs[m]:
+                for sub in subs_dict.get(m, {}):
                     self.T_m[sub] = curve
-            else:
-                self.T_m[m] = curve
+        for m, curve_type in self.config.muscle_targets.items():
+            if m not in macro_to_subs and not subs_dict.get(m):
+                self.T_m[m] = get_target_curve(curve_type, self.resolution)
             
         self.all_submuscles = set()
         for ex in self.db:
@@ -180,7 +220,7 @@ class WorkoutSolver:
                 for _ in range(num_sets):
                     reps = random.randint(self.config.min_reps, self.config.max_reps)
                     rpe = random.choice([7.0, 8.0, 8.5, 9.0, 10.0])
-                    partials = random.choice([0, 0, 0, 2, 4]) if rpe >= 9.0 else 0
+                    partials = random.choice([0, 0, 0, 2, 4, 6]) if rpe >= 9.0 else 0
                     ex.sets.append(ScheduledSet(reps, partials, rpe))
                 state.days[d].append(ex)
         return state
@@ -192,9 +232,9 @@ class WorkoutSolver:
         (E_curve, E_vol, E_ton, E_tut, E_distr, E_variety, E_balance) scaled by 10000.0,
         plus a hard penalty of 150.0 * 1000.0 per same-day duplicate exercise.
 
-        For fast SA evaluation, three simplified surrogates replace full logbook metrics:
+        For fast SA evaluation, lightweight surrogates replace full logbook metrics:
         - Load: Epley-like estimate ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
-        - TUT: constant ``2.0`` s/rep (so ``E_tut == E_vol`` identically during search).
+        - TUT: RIR-slowdown dynamic TUT at default ``1-0-2-0`` tempo (distinct from ``E_vol``).
         - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue in [1, 10]``).
         """
         total_vol = 0.0
@@ -246,8 +286,9 @@ class WorkoutSolver:
                     total_ton += s_total * load
                     eff_ton += s_eff * load
                     
-                    total_tut += s_total * 2.0
-                    eff_tut += s_eff * 2.0
+                    s_tot_tut, s_eff_tut = _set_tuts(s.base_reps, s.partial_reps, s.rpe)
+                    total_tut += s_tot_tut
+                    eff_tut += s_eff_tut
                     
                     ex_fatigue += s_total * ex.fatigue
                     
@@ -289,7 +330,7 @@ class WorkoutSolver:
         # 3. Distribution Error
         E_distr = 0.0
         total_sub_vol = sum(sub_vols.values())
-        if total_sub_vol > 0:
+        if total_sub_vol > 0 and self.target_sub_vol:
             for m in self.distr_muscles:
                 target_pct = self.target_sub_vol.get(m, 0.0)
                 actual_pct = sub_vols.get(m, 0.0) / total_sub_vol
@@ -335,13 +376,13 @@ class WorkoutSolver:
             if scale == 0.0: scale = 1e-6
             scaled[k] = v / scale
             
-        mo_cost = (self.config.weights['curve'] * scaled['curve'] +
-                   self.config.weights['vol'] * scaled['vol'] +
-                   self.config.weights['ton'] * scaled['ton'] +
-                   self.config.weights['tut'] * scaled['tut'] + 
-                   self.config.weights.get('distr', 0.2) * scaled['distr'] +
-                   self.config.weights.get('variety', 0.1) * scaled['variety'] +
-                   self.config.weights.get('balance', 0.1) * scaled['balance'])
+        mo_cost = (self.config.weights.get('curve', 0.30) * scaled['curve'] +
+                   self.config.weights.get('vol', 0.15) * scaled['vol'] +
+                   self.config.weights.get('ton', 0.10) * scaled['ton'] +
+                   self.config.weights.get('tut', 0.10) * scaled['tut'] +
+                   self.config.weights.get('distr', 0.15) * scaled['distr'] +
+                   self.config.weights.get('variety', 0.10) * scaled['variety'] +
+                   self.config.weights.get('balance', 0.10) * scaled['balance'])
                 
         # Upscaling the final mathematical value to allow the Simulated Annealing 
         # Temperature gradient (T=50.0) to properly reject bad states.
@@ -366,10 +407,12 @@ class WorkoutSolver:
         
         mutation_type = random.choice(['add_ex', 'remove_ex', 'swap_ex', 'add_set', 'remove_set', 'mut_reps', 'mut_rpe', 'mut_partials'])
         
+        default_reps = max(self.config.min_reps, min(self.config.max_reps, 10))
+
         if mutation_type == 'add_ex':
             if len(day) < self.config.max_ex:
                 ex = ScheduledExercise(self.get_random_exercise())
-                ex.sets = [ScheduledSet(10, 0, 8.0) for _ in range(self.config.min_sets)]
+                ex.sets = [ScheduledSet(default_reps, 0, 8.0) for _ in range(self.config.min_sets)]
                 day.append(ex)
                 
         elif mutation_type == 'remove_ex':
@@ -387,7 +430,7 @@ class WorkoutSolver:
             if len(day) > 0:
                 ex = random.choice(day)
                 if len(ex.sets) < self.config.max_sets:
-                    ex.sets.append(ScheduledSet(10, 0, 8.0))
+                    ex.sets.append(ScheduledSet(default_reps, 0, 8.0))
                     
         elif mutation_type == 'remove_set':
             if len(day) > 0:
@@ -527,13 +570,13 @@ if __name__ == "__main__":
             if 'calibrationSteps' in data: config.calibration_steps = int(data['calibrationSteps'])
             
             if 'weights' in data:
-                config.weights['curve'] = float(data['weights'].get('curve', 0.35))
+                config.weights['curve'] = float(data['weights'].get('curve', 0.30))
                 config.weights['vol'] = float(data['weights'].get('vol', 0.15))
-                config.weights['ton'] = float(data['weights'].get('ton', 0.1))
-                config.weights['tut'] = float(data['weights'].get('tut', 0.1))
-                config.weights['distr'] = float(data['weights'].get('distr', 0.2))
-                config.weights['variety'] = float(data['weights'].get('variety', 0.1))
-                config.weights['balance'] = float(data['weights'].get('balance', 0.1))
+                config.weights['ton'] = float(data['weights'].get('ton', 0.10))
+                config.weights['tut'] = float(data['weights'].get('tut', 0.10))
+                config.weights['distr'] = float(data['weights'].get('distr', 0.15))
+                config.weights['variety'] = float(data['weights'].get('variety', 0.10))
+                config.weights['balance'] = float(data['weights'].get('balance', 0.10))
                 
             if 'ratios' in data:
                 config.target_ratios['vol'] = float(data['ratios'].get('vol', 0.70))
