@@ -6,7 +6,12 @@ from typing import Any
 
 import numpy as np
 
-from analyzer.models import COEFF_PARTIAL, Exercise, exercises_list
+try:
+    from .models import COEFF_PARTIAL, Exercise, exercises_list
+except ImportError:
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from analyzer.models import COEFF_PARTIAL, Exercise, exercises_list
 
 
 # --- TARGET CURVES GENERATORS ---

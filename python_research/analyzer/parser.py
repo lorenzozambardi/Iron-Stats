@@ -228,9 +228,9 @@ def analyze_workout_log(
                         elif key == "muscles_distr":
                             try:
                                 ex_obj.muscles_distr = json.loads(val)
-                            except json.JSONDecodeError as e:
+                            except json.JSONDecodeError as exc:
                                 sys.stderr.write(
-                                    f"Failed to parse muscles_distr JSON in override: '{val}' | {e}\n"
+                                    f"Failed to parse muscles_distr JSON in override: '{val}' | {exc}\n"
                                 )
 
     workout_data = []
@@ -283,13 +283,13 @@ def analyze_workout_log(
                                 lengthening_pause=current_exercise.lengthening_pause,
                             )
                         )
-                        s.tuts = tuts
-                        s.total_tut = sum(tuts)
+                        s.tuts = list(tuts)
+                        s.total_tut = sum(s.tuts)
                         eff_base = min(float(s.base_reps), max(0.0, s.rpe - 4.0))
                         eff_base_count = int(eff_base + 0.5)
                         start_idx = max(0, s.base_reps - eff_base_count)
-                        base_tut = sum(tuts[start_idx : s.base_reps])
-                        extended_tut = sum(tuts[s.base_reps :])
+                        base_tut = sum(s.tuts[start_idx : s.base_reps])
+                        extended_tut = sum(s.tuts[s.base_reps :])
                         s.effective_tut = base_tut + extended_tut
 
                     current_exercise.weeks.append(

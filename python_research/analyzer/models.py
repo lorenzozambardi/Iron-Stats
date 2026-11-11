@@ -3,7 +3,13 @@ from typing import Any
 
 import numpy as np
 
-from analyzer.constants import COEFF_ASSISTED, COEFF_PARTIAL
+try:
+    from .constants import COEFF_ASSISTED, COEFF_PARTIAL
+except ImportError:
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from analyzer.constants import COEFF_ASSISTED, COEFF_PARTIAL
 
 
 @dataclass
