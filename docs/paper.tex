@@ -1,0 +1,272 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+% --- Typography & Layout ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{charter}
+\usepackage[scaled=0.92]{helvet}
+\usepackage{courier}
+\usepackage[margin=0.68in,top=0.72in,bottom=0.72in,columnsep=0.22in]{geometry}
+\usepackage{microtype}
+
+% --- Mathematics & Theorems ---
+\usepackage{amsmath,amssymb,amsthm,bm}
+\usepackage{mathtools}
+
+% --- Tables, Figures & Links ---
+\usepackage{booktabs}
+\usepackage{graphicx}
+\graphicspath{{figures/}{docs/figures/}}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,linkcolor=NavyBlue,citecolor=NavyBlue,urlcolor=NavyBlue]{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+
+\setlength{\parskip}{2pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+
+\title{\vspace{-1.2em}\textbf{Iron Stats: Continuous Biomechanical Tension Modeling, Physiological Fatigue Dynamics, and Multi-Objective Mesocycle Optimization}}
+\author{Lorenzo Zambardi \\
+\small Department of Computer Science \& Computational Exercise Modeling \\
+\small \texttt{https://github.com/Lorenzo1901/Iron-Stats}}
+\date{Technical Whitepaper --- November 2026}
+
+\begin{document}
+
+\twocolumn[{
+\begin{@twocolumnfalse}
+\maketitle
+\begin{abstract}
+Conventional resistance-training analytics quantify training stress via coarse discrete scalars—raw set counts, repetition totals, and mechanical tonnage ($L \times R$). Such aggregates implicitly assume uniform mechanical tension across the entire Range of Motion (ROM), identical motor-unit recruitment regardless of proximity to muscular failure, and linear fatigue accumulation across repetitions. \textbf{Iron Stats} replaces these scalar heuristics with a unified computational model spanning three layers: (1) \emph{continuous biomechanical tension fields}, parameterizing per-muscle resistance profiles over normalized ROM $t \in [0,1]$ via area-normalized cubic B\'ezier curves; (2) \emph{physiological load and fatigue dynamics}, modeling High-Threshold Motor Unit (HTMU) recruitment via an RPE-gated effective-repetition threshold, piecewise RIR-dependent concentric Time Under Tension (TUT) slowdown, and exponential central nervous system (CNS) fatigue; and (3) \emph{constrained combinatorial optimization}, synthesizing balanced multi-day mesocycles via Monte Carlo scale calibration and scalarized Simulated Annealing. We present a numerical analysis comparing Lagrange interpolation, $C^2$ natural cubic splines, and Bernstein-basis cubic B\'ezier curves on empirical exercise profiles, proving why B\'ezier convex-hull containment and $\mathcal{O}(1)$ De Casteljau evaluation eliminate Runge divergence and non-physical negative tension while supporting exact $\mathcal{O}(h^2)$ trapezoidal magnitude conservation.
+\end{abstract}
+\vspace{0.8em}
+\end{@twocolumnfalse}
+}]
+
+\section{Introduction}
+\label{sec:intro}
+
+Quantitative hypertrophy programming traditionally reduces a resistance-training session to discrete scalar summaries:
+\begin{equation}
+  V_{\mathrm{naive}} = \sum_{s} R_s, \qquad T_{\mathrm{naive}} = \sum_{s} L_s R_s,
+\end{equation}
+where $R_s$ and $L_s$ denote repetitions and external load in set $s$. Despite widespread adoption, these scalars exhibit three structural deficiencies:
+\begin{enumerate}
+  \item \textbf{Biomechanical Blindness:} Moment arms and external resistance torque vary continuously across joint angles. Dumbbell Lateral Raises (\texttt{LR}), for example, peak in resistance near full abduction ($t \to 0.9$), whereas stretch-biased movements peak near $t \to 0$. Scalar tonnage treats both identically.
+  \item \textbf{Effort Invariance:} Two sets of $10$ repetitions—one stopped at Rate of Perceived Exertion $\mathrm{RPE} = 5$ ($5$ Reps in Reserve, $\mathrm{RIR} = 5$) and one pushed to concentric failure ($\mathrm{RPE} = 10$)—yield identical $V_{\mathrm{naive}}$, despite markedly different HTMU recruitment and velocity loss.
+  \item \textbf{Linear Fatigue Assumption:} Systemic CNS and local tissue fatigue grow nonlinearly as repetitions approach failure, accompanied by progressive concentric velocity decay.
+\end{enumerate}
+
+To address these gaps, \textbf{Iron Stats} models every exercise over a normalized continuous ROM domain $t \in [0, 1]$, integrates per-repetition physiological slowdown and exponential fatigue, and formulates mesocycle synthesis as a constrained multi-objective combinatorial optimization problem. All equations reported herein match the reference implementation in \texttt{python\_research/analyzer/} (\texttt{constants.py}, \texttt{models.py}, \texttt{metrics.py}, \texttt{solver.py}).
+
+\section{Biomechanical Exercise Representation}
+\label{sec:models}
+
+In \texttt{models.py}, each exercise $e$ is parameterized by a biomechanical tuple
+\begin{equation}
+  \mathbf{\theta}_e = \bigl(c_{\mathrm{load}},\, f_{\mathrm{base}},\, \mu_{\mathrm{load}},\, q_{\mathrm{load}},\, \mathrm{is\_isolation}\bigr),
+\end{equation}
+where $c_{\mathrm{load}} \in (0, 1]$ denotes articular load efficiency, $f_{\mathrm{base}} \in [1, 10]$ is the intrinsic systemic fatigue coefficient, $(\mu_{\mathrm{load}}, q_{\mathrm{load}}) \in \mathbb{R}^+ \times \mathbb{R}$ maps nominal logged load $L_{\mathrm{raw}}$ to effective biomechanical load via
+\begin{equation}
+  L = L_{\mathrm{raw}} \cdot \mu_{\mathrm{load}} + q_{\mathrm{load}},
+\end{equation}
+and $\mathrm{is\_isolation} \in \{0, 1\}$ flags single-joint movements. (For instance, \texttt{LR} specifies $\mu_{\mathrm{load}} = 2.0$ to convert per-dumbbell weight into bilateral load.)
+
+Each exercise targets an anatomical sub-muscle set $\mathcal{M}_e = \{m_1, \dots, m_k\}$ with contribution magnitudes $\mathbf{M}_e = [M_{e,m_1}, \dots, M_{e,m_k}]^\top$. To conserve total mechanical work attribution across muscle compartments, \texttt{Exercise.\_\_post\_init\_\_} enforces the partition-of-unity constraint
+\begin{equation}
+  \sum_{m \in \mathcal{M}_e} M_{e,m} = 1.0,
+  \label{eq:partition}
+\end{equation}
+automatically re-normalizing $M_{e,m} \leftarrow \mathrm{round}(M_{e,m} / \sum_j M_{e,j}, 4)$ whenever $\lvert \sum_m M_{e,m} - 1.0 \rvert > 10^{-4}$ (accounting for IEEE-754 floating-point tolerances in the 61-exercise JSON catalog).
+
+\section{Numerical Analysis of Tension Profiles}
+\label{sec:numerical}
+
+Representing muscle tension $y(x)$ across normalized ROM $x \in [0, 1]$ requires a functional basis that is parsimonious for interactive editing, smooth, numerically stable, and physically non-negative ($y(x) \ge 0$, as skeletal muscle cannot generate repulsive active tension). We evaluate three candidate numerical frameworks on the \texttt{LR} (\emph{Lateral Deltoid}) reference profile defined in \texttt{defaultExercises.json} ($P_0=(0.20, 0.00)$, $P_1=(0.33, 0.30)$, $P_2=(0.66, 0.80)$, $P_3=(0.90, 1.00)$, $M = 0.90$).
+
+\subsection{Lagrange Interpolation and Runge Divergence}
+Given $n$ sampled ROM-tension nodes $\{(t_i, y_i)\}_{i=1}^n$, the unique degree-$(n-1)$ global interpolating polynomial is
+\begin{equation}
+  p_{n-1}(t) = \sum_{i=1}^{n} y_i \ell_i(t), \qquad \ell_i(t) = \prod_{\substack{j=1 \\ j \ne i}}^{n} \frac{t - t_j}{t_i - t_j}.
+\end{equation}
+Although barycentric/Lagrange evaluation avoids directly inverting the ill-conditioned Vandermonde system $V\mathbf{a} = \mathbf{y}$ (which reaches $\kappa(V) = 2.01 \times 10^6$ already at $n=9$), uniform nodes yield a Lebesgue constant $\Lambda_n = \max_{t \in [0,1]} \sum_{i=1}^n \lvert \ell_i(t) \rvert \sim \mathcal{O}(2^n)$. Consequently, the interpolation error bound $\|f - p_{n-1}\|_\infty \le (1 + \Lambda_n) E_{n-1}(f)$ exhibits severe boundary oscillation (\emph{Runge phenomenon}) in the resting stretch ($t < 0.2$) and contraction termination ($t > 0.85$) zones, as shown in Fig.~\ref{fig:runge}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{lagrange_runge.png}
+  \caption{Lagrange polynomial interpolation ($n=9$ equispaced nodes) on the \texttt{LR} Lateral Deltoid profile. Vandermonde conditioning reaches $\kappa(V) = 2.01 \times 10^6$, inducing boundary Runge oscillations.}
+  \label{fig:runge}
+\end{figure}
+
+Replacing equispaced nodes with Chebyshev--Gauss--Lobatto (CGL) nodes mapped to $[0, 1]$,
+\begin{equation}
+  t_k = \frac{1}{2}\left(1 - \cos\frac{k\pi}{N - 1}\right), \qquad k = 0, \dots, N-1,
+\end{equation}
+reduces Lebesgue growth to $\Lambda_N \sim \frac{2}{\pi}\ln N + \mathcal{O}(1)$ and suppresses edge blow-up. However, as Fig.~\ref{fig:cgl} illustrates, the flat resting region $t \in [0, 0.2]$ forces global polynomials to develop spurious ripples and non-physical negative dips ($y(t) < 0$) even at $N = 12$ nodes ($d = 11$), making user parameterization impractical.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{lagrange_gauss_lobatto.png}
+  \caption{Chebyshev--Gauss--Lobatto interpolation ($N=6, 12$) on \texttt{LR}. Boundary divergence is damped, but global coupling produces negative ripples in the resting zone $t \in [0, 0.2]$.}
+  \label{fig:cgl}
+\end{figure}
+
+\subsection{\texorpdfstring{$C^2$}{C2} Natural Cubic Splines}
+Piecewise natural cubic splines partition $[0, 1]$ into $n$ subintervals $[t_k, t_{k+1}]$, enforcing $C^2$ interior continuity and zero boundary curvature $S''(t_0) = S''(t_n) = 0$. Solving the resulting tridiagonal linear system $A\mathbf{m} = \mathbf{d}$ via the Thomas algorithm requires only $\mathcal{O}(n)$ operations and minimizes the bending energy $\int_0^1 [S''(t)]^2\,dt$.
+
+Nevertheless, global $C^2$ coupling introduces non-physical undershoot ($y(t) < 0$) whenever a flat zero-tension plateau transitions into an ascending ramp (Fig.~\ref{fig:spline_over}). Suppressing undershoot requires either a dense knot grid ($N \ge 10$) or relaxing continuity to $C^1$ monotone piecewise cubic Hermite interpolation (PCHIP), trading away parameter parsimony or second-derivative smoothness (Fig.~\ref{fig:spline_dens}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{spline_overshoot.png}
+  \caption{Natural $C^2$ cubic spline ($N=6$ knots) on \texttt{LR}, exhibiting non-physical negative tension ($y(t) < 0$) across $t \in (0, 0.2)$ due to $C^2$ stiffness.}
+  \label{fig:spline_over}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{spline_density.png}
+  \caption{Spline trade-off on \texttt{LR}: sparse $C^2$ ($N=5$) undershoots, dense $C^2$ ($N=10$) inflates user parameters, and PCHIP sacrifices $C^2$ curvature.}
+  \label{fig:spline_dens}
+\end{figure}
+
+\subsection{Cubic B\'ezier Curves and Bernstein Guarantees}
+In \texttt{BezierProfile} (\texttt{models.py}), each muscle profile is represented parametrically by four 2D control points $\mathbf{P}_i = (x_i, y_i)^\top \in [0, 1]^2$, $i \in \{0, 1, 2, 3\}$, in the cubic Bernstein basis:
+\begin{equation}
+  \mathbf{P}(t) = \begin{pmatrix} x(t) \\ y(t) \end{pmatrix} = \sum_{i=0}^{3} \mathbf{P}_i B_{i,3}(t), \qquad t \in [0, 1],
+\end{equation}
+where $B_{i,3}(t) = \binom{3}{i} t^i (1 - t)^{3-i}$. Explicitly, in \texttt{models.py} ($x_{\mathrm{sp}} = x_3 - x_0$, or $1.0$ if $x_3 = x_0$):
+\begin{align}
+  x(t) &= x_0 + x_{\mathrm{sp}}\bigl(3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3\bigr), \\
+  y(t) &= (1\!-\!t)^3 y_0 + 3(1\!-\!t)^2 t y_1 + 3(1\!-\!t) t^2 y_2 + t^3 y_3.
+\end{align}
+
+\begin{theorem}[Convex Hull Non-Negativity]
+For all $t \in [0, 1]$, the cubic Bernstein polynomials satisfy $B_{i,3}(t) \ge 0$ and form a partition of unity $\sum_{i=0}^{3} B_{i,3}(t) = \bigl((1-t) + t\bigr)^3 \equiv 1$. Consequently, $\mathbf{P}(t) \in \mathrm{Conv}(\{\mathbf{P}_0, \mathbf{P}_1, \mathbf{P}_2, \mathbf{P}_3\})$, and if $y_i \ge 0$ for all $i \in \{0, 1, 2, 3\}$, then $y(t) \ge 0$ for every $t \in [0, 1]$.
+\end{theorem}
+
+\begin{proof}
+Since $t \ge 0$ and $1 - t \ge 0$ on $[0, 1]$, each $B_{i,3}(t) \ge 0$. By the binomial theorem, $\sum_{i=0}^3 \binom{3}{i} t^i (1-t)^{3-i} = 1$, so $y(t) = \sum_{i=0}^3 B_{i,3}(t) y_i$ is a convex combination of $\{y_i\}$ and satisfies $\min_i y_i \le y(t) \le \max_i y_i$. Setting $y_i \ge 0$ guarantees $y(t) \ge 0$ identically.
+\end{proof}
+
+Furthermore, $\mathbf{P}(t)$ is evaluated stably in $\mathcal{O}(1)$ time without division via De Casteljau's recursive convex linear interpolations (Fig.~\ref{fig:decasteljau}):
+\begin{align*}
+  Q_i(t) &= (1-t)\mathbf{P}_i + t\mathbf{P}_{i+1}, & i &\in \{0, 1, 2\}, \\
+  R_i(t) &= (1-t)Q_i(t) + t Q_{i+1}(t), & i &\in \{0, 1\}, \\
+  \mathbf{P}(t) &= (1-t)R_0(t) + t R_1(t),
+\end{align*}
+where the segment $R_0(t)R_1(t)$ simultaneously supplies the exact tangent direction at $\mathbf{P}(t)$, and endpoints obey $\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)$ and $\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)$. When querying tension at a target ROM angle $x_{\mathrm{target}} \in [x_0, x_3]$ with monotonic control abscissae $x_0 < x_1 < x_2 < x_3$, bisection solves $x(t^*) = x_{\mathrm{target}}$ to tolerance $\lvert x(t^{(k)}) - x_{\mathrm{target}} \rvert < 10^{-3}$ in at most $15$ iterations in $\mathcal{O}(1)$ time. Fig.~\ref{fig:bernstein} and Fig.~\ref{fig:comparison} summarize the Bernstein basis and the synoptic comparison across all three methods (Table~\ref{tab:comparison}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{de_casteljau.png}
+  \caption{De Casteljau geometric construction at $t = 0.5$ on \texttt{LR}, requiring six division-free convex linear interpolations in $\mathcal{O}(1)$ time.}
+  \label{fig:decasteljau}
+\end{figure}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.92\textwidth]{bezier_bernstein.png}
+  \caption{Left: Cubic Bernstein basis polynomials $B_{i,3}(t)$ verifying the partition of unity $\sum_{i=0}^3 B_{i,3}(t) \equiv 1$. Right: Resulting \texttt{LR} curve enclosed strictly inside the convex hull of its four control points.}
+  \label{fig:bernstein}
+\end{figure*}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{bezier_comparison.png}
+  \caption{Synoptic comparison on \texttt{LR}: Cubic B\'ezier achieves $\mathcal{O}(1)$ evaluation and convex-hull positivity, whereas Lagrange ($d=7$) suffers Runge oscillations and $C^2$ cubic splines violate $y(t) \ge 0$.}
+  \label{fig:comparison}
+\end{figure}
+
+\begin{table}[t]
+  \centering
+  \caption{Numerical properties of ROM tension approximations.}
+  \label{tab:comparison}
+  \footnotesize
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Method} & \textbf{Params} & \textbf{Cost} & \textbf{$y(t)\!\ge\!0$} & \textbf{Runge} \\
+    \midrule
+    Lagrange (Equispaced) & $n$ nodes & $\mathcal{O}(n^2)$ & No & Severe \\
+    Lagrange (CGL) & $N\!\ge\!12$ & $\mathcal{O}(n\log n)$ & No & Damped \\
+    Natural $C^2$ Spline & $n$ knots & $\mathcal{O}(n)$ & No & None \\
+    \textbf{Cubic B\'ezier} & \textbf{4 pts} & $\bm{\mathcal{O}(1)}$ & \textbf{Yes} & \textbf{None} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Composite Trapezoidal Quadrature}
+To conserve muscle contribution magnitude $M_{e,m}$ under arbitrary control-point shapes, \texttt{BezierProfile.get\_curve} discretizes $t \in [0, 1]$ on $R = 50$ uniform samples ($h = 1/(R-1)$) and integrates $y(x)$ via the composite trapezoidal rule:
+\begin{equation}
+  I_{\mathrm{trap}} = \sum_{k=0}^{R-2} \frac{y(t_k) + y(t_{k+1})}{2}\bigl(x(t_{k+1}) - x(t_k)\bigr),
+\end{equation}
+whose truncation error scales as $E_{\mathrm{trap}} = -\frac{(x_3 - x_0)^3}{12(R-1)^2} y''(\xi) = \mathcal{O}(h^2)$. The normalized curve is then rescaled as
+\begin{equation}
+  B_{e,m}(t_k) = \begin{cases} y(t_k) \cdot \dfrac{M_{e,m}}{I_{\mathrm{trap}}}, & I_{\mathrm{trap}} > 0, \\[6pt] 0, & I_{\mathrm{trap}} \le 0, \end{cases}
+\end{equation}
+guaranteeing exact discrete area conservation $\sum_{k=0}^{R-2} \frac{B_{e,m}(t_k) + B_{e,m}(t_{k+1})}{2}\Delta x_k \equiv M_{e,m}$ and continuous convergence to $M_{e,m} + \mathcal{O}(h^2)$.
+
+\section{Physiological Dynamics \texorpdfstring{\&}{and} Optimization}
+\label{sec:metrics_solver}
+
+\subsection{Effective Volume, Dynamic TUT, and CNS Fatigue}
+In \texttt{constants.py} and \texttt{models.py} (\texttt{SetData}), each set contains $n_b$ base repetitions, $n_a$ assisted repetitions ($\alpha_{\mathrm{ass}} = 0.5$), and $n_p$ partial repetitions ($\alpha_{\mathrm{part}} = 0.33$) at $\mathrm{RPE} \in [5, 10]$ (default $9.0$). With effective base reps $n_{b,\mathrm{eff}} = \min(n_b, \max(0, \mathrm{RPE}-4.0))$, total and HTMU-effective repetitions are:
+\begin{align}
+  R_{\mathrm{tot}} &= n_b + \alpha_{\mathrm{ass}} n_a + \alpha_{\mathrm{part}} n_p, \\
+  R_{\mathrm{eff}} &= n_{b,\mathrm{eff}} + \alpha_{\mathrm{ass}} n_a + \alpha_{\mathrm{part}} n_p.
+\end{align}
+Thus, base repetitions only recruit high-threshold motor units when $\mathrm{RIR} < 6$ ($\mathrm{RPE} > 4.0$).
+
+In \texttt{metrics.py} (\texttt{calculate\_set\_tuts}), given execution tempo $(c, p_s, e, p_l)$ (default $1\text{-}0\text{-}2\text{-}0\,\text{s}$) with nominal duration $\tau_0 = c + p_s + e + p_l$, each base repetition $j \in \{0, \dots, n_b - 1\}$ experiences instantaneous $\mathrm{RIR}_j = (10.0 - \mathrm{RPE}) + (n_b - 1 - j)$ and concentric velocity slowdown $\Delta c(\mathrm{RIR}_j)$:
+\begin{equation}
+  \Delta c(\mathrm{RIR}_j) =
+  \begin{cases}
+    1.60\,\text{s}, & \mathrm{RIR}_j < 1.0, \\
+    1.00\,\text{s}, & 1.0 \le \mathrm{RIR}_j < 2.0, \\
+    0.60\,\text{s}, & 2.0 \le \mathrm{RIR}_j < 3.0, \\
+    0.35\,\text{s}, & 3.0 \le \mathrm{RIR}_j < 4.0, \\
+    0.15\,\text{s}, & 4.0 \le \mathrm{RIR}_j < 5.0, \\
+    0.00\,\text{s}, & \mathrm{RIR}_j \ge 5.0,
+  \end{cases}
+\end{equation}
+yielding per-rep TUT $\tau_j = \tau_0 + \Delta c(\mathrm{RIR}_j)$ for base reps, $\tau_0$ for assisted reps, and $0.5\tau_0$ for partial reps. Effective TUT sums over the last $\lfloor \min(n_b, \max(0, \mathrm{RPE}-4)) + 0.5 \rfloor$ base reps plus all assisted and partial reps.
+
+In \texttt{calculate\_set\_fatigue}, per-rep effort $\mathrm{RPE}_j = \max(0, 10.0 - \mathrm{RIR}_j)$ drives an exponential CNS fatigue multiplier $\mu(\mathrm{RPE}_j) = 1.1^{\mathrm{RPE}_j - 7.5}$ (or $1.0$ when $\mathrm{RPE} = 0$):
+\begin{equation}
+\begin{aligned}
+  \Phi_{\mathrm{set}} = F_{\mathrm{ex}} K_{\mathrm{load}} \Biggl[ &\sum_{j=0}^{n_b-1} \tau_j \mu(\mathrm{RPE}_j) \\
+  &+ \alpha_{\mathrm{ass}} 1.1^{-0.5} n_a \tau_0 + \alpha_{\mathrm{part}} n_p \tau_0 \Biggr],
+\end{aligned}
+\end{equation}
+where $F_{\mathrm{ex}} = f_{\mathrm{base}}$ and $K_{\mathrm{load}} = c_{\mathrm{load}}$. All set-level volume, tonnage ($L R_{\mathrm{tot}}$), weighted tonnage ($L R_{\mathrm{tot}} c_{\mathrm{load}}$), TUT, and fatigue totals are projected onto queried macro- or sub-muscles via $M_{e,m}$ (\texttt{calculate\_metrics}).
+
+\subsection{Constrained Multi-Objective Combinatorial Solver}
+In \texttt{solver.py} (\texttt{WorkoutSolver}), a candidate mesocycle $x \in \mathcal{X}$ assigns $D$ training days, each containing $N_d \in [N_{\min}, N_{\max}]$ exercises, $S_{d,e} \in [S_{\min}, S_{\max}]$ sets, reps $r \in [r_{\min}, r_{\max}]$, $\mathrm{RPE} \in \{7.0, 8.0, 8.5, 9.0, 10.0\}$, and stretched-ROM partials $p \in \{0, 2, 4, 6\}$ (enabled when $\mathrm{RPE} \ge 9.0$). Cumulative muscle tension across the mesocycle is computed as
+\begin{equation}
+  V_m(t_k) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(t_k) \bigl( n_{b,e} + n_{p,e}\, \chi_{\mathrm{part}}(t_k) \bigr),
+\end{equation}
+where $\chi_{\mathrm{part}}(t_k) = \mathbb{I}[t_k \le 0.3333]$ captures stretch-mediated hypertrophy stimulus from partial repetitions restricted to the initial third of ROM. Letting $\hat{V}_m(t_k) = V_m(t_k)/\max_r V_m(t_r)$, seven dimensionless error metrics $\mathcal{I} = \{\mathrm{curve}, \mathrm{vol}, \mathrm{ton}, \mathrm{tut}, \mathrm{distr}, \mathrm{variety}, \mathrm{balance}\}$ evaluate mesocycle quality:
+\begin{align}
+  E_{\mathrm{curve}} &= \frac{1}{|\mathcal{M}_{\mathrm{tr}}| R} \sum_{m \in \mathcal{M}_{\mathrm{tr}}} \sum_{k=0}^{R-1} \bigl( \hat{V}_m(t_k) - T_m(t_k) \bigr)^2, \\
+  E_q &= \left( \frac{X_{q,\mathrm{eff}}}{X_{q,\mathrm{tot}}} - \rho_q^* \right)^2, \qquad q \in \{\mathrm{vol}, \mathrm{ton}, \mathrm{tut}\}, \\
+  E_{\mathrm{distr}} &= \frac{1}{2} \sum_{m} \bigl( p_m^{\mathrm{actual}} - p_m^{\mathrm{target}} \bigr)^2, \\
+  E_{\mathrm{variety}} &= \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\mathrm{tot}}(x)} \right)^2, \\
+  E_{\mathrm{balance}} &= \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(V_d)}{(V_{\max}/2)^2} \right),
+\end{align}
+where $T_m \in \{\mathrm{constant}, \mathrm{sigmoid}, \mathrm{inv\_sigmoid}, \mathrm{linear}\}$ and default $\rho_q^* = 0.70$. Prior to optimization, \texttt{calibrate()} samples $K = 500$ random states to compute scale factors $s_i = 2\,\mathbb{E}[E_i]$. \texttt{solve()} then minimizes the scalarized objective
+\begin{equation}
+  \min_{x \in \mathcal{X}}\; J(x) = 10^4 \sum_{i \in \mathcal{I}} w_i \frac{E_i(x)}{s_i} + 10^3 \, P_{\mathrm{dup}}(x),
+\end{equation}
+where $P_{\mathrm{dup}}(x) = 150 \cdot N_{\mathrm{dup}}(x)$ penalizes same-day duplicate exercises, using Simulated Annealing with eight discrete mutation operators, exponential cooling $T_{t+1} = \gamma T_t$ ($\gamma = (0.01 / T_0)^{1/N_{\mathrm{iter}}}$), and Metropolis acceptance $\exp(-\Delta J / T_t)$.
+
+\section{Conclusions \texorpdfstring{\&}{and} Software Architecture}
+\label{sec:conclusions}
+
+Iron Stats demonstrates that replacing scalar training logs with Bernstein-basis B\'ezier tension fields, RIR-aware concentric slowdown, exponential fatigue modeling, and Monte Carlo calibrated Simulated Annealing resolves fundamental biomechanical and numerical pathologies present in polynomial and spline approximations. The architecture maintains strict mathematical parity between the reproducible Python research package (\texttt{python\_research/analyzer/}, packaged via \texttt{pyproject.toml} and \texttt{requirements.txt} with \texttt{numpy} as sole runtime dependency) and the interactive React/Vite/Capacitor client (\texttt{frontend/}), which executes live logbook parsing, interactive B\'ezier control-point editing, and client-side mesocycle generation. Future work will focus on collecting longitudinal training datasets to empirically fit objective weights $w_i$ and integrating inertial measurement unit (IMU) or computer-vision kinematics to refine exercise-specific $B_{e,m}(t)$ profiles.
+
+\end{document}
