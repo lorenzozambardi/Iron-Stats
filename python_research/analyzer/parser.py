@@ -137,7 +137,7 @@ def parse_rep_token(
             base = int(match.group(1))
             assisted = int(match.group(2)) if match.group(2) else 0
             partial = int(match.group(3)) if match.group(3) else 0
-            rpe = float(match.group(4)) if match.group(4) else 9.0
+            rpe = min(10.0, max(0.0, float(match.group(4)))) if match.group(4) else 9.0
             if assisted > 0:
                 base = max(0, base - assisted)
             sets_out.append(
@@ -290,7 +290,7 @@ def analyze_workout_log(
                 continue
 
             if ".." in line or RE_LOG_LINE_LONG.match(
-                line.replace("old", "").replace(" ", "").strip()
+                RE_OLD_PREFIX.sub("", line).replace(" ", "").strip()
             ):
                 if current_exercise:
                     parsed_sets = parse_line(line, i)

@@ -35,6 +35,7 @@ def calculate_set_tuts(
     if (base_reps + assisted_reps + partial_reps) == 0:
         return np.array([])
 
+    rpe = min(10.0, max(0.0, float(rpe)))
     base_tuts = np.array([])
     if base_reps > 0:
         j = np.arange(base_reps)
@@ -62,7 +63,8 @@ def compute_effective_tut(
     """Compute effective TUT continuously over fractional effective base reps plus extended reps."""
     if len(tuts) == 0:
         return 0.0
-    eff_base = min(float(base_reps), max(0.0, float(rpe) - 4.0))
+    rpe_clamped = min(10.0, max(0.0, float(rpe)))
+    eff_base = min(float(base_reps), max(0.0, rpe_clamped - 4.0))
     full_eff = int(eff_base)
     frac = eff_base - full_eff
     start_idx = max(0, base_reps - full_eff)
@@ -96,6 +98,7 @@ def calculate_set_fatigue(
     below isolation exercises.)
     """
     _ = load_coeff
+    rpe = min(10.0, max(0.0, float(rpe)))
     actual_tuts = (
         np.asarray(tuts)
         if tuts is not None and len(tuts) > 0

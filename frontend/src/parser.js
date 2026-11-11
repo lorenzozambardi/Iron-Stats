@@ -225,7 +225,7 @@ const HARD_MAP = {
   // --- SHOULDERS ---
   "lr": "LR", "lr 49": "LR 49", "alzate laterali 49": "LR 49", "alzate laterali": "LR", "lateral raise": "LR",
   "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
-  "shoulder press": "Machine Press", "press macch": "Machine Press",
+  "shoulder press": "Machine Shoulder Press", "press macch": "Machine Shoulder Press",
   "spinte macch": "Machine Shoulder Press",
   "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
 
@@ -253,7 +253,7 @@ const HARD_MAP = {
   // --- ARMS (Triceps) ---
   "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
   "pushdown 54": "Bench 54 Pushdown", "push down panca 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
-  "pushdown incl": "Incl Cable Pushdown", "push down inclinata": "Incl Cable Pushdown", "pushdown inclinata": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
+  "pushdown incl": "Bench 54 Pushdown", "incl cable pushdown": "Bench 54 Pushdown", "push down inclinata": "Bench 54 Pushdown", "pushdown inclinata": "Bench 54 Pushdown", "pushdown cavo incl": "Bench 54 Pushdown",
   "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
   "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps",
 
@@ -343,7 +343,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
       let base = parseInt(match[1], 10);
       const assisted = match[2] ? parseInt(match[2], 10) : 0;
       const partial = match[3] ? parseInt(match[3], 10) : 0;
-      const rpe = match[4] ? parseFloat(match[4]) : 9.0;
+      const rpe = match[4] ? Math.min(10.0, Math.max(0.0, parseFloat(match[4]))) : 9.0;
       
       if (assisted > 0) {
         base = Math.max(0, base - assisted);
@@ -406,10 +406,11 @@ export function parseTempoFromLine(line) {
  */
 export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause) {
   const tuts = [];
+  const clampedRpe = Math.min(10.0, Math.max(0.0, rpe));
   
   // 1. Base reps
   for (let j = 0; j < baseReps; j++) {
-    const rir = (10.0 - rpe) + (baseReps - 1 - j);
+    const rir = (10.0 - clampedRpe) + (baseReps - 1 - j);
     let slowdown;
     if (rir >= 5.0) {
       slowdown = 0.0;
@@ -446,7 +447,8 @@ export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, conce
 
 export function computeEffectiveTut(tuts, baseReps, rpe) {
   if (!tuts || tuts.length === 0) return 0.0;
-  const effBase = Math.min(baseReps, Math.max(0.0, rpe - 4.0));
+  const clampedRpe = Math.min(10.0, Math.max(0.0, rpe));
+  const effBase = Math.min(baseReps, Math.max(0.0, clampedRpe - 4.0));
   const fullEff = Math.floor(effBase);
   const fracEff = effBase - fullEff;
   const startIndex = Math.max(0, baseReps - fullEff);
@@ -468,14 +470,15 @@ export function computeEffectiveTut(tuts, baseReps, rpe) {
  */
 export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff = 1.0, tuts = null) {
   void loadCoeff;
-  const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause);
+  const clampedRpe = Math.min(10.0, Math.max(0.0, rpe));
+  const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, clampedRpe, concentric, shorteningPause, eccentric, lengtheningPause);
   let totalFat = 0.0;
   
   // 1. Base reps
   for (let j = 0; j < baseReps; j++) {
     if (j >= actualTuts.length) break;
     const repTut = actualTuts[j];
-    const rir = (10.0 - rpe) + (baseReps - 1 - j);
+    const rir = (10.0 - clampedRpe) + (baseReps - 1 - j);
     const repRpe = Math.max(0.0, 10.0 - rir);
     const rpeMult = Math.pow(1.1, repRpe - 7.5);
     totalFat += repTut * rpeMult * fatigue;
@@ -722,9 +725,10 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
       
       for (const s of wData.sets) {
         const reps = s.totalReps !== undefined ? s.totalReps : (s.base_reps + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
+        const clampedRpe = Math.min(10.0, Math.max(0.0, s.rpe ?? 9.0));
         const setEffReps = s.effectiveReps !== undefined
           ? s.effectiveReps
-          : (Math.min(s.base_reps, Math.max(0, s.rpe - 4.0)) + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
+          : (Math.min(s.base_reps, Math.max(0, clampedRpe - 4.0)) + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
         vol += reps * distrSum;
         
         const actualLoad = (s.load * ex.load_multiplier) + ex.load_offset;

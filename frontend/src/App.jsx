@@ -750,6 +750,64 @@ export default function App() {
     setShowExerciseModal(true);
   };
 
+  const buildValidatedExercise = (name) => {
+    const fatigue = parseFloat(exerciseForm.fatigue);
+    const load_coeff = parseFloat(exerciseForm.load_coeff);
+    const load_multiplier = parseFloat(exerciseForm.load_multiplier);
+    const load_offset = parseFloat(exerciseForm.load_offset);
+
+    if (!Number.isFinite(fatigue) || fatigue < 0 || fatigue > 10) {
+      setExerciseError('Fatigue must be a number between 0 and 10.');
+      return null;
+    }
+    if (!Number.isFinite(load_coeff) || load_coeff < 0) {
+      setExerciseError('Load coefficient must be a non-negative number.');
+      return null;
+    }
+    if (!Number.isFinite(load_multiplier) || load_multiplier <= 0) {
+      setExerciseError('Load multiplier must be strictly positive.');
+      return null;
+    }
+    if (!Number.isFinite(load_offset)) {
+      setExerciseError('Load offset must be a valid number.');
+      return null;
+    }
+
+    const musclesDistr = {};
+    for (const m of exerciseForm.muscles) {
+      const x0 = m.x0 ?? 0.0;
+      const y0 = m.y0 ?? 1.0;
+      const x1 = m.x1 ?? 0.33;
+      const y1 = m.y1 ?? 1.0;
+      const x2 = m.x2 ?? 0.66;
+      const y2 = m.y2 ?? 1.0;
+      const x3 = m.x3 ?? 1.0;
+      const y3 = m.y3 ?? 1.0;
+      if (!(0.0 <= x0 && x0 < x1 && x1 < x2 && x2 < x3 && x3 <= 1.0)) {
+        setExerciseError(`Invalid ROM progression for ${m.name}: require 0 <= x0 < x1 < x2 < x3 <= 1.`);
+        return null;
+      }
+      if (Math.min(y0, y1, y2, y3) < 0.0) {
+        setExerciseError(`Negative tension control point for ${m.name}.`);
+        return null;
+      }
+      musclesDistr[m.name] = {
+        x0, y0, x1, y1, x2, y2, x3, y3,
+        magnitude: parseFloat((m.percentage / 100).toFixed(3))
+      };
+    }
+
+    return {
+      name,
+      fatigue,
+      load_coeff,
+      load_multiplier,
+      load_offset,
+      is_isolation: !!exerciseForm.is_isolation,
+      muscles_distr: musclesDistr
+    };
+  };
+
   const handleSaveExercise = () => {
     const name = exerciseForm.name.trim();
     if (!name) {
@@ -774,30 +832,8 @@ export default function App() {
       return;
     }
 
-    const musclesDistr = {};
-    exerciseForm.muscles.forEach(m => {
-      musclesDistr[m.name] = {
-        x0: m.x0 ?? 0.0,
-        y0: m.y0 ?? 1.0,
-        x1: m.x1 ?? 0.33,
-        y1: m.y1 ?? 1.0,
-        x2: m.x2 ?? 0.66,
-        y2: m.y2 ?? 1.0,
-        x3: m.x3 ?? 1.0,
-        y3: m.y3 ?? 1.0,
-        magnitude: parseFloat((m.percentage / 100).toFixed(3))
-      };
-    });
-
-    const savedExercise = {
-      name,
-      fatigue: parseFloat(exerciseForm.fatigue),
-      load_coeff: parseFloat(exerciseForm.load_coeff),
-      load_multiplier: parseFloat(exerciseForm.load_multiplier),
-      load_offset: parseFloat(exerciseForm.load_offset),
-      is_isolation: !!exerciseForm.is_isolation,
-      muscles_distr: musclesDistr
-    };
+    const savedExercise = buildValidatedExercise(name);
+    if (!savedExercise) return;
 
     let updatedList = [];
     if (editingOriginalName) {
@@ -880,26 +916,9 @@ export default function App() {
       return;
     }
 
-    const musclesDistr = {};
-    exerciseForm.muscles.forEach(m => {
-      musclesDistr[m.name] = {
-        x0: m.x0 ?? 0.0,
-        y0: m.y0 ?? 1.0,
-        x1: m.x1 ?? 0.33,
-        y1: m.y1 ?? 1.0,
-        x2: m.x2 ?? 0.66,
-        y2: m.y2 ?? 1.0,
-        x3: m.x3 ?? 1.0,
-        y3: m.y3 ?? 1.0,
-        magnitude: parseFloat((m.percentage / 100).toFixed(3))
-      };
-    });
-
-    const fatigue = parseFloat(exerciseForm.fatigue);
-    const load_coeff = parseFloat(exerciseForm.load_coeff);
-    const load_multiplier = parseFloat(exerciseForm.load_multiplier);
-    const load_offset = parseFloat(exerciseForm.load_offset);
-    const is_isolation = !!exerciseForm.is_isolation;
+    const validated = buildValidatedExercise(name);
+    if (!validated) return;
+    const { fatigue, load_coeff, load_multiplier, load_offset, is_isolation, muscles_distr: musclesDistr } = validated;
 
     const overrideLine = `override: ${name} | fatigue=${fatigue} | load_coeff=${load_coeff} | load_multiplier=${load_multiplier} | load_offset=${load_offset} | is_isolation=${is_isolation} | muscles_distr=${JSON.stringify(musclesDistr)}`;
 

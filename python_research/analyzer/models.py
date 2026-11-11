@@ -259,9 +259,19 @@ class SetData:
     dropset_id: str | None = None
     tuts: list[float] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        if self.base_reps < 0 or self.assisted_reps < 0 or self.partial_reps < 0:
+            raise ValueError(
+                f"Negative repetition count in SetData: {self.base_reps}, {self.assisted_reps}, {self.partial_reps}"
+            )
+        if self.rpe < 0.0:
+            raise ValueError(f"Negative RPE in SetData: {self.rpe}")
+        self.rpe = min(self.rpe, 10.0)
+
     @property
     def effective_reps(self) -> float:
-        eff_base = min(float(self.base_reps), max(0.0, self.rpe - 4.0))
+        rpe_clamped = min(10.0, max(0.0, self.rpe))
+        eff_base = min(float(self.base_reps), max(0.0, rpe_clamped - 4.0))
         return (
             eff_base
             + (self.assisted_reps * COEFF_ASSISTED)
