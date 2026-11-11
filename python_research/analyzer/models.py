@@ -101,6 +101,34 @@ class BezierProfile:
         return np.array([self.solve_y(float(xv)) * scale for xv in x_grid], dtype=float)
 
 
+def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProfile"]:
+    """Convert raw muscle distribution entries to BezierProfile objects and enforce sum == 1.0."""
+    new_distr: dict[str, BezierProfile] = {}
+    for m, val in muscles_distr.items():
+        if isinstance(val, (int, float)):
+            new_distr[m] = BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, float(val))
+        elif isinstance(val, dict):
+            new_distr[m] = BezierProfile(
+                float(val.get("x0", 0.0)),
+                float(val.get("y0", 1.0)),
+                float(val.get("x1", 0.33)),
+                float(val.get("y1", 1.0)),
+                float(val.get("x2", 0.66)),
+                float(val.get("y2", 1.0)),
+                float(val.get("x3", 1.0)),
+                float(val.get("y3", 1.0)),
+                float(val.get("magnitude", 0.0)),
+            )
+        elif isinstance(val, BezierProfile):
+            new_distr[m] = val
+
+    total_mag = sum(tp.magnitude for tp in new_distr.values())
+    if total_mag > 0 and abs(total_mag - 1.0) > 1e-4:
+        for tp in new_distr.values():
+            tp.magnitude = tp.magnitude / total_mag
+    return new_distr
+
+
 @dataclass
 class Exercise:
     name: str
@@ -112,32 +140,7 @@ class Exercise:
     is_isolation: bool = False
 
     def __post_init__(self):
-        new_distr = {}
-        for m, val in self.muscles_distr.items():
-            if isinstance(val, (int, float)):
-                new_distr[m] = BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, float(val))
-            elif isinstance(val, dict):
-                new_distr[m] = BezierProfile(
-                    float(val.get("x0", 0.0)),
-                    float(val.get("y0", 1.0)),
-                    float(val.get("x1", 0.33)),
-                    float(val.get("y1", 1.0)),
-                    float(val.get("x2", 0.66)),
-                    float(val.get("y2", 1.0)),
-                    float(val.get("x3", 1.0)),
-                    float(val.get("y3", 1.0)),
-                    float(val.get("magnitude", 0.0))
-                )
-            elif isinstance(val, BezierProfile):
-                new_distr[m] = val
-        self.muscles_distr = new_distr
-        
-        # Enforce rule: sum of magnitudes must be 1.0
-        total_mag = sum(tp.magnitude for tp in self.muscles_distr.values())
-        if total_mag > 0 and abs(total_mag - 1.0) > 1e-4:
-            # Normalize to exactly 1.0
-            for tp in self.muscles_distr.values():
-                tp.magnitude = round(tp.magnitude / total_mag, 4)
+        self.muscles_distr = coerce_muscles_distr(self.muscles_distr)
 
 
 

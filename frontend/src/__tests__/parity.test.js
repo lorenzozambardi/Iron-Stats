@@ -48,18 +48,19 @@ describe('Mathematical invariants and frontend/solver parity', () => {
       }
     }
 
-    // Dashboard-style 51-point uniform x Riemann normalization
+    // Dashboard-style 51-point uniform x trapezoidal normalization
     let areaSum = 0;
     const rawY = [];
     for (let i = 0; i <= 50; i++) {
       const y = solveBezierY(i / 50, prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3);
       rawY.push(y);
-      areaSum += y;
+      const weight = (i === 0 || i === 50) ? 0.5 : 1.0;
+      areaSum += weight * y;
     }
-    const riemannScale = prof.magnitude / (areaSum / 50);
-    // Compare midpoint x = 0.50 between solver trapezoidal scale and dashboard Riemann scale
+    const trapScale = prof.magnitude / (areaSum / 50);
+    // Compare midpoint x = 0.50 between solver trapezoidal scale and dashboard trapezoidal scale
     const midIdx = Math.round(0.5 * (resolution - 1));
-    const dashAtMid = solveBezierY(midIdx / (resolution - 1), prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) * riemannScale;
+    const dashAtMid = solveBezierY(midIdx / (resolution - 1), prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) * trapScale;
     expect(Math.abs(solverCurve[midIdx] - dashAtMid)).toBeLessThan(0.05);
   });
 

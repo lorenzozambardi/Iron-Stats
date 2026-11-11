@@ -7,11 +7,13 @@ from typing import Any
 import numpy as np
 
 try:
-    from .models import COEFF_PARTIAL, Exercise, exercises_list
+    from .constants import COEFF_PARTIAL, MUSCLES
+    from .models import Exercise, exercises_list
 except ImportError:
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from analyzer.models import COEFF_PARTIAL, Exercise, exercises_list
+    from analyzer.constants import COEFF_PARTIAL, MUSCLES
+    from analyzer.models import Exercise, exercises_list
 
 
 # --- TARGET CURVES GENERATORS ---
@@ -94,13 +96,13 @@ class SolverConfig:
         self.calibration_steps = 500
         
         self.weights = {
-            'curve': 0.35,
+            'curve': 0.30,
             'vol': 0.15,
-            'ton': 0.1,
-            'tut': 0.1,
-            'distr': 0.2,
-            'variety': 0.1,
-            'balance': 0.1
+            'ton': 0.10,
+            'tut': 0.10,
+            'distr': 0.15,
+            'variety': 0.10,
+            'balance': 0.10
         }
         
         self.target_ratios = {
@@ -132,10 +134,16 @@ class WorkoutSolver:
         # Precompute target curves per muscle based on config
         self.T_m = {}
         subs_dict = self.config.volume_dist.get('subs', {})
+        macro_to_subs: dict[str, list[str]] = {}
+        for sub, macro in MUSCLES.items():
+            macro_to_subs.setdefault(macro, []).append(sub)
         for m, curve_type in self.config.muscle_targets.items():
             curve = get_target_curve(curve_type, self.resolution)
-            if m in subs_dict:
+            if subs_dict.get(m):
                 for sub in subs_dict[m]:
+                    self.T_m[sub] = curve
+            elif m in macro_to_subs:
+                for sub in macro_to_subs[m]:
                     self.T_m[sub] = curve
             else:
                 self.T_m[m] = curve
@@ -144,6 +152,7 @@ class WorkoutSolver:
         for ex in self.db:
             for m in ex.muscles_distr:
                 self.all_submuscles.add(m)
+        self.distr_muscles = self.all_submuscles | set(self.target_sub_vol.keys())
                 
         self.x_domain = np.linspace(0.0, 1.0, self.resolution)
         self.partial_mask = (self.x_domain <= 0.3333).astype(float)
@@ -186,7 +195,7 @@ class WorkoutSolver:
         For fast SA evaluation, three simplified surrogates replace full logbook metrics:
         - Load: Epley-like estimate ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
         - TUT: constant ``2.0`` s/rep (so ``E_tut == E_vol`` identically during search).
-        - Fatigue: linear ``0.01 * total_reps * load * fatigue * load_coeff``.
+        - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue in [1, 10]``).
         """
         total_vol = 0.0
         eff_vol = 0.0
@@ -240,7 +249,7 @@ class WorkoutSolver:
                     total_tut += s_total * 2.0
                     eff_tut += s_eff * 2.0
                     
-                    ex_fatigue += (s_total * load * ex.fatigue * ex.load_coeff * 0.01)
+                    ex_fatigue += s_total * ex.fatigue
                     
                     ex_base_reps += s.base_reps
                     ex_partial_reps += s.partial_reps
@@ -281,11 +290,11 @@ class WorkoutSolver:
         E_distr = 0.0
         total_sub_vol = sum(sub_vols.values())
         if total_sub_vol > 0:
-            for m in self.all_submuscles:
+            for m in self.distr_muscles:
                 target_pct = self.target_sub_vol.get(m, 0.0)
                 actual_pct = sub_vols.get(m, 0.0) / total_sub_vol
                 E_distr += (actual_pct - target_pct)**2
-            E_distr /= 2.0 # Max theoretical variance between two distributions is 2.0
+            E_distr /= 2.0 # Max squared L2 distance between two distributions on the simplex is 2.0
                 
         # 5. Variety Error
         E_variety = 0.0
@@ -297,14 +306,13 @@ class WorkoutSolver:
         # 6. Balance Error (Variance of fatigue and volume across days, normalized to [0, 1])
         E_balance = 0.0
         if len(daily_fatigue) > 1:
-            # Approximate max daily fatigue based on hard limits
-            max_day_fatigue = self.config.max_ex * self.config.max_sets * self.config.max_reps * 15.0
+            max_set_vol = self.config.max_reps + COEFF_PARTIAL * 6.0
+            max_day_vol = self.config.max_ex * self.config.max_sets * max_set_vol
+            max_day_fatigue = max_day_vol * 10.0
             max_var_f = (max_day_fatigue / 2.0)**2
             var_fatigue = np.var(daily_fatigue)
             norm_var_f = var_fatigue / max_var_f if max_var_f > 0 else 0.0
             
-            # Approximate max daily volume
-            max_day_vol = self.config.max_ex * self.config.max_sets * self.config.max_reps
             var_vol = np.var(daily_vol)
             max_var_v = (max_day_vol / 2.0)**2
             norm_var_v = var_vol / max_var_v if max_var_v > 0 else 0.0
@@ -402,6 +410,8 @@ class WorkoutSolver:
                     s = random.choice(ex.sets)
                     s.rpe += random.choice([-0.5, 0.5])
                     s.rpe = max(5.0, min(10.0, s.rpe))
+                    if s.rpe < 9.0:
+                        s.partial_reps = 0
                     
         elif mutation_type == 'mut_partials' and len(day) > 0:
             ex = random.choice(day)

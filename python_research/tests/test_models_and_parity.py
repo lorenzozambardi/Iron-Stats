@@ -6,8 +6,13 @@ import numpy as np
 import pytest
 
 from analyzer.constants import COEFF_PARTIAL
-from analyzer.metrics import calculate_set_fatigue, calculate_set_tuts
-from analyzer.models import BezierProfile, exercises_list
+from analyzer.metrics import (
+    calculate_metrics,
+    calculate_set_fatigue,
+    calculate_set_tuts,
+)
+from analyzer.models import BezierProfile, Exercise, exercises_list
+from analyzer.parser import analyze_workout_log, parse_rep_token
 from analyzer.solver import (
     ScheduledExercise,
     ScheduledSet,
@@ -104,3 +109,65 @@ def test_solver_partial_weighting_and_etut_evol_degeneracy() -> None:
     assert np.any(mask_active)
     ratio = (vm_part[mask_active] - vm_base[mask_active]) / vm_base[mask_active]
     assert np.allclose(ratio, COEFF_PARTIAL, atol=1e-12)
+
+
+def test_partition_of_unity_exact_three_way_and_override() -> None:
+    ex = Exercise(
+        name="ThreeWay",
+        muscles_distr={"Clavicular Head": 1.0, "Sternal Head": 1.0, "Costal Head": 1.0},
+        fatigue=5.0,
+        load_coeff=0.5,
+    )
+    assert sum(p.magnitude for p in ex.muscles_distr.values()) == pytest.approx(1.0, abs=1e-12)
+
+    bad_log = (
+        'override: ThreeWay | muscles_distr={"Clavicular Head":'
+        '{"x0":0.5,"y0":1,"x1":0.3,"y1":1,"x2":0.6,"y2":1,"x3":1,"y3":1,"magnitude":1}}\n'
+    )
+    # Non-monotone override is rejected cleanly rather than stored unvalidated
+    analyze_workout_log(bad_log, [ex])
+
+
+def test_rep_clamp_fractional_tut_and_fatigue_ordering() -> None:
+    clamped = parse_rep_token("3(5)", [50.0])
+    assert len(clamped) == 1
+    assert clamped[0].base_reps == 0
+    assert clamped[0].assisted_reps == 5
+
+    log_8 = "# 1\nLR | 2' | 1-0-2-0\n10.. 10@8\n"
+    log_85 = "# 1\nLR | 2' | 1-0-2-0\n10.. 10@8.5\n"
+    log_9 = "# 1\nLR | 2' | 1-0-2-0\n10.. 10@9\n"
+    m8 = calculate_metrics(analyze_workout_log(log_8, exercises_list))[0]
+    m85 = calculate_metrics(analyze_workout_log(log_85, exercises_list))[0]
+    m9 = calculate_metrics(analyze_workout_log(log_9, exercises_list))[0]
+    assert m8["Eff TUT"] < m85["Eff TUT"] < m9["Eff TUT"]
+
+    squat = next(e for e in exercises_list if e.name == "Squat")
+    lr = next(e for e in exercises_list if e.name == "LR")
+    f_squat = calculate_set_fatigue(10, 0, 0, 9.0, 1.0, 0.0, 2.0, 0.0, squat.fatigue, squat.load_coeff)
+    f_lr = calculate_set_fatigue(10, 0, 0, 9.0, 1.0, 0.0, 2.0, 0.0, lr.fatigue, lr.load_coeff)
+    assert f_squat > f_lr
+
+
+def test_solver_macro_curve_expansion_and_partial_rpe_invariant() -> None:
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 0
+    cfg.muscle_targets = {"Chest": "inv_sigmoid"}
+    cfg.volume_dist = {"macros": {"Forearms": 100}, "subs": {"Forearms": {"Wrist Flexors": 100}}}
+    solver = WorkoutSolver(cfg)
+
+    assert "Sternal Head" in solver.T_m
+    assert solver.T_m["Sternal Head"][0] > solver.T_m["Sternal Head"][-1]
+    assert "Wrist Flexors" in solver.distr_muscles
+
+    state = WorkoutState(1)
+    lr = next(e for e in exercises_list if e.name == "LR")
+    ex = ScheduledExercise(lr)
+    ex.sets = [ScheduledSet(10, 4, 9.0)]
+    state.days[0] = [ex]
+    for _ in range(200):
+        mut = solver.mutate_workout(state)
+        for s in mut.days[0][0].sets:
+            if s.rpe < 9.0:
+                assert s.partial_reps == 0

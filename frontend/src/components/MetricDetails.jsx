@@ -383,29 +383,29 @@ export default function MetricDetailsPage({ metric, onBack }) {
           title: 'Effective TUT',
           subtitle: 'Duration under stimulative tension',
           color: 'var(--color-effective-tut)',
-          description: 'Isolates and aggregates the time under tension specifically for the effective repetitions of each set. Unassisted base reps are counted based on proximity to failure (RPE - 4), while all assisted and partial reps are fully included.',
+          description: 'Isolates and aggregates the time under tension specifically for the effective repetitions of each set. Unassisted base reps are counted continuously based on proximity to failure (RPE - 4), while all assisted and partial reps are fully included.',
           formulas: [
-            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}, s} - N_s)}^{R_{\\text{base}, s} - 1} T_{\\text{base}, i} + T_{\\text{extended}, s} \\right) \\cdot D_m',
-            'N_s = \\text{round}(\\min(R_{\\text{base}, s}, \\max(0.0, \\text{RPE}_s - 4.0)))',
+            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}, s} - \\lfloor N_s \\rfloor)}^{R_{\\text{base}, s} - 1} T_{\\text{base}, i} + \\{N_s\\}\\,T_{\\text{base}, \\text{frac}} + T_{\\text{extended}, s} \\right) \\cdot D_m',
+            'N_s = \\min(R_{\\text{base}, s}, \\max(0.0, \\text{RPE}_s - 4.0))',
             'T_{\\text{extended}, s} = R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}'
           ],
           variables: [
             { symbol: '\\text{TUT}_{\\text{eff}}', desc: 'Total duration in seconds spent under high mechanical tension.' },
-            { symbol: 'N_s', desc: 'The rounded count of effective unassisted base repetitions in set s.' },
+            { symbol: 'N_s', desc: 'Continuous count of effective unassisted base repetitions in set s (integer part plus fractional remainder).' },
             { symbol: 'T_{\\text{base}, i}', desc: 'Duration of base repetition i, including the fatigue slowdown.' },
             { symbol: 'T_{\\text{extended}, s}', desc: 'Total duration of assisted and partial reps in set s.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If a set has 8 base reps, 2 assisted reps, and 3 partial reps taken to RPE 9.0:\nEffective base reps count (N) = round(min(8, 9.0 - 4.0)) = 5 reps. Thus, only the final 5 base reps (reps 4 to 8) contribute to the base TUT, and 100% of all assisted and partial reps contribute to the extended TUT.\nEffective TUT = (sum of last 5 base reps TUT) + (all assisted reps TUT) + (all partial reps TUT).'
+          example: 'If a set has 8 base reps, 2 assisted reps, and 3 partial reps taken to RPE 8.5:\nEffective base reps count (Ns) = min(8, 8.5 - 4.0) = 4.5 reps. Thus, the final 4 full base reps plus 0.5x of the 5th-from-last base rep contribute to the base TUT, and 100% of all assisted and partial reps contribute to the extended TUT.'
         };
       case 'fatigue':
         return {
           title: 'Accumulated Fatigue',
           subtitle: 'Rep-level neuromuscular fatigue model',
           color: 'var(--color-fatigue)',
-          description: 'An advanced model tracking accumulated fatigue per repetition. Fatigue scales exponentially with proximity to failure (RPE) and linearly with repetition duration (TUT), accounting for exercise profile and rep types.',
+          description: 'An advanced model tracking accumulated fatigue per repetition. Fatigue scales exponentially with proximity to failure (RPE) and linearly with repetition duration (TUT), accounting for exercise fatigue rating and rep types.',
           formulas: [
-            '\\text{Fatigue} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i} T_i \\cdot 1.1^{R_i - 7.5} \\cdot F_e \\cdot L_c \\cdot K_i \\right) \\cdot D_m',
+            '\\text{Fatigue} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i} T_i \\cdot 1.1^{R_i - 7.5} \\cdot F_e \\cdot K_i \\right) \\cdot D_m',
             '\\text{Base Rep } i: R_i = \\max(0, 10 - \\text{rir}_i), \\; K_i = 1.0',
             '\\text{Assisted Rep } i: R_i = 7.0 \\implies 1.1^{R_i - 7.5} \\approx 0.95, \\; K_i = 0.5',
             '\\text{Partial Rep } i: R_i = 7.5 \\implies 1.1^{R_i - 7.5} = 1.0, \\; K_i = 0.66'
@@ -415,12 +415,11 @@ export default function MetricDetailsPage({ metric, onBack }) {
             { symbol: 'T_i', desc: 'Duration of repetition i (seconds).' },
             { symbol: 'R_i', desc: 'RPE equivalent score for rep i (increases from early reps to the final rep).' },
             { symbol: '1.1^{R_i - 7.5}', desc: 'Exponential multiplier penalizing high-intensity reps close to failure.' },
-            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (0 to 10) representing systemic and joint stress.' },
-            { symbol: 'L_c', desc: 'Load coefficient representing intensity weight profile.' },
+            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (1 to 10) representing systemic and joint stress.' },
             { symbol: 'K_i', desc: 'Repetition type penalty factor: base = 1.0, assisted = 0.5, partial = 0.66.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'A high-fatigue movement like Squats (Fe = 8.5) taken to failure (RPE 10) will generate exponentially higher fatigue values on its final repetitions compared to a low-fatigue movement like Tricep Pushdowns (Fe = 2.0) done with 2 reps in reserve.'
+          example: 'A high-fatigue movement like Squats (Fe = 9.5) taken to failure (RPE 10) will generate exponentially higher fatigue values on its final repetitions compared to a low-fatigue movement like Lateral Raises (Fe = 3.0) done with 2 reps in reserve.'
         };
       case 'sets':
         return {

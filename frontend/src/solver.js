@@ -1,5 +1,6 @@
 import defaultExercises from './defaultExercises.json';
 import { solveBezierY } from './components/helpers';
+import { MUSCLES } from './parser';
 
 const COEFF_PARTIAL = 0.33;
 
@@ -144,13 +145,13 @@ export class WorkoutSolver {
             max_ex: 8,
             calibration_steps: 500,
             weights: {
-                curve: 0.35,
+                curve: 0.30,
                 vol: 0.15,
-                ton: 0.1,
-                tut: 0.1,
-                distr: 0.2,
-                variety: 0.1,
-                balance: 0.1
+                ton: 0.10,
+                tut: 0.10,
+                distr: 0.15,
+                variety: 0.10,
+                balance: 0.10
             },
             target_ratios: {
                 vol: 0.70,
@@ -171,8 +172,8 @@ export class WorkoutSolver {
 
         // Process DB to add precalculated fields
         this.db.forEach(ex => {
-            ex.load_multiplier = ex.load_multiplier || 1.0;
-            ex.load_offset = ex.load_offset || 0.0;
+            ex.load_multiplier = ex.load_multiplier ?? 1.0;
+            ex.load_offset = ex.load_offset ?? 0.0;
         });
 
         this.target_sub_vol = {};
@@ -190,11 +191,20 @@ export class WorkoutSolver {
 
         this.T_m = {};
         const subs_dict = this.config.volume_dist.subs || {};
+        const macroToSubs = {};
+        for (const [sub, macro] of Object.entries(MUSCLES)) {
+            if (!macroToSubs[macro]) macroToSubs[macro] = [];
+            macroToSubs[macro].push(sub);
+        }
         for (const m in this.config.muscle_targets) {
             const curveType = this.config.muscle_targets[m];
             const curve = getTargetCurve(curveType, this.resolution);
-            if (subs_dict[m]) {
+            if (subs_dict[m] && Object.keys(subs_dict[m]).length > 0) {
                 for (const sub in subs_dict[m]) {
+                    this.T_m[sub] = curve;
+                }
+            } else if (macroToSubs[m]) {
+                for (const sub of macroToSubs[m]) {
                     this.T_m[sub] = curve;
                 }
             } else {
@@ -208,6 +218,7 @@ export class WorkoutSolver {
                 this.all_submuscles.add(m);
             }
         });
+        this.distr_muscles = new Set([...this.all_submuscles, ...Object.keys(this.target_sub_vol)]);
 
         const t_domain = Array.from({ length: this.resolution }, (_, i) => i / (this.resolution - 1));
         this.partial_mask = new Float32Array(this.resolution);
@@ -265,7 +276,7 @@ export class WorkoutSolver {
      * Fast SA surrogates:
      * - Load: Epley-like ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
      * - TUT: constant ``2.0`` s/rep (so ``E_tut == E_vol`` identically during search).
-     * - Fatigue: linear ``0.01 * total_reps * load * fatigue * load_coeff``.
+     * - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue in [1, 10]``).
      */
     evaluateWorkout(state) {
         let totalVol = 0.0, effVol = 0.0;
@@ -319,7 +330,7 @@ export class WorkoutSolver {
                     totalTut += sTotal * 2.0;
                     effTut += sEff * 2.0;
 
-                    exFatigue += (sTotal * load * ex.fatigue * ex.load_coeff * 0.01);
+                    exFatigue += sTotal * ex.fatigue;
 
                     exBaseReps += s.base_reps;
                     exPartialReps += s.partial_reps;
@@ -384,7 +395,7 @@ export class WorkoutSolver {
         for (const m in subVols) totalSubVol += subVols[m];
         
         if (totalSubVol > 0) {
-            for (const m of this.all_submuscles) {
+            for (const m of this.distr_muscles) {
                 const targetPct = this.target_sub_vol[m] || 0.0;
                 const actualPct = (subVols[m] || 0.0) / totalSubVol;
                 const dDiff = actualPct - targetPct;
@@ -404,7 +415,9 @@ export class WorkoutSolver {
         // 6. Balance Error
         let E_balance = 0.0;
         if (dailyFatigue.length > 1) {
-            const maxDayFatigue = this.config.max_ex * this.config.max_sets * this.config.max_reps * 15.0;
+            const maxSetVol = this.config.max_reps + COEFF_PARTIAL * 6.0;
+            const maxDayVol = this.config.max_ex * this.config.max_sets * maxSetVol;
+            const maxDayFatigue = maxDayVol * 10.0;
             const maxVarF = (maxDayFatigue * 0.5) * (maxDayFatigue * 0.5);
             
             const meanF = dailyFatigue.reduce((a, b) => a + b, 0) / dailyFatigue.length;
@@ -414,7 +427,6 @@ export class WorkoutSolver {
             }, 0) / dailyFatigue.length;
             const normVarF = maxVarF > 0 ? varFatigue / maxVarF : 0.0;
 
-            const maxDayVol = this.config.max_ex * this.config.max_sets * this.config.max_reps;
             const maxVarV = (maxDayVol * 0.5) * (maxDayVol * 0.5);
             
             const meanV = dailyVol.reduce((a, b) => a + b, 0) / dailyVol.length;
@@ -445,13 +457,13 @@ export class WorkoutSolver {
         }
 
         const moCost = 
-            this.config.weights.curve * scaled.curve +
-            this.config.weights.vol * scaled.vol +
-            this.config.weights.ton * scaled.ton +
-            this.config.weights.tut * scaled.tut +
-            (this.config.weights.distr || 0.2) * scaled.distr +
-            (this.config.weights.variety || 0.1) * scaled.variety +
-            (this.config.weights.balance || 0.1) * scaled.balance;
+            (this.config.weights.curve ?? 0.30) * scaled.curve +
+            (this.config.weights.vol ?? 0.15) * scaled.vol +
+            (this.config.weights.ton ?? 0.10) * scaled.ton +
+            (this.config.weights.tut ?? 0.10) * scaled.tut +
+            (this.config.weights.distr ?? 0.15) * scaled.distr +
+            (this.config.weights.variety ?? 0.10) * scaled.variety +
+            (this.config.weights.balance ?? 0.10) * scaled.balance;
 
         const cost = (moCost * 10000.0) + (penalty * 1000.0);
 
@@ -527,6 +539,9 @@ export class WorkoutSolver {
                     const s = randomChoice(ex.sets);
                     s.rpe += randomChoice([-0.5, 0.5]);
                     s.rpe = Math.max(5.0, Math.min(10.0, s.rpe));
+                    if (s.rpe < 9.0) {
+                        s.partial_reps = 0;
+                    }
                 }
             }
         } else if (mType === 'mut_partials') {

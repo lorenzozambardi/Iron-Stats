@@ -94,7 +94,28 @@ export function getExercisesWithOverrides(logText, globalExercises) {
               exObj.is_isolation = val.toLowerCase() === 'true';
             } else if (key === 'muscles_distr') {
               try {
-                exObj.muscles_distr = JSON.parse(val);
+                const parsedDistr = JSON.parse(val);
+                let totalMag = 0.0;
+                for (const prof of Object.values(parsedDistr)) {
+                  if (prof && typeof prof === 'object') {
+                    if (!(prof.x0 < prof.x1 && prof.x1 < prof.x2 && prof.x2 < prof.x3)) {
+                      throw new RangeError(`Non-monotone Bezier profile: ${prof.x0}, ${prof.x1}, ${prof.x2}, ${prof.x3}`);
+                    }
+                    totalMag += Number(prof.magnitude || 0);
+                  } else if (typeof prof === 'number') {
+                    totalMag += prof;
+                  }
+                }
+                if (totalMag > 0 && Math.abs(totalMag - 1.0) > 1e-4) {
+                  for (const [mKey, prof] of Object.entries(parsedDistr)) {
+                    if (prof && typeof prof === 'object') {
+                      prof.magnitude = Number(prof.magnitude || 0) / totalMag;
+                    } else if (typeof prof === 'number') {
+                      parsedDistr[mKey] = prof / totalMag;
+                    }
+                  }
+                }
+                exObj.muscles_distr = parsedDistr;
               } catch (e) {
                 console.error('Failed to parse muscles_distr JSON in override:', val, e);
               }
@@ -303,7 +324,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
       const rpe = match[4] ? parseFloat(match[4]) : 9.0;
       
       if (assisted > 0) {
-        base -= assisted;
+        base = Math.max(0, base - assisted);
       }
       
       // Calculate effective reps taking RPE, partials, and assisted reps into account
@@ -409,7 +430,8 @@ export function calculateSetTuts(baseReps, assistedReps, partialReps, rpe, conce
  * (Reps in Reserve). Sets closer to failure generate significantly more fatigue.
  * Assisted reps and partial reps contribute to fatigue with reduced coefficients.
  */
-export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff, tuts = null) {
+export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff = 1.0, tuts = null) {
+  void loadCoeff;
   const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause);
   let totalFat = 0.0;
   
@@ -420,7 +442,7 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
     const rir = (10.0 - rpe) + (baseReps - 1 - j);
     const repRpe = Math.max(0.0, 10.0 - rir);
     const rpeMult = Math.pow(1.1, repRpe - 7.5);
-    totalFat += repTut * rpeMult * fatigue * loadCoeff;
+    totalFat += repTut * rpeMult * fatigue;
   }
   
   // 2. Assisted reps
@@ -430,7 +452,7 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
     const repTut = actualTuts[idx];
     const repRpe = 7.0;
     const rpeMult = Math.pow(1.1, repRpe - 7.5);
-    totalFat += repTut * rpeMult * fatigue * loadCoeff * COEFF_ASSISTED;
+    totalFat += repTut * rpeMult * fatigue * COEFF_ASSISTED;
   }
   
   // 3. Partial reps
@@ -439,7 +461,7 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
     if (idx >= actualTuts.length) break;
     const repTut = actualTuts[idx];
     const rpeMult = 1.0;
-    totalFat += repTut * rpeMult * fatigue * loadCoeff * (COEFF_PARTIAL / 0.5);
+    totalFat += repTut * rpeMult * fatigue * (COEFF_PARTIAL / 0.5);
   }
   
   return totalFat;
@@ -574,9 +596,13 @@ export function parseLogbook(logText, exercises) {
             );
             const totalTut = tuts.reduce((sum, val) => sum + val, 0);
             const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
-            const effBaseCount = Math.round(effBase);
-            const startIndex = Math.max(0, s.base_reps - effBaseCount);
-            const baseTut = tuts.slice(startIndex, s.base_reps).reduce((sum, val) => sum + val, 0);
+            const fullEff = Math.floor(effBase);
+            const fracEff = effBase - fullEff;
+            const startIndex = Math.max(0, s.base_reps - fullEff);
+            let baseTut = tuts.slice(startIndex, s.base_reps).reduce((sum, val) => sum + val, 0);
+            if (fracEff > 0 && startIndex > 0) {
+              baseTut += fracEff * tuts[startIndex - 1];
+            }
             const extendedTut = tuts.slice(s.base_reps).reduce((sum, val) => sum + val, 0);
             const effectiveTut = baseTut + extendedTut;
             return {

@@ -5,6 +5,7 @@ import rehypeKatex from 'rehype-katex';
 import { Settings, Target, BookOpen, Sliders, Activity, Scale, Play, Save, Bot } from 'lucide-react';
 import { MUSCLES } from '../parser';
 import { WorkoutSolver, calculateRest } from '../solver';
+import defaultExercises from '../defaultExercises.json';
 
 const MACRO_MUSCLES = Array.from(new Set(Object.values(MUSCLES))).sort();
 
@@ -66,9 +67,9 @@ export default function GeneratorConfig({ isMobile }) {
   const normalizedWeights = useMemo(() => calculateSoftmax(weights), [weights]);
 
   const [targets, setTargets] = useState({
-    vol: 100,
-    ton: 100,
-    tut: 100
+    vol: 70,
+    ton: 70,
+    tut: 70
   });
 
   const [muscleCurves, setMuscleCurves] = useState(() => {
@@ -79,23 +80,43 @@ export default function GeneratorConfig({ isMobile }) {
 
 
   const [volumeDist, setVolumeDist] = useState(() => {
+    const dbSubSet = new Set();
+    defaultExercises.forEach(ex => {
+      Object.keys(ex.muscles_distr || {}).forEach(s => dbSubSet.add(s));
+    });
+    const activeMacros = MACRO_MUSCLES.filter(m =>
+      MACRO_SUB_MAP[m].some(s => dbSubSet.has(s))
+    );
+    const activeSet = new Set(activeMacros);
+
     const initial = { macros: {}, subs: {} };
-    const numMacros = MACRO_MUSCLES.length;
-    const baseMacroPct = Math.floor(100 / numMacros);
-    let macroRemainder = 100 - baseMacroPct * numMacros;
+    const numActive = activeMacros.length || MACRO_MUSCLES.length;
+    const baseMacroPct = Math.floor(100 / numActive);
+    let macroRemainder = 100 - baseMacroPct * numActive;
 
     MACRO_MUSCLES.forEach(m => {
-      initial.macros[m] = baseMacroPct + (macroRemainder > 0 ? 1 : 0);
-      macroRemainder--;
+      if (activeSet.has(m)) {
+        initial.macros[m] = baseMacroPct + (macroRemainder > 0 ? 1 : 0);
+        macroRemainder--;
+      } else {
+        initial.macros[m] = 0;
+      }
 
       initial.subs[m] = {};
-      const subs = MACRO_SUB_MAP[m];
-      const baseSubPct = Math.floor(100 / subs.length);
-      let subRemainder = 100 - baseSubPct * subs.length;
+      const allSubs = MACRO_SUB_MAP[m];
+      const activeSubs = allSubs.filter(s => dbSubSet.has(s));
+      const targetSubs = activeSubs.length > 0 ? activeSubs : allSubs;
+      const targetSubSet = new Set(targetSubs);
+      const baseSubPct = Math.floor(100 / targetSubs.length);
+      let subRemainder = 100 - baseSubPct * targetSubs.length;
 
-      subs.forEach(s => {
-        initial.subs[m][s] = baseSubPct + (subRemainder > 0 ? 1 : 0);
-        subRemainder--;
+      allSubs.forEach(s => {
+        if (targetSubSet.has(s)) {
+          initial.subs[m][s] = baseSubPct + (subRemainder > 0 ? 1 : 0);
+          subRemainder--;
+        } else {
+          initial.subs[m][s] = 0;
+        }
       });
     });
     return initial;

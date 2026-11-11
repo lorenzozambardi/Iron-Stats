@@ -3,8 +3,8 @@ import re
 import sys
 
 from .constants import HARD_MAP, SORTED_HARD_MAP_KEYS
-from .metrics import calculate_set_fatigue, calculate_set_tuts
-from .models import Exercise, SetData, WeekData, WorkoutExercise
+from .metrics import calculate_set_fatigue, calculate_set_tuts, compute_effective_tut
+from .models import Exercise, SetData, WeekData, WorkoutExercise, coerce_muscles_distr
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -139,7 +139,7 @@ def parse_rep_token(
             partial = int(match.group(3)) if match.group(3) else 0
             rpe = float(match.group(4)) if match.group(4) else 9.0
             if assisted > 0:
-                base -= assisted
+                base = max(0, base - assisted)
             sets_out.append(
                 SetData(
                     load=load,
@@ -261,8 +261,8 @@ def analyze_workout_log(
                             ex_obj.is_isolation = val.lower() in ("true", "1")
                         elif key == "muscles_distr":
                             try:
-                                ex_obj.muscles_distr = json.loads(val)
-                            except json.JSONDecodeError as exc:
+                                ex_obj.muscles_distr = coerce_muscles_distr(json.loads(val))
+                            except (json.JSONDecodeError, ValueError) as exc:
                                 sys.stderr.write(
                                     f"Failed to parse muscles_distr JSON in override: '{val}' | {exc}\n"
                                 )
@@ -324,12 +324,7 @@ def analyze_workout_log(
                         )
                         s.tuts = list(tuts)
                         s.total_tut = sum(s.tuts)
-                        eff_base = min(float(s.base_reps), max(0.0, s.rpe - 4.0))
-                        eff_base_count = int(eff_base + 0.5)
-                        start_idx = max(0, s.base_reps - eff_base_count)
-                        base_tut = sum(s.tuts[start_idx : s.base_reps])
-                        extended_tut = sum(s.tuts[s.base_reps :])
-                        s.effective_tut = base_tut + extended_tut
+                        s.effective_tut = compute_effective_tut(s.tuts, s.base_reps, s.rpe)
                         if s.fatigue == 0.0:
                             s.fatigue = calculate_set_fatigue(
                                 base_reps=s.base_reps,

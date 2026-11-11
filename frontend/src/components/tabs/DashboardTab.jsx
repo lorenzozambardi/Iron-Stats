@@ -25,7 +25,8 @@ const getNormalizedCurve = (distr) => {
   for (let i = 0; i <= CURVE_RESOLUTION; i++) {
     const y = solveBezierY(i / CURVE_RESOLUTION, x0, y0, x1, y1, x2, y2, x3, y3);
     rawY[i] = y;
-    areaSum += y;
+    const weight = (i === 0 || i === CURVE_RESOLUTION) ? 0.5 : 1.0;
+    areaSum += weight * y;
   }
   const area = areaSum / CURVE_RESOLUTION;
   const factor = area > 0 ? (magnitude / area) : 0;
@@ -329,10 +330,10 @@ const DashboardTab = ({
                 const rpe = s.rpe !== undefined ? s.rpe : 9.0;
                 const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
                 baseMetricValue = effBase + (s.assisted_reps || 0) * 0.5;
-                partialMetricValue = s.partial_reps || 0;
+                partialMetricValue = (s.partial_reps || 0) * 0.33;
               } else if (muscleMetric === 'volume') {
                 baseMetricValue = (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
-                partialMetricValue = s.partial_reps || 0;
+                partialMetricValue = (s.partial_reps || 0) * 0.33;
               } else if (muscleMetric === 'sets') {
                 baseMetricValue = 1.0;
                 partialMetricValue = 0;
