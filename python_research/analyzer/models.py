@@ -111,6 +111,8 @@ class SetData:
     rpe: float = 9.0
     total_tut: float = 0.0
     effective_tut: float = 0.0
+    fatigue: float = 0.0
+    dropset_id: str | None = None
     tuts: list[float] = field(default_factory=list)
 
     @property
@@ -142,6 +144,7 @@ class WorkoutExercise:
     exercise_obj: Exercise
     raw_name: str
     session: int = 0
+    rest_seconds: int = 120
     weeks: list[WeekData] = field(default_factory=list)
     concentric: float = 1.0
     shortening_pause: float = 0.0

@@ -4,7 +4,7 @@ import sys
 from difflib import get_close_matches
 
 from .constants import HARD_MAP, SORTED_HARD_MAP_KEYS
-from .metrics import calculate_set_tuts
+from .metrics import calculate_set_fatigue, calculate_set_tuts
 from .models import Exercise, SetData, WeekData, WorkoutExercise
 
 # Precompiled regular expressions for performance optimization
@@ -21,7 +21,7 @@ RE_REP_TOKEN = re.compile(r"(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?
 RE_OLD_PREFIX = re.compile(r"(?i)old\s+")
 # Matches lines that contain only short numerical sets (e.g. "10.9.8")
 RE_LOG_LINE_SHORT = re.compile(r"^[\d\.\(\)\+@]+$")
-RE_DOT_SPLIT = re.compile(r"(?<!\.)\.(?!\.)")
+RE_DOT_SPLIT = re.compile(r"(?<!@\d)(?<!@\d\d)(?!\d+\.\.)(?<!\.)\.(?!\.)")
 # Matches exercise override syntax: "override: Lat Machine | fatigue=6.0 | load_coeff=0.8"
 RE_OVERRIDE = re.compile(r"^override:\s*([^|]+)\|\s*(.*)$", re.IGNORECASE)
 RE_DIGITS = re.compile(r"\d+")
@@ -91,7 +91,9 @@ def parse_tempo_from_line(line: str) -> tuple[float, float, float, float]:
     return parse_tempo_from_comment(comment)
 
 
-def parse_rep_token(rep_str: str, loads: list[float]) -> list[SetData]:
+def parse_rep_token(
+    rep_str: str, loads: list[float], dropset_id: str | None = None
+) -> list[SetData]:
     sets_out = []
     rep_parts = rep_str.split("/")
     for i, rp in enumerate(rep_parts):
@@ -113,26 +115,50 @@ def parse_rep_token(rep_str: str, loads: list[float]) -> list[SetData]:
                     assisted_reps=assisted,
                     partial_reps=partial,
                     rpe=rpe,
+                    dropset_id=dropset_id,
                 )
             )
     return sets_out
 
 
-def parse_line(line: str) -> list[SetData]:
+def parse_line(line: str, line_index: int = 0) -> list[SetData]:
     line = RE_OLD_PREFIX.sub("", line).strip()
     line = line.replace(" ", "")
     if not line:
         return []
 
+    dropset_counter = 0
+
+    def next_dropset_id() -> str:
+        nonlocal dropset_counter
+        ds_id = f"ds_{line_index}_{dropset_counter}"
+        dropset_counter += 1
+        return ds_id
+
     if RE_LOG_LINE_SHORT.match(line) and ".." not in line:
-        tokens = line.split(".")
+        tokens = RE_DOT_SPLIT.split(line)
         sets = []
         for t in tokens:
             if t:
-                sets.extend(parse_rep_token(t, [0.0]))
+                has_slash = "/" in t
+                ds_id = next_dropset_id() if has_slash else None
+                sets.extend(parse_rep_token(t, [0.0], ds_id))
         return sets
 
-
+    # Preprocess Format: load1..load2..reps1.reps2 -> load1/load2..reps1/reps2
+    if line.count("..") > 1:
+        last_idx = line.rfind("..")
+        if last_idx != -1:
+            loads_part = line[:last_idx]
+            reps_part = line[last_idx + 2 :]
+            if (
+                "." in reps_part
+                and ".." in loads_part
+                and re.match(r"^[\d()+@.]+$", reps_part)
+            ):
+                loads_part = loads_part.replace("..", "/")
+                reps_part = re.sub(r"(?<!@\d)(?<!@\d\d)\.", "/", reps_part)
+                line = f"{loads_part}..{reps_part}"
 
     tokens = RE_DOT_SPLIT.split(line)
     current_loads = [0.0]
@@ -141,6 +167,9 @@ def parse_line(line: str) -> list[SetData]:
     for token in tokens:
         if not token:
             continue
+        has_slash = "/" in token
+        ds_id = next_dropset_id() if has_slash else None
+
         if ".." in token:
             subparts = token.split("..")
             rep_str = subparts[-1]
@@ -151,9 +180,9 @@ def parse_line(line: str) -> list[SetData]:
                 else ([float(load_str)] if load_str else [0.0])
             )
             if rep_str:
-                parsed_sets.extend(parse_rep_token(rep_str, current_loads))
+                parsed_sets.extend(parse_rep_token(rep_str, current_loads, ds_id))
         else:
-            parsed_sets.extend(parse_rep_token(token, current_loads))
+            parsed_sets.extend(parse_rep_token(token, current_loads, ds_id))
     return parsed_sets
 
 
@@ -236,7 +265,10 @@ def analyze_workout_log(
     workout_data = []
     current_exercise, current_week, current_session = None, 1, 0
 
-    for line in lines:
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            continue
         try:
             if line.startswith("#"):
                 match = RE_DIGITS.search(line)
@@ -250,7 +282,7 @@ def analyze_workout_log(
                 line.replace("old", "").replace(" ", "").strip()
             ):
                 if current_exercise:
-                    parsed_sets = parse_line(line)
+                    parsed_sets = parse_line(line, i)
                     if not parsed_sets and ".." in line and current_exercise.weeks:
                         load_str = line.split("..")[0].strip()
                         if load_str:
@@ -258,14 +290,16 @@ def analyze_workout_log(
                             prev_sets = current_exercise.weeks[-1].sets
                             parsed_sets = [
                                 SetData(
-                                    load=loads[i] if i < len(loads) else loads[-1],
+                                    load=loads[idx] if idx < len(loads) else loads[-1],
                                     base_reps=s.base_reps,
                                     assisted_reps=s.assisted_reps,
                                     partial_reps=s.partial_reps,
                                     rpe=s.rpe,
+                                    fatigue=s.fatigue,
+                                    dropset_id=s.dropset_id,
                                     tuts=list(s.tuts),
                                 )
-                                for i, s in enumerate(prev_sets)
+                                for idx, s in enumerate(prev_sets)
                             ]
 
                     for s in parsed_sets:
@@ -291,6 +325,20 @@ def analyze_workout_log(
                         base_tut = sum(s.tuts[start_idx : s.base_reps])
                         extended_tut = sum(s.tuts[s.base_reps :])
                         s.effective_tut = base_tut + extended_tut
+                        if s.fatigue == 0.0:
+                            s.fatigue = calculate_set_fatigue(
+                                base_reps=s.base_reps,
+                                assisted_reps=s.assisted_reps,
+                                partial_reps=s.partial_reps,
+                                rpe=s.rpe,
+                                concentric=current_exercise.concentric,
+                                shortening_pause=current_exercise.shortening_pause,
+                                eccentric=current_exercise.eccentric,
+                                lengthening_pause=current_exercise.lengthening_pause,
+                                fatigue=current_exercise.exercise_obj.fatigue if current_exercise.exercise_obj else 5.0,
+                                load_coeff=current_exercise.exercise_obj.load_coeff if current_exercise.exercise_obj else 0.5,
+                                tuts=s.tuts,
+                            )
 
                     current_exercise.weeks.append(
                         WeekData(week_num=current_week, sets=parsed_sets)
@@ -304,6 +352,7 @@ def analyze_workout_log(
                         exercise_obj=matched_obj,
                         raw_name=line,
                         session=current_session,
+                        rest_seconds=parse_rest_time(line),
                         concentric=c,
                         shortening_pause=s_pause,
                         eccentric=e,

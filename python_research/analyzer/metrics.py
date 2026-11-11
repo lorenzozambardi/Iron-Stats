@@ -1,4 +1,6 @@
 
+from typing import Any
+
 import numpy as np
 
 from .constants import COEFF_ASSISTED, COEFF_PARTIAL, MUSCLES
@@ -143,20 +145,20 @@ def calculate_metrics(
         if target_sub and target_sub not in ex.muscles_distr:
             continue
         
-        def get_auc(tp):
-            if isinstance(tp, (int, float)):
-                return float(tp)
-            if hasattr(tp, "get_curve"):
-                curve = tp.get_curve(100)
-                trap_fn = getattr(np, "trapezoid", getattr(np, "trapz", None))
-                return trap_fn(curve, dx=0.01)
+        def get_magnitude(val: Any) -> float:
+            if isinstance(val, (int, float)):
+                return float(val)
+            if hasattr(val, "magnitude"):
+                return float(val.magnitude)
+            if isinstance(val, dict) and "magnitude" in val:
+                return float(val["magnitude"])
             return 0.0
 
         if target_sub:
-            distr_sum = get_auc(ex.muscles_distr.get(target_sub, 0.0))
+            distr_sum = get_magnitude(ex.muscles_distr.get(target_sub, 0.0))
         elif target_macro:
             distr_sum = sum(
-                get_auc(val)
+                get_magnitude(val)
                 for m, val in ex.muscles_distr.items()
                 if MUSCLES.get(m) == target_macro
             )
@@ -180,20 +182,27 @@ def calculate_metrics(
             if vol > 0:
                 ton = float(np.sum(actual_load_arr * tot_reps_arr))
                 eff_ton = float(np.sum(actual_load_arr * eff_reps_arr))
+                weighted_ton = ton * ex.load_coeff
+                eff_weighted_ton = eff_ton * ex.load_coeff
+                eff_reps = float(np.sum(eff_reps_arr))
                 
                 total_fat = sum(
-                    calculate_set_fatigue(
-                        base_reps=s.base_reps,
-                        assisted_reps=s.assisted_reps,
-                        partial_reps=s.partial_reps,
-                        rpe=s.rpe,
-                        concentric=w_ex.concentric,
-                        shortening_pause=w_ex.shortening_pause,
-                        eccentric=w_ex.eccentric,
-                        lengthening_pause=w_ex.lengthening_pause,
-                        fatigue=ex.fatigue,
-                        load_coeff=ex.load_coeff,
-                        tuts=s.tuts,
+                    (
+                        s.fatigue
+                        if s.fatigue > 0.0
+                        else calculate_set_fatigue(
+                            base_reps=s.base_reps,
+                            assisted_reps=s.assisted_reps,
+                            partial_reps=s.partial_reps,
+                            rpe=s.rpe,
+                            concentric=w_ex.concentric,
+                            shortening_pause=w_ex.shortening_pause,
+                            eccentric=w_ex.eccentric,
+                            lengthening_pause=w_ex.lengthening_pause,
+                            fatigue=ex.fatigue,
+                            load_coeff=ex.load_coeff,
+                            tuts=s.tuts,
+                        )
                     )
                     for s in w_data.sets
                 ) * distr_sum
@@ -210,10 +219,26 @@ def calculate_metrics(
                         "Volume": vol,
                         "Tonnage": ton,
                         "Eff Tonnage": eff_ton,
+                        "Weighted Tonnage": weighted_ton,
+                        "Eff Weighted Tonnage": eff_weighted_ton,
                         "Fatigue": total_fat,
+                        "Eff Reps": eff_reps,
                         "TUT": total_tut,
                         "Eff TUT": effective_tut,
                         "Sets": sets_count,
+                        "session": w_ex.session,
+                        "name": ex.name,
+                        "week": w_data.week_num,
+                        "volume": vol,
+                        "tonnage": ton,
+                        "effectiveTonnage": eff_ton,
+                        "weightedTonnage": weighted_ton,
+                        "effectiveWeightedTonnage": eff_weighted_ton,
+                        "fatigue": total_fat,
+                        "effectiveReps": eff_reps,
+                        "totalTut": total_tut,
+                        "effectiveTut": effective_tut,
+                        "sets": sets_count,
                     }
                 )
     return results
