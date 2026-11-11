@@ -73,18 +73,18 @@ In \texttt{models.py}, each exercise $e$ is parameterized by a biomechanical tup
 \begin{equation}
   \mathbf{\theta}_e = \bigl(c_{\mathrm{load}},\, f_{\mathrm{base}},\, \mu_{\mathrm{load}},\, q_{\mathrm{load}},\, \mathrm{is\_isolation}\bigr),
 \end{equation}
-where $c_{\mathrm{load}} \in (0, 1]$ denotes articular load efficiency, $f_{\mathrm{base}} \in [1, 10]$ is the intrinsic systemic fatigue coefficient, $(\mu_{\mathrm{load}}, q_{\mathrm{load}}) \in \mathbb{R}^+ \times \mathbb{R}$ maps nominal logged load $L_{\mathrm{raw}}$ to effective biomechanical load via
+where $c_{\mathrm{load}} \ge 0$ denotes articular load efficiency, $f_{\mathrm{base}} \ge 0$ is the intrinsic systemic fatigue coefficient, $(\mu_{\mathrm{load}}, q_{\mathrm{load}}) \in \mathbb{R}^+ \times \mathbb{R}$ maps nominal logged load $L_{\mathrm{raw}}$ to effective biomechanical load via
 \begin{equation}
   L = L_{\mathrm{raw}} \cdot \mu_{\mathrm{load}} + q_{\mathrm{load}},
 \end{equation}
-and $\mathrm{is\_isolation} \in \{\mathrm{False}, \mathrm{True}\}$ flags single-joint movements. (For instance, \texttt{LR} specifies $\mu_{\mathrm{load}} = 2.0$ to convert per-dumbbell weight into bilateral load.)
+and $\mathrm{is\_isolation} \in \{\mathrm{False}, \mathrm{True}\}$ flags single-joint movements. (\texttt{Exercise.\_\_post\_init\_\_} validates $c_{\mathrm{load}} \ge 0$, $f_{\mathrm{base}} \ge 0$, and $\mu_{\mathrm{load}} > 0$; across the 61-exercise JSON catalog, $c_{\mathrm{load}} \in [0.01, 1.0]$ and $f_{\mathrm{base}} \in [1, 10]$, while \texttt{ExerciseModal.jsx} bounds UI input to $[0, 2]$ and $[0, 10]$, and \texttt{LR} specifies $\mu_{\mathrm{load}} = 2.0$ to convert per-dumbbell weight into bilateral load.)
 
-Each exercise targets an anatomical sub-muscle set $\mathcal{M}_e = \{m_1, \dots, m_k\}$ with contribution magnitudes $\mathbf{M}_e = [M_{e,m_1}, \dots, M_{e,m_k}]^\top$. To conserve total mechanical work attribution across muscle compartments, \texttt{Exercise.\_\_post\_init\_\_} enforces the partition-of-unity constraint
+Each exercise targets an anatomical sub-muscle set $\mathcal{M}_e = \{m_1, \dots, m_k\}$ with contribution magnitudes $\mathbf{M}_e = [M_{e,m_1}, \dots, M_{e,m_k}]^\top$. Whenever $\mathcal{M}_e \ne \emptyset$, \texttt{Exercise.\_\_post\_init\_\_} conserves total mechanical work attribution across muscle compartments via the partition-of-unity constraint
 \begin{equation}
   \sum_{m \in \mathcal{M}_e} M_{e,m} = 1.0,
   \label{eq:partition}
 \end{equation}
-automatically re-normalizing $M_{e,m} \leftarrow M_{e,m} / \sum_j M_{e,j}$ whenever $\lvert \sum_m M_{e,m} - 1.0 \rvert > 10^{-12}$ (with $M_{e,m} \ge 0$, preserving floating-point partition of unity across the 61-exercise JSON catalog and \texttt{override:} directives).
+returning re-normalized copies $M_{e,m} \leftarrow M_{e,m} / \sum_j M_{e,j}$ whenever $\lvert \sum_m M_{e,m} - 1.0 \rvert > 10^{-12}$ (with $M_{e,m} \ge 0$, preserving floating-point partition of unity across the 61-exercise JSON catalog and \texttt{override:} directives).
 
 \section{Numerical Analysis of Tension Profiles}
 \label{sec:numerical}
@@ -165,7 +165,7 @@ Geometrically, $\mathbf{P}(t)$ admits De Casteljau's division-free recursive con
   \mathbf{R}_i(t) &= (1-t)\mathbf{Q}_i(t) + t\mathbf{Q}_{i+1}(t), & i &\in \{0, 1\}, \\
   \mathbf{P}(t) &= (1-t)\mathbf{R}_0(t) + t\mathbf{R}_1(t),
 \end{align*}
-where $\mathbf{R}_0(t)\mathbf{R}_1(t)$ gives the exact tangent direction and endpoints obey $\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)$ and $\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)$; \texttt{models.py::BezierProfile.get\_curve} evaluates~\eqref{eq:bx}--\eqref{eq:by} directly over uniform $t$ in $\mathcal{O}(1)$ per-point time, whereas physical-ROM queries in \texttt{solve\_y}, \texttt{helpers.js::solveBezierY}, and \texttt{solver.js} run bounded bisection (at most $30$ Bernstein evaluations, $\mathcal{O}(1)$ in control-point count).
+where $\mathbf{R}_0(t)\mathbf{R}_1(t)$ gives the exact tangent direction and endpoints obey $\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)$ and $\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)$; \texttt{models.py::BezierProfile.get\_curve} evaluates~\eqref{eq:bx}--\eqref{eq:by} directly over uniform $t$ in $\mathcal{O}(1)$ per-point time, whereas physical-ROM queries in \texttt{solve\_y}, \texttt{helpers.js::solveBezierY}, and \texttt{solver.js} run bounded bisection (at most $30$ evaluations of $x(t)$ plus $1$ final evaluation of $y(t)$, $\mathcal{O}(1)$ in control-point count).
 
 While \texttt{BezierProfile.get\_curve} evaluates~\eqref{eq:bx}--\eqref{eq:by} directly over $t \in [0, 1]$, querying tension at a physical ROM coordinate $x_{\mathrm{target}} \in [x_0, x_3]$ requires inverting $x(t^*) = x_{\mathrm{target}}$ (implemented in \texttt{models.py::BezierProfile.solve\_y} and \texttt{helpers.js::solveBezierY}). Requiring $x_0 < x_1 < x_2 < x_3$ is a clean \emph{sufficient} (though not necessary) condition for strict monotonicity: since $x'(t) = 3(1-t)^2(x_1 - x_0) + 6(1-t)t(x_2 - x_1) + 3t^2(x_3 - x_2)$ is $3$ times a convex combination of strictly positive increments, $x'(t) > 0$ on $[0, 1]$ and $t^*$ is unique. This invariant (together with $0 \le x_0 < x_1 < x_2 < x_3 \le 1$ and $y_i \ge 0$) is enforced at load and edit time in \texttt{BezierProfile.\_\_post\_init\_\_}, \texttt{parser.py}/\texttt{parser.js} (\texttt{override:} handling), \texttt{WorkoutSolver} (\texttt{solver.js}), \texttt{solveBezierY}, and \texttt{BezierEditor.jsx}, and holds across all 61 exercises in \texttt{defaultExercises.json}. After $K$ bisection updates on $t \in [0, 1]$ (without early exit),
 \begin{equation}
@@ -174,7 +174,7 @@ While \texttt{BezierProfile.get\_curve} evaluates~\eqref{eq:bx}--\eqref{eq:by} d
   \lvert x(t^{(K)}) - x_{\mathrm{target}} \rvert \le 2^{-(K+1)} \max_{[0,1]} \lvert x'(t) \rvert.
 \end{gathered}
 \end{equation}
-Both \texttt{solve\_y} and \texttt{solveBezierY} run up to $K = 30$ iterations with early exit at $\lvert x(t^{(k)}) - x_{\mathrm{target}} \rvert < 10^{-6}$, so upon early exit the residual tension error satisfies $\lvert y(t^{(k)}) - y(t^*) \rvert \lesssim 10^{-6} \lvert y'(t^*) / x'(t^*) \rvert$. Fig.~\ref{fig:bernstein}, Fig.~\ref{fig:comparison}, and Table~\ref{tab:comparison} summarize the Bernstein basis and method comparison.
+Both \texttt{solve\_y} and \texttt{solveBezierY} run up to $K = 30$ iterations, exiting early only when \emph{both} $\lvert x(t^{(k)}) - x_{\mathrm{target}} \rvert < 10^{-6}$ \emph{and} the bracket width satisfies $u_k - \ell_k < 10^{-6}$. Because $t^{(k)}$ is the bracket midpoint, this dual criterion guarantees $\lvert t^{(k)} - t^* \rvert < 5 \times 10^{-7}$ and $\lvert y(t^{(k)}) - y(t^*) \rvert \le \frac{1}{2}\cdot 10^{-6}\max_{[0,1]} \lvert y'(t) \rvert$ uniformly even when $x'(t^*)$ is arbitrarily small. Fig.~\ref{fig:bernstein}, Fig.~\ref{fig:comparison}, and Table~\ref{tab:comparison} summarize the Bernstein basis and method comparison.
 
 \begin{figure}[t]
   \centering
@@ -233,7 +233,16 @@ which equals $2.31 \times 10^{-5}$ on \texttt{LR} ($R=50$). By contrast, applyin
   I_{\mathrm{GL3}} = \sum_{k=1}^{3} w_k\, y(t_k)\, x'(t_k), \qquad
   t_k = \frac{1 + \xi_k}{2},\; w_k = \frac{\tilde{w}_k}{2},
 \end{equation}
-with standard nodes $\xi_k \in \{-\sqrt{3/5}, 0, \sqrt{3/5}\}$ and weights $\tilde{w}_k \in \{5/9, 8/9, 5/9\}$. \texttt{BezierProfile.exact\_area()}, \texttt{helpers.js::bezierArea}, \texttt{solver.js}, and \texttt{DashboardTab.jsx} (which samples $51$ ROM points $i/50$ versus $50$ points $i/49$ in the solver) all rescale by $M_{e,m} / I_{\mathrm{GL3}}$ for $x \in [x_0, x_3]$ (or $0$ if $I_{\mathrm{GL3}} \le 0$ or $x \notin [x_0, x_3]$), eliminating quadrature drift across both backend and frontend.
+with standard nodes $\xi_k \in \{-\sqrt{3/5}, 0, \sqrt{3/5}\}$ and weights $\tilde{w}_k \in \{5/9, 8/9, 5/9\}$. For each $m \in \mathcal{M}_e$, the area-normalized tension density is defined on $[0, 1]$ as
+\begin{equation}
+  B_{e,m}(x) =
+  \begin{cases}
+    \dfrac{M_{e,m}}{I_{\mathrm{GL3}}}\, y_{e,m}\bigl(x_{e,m}^{-1}(x)\bigr), & x \in [x_{0}, x_{3}] \text{ and } I_{\mathrm{GL3}} > 0, \\
+    0, & \text{otherwise},
+  \end{cases}
+  \label{eq:normalized_density}
+\end{equation}
+and $B_{e,m}(x) \equiv 0$ for $m \notin \mathcal{M}_e$. \texttt{BezierProfile.exact\_area()}, \texttt{helpers.js::bezierArea}, \texttt{solver.js}, and \texttt{DashboardTab.jsx} (which samples $51$ ROM points $i/50$ versus $50$ points $i/49$ in the solver) all evaluate~\eqref{eq:normalized_density}, eliminating quadrature drift across both backend and frontend.
 
 \section{Physiological Dynamics \texorpdfstring{\&}{and} Optimization}
 \label{sec:metrics_solver}
@@ -261,17 +270,17 @@ In \texttt{metrics.py} (\texttt{calculate\_set\_tuts}), given execution tempo $(
 \end{equation}
 yielding per-rep TUT $\tau_j = \tau_0 + \Delta c(\mathrm{RIR}_j)$ for base reps, $\tau_0$ for assisted reps, and $0.5\tau_0$ for partial reps. Set \texttt{total\_tut} and \texttt{effective\_tut} are computed during logbook ingestion in \texttt{parser.py::analyze\_workout\_log} (and on the fly in \texttt{metrics.py::calculate\_metrics} when omitted), where \texttt{effective\_tut} sums continuously over the last $\lfloor n_{b,\mathrm{eff}} \rfloor$ base reps plus $\{n_{b,\mathrm{eff}}\}\,\tau_{n_b - \lfloor n_{b,\mathrm{eff}} \rfloor - 1}$ (when fractional remainder $\{n_{b,\mathrm{eff}}\} > 0$) and all assisted and partial reps.
 
-In \texttt{metrics.py} (\texttt{calculate\_set\_fatigue}), per-rep effort $\mathrm{RPE}_j = \max(0, 10.0 - \mathrm{RIR}_j)$ drives a continuous exponential CNS fatigue multiplier $\mu(\mathrm{RPE}_j) = 1.1^{\mathrm{RPE}_j - 7.5}$ for all $\mathrm{RPE}_j \ge 0$:
+In \texttt{metrics.py} (\texttt{calculate\_set\_fatigue}), per-rep effort $\mathrm{RPE}_j = \max(0, 10.0 - \mathrm{RIR}_j)$ drives a continuous exponential CNS fatigue multiplier $\mu(\mathrm{RPE}_j) = 1.1^{\mathrm{RPE}_j - 7.5}$ for all $\mathrm{RPE}_j \ge 0$, while past-failure assisted and partial repetitions take the concentric-failure multiplier $1.1^{10.0 - 7.5} = 1.1^{2.5}$:
 \begin{equation}
 \begin{aligned}
   \Phi_{\mathrm{set}} = F_{\mathrm{ex}} \Biggl[ &\sum_{j=0}^{n_b-1} \tau_j \, 1.1^{\mathrm{RPE}_j - 7.5} \\
-  &+ \alpha_{\mathrm{ass}} 1.1^{-0.5} n_a \tau_0 + \alpha_{\mathrm{part}} n_p \tau_0 \Biggr],
+  &+ \alpha_{\mathrm{ass}} 1.1^{2.5} n_a \tau_0 + 0.5\,\alpha_{\mathrm{part}} 1.1^{2.5} n_p \tau_0 \Biggr],
 \end{aligned}
 \end{equation}
 where $F_{\mathrm{ex}} = f_{\mathrm{base}}$ (note that $c_{\mathrm{load}}$ scales weighted tonnage, not $\Phi_{\mathrm{set}}$, preventing low-$c_{\mathrm{load}}$ heavy compounds like \texttt{Squat} and \texttt{Deadlift} from scoring lower fatigue than light isolations). All set-level volume, tonnage ($L R_{\mathrm{tot}}$), weighted tonnage ($L R_{\mathrm{tot}} c_{\mathrm{load}}$), TUT, and fatigue totals are projected onto queried macro- or sub-muscles via $M_{e,m}$ in \texttt{metrics.py::calculate\_metrics}.
 
 \subsection{Constrained Multi-Objective Combinatorial Solver}
-In \texttt{solver.py} (\texttt{WorkoutSolver}), a candidate mesocycle $x \in \mathcal{X}$ assigns $D$ training days, where each day $x_d$ is an ordered list of $N_d \in [N_{\min}, N_{\max}]$ scheduled exercise slots $(d, k)$, each with $S_{d,k} \in [S_{\min}, S_{\max}]$ sets, per-set base reps $r \in [r_{\min}, r_{\max}]$ (with \texttt{add\_ex}/\texttt{add\_set} clamping the default $10$ reps to $[r_{\min}, r_{\max}]$), $\mathrm{RPE}$ initialized in $\{7.0, 8.0, 8.5, 9.0, 10.0\}$ ($8.0$ on \texttt{add\_ex}/\texttt{add\_set}) and mutated in $0.5$ increments within $[5.0, 10.0]$, and stretched-ROM partials $p \in \{0, 2, 4, 6\}$ (enabled only when $\mathrm{RPE} \ge 9.0$, cleared if mutation lowers $\mathrm{RPE} < 9.0$). Let $x_i = i / (R - 1)$, $i = 0, \dots, R - 1$ ($R = 50$), be a uniform grid on physical ROM $[0, 1]$. For each exercise $e$, let $t_{e,i} = x_e^{-1}(x_i)$ be the inverted parameter when $x_i \in [x_{0,e}, x_{3,e}]$, evaluated via \texttt{BezierProfile.get\_physical\_curve}. Writing $e = e(d, k)$ for the exercise at slot $(d, k)$ and $N_{b,d,k} = \sum_{s} n_{b,d,k,s}$, $N_{p,d,k} = \sum_{s} n_{p,d,k,s}$ for slot-level rep sums over sets, the aggregate tension curve for muscle $m$ is
+In \texttt{solver.py} (\texttt{WorkoutSolver}), a candidate mesocycle $\omega \in \Omega$ assigns $D \ge 1$ training days, where each day $\omega_d$ is an ordered list of $N_d \in [N_{\min}, N_{\max}]$ ($N_{\min} \ge 1$) scheduled exercise slots $(d, k)$, each with $S_{d,k} \in [S_{\min}, S_{\max}]$ ($S_{\min} \ge 1$) sets, per-set base reps $r \in [r_{\min}, r_{\max}]$ ($r_{\min} \ge 1$, with \texttt{add\_ex}/\texttt{add\_set} clamping the default $10$ reps to $[r_{\min}, r_{\max}]$), $\mathrm{RPE}$ initialized in $\{7.0, 8.0, 8.5, 9.0, 10.0\}$ ($8.0$ on \texttt{add\_ex}/\texttt{add\_set}) and mutated in $0.5$ increments within $[5.0, 10.0]$, and stretched-ROM partials $p \in \{0, 2, 4, 6\}$ (enabled only when $\mathrm{RPE} \ge 9.0$, cleared if mutation lowers $\mathrm{RPE} < 9.0$). Let $x_i = i / (R - 1)$, $i = 0, \dots, R - 1$ ($R = 50$), be a uniform grid on physical ROM $[0, 1]$, with $B_{e,m}(x_i)$ evaluated via \texttt{BezierProfile.get\_physical\_curve}. Writing $e = e(d, k)$ for the exercise at slot $(d, k)$ and $N_{b,d,k} = \sum_{s} n_{b,d,k,s}$, $N_{p,d,k} = \sum_{s} n_{p,d,k,s}$ for slot-level rep sums over sets, the aggregate tension curve for muscle $m$ is
 \begin{equation}
   V_m(x_i) = \sum_{d=1}^{D} \sum_{k=1}^{N_d} B_{e,m}(x_i) \bigl( N_{b,d,k} + \alpha_{\mathrm{part}} N_{p,d,k} \chi_{\mathrm{part}}(x_i) \bigr),
   \label{eq:agg_curve}
@@ -280,32 +289,32 @@ where $\chi_{\mathrm{part}}(x_i) = \mathbb{I}[x_i \le 0.3333]$ restricts partial
 
 \paragraph{Fast SA Surrogates.} During Simulated Annealing search, \texttt{evaluate\_workout} retains exact dynamic TUT while replacing load and fatigue with lightweight surrogates:
 \begin{itemize}
-  \item \emph{Load:} $\hat{L} = \mu_{\mathrm{load}} \frac{100.0}{1.0 + 0.033\,n_b} + q_{\mathrm{load}}$ (Epley-like 1RM scaling applied prior to $\mu_{\mathrm{load}}$ and $q_{\mathrm{load}}$).
+  \item \emph{Load:} $\hat{L} = \frac{100.0}{1.0 + 0.033\,\bigl(n_b + \max(0, 10 - \mathrm{RPE})\bigr)} \cdot c_{\mathrm{load}}$ (RPE-aware 100\,kg normalized 1RM Epley load weighted by articular efficiency $c_{\mathrm{load}}$, avoiding logbook $\mu_{\mathrm{load}}/q_{\mathrm{load}}$ input-unit distortion).
   \item \emph{TUT:} lightweight RIR-slowdown dynamic TUT matching \S4.1 at default $1\text{-}0\text{-}2\text{-}0\,\text{s}$ tempo ($\tau_0 = 3.0\,\text{s}$, partials $0.5\tau_0$), keeping $E_{\mathrm{tut}}$ genuinely distinct from $E_{\mathrm{vol}}$.
-  \item \emph{Fatigue:} linear $R_{\mathrm{tot}} f_{\mathrm{base}}$, omitting exponential RPE scaling and dynamic TUT while preserving the $[1, 10]$ exercise fatigue ordering.
+  \item \emph{Fatigue:} linear $R_{\mathrm{tot}} f_{\mathrm{base}}$, omitting exponential RPE scaling and dynamic TUT while preserving exercise fatigue ordering.
 \end{itemize}
 
-Letting $\hat{V}_m(x_i) = V_m(x_i)/\max_r V_m(x_r)$, seven dimensionless error metrics $\mathcal{I} = \{\mathrm{curve}, \mathrm{vol}, \mathrm{ton}, \mathrm{tut}, \mathrm{distr}, \mathrm{variety}, \mathrm{balance}\}$ evaluate mesocycle quality:
+Letting $\mathcal{M}_{\mathrm{eval}} = \{m : \max_r V_m(x_r) > 0 \text{ or } p_m^{\mathrm{target}} > 0\}$, with $\hat{V}_m(x_i) = V_m(x_i)/\max_r V_m(x_r)$ when $\max_r V_m(x_r) > 0$ (and $\hat{V}_m \equiv 0$ otherwise), seven dimensionless error metrics $\mathcal{I} = \{\mathrm{curve}, \mathrm{vol}, \mathrm{ton}, \mathrm{tut}, \mathrm{distr}, \mathrm{variety}, \mathrm{balance}\}$ evaluate mesocycle quality:
 \begin{align}
-  E_{\mathrm{curve}} &= \frac{1}{|\mathcal{M}_{\mathrm{tr}}| R} \sum_{m \in \mathcal{M}_{\mathrm{tr}}} \sum_{i=0}^{R-1} \bigl( \hat{V}_m(x_i) - T_m(x_i) \bigr)^2, \\
+  E_{\mathrm{curve}} &= \frac{1}{|\mathcal{M}_{\mathrm{eval}}| R} \sum_{m \in \mathcal{M}_{\mathrm{eval}}} \sum_{i=0}^{R-1} \bigl( \hat{V}_m(x_i) - T_m(x_i) \bigr)^2, \\
   E_q &= \left( \frac{X_{q,\mathrm{eff}}}{X_{q,\mathrm{tot}}} - \rho_q^* \right)^2, \qquad q \in \{\mathrm{vol}, \mathrm{ton}, \mathrm{tut}\}, \\
   E_{\mathrm{distr}} &= \begin{cases}
     \frac{1}{2} \sum_{m} \bigl( p_m^{\mathrm{actual}} - p_m^{\mathrm{target}} \bigr)^2, & \text{if targets set}, \\
     0, & \text{otherwise},
   \end{cases} \\
-  E_{\mathrm{variety}} &= \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\mathrm{tot}}(x)} \right)^2, \\
+  E_{\mathrm{variety}} &= \left( 1 - \frac{|\mathcal{U}(\omega)|}{N_{\mathrm{tot}}(\omega)} \right)^2, \\
   E_{\mathrm{balance}} &= \begin{cases}
     \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(D_d)}{(V_{\max}/2)^2} \right), & D > 1, \\
     0, & D \le 1,
   \end{cases}
 \end{align}
-where $T_m(x)$ defaults to \texttt{constant} ($1$) for unconfigured muscles and selects among \texttt{constant} ($1$), \texttt{linear} ($1 - x$), \texttt{sigmoid} ($1 / (1 + e^{-10(x - 0.5)})$), and \texttt{inv\_sigmoid} ($1 / (1 + e^{10(x - 0.5)})$) (expanded across macro sub-muscles in \texttt{MUSCLES} with explicit sub-muscle keys overriding macros; note the logistic forms span $[0.00669, 0.99331]$ against peak-normalized $\hat{V}_m \in [0, 1]$), default $\rho_q^* = 0.70$, $p_m^{\mathrm{target}}$ is the simplex-normalized user-configured target share from \texttt{volume\_dist}, $p_m^{\mathrm{actual}} = W_m / \sum_{m'} W_{m'}$ is the actual share of muscle-weighted total volume $W_m = \sum_{d,k} M_{e(d,k),m} R_{\mathrm{tot},d,k}$ (note that $W_m$ credits $\alpha_{\mathrm{part}} M_{e,m}$ per partial rep even when $x_{0,e} > 0.3333$, whereas~\eqref{eq:agg_curve} gates partial tension by $\chi_{\mathrm{part}}$), $D_d$ denotes daily total reps, $\mathrm{Var}_d(\cdot)$ denotes the population variance (\texttt{np.var}, $\mathrm{ddof}=0$) across days $d = 1,\dots,D$, $V_{\max} = N_{\max} S_{\max} (r_{\max} + 6 \alpha_{\mathrm{part}})$, and $F_{\max} = 10\,V_{\max}$ (noting Popoviciu's $(V_{\max}/2)^2$ denominator is conservative since $D_d \ge N_{\min} S_{\min} r_{\min} > 0$).
+where $T_m(x)$ defaults to \texttt{constant} ($1$) for unconfigured muscles and selects among \texttt{constant} ($1$), \texttt{linear} ($1 - x$), \texttt{sigmoid} ($1 / (1 + e^{-10(x - 0.5)})$), and \texttt{inv\_sigmoid} ($1 / (1 + e^{10(x - 0.5)})$) (expanded across macro sub-muscles in \texttt{MUSCLES} with explicit sub-muscle keys overriding macros; note the logistic forms span $[0.00669, 0.99331]$ against peak-normalized $\hat{V}_m \in [0, 1]$), $(X_{\mathrm{vol,tot}}, X_{\mathrm{vol,eff}}) = \sum_{d,k,s}(R_{\mathrm{tot}}, R_{\mathrm{eff}})$, $(X_{\mathrm{ton,tot}}, X_{\mathrm{ton,eff}}) = \sum_{d,k,s}\hat{L}(R_{\mathrm{tot}}, R_{\mathrm{eff}})$, and $(X_{\mathrm{tut,tot}}, X_{\mathrm{tut,eff}}) = \sum_{d,k,s}(\mathrm{TUT}_{\mathrm{tot}}, \mathrm{TUT}_{\mathrm{eff}})$ with default $\rho_q^* = 0.70$, $p_m^{\mathrm{target}}$ is the simplex-normalized user-configured target share from \texttt{volume\_dist}, $p_m^{\mathrm{actual}} = W_m / \sum_{m'} W_{m'}$ is the actual share of muscle-weighted ROM-active volume $W_m = \sum_{d,k} M_{e,m} \bigl(N_{b,d,k} + \alpha_{\mathrm{part}} \mathbb{I}[\mathrm{supp}(B_{e,m}) \cap [0, 0.3333] \ne \emptyset] N_{p,d,k}\bigr) \mathbb{I}[I_{\mathrm{GL3},e,m} > 0]$ (consistent with~\eqref{eq:agg_curve} whenever $B_{e,m}$ has positive area), $\mathcal{U}(\omega)$ is the set of distinct scheduled exercise names, $N_{\mathrm{tot}}(\omega) = \sum_{d=1}^D N_d$ is total scheduled slots, $D_d$ and $F_d = \sum_{k=1}^{N_d} \sum_{s=1}^{S_{d,k}} R_{\mathrm{tot},d,k,s}\, f_{\mathrm{base},e(d,k)}$ denote daily total reps and linear fatigue, $\mathrm{Var}_d(\cdot)$ denotes the population variance (\texttt{np.var}, $\mathrm{ddof}=0$) across days $d = 1,\dots,D$, $V_{\max} = N_{\max} S_{\max} (r_{\max} + 6 \alpha_{\mathrm{part}})$, and $F_{\max} = \max(10, \max_e f_{\mathrm{base},e})\,V_{\max}$ (noting Popoviciu's $(V_{\max}/2)^2$ denominator is conservative since $D_d \ge N_{\min} S_{\min} r_{\min} > 0$).
 
-Prior to optimization, \texttt{calibrate()} estimates normalization denominators via the empirical sample mean $\hat{\mu}_i = \frac{1}{K}\sum_{r=1}^{K} E_i(x^{(r)})$ over $K = 500$ random states (\texttt{SolverConfig} default; \texttt{GeneratorConfig.jsx} UI defaults to $K = 1000$ and Softmax-uniform weights $w_i = 1/7$), setting $s_i = 2 \hat{\mu}_i$ (with $\mathcal{O}(K^{-1/2})$ standard error, $\mathcal{O}(K^{-1})$ sampling variance, and zero-guard $s_i \leftarrow 10^{-6}$ applied inside \texttt{evaluate\_workout} whenever $s_i = 0$). \texttt{solve()} then minimizes
+Prior to optimization, \texttt{calibrate()} estimates normalization denominators via the empirical sample mean $\hat{\mu}_i = \frac{1}{K}\sum_{r=1}^{K} E_i(\omega^{(r)})$ over $K = 500$ random states (\texttt{SolverConfig} default; \texttt{GeneratorConfig.jsx} UI defaults to $K = 1000$, Softmax-uniform weights $w_i = 1/7$, \texttt{inv\_sigmoid} targets, and uniform active \texttt{volume\_dist}, with $K=0$ disabling calibration cleanly in both engines), setting $s_i = 2 \hat{\mu}_i$ (with $\mathcal{O}(K^{-1/2})$ standard error, $\mathcal{O}(K^{-1})$ sampling variance, and zero-guard $s_i \leftarrow 10^{-6}$ applied inside \texttt{evaluate\_workout} whenever $s_i = 0$). \texttt{solve()} then minimizes
 \begin{equation}
-  \min_{x \in \mathcal{X}}\; J(x) = 10^4 \sum_{i \in \mathcal{I}} w_i \frac{E_i(x)}{s_i} + 10^3 \, P_{\mathrm{dup}}(x),
+  \min_{\omega \in \Omega}\; J(\omega) = 10^4 \sum_{i \in \mathcal{I}} w_i \frac{E_i(\omega)}{s_i} + 10^3 \, P_{\mathrm{dup}}(\omega),
 \end{equation}
-where $P_{\mathrm{dup}}(x) = 150 \cdot N_{\mathrm{dup}}(x)$ penalizes same-day duplicate exercises, using Simulated Annealing with eight discrete mutation operators, unified initial temperature $T_0 = 50.0$, geometric cooling $T_{t+1} = \gamma T_t$ ($\gamma = (0.01 / T_0)^{1/N_{\mathrm{iter}}}$), and Metropolis acceptance $\exp(-\Delta J / T_t)$.
+where $P_{\mathrm{dup}}(\omega) = 150 \cdot N_{\mathrm{dup}}(\omega)$ penalizes same-day duplicate exercises, using Simulated Annealing with eight discrete no-op-filtered mutation operators, unified initial temperature $T_0 = 50.0$, geometric cooling $T_{t+1} = \gamma T_t$ ($\gamma = (0.01 / T_0)^{1/N_{\mathrm{iter}}}$), and Metropolis acceptance $\exp(-\Delta J / T_t)$.
 
 \section{Conclusions \texorpdfstring{\&}{and} Software Architecture}
 \label{sec:conclusions}

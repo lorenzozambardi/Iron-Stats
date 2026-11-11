@@ -35,20 +35,20 @@ The solver simultaneously minimizes seven normalized error metrics via Monte Car
 The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal efficiency ratio targets $\rho_q^* \in [0, 1]$ (default $0.70$):
 *   $w_{\text{curve}}$: Weight for adherence to the Target Curve.
 *   $w_{\text{vol}}$: Weight for Volume efficiency ($\rho_{\text{vol}}^*$).
-*   $w_{\text{ton}}$: Weight for Tonnage efficiency ($\rho_{\text{ton}}^*$).
+*   $w_{\text{ton}}$: Weight for Tonnage efficiency ($\rho_{\text{ton}}^*$, evaluated using the RPE-aware normalized Epley load surrogate $\hat{L} = \frac{100}{1 + 0.033(r + \max(0, 10 - \mathrm{RPE}))} \cdot c_{\mathrm{load}}$).
 *   $w_{\text{tut}}$: Weight for TUT efficiency ($\rho_{\text{tut}}^*$, evaluated using RIR-slowdown dynamic TUT at default `1-0-2-0` tempo).
 *   $w_{\text{distr}}$: Weight for adherence to the requested Macro/Micro volumetric distribution.
 *   $w_{\text{variety}}$: Weight to incentivize exercise diversity across the microcycle.
 *   $w_{\text{balance}}$: Weight to balance daily volume and fatigue across days.
 
 ### 3.2 Raw Error Metrics
-1.  **Curve Error (Mean MSE):** Using peak-normalized aggregate muscle tension $\hat{V}_m(x) = V_m(x) / \max_{x'} V_m(x')$:
-    $$E_{\text{curve}} = \frac{1}{|M_{\text{trained}}|} \sum_{m \in M_{\text{trained}}} \frac{1}{R} \sum_{i=0}^{R-1} \bigl(\hat{V}_m(x_i) - T_m(x_i)\bigr)^2$$
+1.  **Curve Error (Mean MSE):** Evaluated over $\mathcal{M}_{\mathrm{eval}} = \{m : \max_{x'} V_m(x') > 0 \text{ or } \mathrm{Target}_{\mathrm{global}}(m) > 0\}$ (so omitting a targeted muscle incurs $\frac{1}{R}\sum_i T_m(x_i)^2$ instead of shrinking the denominator), using $\hat{V}_m(x) = V_m(x) / \max_{x'} V_m(x')$ when $\max_{x'} V_m(x') > 0$ (and $\hat{V}_m \equiv 0$ otherwise):
+    $$E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\mathrm{eval}}|} \sum_{m \in \mathcal{M}_{\mathrm{eval}}} \frac{1}{R} \sum_{i=0}^{R-1} \bigl(\hat{V}_m(x_i) - T_m(x_i)\bigr)^2$$
 2.  **Volume Error:** $E_{\text{vol}} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - \rho_{\text{vol}}^* \right)^2$
 3.  **Tonnage Error:** $E_{\text{ton}} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - \rho_{\text{ton}}^* \right)^2$
 4.  **TUT Error:** $E_{\text{tut}} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - \rho_{\text{tut}}^* \right)^2$
-5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured):
-    $$\text{Target}_{\text{global}}(m) = \text{Macro}\%(M) \times \text{Sub}\%(m)$$
+5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured; raw shares are divided by $100$ and normalized onto the simplex, and partial reps credit $W_m$ only when $B_{e,m}$ has positive area and intersects $x \le 0.3333$):
+    $$\text{Target}_{\text{raw}}(m) = \frac{\text{Macro}\%(M)}{100} \times \frac{\text{Sub}\%(m)}{100}, \qquad \text{Target}_{\text{global}}(m) = \frac{\text{Target}_{\text{raw}}(m)}{\sum_{m'} \text{Target}_{\text{raw}}(m')}$$
     $$E_{\text{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{W_m}{\sum_{m'} W_{m'}} - \text{Target}_{\text{global}}(m) \right)^2$$
 6.  **Variety Error:**
     $$E_{\text{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
@@ -56,14 +56,13 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
     $$E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(D_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}$$
 
 ### 3.3 Calibrated Global Objective Function
-Prior to Simulated Annealing, $K$ random states estimate $s_i = 2\,\hat{\mu}(E_i)$ (guarded at $10^{-6}$ if zero). The solver minimizes:
-$$J(x) = 10^4 \sum_{i} w_i \frac{E_i(x)}{s_i} + 10^3 \cdot 150 \cdot N_{\text{dup}}(x)$$
+Prior to Simulated Annealing, $K$ random states estimate $s_i = 2\,\hat{\mu}(E_i)$ (guarded at $10^{-6}$ if zero; pass `calibrationSteps = 0` to disable). The solver minimizes:
+$$J(\omega) = 10^4 \sum_{i} w_i \frac{E_i(\omega)}{s_i} + 10^3 \cdot 150 \cdot N_{\text{dup}}(\omega)$$
 
 ## 4. Operational Constraints & Rest Heuristic
 
 ### 4.1 Sets, Reps, and Daily Density
-$$S_{\min} \cdot x_{i,d} \le v_{i,d} \le S_{\max} \cdot x_{i,d}, \qquad R_{\min} \cdot x_{i,d} \le r_{i,d} \le R_{\max} \cdot x_{i,d}$$
-$$E_{\min} \le \sum_{i \in E} x_{i,d} \le E_{\max}$$
+$$S_{\min} \le v_{d,k} \le S_{\max}, \qquad R_{\min} \le r_{d,k,s} \le R_{\max}, \qquad E_{\min} \le N_d \le E_{\max}$$
 
 ### 4.2 Deterministic Rest (Proportional to Fatigue)
 Rest is computed a priori from systemic exercise fatigue $F_e$:

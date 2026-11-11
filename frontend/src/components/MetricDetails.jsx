@@ -159,20 +159,20 @@ const TensionProfileExplainer = () => {
 
       <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>4. Formal Exercise Modeling</h3>
       <div style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Let's apply this algorithm to mathematically model the tension of a Barbell Bicep Curl. We want zero tension at the extremes and a peak tension of 1.0 exactly in the middle of the ROM.
+        Let's apply this algorithm to mathematically model the tension of a Barbell Bicep Curl within the normalized control domain <Latex math={String.raw`[0, 1]^2`} />. We want zero tension at the extremes and symmetric curvature peaking at the middle of the ROM.
         <br/><br/>
         <strong>Step 1: Choosing the 4 Control Points</strong><br/>
         We lock the boundary anchors at zero tension: <Latex math={String.raw`\mathbf{P}_0 = (0, 0)`} /> and <Latex math={String.raw`\mathbf{P}_3 = (1, 0)`} />.<br/>
-        To ensure a constant horizontal progression, we set <Latex math={String.raw`x_1 = 1/3`} /> and <Latex math={String.raw`x_2 = 2/3`} />. Solving for a peak <Latex math={String.raw`y = 1`} /> at the center yields <Latex math={String.raw`y_1 = y_2 = 4/3`} />. 
+        To ensure a constant horizontal progression within <Latex math={String.raw`[0, 1]^2`} />, we set <Latex math={String.raw`x_1 = 1/3, x_2 = 2/3`} /> and maximal control height <Latex math={String.raw`y_1 = y_2 = 1`} />. 
         <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
-          <Latex block math={String.raw`\mathbf{P}_0(0, 0), \quad \mathbf{P}_1(1/3, 4/3), \quad \mathbf{P}_2(2/3, 4/3), \quad \mathbf{P}_3(1, 0)`} />
+          <Latex block math={String.raw`\mathbf{P}_0(0, 0), \quad \mathbf{P}_1(1/3, 1), \quad \mathbf{P}_2(2/3, 1), \quad \mathbf{P}_3(1, 0)`} />
         </div>
 
         <strong>Step 2: Formulating x(t) and y(t)</strong><br/>
         Substituting these points into the generic Bernstein polynomials yields two remarkably clean parametric equations:
         <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
           <Latex block math={String.raw`x(t) = t \left[ (1-t)^2 + 2(1-t)t + t^2 \right] = t`} />
-          <Latex block math={String.raw`y(t) = 4t(1-t) \left[ (1-t) + t \right] = 4t(1-t)`} />
+          <Latex block math={String.raw`y(t) = 3t(1-t) \left[ (1-t) + t \right] = 3t(1-t)`} />
         </div>
         Notice how the horizontal equation elegantly collapses into a linear mapping <Latex math={String.raw`x(t) = t`} />, proving that our parameter perfectly traces the ROM.
         <br/><br/>
@@ -186,11 +186,11 @@ const TensionProfileExplainer = () => {
         <br/><br/>
 
         <strong>Step 4: Calculating y(t)</strong><br/>
-        Finally, we plug our discovered <Latex math={String.raw`t = 0.5`} /> into the tension polynomial to find the precise mechanical tension at that joint angle:
+        Finally, we plug our discovered <Latex math={String.raw`t = 0.5`} /> into the tension polynomial to find the raw curve height at that joint angle:
         <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
-          <Latex block math={String.raw`Y = y(0.5) = 4(0.5)(1 - 0.5) = 4(0.25) = 1.0`} />
+          <Latex block math={String.raw`Y = y(0.5) = 3(0.5)(1 - 0.5) = 3(0.25) = 0.75`} />
         </div>
-        The mathematical model flawlessly outputs the exact peak tension of 1.0!
+        After UI peak normalization (<Latex math={String.raw`y(t)/\max y = 0.75/0.75 = 1.0`} />) or solver GL3 area normalization (<Latex math={String.raw`M_{e,m}/I_{\mathrm{GL3}}`} />), the midpoint achieves its peak tension while keeping every control point inside <Latex math={String.raw`[0, 1]^2`} />!
       </div>
     </div>
   );
@@ -373,7 +373,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
             { symbol: 'T_{\\text{base}, i}', desc: 'Calculated duration for base repetition index i.' },
             { symbol: 'C, E', desc: 'Concentric and Eccentric tempo durations (e.g. 2s concentric, 4s eccentric).' },
             { symbol: 'P_{\\text{short}}, P_{\\text{long}}', desc: 'Pause durations at maximum shortening (peak contraction) and maximum lengthening (stretch).' },
-            { symbol: '\\text{slowdown}_i', desc: 'Physiological slowdown added to concentric phase as reps approach failure (scales based on set fatigue and RPE).' },
+            { symbol: '\\text{slowdown}_i', desc: 'Physiological slowdown added to concentric phase as reps approach failure (scales strictly with per-rep RIR / proximity to failure).' },
             { symbol: 'T_{\\text{assist}}, T_{\\text{partial}}', desc: 'Time assigned to assisted repetitions (standard tempo, no slowdown) and partial repetitions (50% of assisted tempo).' }
           ],
           example: 'A set of 6 reps at 2-0-4-0 tempo (2s concentric, 0s pause, 4s eccentric, 0s pause):\nEach base rep takes: C (2) + E (4) + slowdown. Assuming a moderate RPE (slowdown aggregates ~2s over the set), the set TUT is approximately: (6 * 6s) + 2s = 38 seconds.'
@@ -407,16 +407,16 @@ export default function MetricDetailsPage({ metric, onBack }) {
           formulas: [
             '\\text{Fatigue} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i} T_i \\cdot 1.1^{R_i - 7.5} \\cdot F_e \\cdot K_i \\right) \\cdot D_m',
             '\\text{Base Rep } i: R_i = \\max(0, 10 - \\text{rir}_i), \\; K_i = 1.0',
-            '\\text{Assisted Rep } i: R_i = 7.0 \\implies 1.1^{R_i - 7.5} \\approx 0.95, \\; K_i = 0.5',
-            '\\text{Partial Rep } i: R_i = 7.5 \\implies 1.1^{R_i - 7.5} = 1.0, \\; K_i = 0.66'
+            '\\text{Assisted Rep } i: R_i = 10.0 \\implies 1.1^{2.5} \\approx 1.27, \\; K_i = 0.5',
+            '\\text{Partial Rep } i: R_i = 10.0 \\implies 1.1^{2.5} \\approx 1.27, \\; K_i = 0.33, \\; T_i = 0.5\\,T_{\\text{assist}}'
           ],
           variables: [
             { symbol: '\\text{Fatigue}', desc: 'Accumulated fatigue units for the targeted muscles.' },
             { symbol: 'T_i', desc: 'Duration of repetition i (seconds).' },
-            { symbol: 'R_i', desc: 'RPE equivalent score for rep i (increases from early reps to the final rep).' },
+            { symbol: 'R_i', desc: 'RPE equivalent score for rep i (increases from early reps to the final rep; 10.0 for past-failure assisted and partial reps).' },
             { symbol: '1.1^{R_i - 7.5}', desc: 'Exponential multiplier penalizing high-intensity reps close to failure.' },
-            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (1 to 10) representing systemic and joint stress.' },
-            { symbol: 'K_i', desc: 'Repetition type penalty factor: base = 1.0, assisted = 0.5, partial = 0.66.' },
+            { symbol: 'F_e', desc: 'Exercise-specific fatigue rating (0 to 10) representing systemic and joint stress.' },
+            { symbol: 'K_i', desc: 'Repetition type penalty factor: base = 1.0, assisted = 0.5, partial = 0.33.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
           example: 'A high-fatigue movement like Squats (Fe = 9.5) taken to failure (RPE 10) will generate exponentially higher fatigue values on its final repetitions compared to a low-fatigue movement like Lateral Raises (Fe = 3.0) done with 2 reps in reserve.'
