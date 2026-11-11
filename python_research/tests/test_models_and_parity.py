@@ -243,3 +243,50 @@ def test_session_zero_filter_and_simplex_target_normalization() -> None:
     assert sum(solver.target_sub_vol.values()) == pytest.approx(1.0, abs=1e-12)
     assert solver.target_sub_vol["Sternal Head"] == pytest.approx(0.8)
     assert solver.target_sub_vol["Lateral Deltoid"] == pytest.approx(0.2)
+
+
+def test_bisection_small_dx_bounds_t_and_no_inplace_mutation() -> None:
+    prof = BezierProfile(0.0, 0.0, 1e-6, 0.0, 2e-6, 1.0, 1.0, 1.0, 1.0)
+    # Near x0 where x'(t) ~ 0, dual guard prevents premature y error
+    y_val = prof.solve_y(1e-7)
+    # Exact root satisfies x(t*) = 1e-7 -> t* ~ 0.0044260, y(t*) ~ 5.860326e-5
+    assert abs(y_val - 5.86032566e-5) < 1e-6
+
+    orig_a = BezierProfile(0.0, 0.0, 0.33, 0.5, 0.66, 0.8, 1.0, 1.0, 2.0)
+    orig_b = BezierProfile(0.0, 0.0, 0.33, 0.5, 0.66, 0.8, 1.0, 1.0, 2.0)
+    ex = Exercise(name="NoMut", muscles_distr={"Sternal Head": orig_a, "Clavicular Head": orig_b}, fatigue=5.0, load_coeff=0.5)
+    assert orig_a.magnitude == 2.0
+    assert ex.muscles_distr["Sternal Head"].magnitude == pytest.approx(0.5)
+
+    with pytest.raises(ValueError, match="fatigue"):
+        Exercise(name="NegFat", muscles_distr={"Sternal Head": 1.0}, fatigue=-1.0, load_coeff=0.5)
+    with pytest.raises(ValueError, match="load_multiplier"):
+        Exercise(name="ZeroMult", muscles_distr={"Sternal Head": 1.0}, fatigue=5.0, load_coeff=0.5, load_multiplier=0.0)
+
+
+def test_extended_rep_fatigue_and_solver_surrogate_consistency() -> None:
+    # Assisted & partial reps use concentric-failure multiplier 1.1^2.5
+    tuts = calculate_set_tuts(0, 2, 4, 10.0, 1.0, 0.0, 2.0, 0.0)
+    fat = calculate_set_fatigue(0, 2, 4, 10.0, 1.0, 0.0, 2.0, 0.0, 2.0, 1.0, tuts=tuts)
+    expected = (2 * 3.0 * 0.5 + 4 * 1.5 * COEFF_PARTIAL) * (1.1 ** 2.5) * 2.0
+    assert fat == pytest.approx(expected, rel=1e-9)
+
+    # Targeted omitted muscle incurs E_curve penalty rather than shrinking denominator
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 0
+    cfg.volume_dist = {
+        "macros": {"Chest": 50, "Shoulders": 50},
+        "subs": {"Chest": {"Sternal Head": 100}, "Shoulders": {"Lateral Deltoid": 100}},
+    }
+    solver = WorkoutSolver(cfg)
+    lr = next(e for e in exercises_list if e.name == "LR")
+    st = WorkoutState(1)
+    ex = ScheduledExercise(lr)
+    ex.sets = [ScheduledSet(10, 0, 9.0)]
+    st.days[0] = [ex]
+    solver._return_raw = True
+    _, raw = solver.evaluate_workout(st)
+    solver._return_raw = False
+    # Sternal Head has target > 0 but 0 volume -> must contribute mean(1^2)=1.0, averaged with LR Lateral Deltoid
+    assert raw["curve"] > 0.5

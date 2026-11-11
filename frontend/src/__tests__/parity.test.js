@@ -121,4 +121,20 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     expect(targetSum).toBeCloseTo(1.0, 12);
     expect(solver.target_sub_vol['Sternal Head']).toBeCloseTo(0.8, 12);
   });
+
+  it('disables calibration when calibration_steps is 0 and enforces dual bisection guard', () => {
+    const solver = new WorkoutSolver({ days: 1, calibration_steps: 0 }, defaultExercises);
+    solver.calibrate();
+    expect(Object.keys(solver.scales)).toHaveLength(0);
+
+    // Near x0 where x'(t) ~ 0, dual guard prevents premature y error
+    const yVal = solveBezierY(1e-7, 0.0, 0.0, 1e-6, 0.0, 2e-6, 1.0, 1.0, 1.0);
+    expect(Math.abs(yVal - 5.86032566e-5)).toBeLessThan(1e-6);
+
+    // Extended rep fatigue parity with Python (1.1^2.5 failure multiplier)
+    const tuts = calculateSetTuts(0, 2, 4, 10.0, 1.0, 0.0, 2.0, 0.0);
+    const fat = calculateSetFatigue(0, 2, 4, 10.0, 1.0, 0.0, 2.0, 0.0, 2.0, 1.0, tuts);
+    const expected = (2 * 3.0 * 0.5 + 4 * 1.5 * 0.33) * Math.pow(1.1, 2.5) * 2.0;
+    expect(fat).toBeCloseTo(expected, 9);
+  });
 });

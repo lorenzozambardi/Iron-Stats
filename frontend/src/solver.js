@@ -179,6 +179,19 @@ export class WorkoutSolver {
             ...config
         };
 
+        if (this.config.days < 1) {
+            throw new RangeError(`days must be >= 1, got ${this.config.days}`);
+        }
+        if (this.config.min_ex < 1 || this.config.max_ex < this.config.min_ex) {
+            throw new RangeError(`Invalid min_ex/max_ex: ${this.config.min_ex}, ${this.config.max_ex}`);
+        }
+        if (this.config.min_sets < 1 || this.config.max_sets < this.config.min_sets) {
+            throw new RangeError(`Invalid min_sets/max_sets: ${this.config.min_sets}, ${this.config.max_sets}`);
+        }
+        if (this.config.min_reps < 1 || this.config.max_reps < this.config.min_reps) {
+            throw new RangeError(`Invalid min_reps/max_reps: ${this.config.min_reps}, ${this.config.max_reps}`);
+        }
+
         if (this.config.iterations !== undefined) {
             this.config.iterations = Math.min(Math.max(0, this.config.iterations), 100000);
         }
@@ -283,12 +296,28 @@ export class WorkoutSolver {
         this.default_curve = new Float32Array(this.resolution).fill(1);
         this.scales = {};
 
-        // Precompute curves
+        // Precompute curves and support flags
+        this.max_ex_fatigue = Math.max(10.0, ...this.db.map(ex => Number(ex.fatigue) || 0));
         this.ex_curves = {};
+        this.ex_has_area = {};
+        this.ex_partial_active = {};
         this.db.forEach(ex => {
             this.ex_curves[ex.name] = {};
+            this.ex_has_area[ex.name] = {};
+            this.ex_partial_active[ex.name] = {};
             for (const m in ex.muscles_distr) {
-                this.ex_curves[ex.name][m] = getBezierCurve(ex.muscles_distr[m], this.resolution);
+                const prof = ex.muscles_distr[m];
+                const phys = getBezierCurve(prof, this.resolution);
+                this.ex_curves[ex.name][m] = phys;
+                this.ex_has_area[ex.name][m] = bezierArea(prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) > 0.0;
+                let partialActive = false;
+                for (let i = 0; i < this.resolution; i++) {
+                    if (phys[i] * this.partial_mask[i] > 0.0) {
+                        partialActive = true;
+                        break;
+                    }
+                }
+                this.ex_partial_active[ex.name][m] = partialActive;
             }
         });
 
@@ -330,9 +359,9 @@ export class WorkoutSolver {
      * plus a 150.0 * 1000.0 penalty per same-day duplicate exercise.
      *
      * Fast SA surrogates:
-     * - Load: Epley-like ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
+     * - Load: RPE-aware normalized Epley ``(100 / (1 + 0.033 * (base_reps + max(0, 10 - rpe)))) * load_coeff``.
      * - TUT: RIR-slowdown dynamic TUT at default ``1-0-2-0`` tempo (distinct from ``E_vol``).
-     * - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue in [1, 10]``).
+     * - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue``).
      */
     evaluateWorkout(state) {
         let totalVol = 0.0, effVol = 0.0;
@@ -369,7 +398,7 @@ export class WorkoutSolver {
                 totalExercises++;
 
                 let exFatigue = 0.0;
-                let exBaseReps = 0.0, exPartialReps = 0.0, exTotalReps = 0.0;
+                let exBaseReps = 0.0, exPartialReps = 0.0;
 
                 for (const s of schedEx.sets) {
                     const sTotal = s.total_reps;
@@ -379,7 +408,8 @@ export class WorkoutSolver {
                     effVol += sEff;
                     dayVol += sTotal;
 
-                    const load = ex.load_multiplier * (100.0 / (1.0 + 0.033 * s.base_reps)) + ex.load_offset;
+                    const effSetReps = s.base_reps + Math.max(0.0, 10.0 - s.rpe);
+                    const load = (100.0 / (1.0 + 0.033 * effSetReps)) * ex.load_coeff;
                     totalTon += sTotal * load;
                     effTon += sEff * load;
 
@@ -391,7 +421,6 @@ export class WorkoutSolver {
 
                     exBaseReps += s.base_reps;
                     exPartialReps += s.partial_reps;
-                    exTotalReps += sTotal;
                 }
 
                 for (const m in ex.muscles_distr) {
@@ -405,7 +434,12 @@ export class WorkoutSolver {
                             vmCurve[i] += baseCurve[i] * (exPartialReps * COEFF_PARTIAL) * this.partial_mask[i];
                         }
                     }
-                    subVols[m] += bezierProf.magnitude * exTotalReps;
+                    if (this.ex_has_area[ex.name][m]) {
+                        const muscleReps = exBaseReps + (
+                            this.ex_partial_active[ex.name][m] ? exPartialReps * COEFF_PARTIAL : 0.0
+                        );
+                        subVols[m] += bezierProf.magnitude * muscleReps;
+                    }
                 }
 
                 dayFatigue += exFatigue;
@@ -415,16 +449,17 @@ export class WorkoutSolver {
             dailyVol.push(dayVol);
         }
 
-        // 1. Curve Error
+        // 1. Curve Error (include targeted muscles even when omitted so skipping muscles never reduces E_curve)
         let E_curve = 0.0;
-        let trainedMuscles = 0;
+        let evalMuscles = 0;
         for (const m in V_m) {
             const curve = V_m[m];
             let maxV = 0.0;
             for (let i = 0; i < this.resolution; i++) {
                 if (curve[i] > maxV) maxV = curve[i];
             }
-            if (maxV > 0) {
+            const isTargeted = (this.target_sub_vol[m] || 0.0) > 0.0;
+            if (maxV > 0.0) {
                 const target = this.T_m[m] || this.default_curve;
                 let sumSq = 0.0;
                 for (let i = 0; i < this.resolution; i++) {
@@ -433,10 +468,18 @@ export class WorkoutSolver {
                     sumSq += diff * diff;
                 }
                 E_curve += sumSq / this.resolution;
-                trainedMuscles++;
+                evalMuscles++;
+            } else if (isTargeted) {
+                const target = this.T_m[m] || this.default_curve;
+                let sumSq = 0.0;
+                for (let i = 0; i < this.resolution; i++) {
+                    sumSq += target[i] * target[i];
+                }
+                E_curve += sumSq / this.resolution;
+                evalMuscles++;
             }
         }
-        if (trainedMuscles > 0) E_curve /= trainedMuscles;
+        if (evalMuscles > 0) E_curve /= evalMuscles;
 
         // 2. Ratio Errors
         const vDiff = effVol / totalVol - this.config.target_ratios.vol;
@@ -475,7 +518,7 @@ export class WorkoutSolver {
         if (dailyFatigue.length > 1) {
             const maxSetVol = this.config.max_reps + COEFF_PARTIAL * 6.0;
             const maxDayVol = this.config.max_ex * this.config.max_sets * maxSetVol;
-            const maxDayFatigue = maxDayVol * 10.0;
+            const maxDayFatigue = maxDayVol * this.max_ex_fatigue;
             const maxVarF = (maxDayFatigue * 0.5) * (maxDayFatigue * 0.5);
             
             const meanF = dailyFatigue.reduce((a, b) => a + b, 0) / dailyFatigue.length;
@@ -577,7 +620,10 @@ export class WorkoutSolver {
             day.splice(randomInt(0, day.length - 1), 1);
         } else if (mType === 'swap_ex') {
             const idx = randomInt(0, day.length - 1);
-            const newEx = new ScheduledExercise(this.getRandomExercise());
+            const currentExName = day[idx].exercise.name;
+            const candidates = this.db.filter(e => e.name !== currentExName);
+            const chosenEx = candidates.length > 0 ? randomChoice(candidates) : this.getRandomExercise();
+            const newEx = new ScheduledExercise(chosenEx);
             newEx.sets = day[idx].sets.map(s => s.clone());
             day[idx] = newEx;
         } else if (mType === 'add_set') {
@@ -588,18 +634,27 @@ export class WorkoutSolver {
             ex.sets.splice(randomInt(0, ex.sets.length - 1), 1);
         } else if (mType === 'mut_reps') {
             const s = randomChoice(setsOnDay);
-            s.base_reps += randomChoice([-2, -1, 1, 2]);
-            s.base_reps = Math.max(this.config.min_reps, Math.min(this.config.max_reps, s.base_reps));
+            const repChoices = [-2, -1, 1, 2]
+                .map(dRep => Math.max(this.config.min_reps, Math.min(this.config.max_reps, s.base_reps + dRep)))
+                .filter(r => r !== s.base_reps);
+            if (repChoices.length > 0) {
+                s.base_reps = randomChoice(repChoices);
+            }
         } else if (mType === 'mut_rpe') {
             const s = randomChoice(setsOnDay);
-            s.rpe += randomChoice([-0.5, 0.5]);
-            s.rpe = Math.max(5.0, Math.min(10.0, s.rpe));
+            const rpeChoices = [-0.5, 0.5]
+                .map(dRpe => Math.max(5.0, Math.min(10.0, s.rpe + dRpe)))
+                .filter(r => r !== s.rpe);
+            if (rpeChoices.length > 0) {
+                s.rpe = randomChoice(rpeChoices);
+            }
             if (s.rpe < 9.0) {
                 s.partial_reps = 0;
             }
         } else if (mType === 'mut_partials') {
             const s = randomChoice(eligiblePartialSets);
-            s.partial_reps = randomChoice([0, 2, 4, 6]);
+            const partialChoices = [0, 2, 4, 6].filter(p => p !== s.partial_reps);
+            s.partial_reps = randomChoice(partialChoices);
         }
 
         return newState;
@@ -610,7 +665,7 @@ export class WorkoutSolver {
      * over ``calibration_steps`` random states (empirical sample mean, guarded at ``1e-6``).
      */
     calibrate() {
-        const steps = this.config.calibration_steps || 500;
+        const steps = this.config.calibration_steps ?? 500;
         if (steps <= 0) return;
 
         this._return_raw = true;
@@ -645,7 +700,7 @@ export class WorkoutSolver {
             Math.max(0, iterations ?? this.config.iterations ?? 10000),
             100000
         );
-        if (!coolingRate) {
+        if (coolingRate === null || coolingRate === undefined) {
             coolingRate = effectiveIterations > 0 ? Math.pow(0.01 / initialTemp, 1.0 / effectiveIterations) : 0.995;
         }
 

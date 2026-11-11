@@ -161,8 +161,17 @@ class SolverConfig:
 class WorkoutSolver:
     def __init__(self, config: SolverConfig):
         self.config = config
+        if self.config.days < 1:
+            raise ValueError(f"days must be >= 1, got {self.config.days}")
+        if self.config.min_ex < 1 or self.config.max_ex < self.config.min_ex:
+            raise ValueError(f"Invalid min_ex/max_ex: {self.config.min_ex}, {self.config.max_ex}")
+        if self.config.min_sets < 1 or self.config.max_sets < self.config.min_sets:
+            raise ValueError(f"Invalid min_sets/max_sets: {self.config.min_sets}, {self.config.max_sets}")
+        if self.config.min_reps < 1 or self.config.max_reps < self.config.min_reps:
+            raise ValueError(f"Invalid min_reps/max_reps: {self.config.min_reps}, {self.config.max_reps}")
         self.db = exercises_list
         self.resolution = 50
+        self.max_ex_fatigue = max(10.0, max((ex.fatigue for ex in self.db), default=10.0))
         
         self.target_sub_vol = {}
         if self.config.volume_dist.get('macros'):
@@ -183,14 +192,14 @@ class WorkoutSolver:
         for sub, macro in MUSCLES.items():
             macro_to_subs.setdefault(macro, []).append(sub)
         for m, curve_type in self.config.muscle_targets.items():
-            if m in macro_to_subs or subs_dict.get(m):
+            if m in macro_to_subs or len(subs_dict.get(m, {})) > 0:
                 curve = get_target_curve(curve_type, self.resolution)
                 for sub in macro_to_subs.get(m, []):
                     self.T_m[sub] = curve
                 for sub in subs_dict.get(m, {}):
                     self.T_m[sub] = curve
         for m, curve_type in self.config.muscle_targets.items():
-            if m not in macro_to_subs and not subs_dict.get(m):
+            if m not in macro_to_subs and len(subs_dict.get(m, {})) == 0:
                 self.T_m[m] = get_target_curve(curve_type, self.resolution)
             
         self.all_submuscles = set()
@@ -205,12 +214,19 @@ class WorkoutSolver:
 
         self.scales: dict[str, float] = {}
 
-        # Precompute physical-ROM-aligned Bezier curves for all exercises
-        self.ex_curves = {}
+        # Precompute physical-ROM-aligned Bezier curves and support flags for all exercises
+        self.ex_curves: dict[str, dict[str, np.ndarray]] = {}
+        self.ex_has_area: dict[str, dict[str, bool]] = {}
+        self.ex_partial_active: dict[str, dict[str, bool]] = {}
         for ex in self.db:
-            self.ex_curves[ex.name] = {
-                m: prof.get_physical_curve(self.resolution) for m, prof in ex.muscles_distr.items()
-            }
+            self.ex_curves[ex.name] = {}
+            self.ex_has_area[ex.name] = {}
+            self.ex_partial_active[ex.name] = {}
+            for m, prof in ex.muscles_distr.items():
+                phys = prof.get_physical_curve(self.resolution)
+                self.ex_curves[ex.name][m] = phys
+                self.ex_has_area[ex.name][m] = prof.exact_area() > 0.0
+                self.ex_partial_active[ex.name][m] = bool(np.any(phys * self.partial_mask > 0.0))
             
     def get_random_exercise(self) -> Exercise:
         return random.choice(self.db)
@@ -238,9 +254,9 @@ class WorkoutSolver:
         plus a hard penalty of 150.0 * 1000.0 per same-day duplicate exercise.
 
         For fast SA evaluation, lightweight surrogates replace full logbook metrics:
-        - Load: Epley-like estimate ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
+        - Load: RPE-aware normalized Epley estimate ``(100 / (1 + 0.033 * (base_reps + max(0, 10 - rpe)))) * load_coeff``.
         - TUT: RIR-slowdown dynamic TUT at default ``1-0-2-0`` tempo (distinct from ``E_vol``).
-        - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue in [1, 10]``).
+        - Fatigue: linear ``total_reps * fatigue`` (dimensionally consistent with ``ex.fatigue``).
         """
         total_vol = 0.0
         eff_vol = 0.0
@@ -277,7 +293,6 @@ class WorkoutSolver:
                 ex_fatigue = 0.0
                 ex_base_reps = 0.0
                 ex_partial_reps = 0.0
-                ex_total_reps = 0.0
                 
                 for s in sched_ex.sets:
                     s_total = s.total_reps
@@ -287,7 +302,8 @@ class WorkoutSolver:
                     eff_vol += s_eff
                     day_vol += s_total
                     
-                    load = ex.load_multiplier * (100.0 / (1.0 + 0.033 * s.base_reps)) + ex.load_offset
+                    eff_set_reps = s.base_reps + max(0.0, 10.0 - s.rpe)
+                    load = (100.0 / (1.0 + 0.033 * eff_set_reps)) * ex.load_coeff
                     total_ton += s_total * load
                     eff_ton += s_eff * load
                     
@@ -299,33 +315,41 @@ class WorkoutSolver:
                     
                     ex_base_reps += s.base_reps
                     ex_partial_reps += s.partial_reps
-                    ex_total_reps += s_total
                     
                 for m, bezier_prof in ex.muscles_distr.items():
                     base_curve = self.ex_curves[ex.name][m]
                     V_m[m] += base_curve * ex_base_reps
                     if ex_partial_reps > 0:
                         V_m[m] += base_curve * (ex_partial_reps * COEFF_PARTIAL) * self.partial_mask
-                    sub_vols[m] += bezier_prof.magnitude * ex_total_reps
+                    if self.ex_has_area[ex.name][m]:
+                        muscle_reps = ex_base_reps + (
+                            ex_partial_reps * COEFF_PARTIAL if self.ex_partial_active[ex.name][m] else 0.0
+                        )
+                        sub_vols[m] += bezier_prof.magnitude * muscle_reps
 
                 day_fatigue += ex_fatigue
                 
             daily_fatigue.append(day_fatigue)
             daily_vol.append(day_vol)
                 
-        # 1. Curve Error
+        # 1. Curve Error (include targeted muscles even when omitted so skipping muscles never reduces E_curve)
         E_curve = 0.0
         if len(V_m) > 0:
-            trained_muscles = 0
+            eval_muscles = 0
             for m, curve in V_m.items():
                 max_v = np.max(curve)
-                if max_v > 0:
+                is_targeted = self.target_sub_vol.get(m, 0.0) > 0.0
+                if max_v > 0.0:
                     target = self.T_m.get(m, self.default_curve)
                     normalized_v = curve / max_v
                     E_curve += np.sum((normalized_v - target)**2) / self.resolution
-                    trained_muscles += 1
-            if trained_muscles > 0:
-                E_curve /= trained_muscles # Normalize to [0, 1] range
+                    eval_muscles += 1
+                elif is_targeted:
+                    target = self.T_m.get(m, self.default_curve)
+                    E_curve += np.sum(target**2) / self.resolution
+                    eval_muscles += 1
+            if eval_muscles > 0:
+                E_curve /= eval_muscles # Normalize to [0, 1] range
             
         # 2. Ratio Errors
         E_vol = (eff_vol / total_vol - self.config.target_ratios['vol'])**2 if total_vol > 0 else 0.0
@@ -354,7 +378,7 @@ class WorkoutSolver:
         if len(daily_fatigue) > 1:
             max_set_vol = self.config.max_reps + COEFF_PARTIAL * 6.0
             max_day_vol = self.config.max_ex * self.config.max_sets * max_set_vol
-            max_day_fatigue = max_day_vol * 10.0
+            max_day_fatigue = max_day_vol * self.max_ex_fatigue
             max_var_f = (max_day_fatigue / 2.0)**2
             var_fatigue = np.var(daily_fatigue)
             norm_var_f = var_fatigue / max_var_f if max_var_f > 0 else 0.0
@@ -449,7 +473,10 @@ class WorkoutSolver:
 
         elif mutation_type == 'swap_ex':
             idx = random.randrange(len(day))
-            new_ex = ScheduledExercise(self.get_random_exercise())
+            current_ex_name = day[idx].exercise.name
+            candidates = [e for e in self.db if e.name != current_ex_name]
+            chosen_ex = random.choice(candidates) if candidates else self.get_random_exercise()
+            new_ex = ScheduledExercise(chosen_ex)
             new_ex.sets = [s.clone() for s in day[idx].sets]
             day[idx] = new_ex
 
@@ -463,19 +490,30 @@ class WorkoutSolver:
 
         elif mutation_type == 'mut_reps':
             s = random.choice(sets_on_day)
-            s.base_reps += random.choice([-2, -1, 1, 2])
-            s.base_reps = max(self.config.min_reps, min(self.config.max_reps, s.base_reps))
+            rep_choices = [
+                max(self.config.min_reps, min(self.config.max_reps, s.base_reps + d_rep))
+                for d_rep in (-2, -1, 1, 2)
+            ]
+            rep_choices = [r for r in rep_choices if r != s.base_reps]
+            if rep_choices:
+                s.base_reps = random.choice(rep_choices)
 
         elif mutation_type == 'mut_rpe':
             s = random.choice(sets_on_day)
-            s.rpe += random.choice([-0.5, 0.5])
-            s.rpe = max(5.0, min(10.0, s.rpe))
+            rpe_choices = [
+                max(5.0, min(10.0, s.rpe + d_rpe))
+                for d_rpe in (-0.5, 0.5)
+            ]
+            rpe_choices = [r for r in rpe_choices if r != s.rpe]
+            if rpe_choices:
+                s.rpe = random.choice(rpe_choices)
             if s.rpe < 9.0:
                 s.partial_reps = 0
 
         elif mutation_type == 'mut_partials':
             s = random.choice(eligible_partial_sets)
-            s.partial_reps = random.choice([0, 2, 4, 6])
+            partial_choices = [p for p in (0, 2, 4, 6) if p != s.partial_reps]
+            s.partial_reps = random.choice(partial_choices)
 
         return new_state
 
