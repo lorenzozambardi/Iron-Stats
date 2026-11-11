@@ -4,79 +4,73 @@
 *   $x_{i,d} \in \{0, 1\}$: Activation. `1` if exercise $i$ is scheduled on day $d$, `0` otherwise.
 *   $v_{i,d} \in \mathbb{N}$: Volume (number of sets) for exercise $i$ on day $d$.
 *   $r_{i,d} \in \mathbb{N}$: Repetitions per set of exercise $i$ on day $d$.
+*   $\mathrm{RPE}_{i,d,s} \in [5.0, 10.0]$: Rate of Perceived Exertion per set.
+*   $p_{i,d,s} \in \{0, 2, 4, 6\}$: Stretched-ROM partial repetitions ($\mathrm{RPE} \ge 9.0$ only).
 
 ## 2. Parameters (UI Editable Input)
 > [!IMPORTANT]
-> **All constraints and limits listed below are not hard-coded, but must be exposed and freely editable by the user via the user interface (UI).** The values shown are the current default settings.
+> **All constraints and limits listed below are exposed and editable by the user via the user interface (UI).** The values shown are the current default settings.
 
-*   $D$: Number of days in the microcycle. Must be between 3 and 7 ($3 \le D \le 7$).
-*   $T$: Set of discrete points mapping the Range of Motion (ROM).
-*   $C_{i,m}(t)$: Base tension curve of exercise $i$ on muscle $m$.
-*   $T_m(t)$: Ideal target tension curve. The interface must allow the user to set it by choosing among the following shapes (on domain $t \in [0, 1]$):
-    *   **Constant (Flat):** Flat tension throughout the ROM ($T_m(t) = c$).
-    *   **Sigmoid:** Increasing from 0 to 1 (emphasis on peak contraction).
-    *   **Inverse Sigmoid:** Decreasing from 1 to 0 (emphasis on maximal stretch).
-    *   **Linear (from 1 to 0):** Decreasing linearly (emphasis proportional to stretch).
-*   $F_i$: Systemic fatigue cost of exercise $i$.
+*   $D$: Number of days in the microcycle. Must be between 3 and 7 ($3 \le D \le 7$, default $4$).
+*   $X$: Discrete grid of $R = 50$ points over normalized physical Range of Motion ($x \in [0, 1]$).
+*   $B_{e,m}(x)$: Area-normalized cubic Bézier tension profile of exercise $e$ on sub-muscle $m$ (normalized via exact 3-point Gauss–Legendre quadrature).
+*   $T_m(x)$: Ideal target tension curve on $x \in [0, 1]$:
+    *   **Constant (Flat):** $T_m(x) = 1$.
+    *   **Sigmoid:** $1 / (1 + e^{-10(x - 0.5)})$ (emphasis on peak contraction).
+    *   **Inverse Sigmoid:** $1 / (1 + e^{10(x - 0.5)})$ (emphasis on maximal stretch).
+    *   **Linear:** $1 - x$ (decreasing linearly from stretch to contraction).
+*   $F_e \in [1, 10]$: Systemic fatigue cost of exercise $e$.
 
-**Operational Limits (Default):**
-*   **Set Limits:** $V_{min} = 1$, $V_{max} = 6$.
-*   **Rep Limits:** $R_{min} = 5$, $R_{max} = 20$.
-*   **Exercises/Day Limits:** $E_{min} = 3$, $E_{max} = 10$.
-*   **Daily Fatigue Limit:** $F_{max\_day} = 1500$.
-*   **Rest Limits:** $Rest_{min} = 80\text{s}$ (1'20"), $Rest_{max} = 210\text{s}$ (3'30").
+**Operational Limits (Generator UI Defaults):**
+*   **Set Limits:** $S_{\min} = 1$, $S_{\max} = 6$.
+*   **Rep Limits:** $R_{\min} = 5$, $R_{\max} = 20$.
+*   **Exercises/Day Limits:** $E_{\min} = 3$, $E_{\max} = 10$.
+*   **Rest Limits:** $\mathrm{Rest}_{\min} = 60\text{s}$ ($1'$), $\mathrm{Rest}_{\max} = 210\text{s}$ ($3'30''$).
 
 ## 3. Objective Function: Multi-Objective Optimization (Scalarized)
 
-The general objective is to simultaneously minimize the tension curve error and the training efficiency indexes (Ratios) error.
+The solver simultaneously minimizes seven normalized error metrics via Monte Carlo scale calibration and Simulated Annealing.
 
 ### 3.1 Efficiency Weights and Targets (UI Editable)
-The user must be able to define the **Weights ($w$)** to decide the importance of each parameter (whose sum must be 1.0) and the **Ideal Targets** for the efficiency fractions (from 0.0 to 1.0):
-*   $w_{curve}$: Weight for adherence to the Target Curve.
-*   $w_{vol}$: Weight for Volume efficiency. (Ideal Target: $Target_{vol}$)
-*   $w_{ton}$: Weight for Tonnage efficiency. (Ideal Target: $Target_{ton}$)
-*   $w_{tut}$: Weight for TUT efficiency. (Ideal Target: $Target_{tut}$)
-*   $w_{distr}$: Weight for adherence to the requested Macro/Micro volumetric distribution.
-*   $w_{variety}$: Weight to incentivize exercise diversity across the entire microcycle.
+The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal efficiency ratio targets $\rho_q^* \in [0, 1]$ (default $0.70$):
+*   $w_{\text{curve}}$: Weight for adherence to the Target Curve.
+*   $w_{\text{vol}}$: Weight for Volume efficiency ($\rho_{\text{vol}}^*$).
+*   $w_{\text{ton}}$: Weight for Tonnage efficiency ($\rho_{\text{ton}}^*$).
+*   $w_{\text{tut}}$: Weight for TUT efficiency ($\rho_{\text{tut}}^*$, evaluated using RIR-slowdown dynamic TUT at default `1-0-2-0` tempo).
+*   $w_{\text{distr}}$: Weight for adherence to the requested Macro/Micro volumetric distribution.
+*   $w_{\text{variety}}$: Weight to incentivize exercise diversity across the microcycle.
+*   $w_{\text{balance}}$: Weight to balance daily volume and fatigue across days.
 
-### 3.2 Error Calculation (Normalized in domain [0, 1])
-To ensure that the weights ($w$) assigned by the interface have a perfectly symmetrical and democratic impact, ALL errors are mathematically squashed into the same domain `[0.0, 1.0]`. This is achieved by dividing the deviations by their maximum theoretical value or by averaging instead of summing.
-
-1.  **Curve Error (Mean MSE):** The mean squared error calculated on the curve points is summed for all analyzed muscles and divided by the number of muscles: $E_{curve} = \frac{1}{|M|} \sum_{m} \frac{\sum (V_m - T_m)^2}{Resolution}$
-2.  **Volume Error:** $E_{vol} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - Target_{vol} \right)^2$
-3.  **Tonnage Error:** $E_{ton} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - Target_{ton} \right)^2$
-4.  **TUT Error:** $E_{tut} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - Target_{tut} \right)^2$
-5.  **Volume Distribution Error:** Divided by 2 (maximum theoretical squared $\ell_2$ distance between two distributions on the simplex)
-    $$ Target_{global}(m) = Macro\%(M) \times Sub\%(m) $$
-    $$ E_{distr} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{total}(m)}{\sum_{m'} V_{total}(m')} - Target_{global}(m) \right)^2 $$
+### 3.2 Raw Error Metrics
+1.  **Curve Error (Mean MSE):** Using peak-normalized aggregate muscle tension $\hat{V}_m(x) = V_m(x) / \max_{x'} V_m(x')$:
+    $$E_{\text{curve}} = \frac{1}{|M_{\text{trained}}|} \sum_{m \in M_{\text{trained}}} \frac{1}{R} \sum_{i=0}^{R-1} \bigl(\hat{V}_m(x_i) - T_m(x_i)\bigr)^2$$
+2.  **Volume Error:** $E_{\text{vol}} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - \rho_{\text{vol}}^* \right)^2$
+3.  **Tonnage Error:** $E_{\text{ton}} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - \rho_{\text{ton}}^* \right)^2$
+4.  **TUT Error:** $E_{\text{tut}} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - \rho_{\text{tut}}^* \right)^2$
+5.  **Volume Distribution Error:** Half squared $\ell_2$ distance on the simplex (equal to $0$ when no target distribution is configured):
+    $$\text{Target}_{\text{global}}(m) = \text{Macro}\%(M) \times \text{Sub}\%(m)$$
+    $$E_{\text{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{W_m}{\sum_{m'} W_{m'}} - \text{Target}_{\text{global}}(m) \right)^2$$
 6.  **Variety Error:**
-    $$ E_{variety} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2 $$
-7.  **Daily Balance Error (Ex-Variance):**
-    Ensures that volume and fatigue are equally spread across the microcycle days. The daily variance is divided by the theoretical maximum variance, mapping the result to `[0, 1]`.
-    $$ E_{balance} = \frac{1}{2} \left( \frac{Var(\text{Fatigue})}{Var_{max\_F}} + \frac{Var(\text{Volume})}{Var_{max\_V}} \right) $$
+    $$E_{\text{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
+7.  **Daily Balance Error:** Population variance of daily fatigue and daily volume normalized by conservative Popoviciu bounds $(F_{\max}/2)^2$ and $(V_{\max}/2)^2$:
+    $$E_{\text{balance}} = \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(D_d)}{(V_{\max}/2)^2} \right)$$
 
-### 3.3 Global Objective Function (Softmax Weighted Sum)
-The weights $w$ provided by the UI (subjected to Softmax Normalization so that $\sum w = 1.0$) are multiplied by the respective Errors.
-The algorithm will minimize the following equation:
-$$ \min \Big( w_{curve} \cdot E_{curve} + w_{vol} \cdot E_{vol} + w_{ton} \cdot E_{ton} + w_{tut} \cdot E_{tut} + w_{distr} \cdot E_{distr} + w_{variety} \cdot E_{variety} + w_{balance} \cdot E_{balance} \Big) $$
+### 3.3 Calibrated Global Objective Function
+Prior to Simulated Annealing, $K$ random states estimate $s_i = 2\,\hat{\mu}(E_i)$ (guarded at $10^{-6}$ if zero). The solver minimizes:
+$$J(x) = 10^4 \sum_{i} w_i \frac{E_i(x)}{s_i} + 10^3 \cdot 150 \cdot N_{\text{dup}}(x)$$
 
-## 4. Physiological Constraints
+## 4. Operational Constraints & Rest Heuristic
 
-### 4.1. Sets and Reps Limits (Big-M)
-If the exercise is chosen, it must respect the minimum and maximum parameters. If not chosen, the values collapse to 0.
-$$ V_{min} \cdot x_{i,d} \le v_{i,d} \le V_{max} \cdot x_{i,d} \quad \text{(e.g., } 1 \le v_{i,d} \le 6 \text{)} $$
-$$ R_{min} \cdot x_{i,d} \le r_{i,d} \le R_{max} \cdot x_{i,d} \quad \text{(e.g., } 5 \le r_{i,d} \le 20 \text{)} $$
+### 4.1 Sets, Reps, and Daily Density
+$$S_{\min} \cdot x_{i,d} \le v_{i,d} \le S_{\max} \cdot x_{i,d}, \qquad R_{\min} \cdot x_{i,d} \le r_{i,d} \le R_{\max} \cdot x_{i,d}$$
+$$E_{\min} \le \sum_{i \in E} x_{i,d} \le E_{\max}$$
 
-### 4.2. Minimum and Maximum Density per Day
-$$ E_{min} \le \sum_{i \in E} x_{i,d} \le E_{max} \quad \text{(e.g., } 3 \le \text{Exercises} \le 10 \text{)} $$
+### 4.2 Deterministic Rest (Proportional to Fatigue)
+Rest is computed a priori from systemic exercise fatigue $F_e$:
+* **Low Fatigue ($F_e \le 2.0$):** Fixed rest at 1 minute (`1'`, 60s).
+* **Medium Fatigue ($2.0 < F_e \le 7.0$):** Linearly scaled from 1 minute to 3 minutes.
+* **High Fatigue ($F_e > 7.0$):** Linearly scaled from 3 minutes up to 3 minutes 30 seconds (`3'30"` at $F_e = 10.0$).
+Values are rounded half-up to the nearest half minute.
 
-### 4.4. Deterministic Rest (Proportional to Fatigue)
-Rest $rest_i$ is not a free variable to optimize, but is calculated a priori via a non-linear heuristic based on the systemic fatigue $F_i$ of the exercise:
-* **Low Fatigue ($F_i \le 2.0$):** Fixed rest at 1 minute (60s). Ideal for light isolation.
-* **Medium Fatigue ($2.0 < F_i \le 7.0$):** Scales linearly from 1 minute to 3 minutes.
-* **High Fatigue ($F_i > 7.0$):** Scales linearly from 3 minutes up to a maximum of 3 minutes and 30 seconds (for heavy systemic exercises like Deadlifts).
-The calculated values are then rounded to the nearest half minute (e.g., 2'30").
-
-### 4.5. Muscle / Neural Recovery Time (Overlap)
-To force the algorithm to change working angles and avoid saturating the CNS with the exact same movement to bypass the set cap, a massive penalty is applied to the Cost function if the same exercise is scheduled more than once on the same day.
-$$ Cost \mathrel{+}= \text{Penalty} \quad \text{if } \sum x_{i,d} > 1 \text{ on the same } d $$
+### 4.3 Same-Day Duplicate Penalty
+To encourage diverse movement angles and avoid concentrating all volume into one exercise on the same day, each duplicate exercise on the same day adds a hard penalty of $150{,}000$ to $J(x)$.
