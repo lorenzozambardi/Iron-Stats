@@ -12,22 +12,25 @@ export const formatRestTime = (seconds) => {
 };
 
 export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
+  if (!(x0 < x1 && x1 < x2 && x2 < x3)) {
+    throw new RangeError(`Non-monotone Bezier profile: ${x0}, ${x1}, ${x2}, ${x3}`);
+  }
   if (targetX < x0) return 0.0;
   if (targetX > x3) return 0.0;
   if (targetX === x0) return y0;
   if (targetX === x3) return y3;
-  
+
   let lower = 0;
   let upper = 1;
   let t = 0.5;
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 30; i++) {
     const u = 1 - t;
     const u2 = u * u;
     const u3 = u2 * u;
     const t2 = t * t;
     const t3 = t2 * t;
     const x = u3 * x0 + 3 * u2 * t * x1 + 3 * u * t2 * x2 + t3 * x3;
-    if (Math.abs(x - targetX) < 0.001) break;
+    if (Math.abs(x - targetX) < 1e-6) break;
     if (x < targetX) lower = t;
     else upper = t;
     t = (lower + upper) * 0.5;

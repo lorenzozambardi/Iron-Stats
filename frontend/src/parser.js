@@ -417,12 +417,9 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
   for (let j = 0; j < baseReps; j++) {
     if (j >= actualTuts.length) break;
     const repTut = actualTuts[j];
-    let rpeMult = 1.0;
-    if (rpe > 0) {
-      const rir = (10.0 - rpe) + (baseReps - 1 - j);
-      const repRpe = Math.max(0.0, 10.0 - rir);
-      rpeMult = repRpe > 0 ? Math.pow(1.1, repRpe - 7.5) : 1.0;
-    }
+    const rir = (10.0 - rpe) + (baseReps - 1 - j);
+    const repRpe = Math.max(0.0, 10.0 - rir);
+    const rpeMult = Math.pow(1.1, repRpe - 7.5);
     totalFat += repTut * rpeMult * fatigue * loadCoeff;
   }
   

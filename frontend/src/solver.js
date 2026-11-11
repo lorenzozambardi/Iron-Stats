@@ -1,4 +1,5 @@
 import defaultExercises from './defaultExercises.json';
+import { solveBezierY } from './components/helpers';
 
 const COEFF_PARTIAL = 0.33;
 
@@ -19,34 +20,34 @@ function getTargetCurve(curveType, resolution = 50) {
 }
 
 // --- BEZIER CURVE CALCULATION ---
-function getBezierCurve(prof, resolution = 50) {
-    const t = Array.from({ length: resolution }, (_, i) => i / (resolution - 1));
-    let xSpan = prof.x3 - prof.x0;
-    if (xSpan === 0) xSpan = 1.0;
+function getBezierCurve(rawProf, resolution = 50) {
+    const prof = typeof rawProf === 'number'
+        ? { x0: 0.0, y0: 1.0, x1: 0.33, y1: 1.0, x2: 0.66, y2: 1.0, x3: 1.0, y3: 1.0, magnitude: rawProf }
+        : rawProf;
 
-    const y = new Float32Array(resolution);
-    for (let i = 0; i < resolution; i++) {
-        const tv = t[i];
-        const yv = Math.pow(1 - tv, 3) * prof.y0 + 
-                   3 * Math.pow(1 - tv, 2) * tv * prof.y1 + 
-                   3 * (1 - tv) * Math.pow(tv, 2) * prof.y2 + 
-                   Math.pow(tv, 3) * prof.y3;
-        y[i] = yv;
+    if (!(prof.x0 < prof.x1 && prof.x1 < prof.x2 && prof.x2 < prof.x3)) {
+        throw new RangeError(`Non-monotone Bezier profile: ${prof.x0}, ${prof.x1}, ${prof.x2}, ${prof.x3}`);
     }
 
-    // Calculate x for integration
+    const t = Array.from({ length: resolution }, (_, i) => i / (resolution - 1));
     const x = new Float32Array(resolution);
+    const y = new Float32Array(resolution);
+
     for (let i = 0; i < resolution; i++) {
         const tv = t[i];
-        x[i] = prof.x0 + xSpan * (3 * Math.pow(1 - tv, 2) * tv * prof.x1 + 
-                                  3 * (1 - tv) * Math.pow(tv, 2) * prof.x2 + 
-                                  Math.pow(tv, 3));
+        const uv = 1 - tv;
+        const uv2 = uv * uv;
+        const uv3 = uv2 * uv;
+        const tv2 = tv * tv;
+        const tv3 = tv2 * tv;
+        x[i] = uv3 * prof.x0 + 3 * uv2 * tv * prof.x1 + 3 * uv * tv2 * prof.x2 + tv3 * prof.x3;
+        y[i] = uv3 * prof.y0 + 3 * uv2 * tv * prof.y1 + 3 * uv * tv2 * prof.y2 + tv3 * prof.y3;
     }
 
     let area = 0.0;
     for (let i = 0; i < resolution - 1; i++) {
-        const dx = x[i+1] - x[i];
-        const yAvg = (y[i] + y[i+1]) / 2.0;
+        const dx = x[i + 1] - x[i];
+        const yAvg = (y[i] + y[i + 1]) / 2.0;
         area += yAvg * dx;
     }
 
@@ -54,7 +55,8 @@ function getBezierCurve(prof, resolution = 50) {
     if (area > 0) {
         const scale = prof.magnitude / area;
         for (let i = 0; i < resolution; i++) {
-            res[i] = y[i] * scale;
+            const targetX = i / (resolution - 1);
+            res[i] = solveBezierY(targetX, prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) * scale;
         }
     }
     return res;
@@ -257,16 +259,13 @@ export class WorkoutSolver {
 
     /**
      * Evaluates the fitness (cost) of a given WorkoutState (a generated program).
-     * Lower cost is better. The cost is a weighted sum of several error metrics:
-     * - E_curve: Mean Squared Error (MSE) against the target muscle activation curves.
-     * - E_vol/ton/tut: Ratio errors for effective vs total volume/tonnage/tut.
-     * - E_distr: Muscle distribution error (actual vs target volume distribution).
-     * - E_variety: Penalty for reusing the same exercises (unique exercises / total exercises).
-     * - E_balance: Variance of daily fatigue and volume to ensure balanced days.
-     * 
-     * The final raw weighted cost (moCost) is multiplied by 10000.0 to expand the 
-     * gradient for the Simulated Annealing temperature scale (which starts at T=50.0).
-     * A hard penalty of 1000.0 is applied per duplicate exercise on the same day.
+     * Lower cost is better. Uses seven normalized error metrics scaled by 10000.0
+     * plus a 150.0 * 1000.0 penalty per same-day duplicate exercise.
+     *
+     * Fast SA surrogates:
+     * - Load: Epley-like ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
+     * - TUT: constant ``2.0`` s/rep (so ``E_tut == E_vol`` identically during search).
+     * - Fatigue: linear ``0.01 * total_reps * load * fatigue * load_coeff``.
      */
     evaluateWorkout(state) {
         let totalVol = 0.0, effVol = 0.0;
@@ -335,7 +334,7 @@ export class WorkoutSolver {
                     for (let i = 0; i < this.resolution; i++) {
                         vmCurve[i] += baseCurve[i] * exBaseReps;
                         if (exPartialReps > 0) {
-                            vmCurve[i] += baseCurve[i] * exPartialReps * this.partial_mask[i];
+                            vmCurve[i] += baseCurve[i] * (exPartialReps * COEFF_PARTIAL) * this.partial_mask[i];
                         }
                     }
                     subVols[m] += bezierProf.magnitude * exTotalReps;
@@ -547,6 +546,10 @@ export class WorkoutSolver {
         return newState;
     }
 
+    /**
+     * Estimate metric normalization scales ``s_i = 2 * mean(E_i)`` via Monte Carlo sampling
+     * over ``calibration_steps`` random states (empirical sample mean, guarded at ``1e-6``).
+     */
     calibrate() {
         const steps = this.config.calibration_steps || 500;
         if (steps <= 0) return;
@@ -578,7 +581,7 @@ export class WorkoutSolver {
      * by `coolingRate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
      * is applied and the new state is evaluated.
      */
-    async solve(iterations = 10000, initialTemp = 100.0, coolingRate = null, progressCallback = null) {
+    async solve(iterations = 10000, initialTemp = 50.0, coolingRate = null, progressCallback = null) {
         if (!coolingRate) {
             coolingRate = iterations > 0 ? Math.pow(0.01 / initialTemp, 1.0 / iterations) : 0.995;
         }

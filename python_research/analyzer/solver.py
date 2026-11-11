@@ -145,17 +145,17 @@ class WorkoutSolver:
             for m in ex.muscles_distr:
                 self.all_submuscles.add(m)
                 
-        self.t_domain = np.linspace(0, 1, self.resolution)
-        self.partial_mask = (self.t_domain <= 0.3333).astype(float)
+        self.x_domain = np.linspace(0.0, 1.0, self.resolution)
+        self.partial_mask = (self.x_domain <= 0.3333).astype(float)
         self.default_curve = np.ones(self.resolution)
-        
+
         self.scales: dict[str, float] = {}
-        
-        # Precompute bezier curves for all exercises
+
+        # Precompute physical-ROM-aligned Bezier curves for all exercises
         self.ex_curves = {}
         for ex in self.db:
             self.ex_curves[ex.name] = {
-                m: prof.get_curve(self.resolution) for m, prof in ex.muscles_distr.items()
+                m: prof.get_physical_curve(self.resolution) for m, prof in ex.muscles_distr.items()
             }
             
     def get_random_exercise(self) -> Exercise:
@@ -179,16 +179,14 @@ class WorkoutSolver:
     def evaluate_workout(self, state: WorkoutState) -> Any:
         """
         Evaluates the fitness (cost) of a given WorkoutState (a generated program).
-        Lower cost is better. The cost is a weighted sum of several error metrics:
-        - E_curve: Mean Squared Error (MSE) against the target muscle activation curves.
-        - E_vol/ton/tut: Ratio errors for effective vs total volume/tonnage/tut.
-        - E_distr: Muscle distribution error (actual vs target volume distribution).
-        - E_variety: Penalty for reusing the same exercises (unique exercises / total exercises).
-        - E_balance: Variance of daily fatigue and volume to ensure balanced days.
-        
-        The final raw weighted cost (`mo_cost`) is multiplied by 10000.0 to expand the 
-        gradient for the Simulated Annealing temperature scale (which starts at T=50.0).
-        A hard penalty of 1000.0 is applied per duplicate exercise on the same day.
+        Lower cost is better. The cost is a weighted sum of seven normalized error metrics
+        (E_curve, E_vol, E_ton, E_tut, E_distr, E_variety, E_balance) scaled by 10000.0,
+        plus a hard penalty of 150.0 * 1000.0 per same-day duplicate exercise.
+
+        For fast SA evaluation, three simplified surrogates replace full logbook metrics:
+        - Load: Epley-like estimate ``load_multiplier * (100 / (1 + 0.033 * base_reps)) + load_offset``.
+        - TUT: constant ``2.0`` s/rep (so ``E_tut == E_vol`` identically during search).
+        - Fatigue: linear ``0.01 * total_reps * load * fatigue * load_coeff``.
         """
         total_vol = 0.0
         eff_vol = 0.0
@@ -252,7 +250,7 @@ class WorkoutSolver:
                     base_curve = self.ex_curves[ex.name][m]
                     V_m[m] += base_curve * ex_base_reps
                     if ex_partial_reps > 0:
-                        V_m[m] += base_curve * ex_partial_reps * self.partial_mask
+                        V_m[m] += base_curve * (ex_partial_reps * COEFF_PARTIAL) * self.partial_mask
                     sub_vols[m] += bezier_prof.magnitude * ex_total_reps
 
                 day_fatigue += ex_fatigue
@@ -417,6 +415,11 @@ class WorkoutSolver:
         return new_state
 
     def calibrate(self):
+        """
+        Estimate metric normalization scales ``s_i = 2 * mean(E_i)`` via Monte Carlo sampling
+        over ``calibration_steps`` random states (empirical sample mean, not exact expectation).
+        Any zero scale is guarded to ``1e-6`` inside ``evaluate_workout``.
+        """
         steps = getattr(self.config, 'calibration_steps', 500)
         if steps <= 0:
             return
@@ -439,7 +442,7 @@ class WorkoutSolver:
             
         print(f"Calibration finished. Scales: {self.scales}", file=sys.stderr)
 
-    def solve(self, iterations=10000, initial_temp=100.0, cooling_rate=None):
+    def solve(self, iterations=10000, initial_temp=50.0, cooling_rate=None):
         """
         Runs the Simulated Annealing algorithm to find the optimal WorkoutState.
         

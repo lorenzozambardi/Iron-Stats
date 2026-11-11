@@ -95,13 +95,10 @@ def calculate_set_fatigue(
     if base_reps > 0 and len(actual_tuts) > 0:
         n_base = min(base_reps, len(actual_tuts))
         j = np.arange(n_base)
-        if rpe > 0:
-            rir = (10.0 - rpe) + (base_reps - 1 - j)
-            rep_rpe = np.maximum(0.0, 10.0 - rir)
-            rpe_mult = np.where(rep_rpe > 0, 1.1 ** (rep_rpe - 7.5), 1.0)
-        else:
-            rpe_mult = np.ones(n_base)
-        
+        rir = (10.0 - rpe) + (base_reps - 1 - j)
+        rep_rpe = np.maximum(0.0, 10.0 - rir)
+        rpe_mult = 1.1 ** (rep_rpe - 7.5)
+
         total_fat += float(np.sum(actual_tuts[:n_base] * rpe_mult)) * fatigue * load_coeff
 
     if assisted_reps > 0 and len(actual_tuts) > base_reps:

@@ -48,21 +48,22 @@ const BezierEditor = ({ value, onChange }) => {
     
     const nextVal = { ...currentVal };
     
+    const eps = 0.01;
     if (dragging === 'p0') {
-      nextVal.x0 = Math.min(newX, p3.x);
+      nextVal.x0 = Math.min(newX, p3.x - 3 * eps);
       nextVal.y0 = newY;
-      if (nextVal.x0 > p1.x) nextVal.x1 = nextVal.x0;
-      if (nextVal.x0 > p2.x) nextVal.x2 = nextVal.x0;
+      if (nextVal.x0 >= p1.x - eps) nextVal.x1 = Math.min(p2.x - eps, nextVal.x0 + eps);
+      if (nextVal.x1 >= p2.x - eps) nextVal.x2 = Math.min(p3.x - eps, nextVal.x1 + eps);
     } else if (dragging === 'p3') {
-      nextVal.x3 = Math.max(newX, p0.x);
+      nextVal.x3 = Math.max(newX, p0.x + 3 * eps);
       nextVal.y3 = newY;
-      if (nextVal.x3 < p2.x) nextVal.x2 = nextVal.x3;
-      if (nextVal.x3 < p1.x) nextVal.x1 = nextVal.x3;
+      if (nextVal.x3 <= p2.x + eps) nextVal.x2 = Math.max(p1.x + eps, nextVal.x3 - eps);
+      if (nextVal.x2 <= p1.x + eps) nextVal.x1 = Math.max(p0.x + eps, nextVal.x2 - eps);
     } else if (dragging === 'p1') {
-      nextVal.x1 = Math.max(p0.x, Math.min(newX, p2.x));
+      nextVal.x1 = Math.max(p0.x + eps, Math.min(newX, p2.x - eps));
       nextVal.y1 = newY;
     } else if (dragging === 'p2') {
-      nextVal.x2 = Math.max(p1.x, Math.min(newX, p3.x));
+      nextVal.x2 = Math.max(p1.x + eps, Math.min(newX, p3.x - eps));
       nextVal.y2 = newY;
     }
     

@@ -24,21 +24,81 @@ class BezierProfile:
     y3: float
     magnitude: float
 
+    def __post_init__(self) -> None:
+        if not (self.x0 < self.x1 < self.x2 < self.x3):
+            raise ValueError(
+                f"Non-monotone Bezier profile: {self.x0}, {self.x1}, {self.x2}, {self.x3}"
+            )
+
+    def _eval_xy(self, t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        u = 1.0 - t
+        u2 = u * u
+        u3 = u2 * u
+        t2 = t * t
+        t3 = t2 * t
+        x = u3 * self.x0 + 3.0 * u2 * t * self.x1 + 3.0 * u * t2 * self.x2 + t3 * self.x3
+        y = u3 * self.y0 + 3.0 * u2 * t * self.y1 + 3.0 * u * t2 * self.y2 + t3 * self.y3
+        return x, y
+
     def get_curve(self, resolution: int = 50) -> np.ndarray:
-        t = np.linspace(0, 1, resolution)
-        # Scale t to x domain [x0, x3]
-        x_span = self.x3 - self.x0
-        if x_span == 0: x_span = 1.0
-        x = self.x0 + x_span * (3 * (1-t)**2 * t * self.x1 + 3 * (1-t) * t**2 * self.x2 + t**3)
-        y = (1-t)**3 * self.y0 + 3 * (1-t)**2 * t * self.y1 + 3 * (1-t) * t**2 * self.y2 + t**3 * self.y3
-        
+        """Evaluate the area-normalized cubic Bezier tension curve at uniform parameter t."""
+        t = np.linspace(0.0, 1.0, resolution)
+        x, y = self._eval_xy(t)
+
         dx = np.diff(x)
-        y_avg = (y[:-1] + y[1:]) / 2
-        area = np.sum(y_avg * dx)
-        
-        if area > 0:
+        y_avg = (y[:-1] + y[1:]) / 2.0
+        area = float(np.sum(y_avg * dx))
+
+        if area > 0.0:
             return y * (self.magnitude / area)
         return np.zeros_like(y)
+
+    def solve_y(self, target_x: float, tol: float = 1e-6, max_iter: int = 30) -> float:
+        """Invert x(t) = target_x via bisection (requires x0 < x1 < x2 < x3) and evaluate y(t)."""
+        if target_x < self.x0 or target_x > self.x3:
+            return 0.0
+        if target_x == self.x0:
+            return float(self.y0)
+        if target_x == self.x3:
+            return float(self.y3)
+
+        lower = 0.0
+        upper = 1.0
+        t = 0.5
+        for _ in range(max_iter):
+            u = 1.0 - t
+            x = (
+                (u**3) * self.x0
+                + 3.0 * (u**2) * t * self.x1
+                + 3.0 * u * (t**2) * self.x2
+                + (t**3) * self.x3
+            )
+            if abs(x - target_x) < tol:
+                break
+            if x < target_x:
+                lower = t
+            else:
+                upper = t
+            t = 0.5 * (lower + upper)
+
+        u = 1.0 - t
+        return float(
+            (u**3) * self.y0
+            + 3.0 * (u**2) * t * self.y1
+            + 3.0 * u * (t**2) * self.y2
+            + (t**3) * self.y3
+        )
+
+    def get_physical_curve(self, resolution: int = 50) -> np.ndarray:
+        """Sample the area-normalized tension curve on a uniform physical ROM grid x in [0, 1]."""
+        t = np.linspace(0.0, 1.0, resolution)
+        x, y = self._eval_xy(t)
+        area = float(np.sum(((y[:-1] + y[1:]) / 2.0) * np.diff(x)))
+        if area <= 0.0:
+            return np.zeros(resolution, dtype=float)
+        scale = self.magnitude / area
+        x_grid = np.linspace(0.0, 1.0, resolution)
+        return np.array([self.solve_y(float(xv)) * scale for xv in x_grid], dtype=float)
 
 
 @dataclass
