@@ -154,10 +154,14 @@ const HARD_MAP = {
   "sm 32": "32 SM Bench", "32 sm": "32 SM Bench",
   "sm 45": "45 SM Bench", "45 sm": "45 SM Bench",
   "sm press 30": "30 SM Press", "smith 30": "30 SM Press",
+  "spinte mp 30": "30 SM Press", "sm 30": "30 SM Press", "sm 15": "20 SM Bench",
+  "sm20": "20 SM Bench", "sm32": "32 SM Bench",
   "croci db": "DB Flies", "croci manubri": "DB Flies",
   "croci cavo basso": "Low Cable Flies", "croci basse": "Low Cable Flies",
   "croci cavo alto": "High Cable Flies", "croci alte": "High Cable Flies",
+  "croci alt 15": "High Cable Flies", "croci alt": "High Cable Flies",
   "croci incl": "Incl Cable Flies", "croci cavo incl": "Incl Cable Flies",
+  "croci panca incl": "Incl Cable Flies", "croci cavi": "Low Cable Flies",
   "pec dec": "Pec Deck", "butterfly": "Pec Deck", "pectoral": "Pec Deck",
   "chest press": "Chest Press",
 
@@ -172,12 +176,14 @@ const HARD_MAP = {
   "pullover": "Pullover", "pullover cavo": "Pullover",
   "sa pulldown": "SA Cable Pulldown", "single arm pulldown": "SA Cable Pulldown", "pulldown cavo": "SA Cable Pulldown",
   "sa machine pulldown": "SA Machine Pulldown", "pulldown macch": "SA Machine Pulldown",
+  "pulldown single arm macch": "SA Machine Pulldown",
   "chin up": "Chin-Ups", "max chin up": "Chin-Ups", "trazioni": "Chin-Ups",
 
   // --- SHOULDERS ---
   "lr": "LR", "lr 49": "LR 49", "alzate laterali 49": "LR 49", "alzate laterali": "LR", "lateral raise": "LR",
   "lrc": "LRC", "alzate laterali cavo": "LRC", "lateral raise cable": "LRC",
   "shoulder press": "Machine Press", "press macch": "Machine Press",
+  "spinte macch": "Machine Shoulder Press",
   "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
 
   // --- LEGS ---
@@ -192,8 +198,8 @@ const HARD_MAP = {
   "leg ext": "Leg Extension", "leg extension": "Leg Extension",
 
   // --- ARMS (Biceps) ---
-  "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl",
-  "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl",
+  "curl 45": "45 Incl Curl", "curl incl 45": "45 Incl Curl", "curl inclinata 45": "45 Incl Curl",
+  "curl 49": "49 Incl Curl", "curl incl 49": "49 Incl Curl", "curl panca inclinata 49": "49 Incl Curl",
   "hammer db": "DB Hammer", "hammer manubri": "DB Hammer", "bicipiti hammer": "DB Hammer",
   "preacher": "Preacher Curl", "scott": "Preacher Curl", "panca scott": "Preacher Curl",
   "biceps curl db reverse scott bench": "Reverse Scott DB Curl",
@@ -203,8 +209,8 @@ const HARD_MAP = {
 
   // --- ARMS (Triceps) ---
   "fr pr c": "Cable French Press", "french press cavo": "Cable French Press",
-  "pushdown 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
-  "pushdown incl": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
+  "pushdown 54": "Bench 54 Pushdown", "push down panca 54": "Bench 54 Pushdown", "pd cavo panca 54": "Bench 54 Pushdown", "push down 54": "Bench 54 Pushdown",
+  "pushdown incl": "Incl Cable Pushdown", "push down inclinata": "Incl Cable Pushdown", "pushdown inclinata": "Incl Cable Pushdown", "pushdown cavo incl": "Incl Cable Pushdown",
   "low cable triceps": "Low Cable Triceps", "tricipiti cavo basso": "Low Cable Triceps",
   "bench 54 triceps": "Bench 54 Triceps", "tricipiti panca 54": "Bench 54 Triceps",
 
