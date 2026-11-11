@@ -1,11 +1,11 @@
 # Mathematical Model: Optimization on Cumulative Tension Curve
 
 ## 1. Decision Variables
-*   $x_{i,d} \in \{0, 1\}$: Activation. `1` if exercise $i$ is scheduled on day $d$, `0` otherwise.
-*   $v_{i,d} \in \mathbb{N}$: Volume (number of sets) for exercise $i$ on day $d$.
-*   $r_{i,d} \in \mathbb{N}$: Repetitions per set of exercise $i$ on day $d$.
-*   $\mathrm{RPE}_{i,d,s} \in [5.0, 10.0]$: Rate of Perceived Exertion per set.
-*   $p_{i,d,s} \in \{0, 2, 4, 6\}$: Stretched-ROM partial repetitions ($\mathrm{RPE} \ge 9.0$ only).
+*   $e_{d,k}$: Exercise assigned to ordered slot $k \in \{1, \dots, N_d\}$ on day $d$ (with $E_{\min} \le N_d \le E_{\max}$; same-day duplicates are allowed in the state representation and penalized via $P_{\mathrm{dup}}$).
+*   $v_{d,k} \in [S_{\min}, S_{\max}]$: Volume (number of sets) for exercise slot $(d, k)$.
+*   $r_{d,k,s} \in [R_{\min}, R_{\max}]$: Base repetitions for set $s$ of exercise slot $(d, k)$.
+*   $\mathrm{RPE}_{d,k,s} \in [5.0, 10.0]$: Rate of Perceived Exertion per set (initialized in $\{7.0, 8.0, 8.5, 9.0, 10.0\}$ and mutated in $0.5$ increments).
+*   $p_{d,k,s} \in \{0, 2, 4, 6\}$: Stretched-ROM partial repetitions ($\mathrm{RPE}_{d,k,s} \ge 9.0$ only).
 
 ## 2. Parameters (UI Editable Input)
 > [!IMPORTANT]
@@ -52,8 +52,8 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
     $$E_{\text{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{W_m}{\sum_{m'} W_{m'}} - \text{Target}_{\text{global}}(m) \right)^2$$
 6.  **Variety Error:**
     $$E_{\text{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
-7.  **Daily Balance Error:** Population variance of daily fatigue and daily volume normalized by conservative Popoviciu bounds $(F_{\max}/2)^2$ and $(V_{\max}/2)^2$:
-    $$E_{\text{balance}} = \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(D_d)}{(V_{\max}/2)^2} \right)$$
+7.  **Daily Balance Error:** Population variance of daily fatigue and daily volume normalized by conservative Popoviciu bounds $(F_{\max}/2)^2$ and $(V_{\max}/2)^2$ (equal to $0$ when $D \le 1$):
+    $$E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(D_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}$$
 
 ### 3.3 Calibrated Global Objective Function
 Prior to Simulated Annealing, $K$ random states estimate $s_i = 2\,\hat{\mu}(E_i)$ (guarded at $10^{-6}$ if zero). The solver minimizes:

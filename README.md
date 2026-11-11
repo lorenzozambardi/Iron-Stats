@@ -46,14 +46,14 @@ $$
 y(t) = (1 - t)^3 y_0 + 3(1 - t)^2 t \, y_1 + 3(1 - t) t^2 \, y_2 + t^3 y_3
 $$
 
-The curve area $A$ across the ROM domain is evaluated by composite trapezoidal integration, and the tension profile $B_m(t_k)$ is rescaled so its integral equals $M_m$:
+The curve area $A$ across the ROM domain is evaluated exactly via 3-point Gauss–Legendre quadrature, and the physical tension profile $B_m(x_i)$ is sampled on $x_i = i / (R - 1)$ via bisection inversion $t_i = x^{-1}(x_i)$ (`get_physical_curve`) and rescaled so its integral equals $M_m$:
 
 $$
-A = \sum_{k=0}^{R-2} \frac{y(t_k) + y(t_{k+1})}{2} \bigl(x(t_{k+1}) - x(t_k)\bigr), \qquad
-B_m(t_k) = \begin{cases} y(t_k) \cdot \dfrac{M_m}{A}, & A > 0 \\ 0, & A \le 0 \end{cases}
+A = \int_0^1 y(t) x'(t)\,dt = \sum_{k=1}^{3} w_k \, y(t_k) x'(t_k), \qquad
+B_m(x_i) = \begin{cases} y(t_i) \cdot \dfrac{M_m}{A}, & A > 0 \text{ and } x_i \in [x_0, x_3] \\ 0, & \text{otherwise} \end{cases}
 $$
 
-Every `Exercise` enforces the partition-of-unity constraint across its targeted muscles $m \in \mathcal{M}_e$ (`Exercise.__post_init__`, re-normalizing whenever $|\sum_m M_m - 1.0| > 10^{-4}$):
+Every `Exercise` enforces the partition-of-unity constraint across its targeted muscles $m \in \mathcal{M}_e$ (`Exercise.__post_init__`, re-normalizing whenever $|\sum_m M_m - 1.0| > 10^{-12}$):
 
 $$
 \sum_{m \in \mathcal{M}_e} M_m = 1.0
@@ -112,7 +112,7 @@ $$
 V_m(x_i) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(x_i) \Bigl( N_{b,e} + \alpha_{\text{part}} N_{p,e} \, \mathbb{I}[x_i \le 0.3333] \Bigr)
 $$
 
-*(Note: for Simulated Annealing speed, `evaluate_workout` uses fast surrogates—Epley-like load $\hat{L}$, constant $2.0\,\text{s/rep}$ TUT so $E_{\text{tut}} \equiv E_{\text{vol}}$, and linear fatigue—rather than the full logbook models above.)*
+*(Note: for Simulated Annealing speed, `evaluate_workout` uses lightweight surrogates for load—Epley-like $\hat{L}$—and linear fatigue, while retaining dynamic RIR-slowdown TUT at default `1-0-2-0` tempo so $E_{\mathrm{tut}}$ remains distinct from $E_{\mathrm{vol}}$.)*
 
 The solver evaluates seven dimensionless error terms $\mathcal{I} = \{\text{curve}, \text{vol}, \text{ton}, \text{tut}, \text{distr}, \text{variety}, \text{balance}\}$:
 
