@@ -4,8 +4,8 @@ import { MUSCLES } from '../parser';
 
 function parseSetLineToSets(line) {
   if (!line || !line.trim()) return [];
-  const rawSets = line.trim().split(/(?<!@\d+)(?!\d+\.\.)(?<!\.)\.(?!\.)/);
-  return rawSets.filter(s => s.trim().length > 0);
+  const rawSets = line.trim().split(',');
+  return rawSets.map(s => s.trim()).filter(s => s.length > 0);
 }
 
 function parseLogbookToStructure(text) {
@@ -36,7 +36,7 @@ function parseLogbookToStructure(text) {
       sessions.push(currentSession);
     }
 
-    const isSetLine = line.includes('..') || /^[old\s]*[\d().+/@\s]+$/i.test(line);
+    const isSetLine = line.includes('..') || /^[old\s]*[\d().+/@,\s]+$/i.test(line);
 
     if (!isSetLine && line.length > 0 && !line.toLowerCase().startsWith('override:')) {
       const parts = line.split('|').map(p => p.trim());
@@ -86,7 +86,7 @@ function serializeStructureToText(sessions) {
       if (ex.rest) header += ` | ${ex.rest}`;
       if (ex.tempo) header += ` | ${ex.tempo}`;
       if (ex.note) header += ` | ${ex.note}`;
-      const weeksStr = ex.weeks.map(wk => wk.sets.join('.')).filter(w => w.length > 0).join('\n');
+      const weeksStr = ex.weeks.map(wk => wk.sets.join(', ')).filter(w => w.length > 0).join('\n');
       return weeksStr ? `${header}\n${weeksStr}` : header;
     });
     return [sStr, ...exStrs].join('\n\n');
