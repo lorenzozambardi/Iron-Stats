@@ -1,108 +1,212 @@
 <div align="center">
   <img src="full_logo.png" alt="Iron Stats Banner" width="400" />
+
+  <h1>Iron Stats</h1>
+
+  <p>
+    <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
+    <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Code style: Ruff" /></a>
+    <a href="docs/paper.pdf"><img src="https://img.shields.io/badge/Technical_Paper-docs%2Fpaper.pdf-b31b1b.svg?logo=adobeacrobatreader&logoColor=white" alt="Technical Paper PDF" /></a>
+  </p>
 </div>
 
-# Iron Stats
+## Abstract
 
-**Iron Stats** is an advanced, data-driven, and computational approach to bodybuilding programming, simulation, and analysis. It abandons traditional, rudimentary metrics like simple Total Volume (Sets × Reps) and Tonnage, which fail to accurately evaluate mechanical tension and actual hypertrophy stimulus. 
+Conventional resistance-training analytics rely on coarse scalar aggregates—such as raw set count, repetition volume, and mechanical tonnage ($\text{load} \times \text{reps}$)—which treat all repetitions, loading profiles, and effort levels as physiologically equivalent. **Iron Stats** replaces these naive scalars with a unified computational framework that models resistance training over three coupled domains: **(i) continuous biomechanical tension fields**, parameterizing per-muscle resistance profiles across normalized Range of Motion (ROM) $t \in [0, 1]$ via area-normalized cubic Bézier curves; **(ii) physiological fatigue and stimulus dynamics**, quantifying High-Threshold Motor Unit (HTMU) recruitment through an RPE-gated effective-repetition threshold, RIR-dependent concentric Time Under Tension (TUT) slowdown, and exponential central nervous system (CNS) fatigue accumulation; and **(iii) constrained combinatorial optimization**, synthesizing balanced multi-day training mesocycles via calibrated scalarized Simulated Annealing. Paired with a domain-specific workout log parser and an interactive React/Vite client, Iron Stats bridges empirical training logbooks with reproducible quantitative exercise science.
 
-Instead, this engine evaluates workout programs using **Effective Volume**, **Dynamic Time Under Tension (TUT)**, **Exponential Fatigue**, and **Cumulative Muscle Tension** modeled via 3rd-Degree Bezier Curves across the Range of Motion (ROM).
+---
 
-## Key Features
+## System Architecture
 
-- **Advanced Workout Parser**: Converts highly compact, human-readable markdown workout logs into analyzable object ecosystems. Supports complex notations including drop sets, backoff sets, partials, assisted reps, and dynamic exercise overrides.
-- **Biomechanical Modeling**: Uses 3rd-Degree Bezier Curves to map the specific resistance profile of every exercise. This allows the system to understand where the tension peaks (e.g., stretched vs. contracted position) and how it impacts different muscle groups.
-- **Dynamic Metrics Engine**:
-  - *Effective Reps*: Discards "junk volume" by calculating reps that actually recruit high-threshold motor units (HTMUs) based on RIR (Reps in Reserve) and RPE (Rate of Perceived Exertion).
-  - *Dynamic TUT*: Calculates concentric slowdown automatically as fatigue increases during a set.
-  - *Exponential Fatigue*: Systemic fatigue is calculated exponentially based on the RPE of each individual repetition.
-- **Mathematical Optimizer**: A multi-objective scalarized optimization engine capable of generating optimal routines based on target tension curves, volume ratios, and fatigue budgets.
-- **Interactive Web App**: A React/Vite-based frontend featuring a live parsing logbook and an interactive Bezier curve editor to visually tweak exercise tension profiles.
+![Iron Stats Architecture](docs/architecture.svg)
 
-## Project Structure
+| Component | Path | Responsibility |
+| :--- | :--- | :--- |
+| **Logbook Parser** | [`python_research/analyzer/parser.py`](python_research/analyzer/parser.py) | Parses compact markdown logs (`# Session`, dropsets, tempo `c-p_s-e-p_l`, RPE, `override:` directives) with alias and Levenshtein matching. |
+| **Biomechanical Models** | [`python_research/analyzer/models.py`](python_research/analyzer/models.py) | Defines `BezierProfile`, `Exercise` (with magnitude normalization), `SetData`, `WeekData`, and `WorkoutExercise`. |
+| **Metrics Engine** | [`python_research/analyzer/metrics.py`](python_research/analyzer/metrics.py) | Evaluates per-rep dynamic TUT (`calculate_set_tuts`), exponential CNS fatigue (`calculate_set_fatigue`), and filtered aggregations (`calculate_metrics`). |
+| **SA Optimizer** | [`python_research/analyzer/solver.py`](python_research/analyzer/solver.py) | Implements `WorkoutSolver` with Monte Carlo scale calibration and Simulated Annealing over 7 normalized objectives. |
+| **CLI & Constants** | [`python_research/analyzer/cli.py`](python_research/analyzer/cli.py), [`constants.py`](python_research/analyzer/constants.py), [`scripts/Analyzer.py`](python_research/scripts/Analyzer.py) | Exposes `iron-stats` CLI filters (`--session`, `--week`, `--macro`, `--sub`, `--file`) and shared muscle/alias tables. |
+| **Interactive Client** | [`frontend/`](frontend/) | React/Vite/Capacitor app with live logbook parsing (`parser.js`), interactive Bézier editor, and client-side solver (`solver.js`). |
 
-- `python_research/analyzer/`: The core Python engine containing the CLI, the parsing logic (`parser.py`), the mathematical models (`metrics.py`, `models.py`), and the optimization solver (`solver.py`).
-- `python_research/scripts/`: Python analysis scripts and test utilities (`Analyzer.py`, calibration and evaluation scripts).
-- `frontend/`: A modern web application built with React, Vite, and Capacitor (for Android support). It provides a UI for the parser, a visual editor for the biomechanical Bezier models, and a client-side workout generator (`src/solver.js`).
-- `logbooks/`: A collection of markdown files (`.md`) containing real-world, parsed workout templates and routines.
+---
 
-## The Math & Models
+## Mathematical Formulation
 
-### 1. Cumulative Muscle Tension (Bezier Curves)
-Instead of assigning flat percentage impacts (e.g., "Bench Press = 70% Chest, 30% Triceps"), the algorithm models tension dynamically. A cubic Bezier curve $B(t)$ for $t \in [0, 1]$ represents the ROM:
+All definitions below correspond directly to the reference implementation in [`python_research/analyzer/`](python_research/analyzer/).
 
-$$ 
-x(t) = (1-t)^3 x_0 + 3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3 x_3 
+### 1. Cubic Bézier Muscle Tension Curve & Normalization
+
+In [`models.py`](python_research/analyzer/models.py) (`BezierProfile.get_curve`), each exercise $e$ maps muscle group $m$ to a cubic Bézier curve over $R = 50$ uniformly spaced parameter samples $t_k \in [0, 1]$ (`resolution = 50`), defined by control points $(x_0, y_0), (x_1, y_1), (x_2, y_2), (x_3, y_3)$ and target muscle contribution magnitude $M_m$:
+
+$$
+x(t) = x_0 + x_{\text{span}} \Bigl( 3(1 - t)^2 t \, x_1 + 3(1 - t) t^2 \, x_2 + t^3 \Bigr), \qquad x_{\text{span}} = \begin{cases} x_3 - x_0, & x_3 \neq x_0 \\ 1.0, & x_3 = x_0 \end{cases}
 $$
 
-$$ 
-y(t) = (1-t)^3 y_0 + 3(1-t)^2 t y_1 + 3(1-t) t^2 y_2 + t^3 y_3 
+$$
+y(t) = (1 - t)^3 y_0 + 3(1 - t)^2 t \, y_1 + 3(1 - t) t^2 \, y_2 + t^3 y_3
 $$
 
-This allows the engine to differentiate between a movement that is hardest in the stretched position (e.g., DB Flies) versus one hardest in the contracted position (e.g., Pec Deck).
+The curve area $A$ across the ROM domain is evaluated by composite trapezoidal integration, and the tension profile $B_m(t_k)$ is rescaled so its integral equals $M_m$:
 
-### 2. Effective Reps & Dynamic TUT
-The engine calculates concentric slowdown based on proximity to failure. As Reps in Reserve (RIR) approach 0, the time required to complete the repetition increases exponentially. Only repetitions with an RIR < 4 contribute significantly to the **Effective Volume**.
-
-### 3. Exponential Fatigue
-Systemic CNS (Central Nervous System) fatigue is not linear. The engine assigns an exponential fatigue multiplier for reps performed above an RPE of 7.5:
-
-$$ 
-RPE_{Multiplier} = 1.1^{(rep_{rpe} - 7.5)} 
+$$
+A = \sum_{k=0}^{R-2} \frac{y(t_k) + y(t_{k+1})}{2} \bigl(x(t_{k+1}) - x(t_k)\bigr), \qquad
+B_m(t_k) = \begin{cases} y(t_k) \cdot \dfrac{M_m}{A}, & A > 0 \\ 0, & A \le 0 \end{cases}
 $$
 
-Total set fatigue is the integral sum of the weighted TUT, the exercise's base fatigue cost, and its load coefficient.
+Every `Exercise` enforces the partition-of-unity constraint across its targeted muscles $m \in \mathcal{M}_e$ (`Exercise.__post_init__`, re-normalizing whenever $|\sum_m M_m - 1.0| > 10^{-4}$):
 
-## Syntax Guide
+$$
+\sum_{m \in \mathcal{M}_e} M_m = 1.0
+$$
 
-Workout logs are written in a specialized, highly compact markdown format. 
+---
 
-**Basic Structure:**
-```text
-# 1
-Lat Machine | 3' | last half reps
-90..9+2.7+2
-90..10+2.8+2
+### 2. Effective Repetitions, Dynamic TUT & Exponential CNS Fatigue
+
+Let a set consist of $n_b$ base repetitions (`base_reps`), $n_a$ assisted repetitions (`assisted_reps`), and $n_p$ partial repetitions (`partial_reps`) performed at set Rate of Perceived Exertion $\text{RPE} \in [5.0, 10.0]$ (default $9.0$). With discount coefficients $\alpha_{\text{ass}} = 0.5$ (`COEFF_ASSISTED`) and $\alpha_{\text{part}} = 0.33$ (`COEFF_PARTIAL`) from [`constants.py`](python_research/analyzer/constants.py), total and HTMU-effective repetitions (`SetData` in [`models.py`](python_research/analyzer/models.py)) are:
+
+$$
+R_{\text{tot}} = n_b + \alpha_{\text{ass}} \, n_a + \alpha_{\text{part}} \, n_p
+$$
+
+$$
+R_{\text{eff}} = \min\Bigl(n_b,\, \max\bigl(0,\, \text{RPE} - 4.0\bigr)\Bigr) + \alpha_{\text{ass}} \, n_a + \alpha_{\text{part}} \, n_p
+$$
+
+Only base repetitions performed within $\text{RIR} < 6$ (i.e., $\text{RPE} > 4.0$) cross the High-Threshold Motor Unit recruitment threshold.
+
+Given an exercise's execution tempo $(c, p_s, e, p_l)$ (concentric, shortening pause, eccentric, lengthening pause; default `1-0-2-0`), nominal repetition duration is $\tau_0 = c + p_s + e + p_l$. In [`metrics.py`](python_research/analyzer/metrics.py) (`calculate_set_tuts`), each base repetition $j \in \{0, \dots, n_b - 1\}$ has instantaneous Reps in Reserve $\text{RIR}_j = (10.0 - \text{RPE}) + (n_b - 1 - j)$ and incurs a piecewise concentric slowdown $\Delta c(\text{RIR}_j)$:
+
+$$
+\tau_j = \tau_0 + \Delta c(\text{RIR}_j), \qquad
+\Delta c(\text{RIR}_j) =
+\begin{cases}
+1.60\text{ s}, & \text{RIR}_j < 1.0 \\
+1.00\text{ s}, & 1.0 \le \text{RIR}_j < 2.0 \\
+0.60\text{ s}, & 2.0 \le \text{RIR}_j < 3.0 \\
+0.35\text{ s}, & 3.0 \le \text{RIR}_j < 4.0 \\
+0.15\text{ s}, & 4.0 \le \text{RIR}_j < 5.0 \\
+0.00\text{ s}, & \text{RIR}_j \ge 5.0
+\end{cases}
+$$
+
+Assisted repetitions take $\tau_0$, and partial repetitions take $0.5 \, \tau_0$.
+
+In `calculate_set_fatigue`, per-rep RPE is $\text{RPE}_j = \max(0, 10.0 - \text{RIR}_j)$, and CNS fatigue scales exponentially above $\text{RPE} = 7.5$ via $\mu(\text{RPE}_j) = 1.1^{\text{RPE}_j - 7.5}$ (or $1.0$ if $\text{RPE} = 0$). Weighted by exercise fatigue factor $F_{\text{ex}}$ (`fatigue`) and load coefficient $K_{\text{load}}$ (`load_coeff`), total set fatigue is:
+
+$$
+\Phi_{\text{set}} = F_{\text{ex}} \cdot K_{\text{load}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{7.0 - 7.5} \sum_{a=0}^{n_a - 1} \tau_0 \;+\; \frac{\alpha_{\text{part}}}{0.5} \sum_{p=0}^{n_p - 1} 0.5 \, \tau_0 \right]
+$$
+
+For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text{raw}} \cdot \text{load\_multiplier} + \text{load\_offset}$, yielding set tonnage $L \cdot R_{\text{tot}}$ and effective tonnage $L \cdot R_{\text{eff}}$ scaled by the queried muscle's `magnitude` coefficient $M_m$.
+
+---
+
+### 3. Multi-Objective Combinatorial Optimization
+
+In [`solver.py`](python_research/analyzer/solver.py) (`WorkoutSolver`), a candidate mesocycle $x$ specifies $D$ training days, each assigning $N_d \in [N_{\min}, N_{\max}]$ exercises with $S_{d,e} \in [S_{\min}, S_{\max}]$ sets, base reps $r \in [r_{\min}, r_{\max}]$, $\text{RPE} \in \{7.0, 8.0, 8.5, 9.0, 10.0\}$, and partials $p \in \{0, 2, 4, 6\}$ (active only when $\text{RPE} \ge 9.0$).
+
+Cumulative muscle tension $V_m(t_k)$ aggregates each exercise's Bézier profile over base reps and stretched-range partials ($t_k \le 0.3333$):
+
+$$
+V_m(t_k) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(t_k) \Bigl( n_{b,e} + n_{p,e} \, \mathbb{I}[t_k \le 0.3333] \Bigr)
+$$
+
+The solver evaluates seven dimensionless error terms $\mathcal{I} = \{\text{curve}, \text{vol}, \text{ton}, \text{tut}, \text{distr}, \text{variety}, \text{balance}\}$:
+
+$$
+E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\text{trained}}|} \sum_{m \in \mathcal{M}_{\text{trained}}} \frac{1}{R} \sum_{k=0}^{R-1} \left( \frac{V_m(t_k)}{\max_r V_m(t_r)} - T_m(t_k) \right)^2
+$$
+
+$$
+E_q = \left( \frac{X_{q,\text{eff}}}{X_{q,\text{tot}}} - \rho_q^* \right)^2 \quad \forall q \in \{\text{vol}, \text{ton}, \text{tut}\}, \qquad
+E_{\text{distr}} = \frac{1}{2} \sum_{m} \bigl( p_m^{\text{actual}} - p_m^{\text{target}} \bigr)^2
+$$
+
+$$
+E_{\text{variety}} = \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\text{tot}}(x)} \right)^2, \qquad
+E_{\text{balance}} = \frac{1}{2} \left( \frac{\operatorname{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\operatorname{Var}_d(V_d)}{(V_{\max}/2)^2} \right)
+$$
+
+During `calibrate()`, Monte Carlo sampling over $K = 500$ random states sets scaling denominators $s_i = 2 \cdot \mathbb{E}[E_i]$. `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(x) = 150 \cdot N_{\text{dup}}(x)$ via Simulated Annealing ($T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):
+
+$$
+\min_{x \in \mathcal{X}} \; J(x) = 10^4 \sum_{i \in \mathcal{I}} w_i \, \frac{E_i(x)}{s_i} + 10^3 \, P_{\text{dup}}(x)
+$$
+
+---
+
+## Reproducible Quickstart
+
+### Prerequisites
+- **Python**: `>= 3.10` (validated on Python `3.14.9`)
+- **Node.js** *(optional, for frontend)*: `>= 22`
+
+### 1. Python Environment Setup
+
+```bash
+git clone https://github.com/Lorenzo1901/Iron-Stats.git
+cd Iron-Stats
+
+python -m venv .venv
+source .venv/bin/activate
+
+# Runtime dependencies (numpy>=1.26,<3)
+pip install -r requirements.txt
+
+# Or install editable package with the `iron-stats` CLI (plus dev tools)
+pip install -e ".[dev]"
 ```
 
-- `# 1`: Denotes Session / Day 1.
-- `Lat Machine | 3' | last half reps`: Exercise Name | Rest Time | Notes.
-- `90..9+2.7+2`: Load (90kg) .. Set 1 (9 full reps + 2 partials) . Set 2 (7 full reps + 2 partials).
+### 2. Running the Analyzer & Optimizer
 
-For a complete guide on how to read and write these logs, please refer to the [User Manual: How to Read the Program](HOW_TO_READ_THE_PROGRAM.md).
+Analyze a workout logbook using either the installed CLI entrypoint or the script wrapper:
 
-## Getting Started
+```bash
+# Installed CLI (after `pip install -e .`)
+iron-stats --file logbooks/Simone/Scheda_Simone.md
 
-### Python CLI (Backend)
+# Or run directly via the script wrapper
+python python_research/scripts/Analyzer.py --file logbooks/Simone/Scheda_Simone.md
+```
 
-1. Ensure you have Python 3.10+ installed.
-2. Run the analyzer on a workout file:
-   ```bash
-   python python_research/scripts/Analyzer.py --file logbooks/Scheda_Simone.md
-   ```
-   *Optional flags: `--session`, `--week`, `--macro`, `--sub` to filter the output.*
+Optional filter flags: `--session <int>`, `--week <int>`, `--macro <group>` (e.g., `Chest`, `Back`, `Legs`), `--sub <muscle>` (e.g., `Latissimus Dorsi`). For full logbook syntax details, see [`HOW_TO_READ_THE_PROGRAM.md`](HOW_TO_READ_THE_PROGRAM.md).
 
-### React Frontend
+Run the Simulated Annealing workout optimizer directly:
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
-   *The web app allows you to interactively edit workout logs and visualize Bezier profiles.*
+```bash
+python -m analyzer.solver --config '{"days": 4, "iterations": 5000}'
+```
 
-## Documentation
+### 3. Running Tests & Static Checks
 
-- [HOW_TO_READ_THE_PROGRAM.md](HOW_TO_READ_THE_PROGRAM.md): Comprehensive guide to the workout parsing syntax (Drop sets, assisted reps, overrides, etc.).
-- [GENERATOR_MATH_MODEL.md](frontend/public/GENERATOR_MATH_MODEL.md): Deep dive into the mathematical multi-objective optimization model used for routine generation.
+**Python checks** (requires `pip install -e ".[dev]"`):
 
-## License
+```bash
+ruff check
+mypy
+pytest
+```
 
-This project is open-source and available under the terms of its included `LICENSE` file.
+> **Note**: The Python test suite (`pytest`) currently collects 0 tests; core unit tests live in the frontend test suite below.
+
+**Frontend web app & Vitest suite**:
+
+```bash
+cd frontend
+npm install
+npm test        # runs Vitest across parser, solver, and UI model parity tests
+npm run lint    # ESLint check
+npm run build   # production Vite bundle
+npm run dev     # interactive local development server
+```
+
+---
+
+## Further Documentation & License
+
+- **Logbook Syntax Manual**: [`HOW_TO_READ_THE_PROGRAM.md`](HOW_TO_READ_THE_PROGRAM.md)
+- **Generator Mathematical Notes**: [`frontend/public/GENERATOR_MATH_MODEL.md`](frontend/public/GENERATOR_MATH_MODEL.md)
+- **License**: Distributed under the [Apache License 2.0](LICENSE).

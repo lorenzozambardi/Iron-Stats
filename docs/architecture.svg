@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 420" width="100%" role="img" aria-label="Iron Stats End-to-End Architecture Flowchart">
+  <defs>
+    <style>
+      .title { font: 700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #f8fafc; }
+      .subtitle { font: 400 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #94a3b8; }
+      .card-title { font: 700 13.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #f8fafc; }
+      .card-mono { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #e2e8f0; }
+      .card-body { font: 400 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #cbd5e1; }
+      .tag { font: 600 10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .edge-label { font: 500 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #94a3b8; }
+    </style>
+
+    <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38bdf8" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#34d399" />
+    </marker>
+    <marker id="arrow-pink" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#f472b6" />
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <!-- Canvas -->
+  <rect x="0" y="0" width="1120" height="420" rx="16" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+
+  <!-- Header -->
+  <text x="560" y="34" text-anchor="middle" class="title">Iron Stats — Computational Pipeline Architecture</text>
+  <text x="560" y="54" text-anchor="middle" class="subtitle">Markdown Logbook → Biomechanical ROM Modeling → Physiological Metrics → Multi-Objective Optimizer ↔ React/Vite Frontend</text>
+
+  <!-- TOP ROW: CORE PIPELINE -->
+  <!-- 1. Markdown Logbook -->
+  <rect x="36" y="82" width="184" height="124" rx="10" fill="#1e293b" stroke="#38bdf8" stroke-width="1.75" />
+  <rect x="48" y="92" width="56" height="18" rx="4" fill="#0c4a6e" />
+  <text x="76" y="104" text-anchor="middle" class="tag" fill="#7dd3fc">INPUT</text>
+  <text x="50" y="128" class="card-title">Markdown Logbook</text>
+  <text x="50" y="148" class="card-body">• logbooks/*.md</text>
+  <text x="50" y="166" class="card-body">• # Session &amp; Tempo</text>
+  <text x="50" y="184" class="card-body">• Load.. Reps@RPE</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="220" y1="144" x2="249" y2="144" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)" />
+
+  <!-- 2. parser.py -->
+  <rect x="252" y="82" width="184" height="124" rx="10" fill="#1e293b" stroke="#818cf8" stroke-width="1.75" />
+  <rect x="264" y="92" width="68" height="18" rx="4" fill="#312e81" />
+  <text x="298" y="104" text-anchor="middle" class="tag" fill="#a5b4fc">PARSING</text>
+  <text x="266" y="128" class="card-mono">parser.py</text>
+  <text x="266" y="148" class="card-body">• analyze_workout_log</text>
+  <text x="266" y="166" class="card-body">• Alias + Levenshtein</text>
+  <text x="266" y="184" class="card-body">• Dropsets &amp; overrides</text>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="436" y1="144" x2="465" y2="144" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)" />
+
+  <!-- 3. models.py -->
+  <rect x="468" y="82" width="184" height="124" rx="10" fill="#1e293b" stroke="#a78bfa" stroke-width="1.75" />
+  <rect x="480" y="92" width="92" height="18" rx="4" fill="#4c1d95" />
+  <text x="526" y="104" text-anchor="middle" class="tag" fill="#ddd6fe">BÉZIER ROM</text>
+  <text x="482" y="128" class="card-mono">models.py</text>
+  <text x="482" y="148" class="card-body">• BezierProfile B(t)</text>
+  <text x="482" y="166" class="card-body">• Trapezoidal AUC</text>
+  <text x="482" y="184" class="card-body">• Constraint ∑ Mₘ = 1.0</text>
+
+  <!-- Arrow 3 -> 4 -->
+  <line x1="652" y1="144" x2="681" y2="144" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)" />
+
+  <!-- 4. metrics.py -->
+  <rect x="684" y="82" width="184" height="124" rx="10" fill="#1e293b" stroke="#34d399" stroke-width="1.75" />
+  <rect x="696" y="92" width="128" height="18" rx="4" fill="#064e3b" />
+  <text x="760" y="104" text-anchor="middle" class="tag" fill="#6ee7b7">HTMU / TUT / FATIGUE</text>
+  <text x="698" y="128" class="card-mono">metrics.py</text>
+  <text x="698" y="148" class="card-body">• HTMU Effective Reps</text>
+  <text x="698" y="166" class="card-body">• Dynamic TUT Slowdown</text>
+  <text x="698" y="184" class="card-body">• Exp. Fatigue 1.1^(RPE-7.5)</text>
+
+  <!-- Arrow 4 -> 5 -->
+  <line x1="868" y1="144" x2="897" y2="144" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)" />
+
+  <!-- 5. solver.py -->
+  <rect x="900" y="82" width="184" height="124" rx="10" fill="#1e293b" stroke="#fbbf24" stroke-width="1.75" />
+  <rect x="912" y="92" width="144" height="18" rx="4" fill="#78350f" />
+  <text x="984" y="104" text-anchor="middle" class="tag" fill="#fde68a">MULTI-OBJ OPTIMIZER</text>
+  <text x="914" y="128" class="card-mono">solver.py</text>
+  <text x="914" y="148" class="card-body">• Simulated Annealing</text>
+  <text x="914" y="166" class="card-body">• 7-Term Calibrated Cost</text>
+  <text x="914" y="184" class="card-body">• Target Curves &amp; Ratios</text>
+
+  <!-- BOTTOM ROW: SHARED DB, CLI, FRONTEND -->
+  <!-- Shared Exercise DB & Constants -->
+  <rect x="36" y="268" width="292" height="114" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5" />
+  <rect x="48" y="278" width="114" height="18" rx="4" fill="#334155" />
+  <text x="105" y="290" text-anchor="middle" class="tag" fill="#e2e8f0">SHARED KNOWLEDGE</text>
+  <text x="50" y="314" class="card-mono">defaultExercises.json + constants.py</text>
+  <text x="50" y="334" class="card-body">• 61 exercises w/ Bézier ROM profiles</text>
+  <text x="50" y="352" class="card-body">• MUSCLES taxonomy &amp; HARD_MAP aliases</text>
+  <text x="50" y="370" class="card-body">• α_ass = 0.50, α_part = 0.33</text>
+
+  <!-- CLI Output -->
+  <rect x="364" y="268" width="268" height="114" rx="10" fill="#1e293b" stroke="#34d399" stroke-width="1.5" />
+  <rect x="376" y="278" width="94" height="18" rx="4" fill="#064e3b" />
+  <text x="423" y="290" text-anchor="middle" class="tag" fill="#6ee7b7">CLI &amp; SCRIPTS</text>
+  <text x="378" y="314" class="card-mono">cli.py / Analyzer.py</text>
+  <text x="378" y="334" class="card-body">• Entrypoint: iron-stats --file ...</text>
+  <text x="378" y="352" class="card-body">• Filter by --session, --week, muscle</text>
+  <text x="378" y="370" class="card-body">• Volume, Tonnage, Fatigue, TUT table</text>
+
+  <!-- React/Vite Frontend -->
+  <rect x="668" y="268" width="416" height="114" rx="10" fill="#1e293b" stroke="#f472b6" stroke-width="1.75" />
+  <rect x="680" y="278" width="136" height="18" rx="4" fill="#831843" />
+  <text x="748" y="290" text-anchor="middle" class="tag" fill="#fbcfe8">INTERACTIVE CLIENT</text>
+  <text x="682" y="314" class="card-title">React / Vite Frontend (frontend/src/)</text>
+  <text x="682" y="334" class="card-body">• Live Logbook Editor (parser.js) &amp; Interactive Bézier Editor</text>
+  <text x="682" y="352" class="card-body">• Client-Side SA Routine Generator (solver.js) &amp; Charts</text>
+  <text x="682" y="370" class="card-body">• Offline Web App + Capacitor Android APK Build</text>
+
+  <!-- VERTICAL / CROSS CONNECTORS -->
+  <!-- Shared DB -> models.py & parser.py -->
+  <path d="M 182 268 L 182 238 L 344 238 L 344 209" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow-slate)" />
+  <path d="M 344 238 L 540 238 L 540 209" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow-slate)" />
+  <text x="264" y="232" text-anchor="middle" class="edge-label">aliases &amp; profiles</text>
+
+  <!-- metrics.py -> cli.py -->
+  <path d="M 744 206 L 744 238 L 498 238 L 498 265" fill="none" stroke="#34d399" stroke-width="1.75" marker-end="url(#arrow-green)" />
+  <text x="620" y="232" text-anchor="middle" class="edge-label">aggregated metrics</text>
+
+  <!-- solver.py <-> React/Vite Frontend (bidirectional) -->
+  <line x1="992" y1="209" x2="992" y2="265" stroke="#f472b6" stroke-width="2" marker-start="url(#arrow-pink)" marker-end="url(#arrow-pink)" />
+  <text x="982" y="241" text-anchor="end" class="edge-label" fill="#f9a8d4">JSON config / schedule</text>
+
+  <!-- Shared DB -> Frontend (dashed sync) -->
+  <path d="M 560 206 L 560 252 L 820 252 L 820 265" fill="none" stroke="#64748b" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow-slate)" />
+  <text x="690" y="247" text-anchor="middle" class="edge-label">model parity</text>
+</svg>
