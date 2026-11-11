@@ -35,7 +35,6 @@ const DashboardTab = ({
   workoutData,
   currentProgram,
   programs,
-  activeExercises,
   exercisesDb,
   selectedMetricDetail,
   setSelectedMetricDetail
@@ -294,11 +293,10 @@ const DashboardTab = ({
       data.push(pt);
     }
 
-    const exMap = new Map((activeExercises || []).map(e => [e.name, e]));
     const topMusclesSet = new Set(topMuscles);
 
     dashFilteredData.forEach(wEx => {
-      const ex = exMap.get(wEx.name) || wEx.exercise_obj;
+      const ex = wEx.exercise_obj;
       if (!ex) return;
       
       const maxWeekNum = dashFilterWeek === 'all' && wEx.weeks.length > 0
@@ -359,7 +357,7 @@ const DashboardTab = ({
     });
 
     return data;
-  }, [dashFilteredData, dashFilterWeek, dashMuscleMacro, muscleMetric, activeExercises, displayMuscleData]);
+  }, [dashFilteredData, dashFilterWeek, dashMuscleMacro, muscleMetric, displayMuscleData]);
 
   // Overall totals (filtered) — consolidated into a single useMemo
   const mainTotals = useMemo(() => ({

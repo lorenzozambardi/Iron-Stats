@@ -212,4 +212,62 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     const expectedMse = curveLd.reduce((acc, v) => acc + Math.pow(v / maxLd - 1.0, 2), 0) / curveLd.length;
     expect(rawMetrics.curve).toBeCloseTo(expectedMse, 6);
   });
+
+  it('guards calculateRest above 10, empty tuts, missing rpe, old-prefix regex, and config.iterations', async () => {
+    expect(calculateRest(15.0)).toBe("3'30\"");
+
+    // Empty tuts array must recompute instead of returning 0
+    const fatEmptyTuts = calculateSetFatigue(10, 0, 0, 9.0, 1.0, 0.0, 2.0, 0.0, 5.0, 1.0, []);
+    const fatNullTuts = calculateSetFatigue(10, 0, 0, 9.0, 1.0, 0.0, 2.0, 0.0, 5.0, 1.0, null);
+    expect(fatEmptyTuts).toBeCloseTo(fatNullTuts, 9);
+
+    // Unparsed set missing rpe must default to 9.0 without producing NaN
+    const lr = defaultExercises.find((e) => e.name === 'LR');
+    const manualWorkout = [{
+      exercise_obj: lr,
+      raw_name: 'LR',
+      session: 1,
+      concentric: 1,
+      shortening_pause: 0,
+      eccentric: 2,
+      lengthening_pause: 0,
+      weeks: [{ week_num: 1, sets: [{ load: 10, base_reps: 10, assisted_reps: 0, partial_reps: 0 }] }]
+    }];
+    const m = calculateMetrics(manualWorkout, null, null, null, null);
+    expect(Number.isFinite(m[0].fatigue)).toBe(true);
+    expect(Number.isFinite(m[0].totalTut)).toBe(true);
+    expect(Number.isFinite(m[0].effectiveTut)).toBe(true);
+
+    // "do 10" must not be misclassified as an "old ..." log line
+    const parsedNonOld = parseLogbook('# 1\nLR\ndo 10\n10.. 10\n', defaultExercises);
+    expect(parsedNonOld).toHaveLength(1);
+    expect(parsedNonOld[0].weeks).toHaveLength(1);
+
+    // solve() with no args respects this.config.iterations and handles narrow-support E_curve
+    const narrowDb = [{
+      name: 'NarrowEx',
+      fatigue: 4,
+      load_coeff: 0.5,
+      load_multiplier: 1,
+      load_offset: 0,
+      is_isolation: false,
+      muscles_distr: {
+        'Lateral Deltoid': { x0: 0.501, y0: 1, x1: 0.503, y1: 1, x2: 0.506, y2: 1, x3: 0.509, y3: 1, magnitude: 0.5 },
+        'Sternal Head': { x0: 0.0, y0: 1, x1: 0.33, y1: 1, x2: 0.66, y2: 1, x3: 1.0, y3: 1, magnitude: 0.5 }
+      }
+    }];
+    const narrowSolver = new WorkoutSolver({
+      days: 1, min_ex: 1, max_ex: 1, calibration_steps: 0, iterations: 10,
+      muscle_targets: { 'Sternal Head': 'linear' }
+    }, narrowDb);
+    const st = { days: [[{ exercise: narrowDb[0], sets: [{ base_reps: 10, partial_reps: 0, rpe: 9.0, total_reps: 10, effective_reps: 5 }] }]] };
+    narrowSolver._return_raw = true;
+    const { rawMetrics } = narrowSolver.evaluateWorkout(st);
+    narrowSolver._return_raw = false;
+    const expectedLinMse = Array.from({ length: 50 }, (_, i) => Math.pow(1 - (1 - i / 49), 2)).reduce((a, b) => a + b, 0) / 50;
+    expect(rawMetrics.curve).toBeCloseTo(expectedLinMse, 6);
+
+    const res = await narrowSolver.solve();
+    expect(res.bestState.days[0]).toHaveLength(1);
+  });
 });

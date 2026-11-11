@@ -760,8 +760,8 @@ export default function App() {
       setExerciseError('Fatigue must be a number between 0 and 10.');
       return null;
     }
-    if (!Number.isFinite(load_coeff) || load_coeff < 0) {
-      setExerciseError('Load coefficient must be a non-negative number.');
+    if (!Number.isFinite(load_coeff) || load_coeff < 0 || load_coeff > 2) {
+      setExerciseError('Load coefficient must be a number between 0 and 2.');
       return null;
     }
     if (!Number.isFinite(load_multiplier) || load_multiplier <= 0) {

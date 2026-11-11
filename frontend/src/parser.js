@@ -471,7 +471,9 @@ export function computeEffectiveTut(tuts, baseReps, rpe) {
 export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, concentric, shorteningPause, eccentric, lengtheningPause, fatigue, loadCoeff = 1.0, tuts = null) {
   void loadCoeff;
   const clampedRpe = Math.min(10.0, Math.max(0.0, rpe));
-  const actualTuts = tuts || calculateSetTuts(baseReps, assistedReps, partialReps, clampedRpe, concentric, shorteningPause, eccentric, lengtheningPause);
+  const actualTuts = (tuts && tuts.length > 0)
+    ? tuts
+    : calculateSetTuts(baseReps, assistedReps, partialReps, clampedRpe, concentric, shorteningPause, eccentric, lengtheningPause);
   let totalFat = 0.0;
   
   // 1. Base reps
@@ -576,8 +578,8 @@ export function parseLogbook(logText, exercises) {
         continue;
       }
 
-      // Check if it's a rep/set log line (contains '..' or starts with digit/contains only numbers/symbols)
-      const isLogLine = line.includes('..') || /^[old\s]*[\d().+/@,\s]+$/i.test(line);
+      // Check if it's a rep/set log line (contains '..' or starts with optional 'old ' prefix + rep/set syntax)
+      const isLogLine = line.includes('..') || /^(?:old\s+)*[\d().+/@,\s]+$/i.test(line);
 
       if (isLogLine) {
         if (currentExercise) {
@@ -741,7 +743,7 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
           s.base_reps,
           s.assisted_reps,
           s.partial_reps,
-          s.rpe,
+          clampedRpe,
           wEx.concentric,
           wEx.shortening_pause,
           wEx.eccentric,
@@ -757,18 +759,18 @@ export function calculateMetrics(workoutData, targetSession, targetWeek, targetM
         let setTotalTut = s.totalTut;
         let setEffTut = s.effectiveTut;
         if (setTotalTut === undefined) {
-          const tuts = s.tuts || calculateSetTuts(
+          const tuts = (s.tuts && s.tuts.length > 0) ? s.tuts : calculateSetTuts(
             s.base_reps,
             s.assisted_reps,
             s.partial_reps,
-            s.rpe,
+            clampedRpe,
             wEx.concentric,
             wEx.shortening_pause,
             wEx.eccentric,
             wEx.lengthening_pause
           );
           setTotalTut = tuts.reduce((sum, val) => sum + val, 0);
-          setEffTut = computeEffectiveTut(tuts, s.base_reps, s.rpe);
+          setEffTut = computeEffectiveTut(tuts, s.base_reps, clampedRpe);
         }
         totalTut += (setTotalTut || 0) * distrSum;
         effectiveTut += (setEffTut || 0) * distrSum;
