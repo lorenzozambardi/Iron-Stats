@@ -270,4 +270,20 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     const res = await narrowSolver.solve();
     expect(res.bestState.days[0]).toHaveLength(1);
   });
+
+  it('normalizes subs per macro before global normalization and parses is_isolation=1', () => {
+    const slv = new WorkoutSolver({
+      days: 1,
+      calibration_steps: 0,
+      volume_dist: {
+        macros: { Chest: 50, Shoulders: 50 },
+        subs: { Chest: { 'Sternal Head': 40, 'Clavicular Head': 40 } }
+      }
+    }, defaultExercises);
+    expect(slv.target_sub_vol['Sternal Head']).toBeCloseTo(0.25, 9);
+    expect(slv.target_sub_vol['Clavicular Head']).toBeCloseTo(0.25, 9);
+
+    const parsed = parseLogbook('override: LR | is_isolation=1\n# 1\nLR\n10.. 10\n', defaultExercises);
+    expect(parsed[0].exercise_obj.is_isolation).toBe(true);
+  });
 });

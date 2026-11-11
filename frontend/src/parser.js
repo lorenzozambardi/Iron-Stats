@@ -95,7 +95,7 @@ export function getExercisesWithOverrides(logText, globalExercises) {
               const parsedVal = parseFloat(val);
               if (!Number.isNaN(parsedVal)) exObj.load_offset = parsedVal;
             } else if (key === 'is_isolation') {
-              exObj.is_isolation = val.toLowerCase() === 'true';
+              exObj.is_isolation = val.toLowerCase() === 'true' || val === '1';
             } else if (key === 'muscles_distr') {
               try {
                 const parsedDistr = JSON.parse(val);

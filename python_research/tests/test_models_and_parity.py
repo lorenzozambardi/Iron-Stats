@@ -424,3 +424,34 @@ def test_rest_clamp_narrow_grid_ecurve_and_single_ex_db() -> None:
         assert len(mutated.days[0]) == 1
     finally:
         solver_mod.exercises_list = orig_db
+
+
+def test_per_macro_subs_normalization_and_unique_swap_guard() -> None:
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 0
+    cfg.volume_dist = {
+        "macros": {"Chest": 50, "Shoulders": 50},
+        "subs": {"Chest": {"Sternal Head": 40, "Clavicular Head": 40}},
+    }
+    slv = WorkoutSolver(cfg)
+    assert slv.target_sub_vol["Sternal Head"] == pytest.approx(0.25, abs=1e-12)
+    assert slv.target_sub_vol["Clavicular Head"] == pytest.approx(0.25, abs=1e-12)
+    shoulders_sum = sum(v for k, v in slv.target_sub_vol.items() if k not in ("Sternal Head", "Clavicular Head"))
+    assert shoulders_sum == pytest.approx(0.50, abs=1e-12)
+
+    # Two DB entries with identical name must not enable swap_ex
+    import analyzer.solver as solver_mod
+    orig_db = solver_mod.exercises_list
+    dup_ex = Exercise(name="Dup", muscles_distr={"Lateral Deltoid": 1.0}, fatigue=3.0, load_coeff=0.5)
+    try:
+        solver_mod.exercises_list = [dup_ex, dup_ex]
+        s_cfg = SolverConfig()
+        s_cfg.days = 1
+        s_cfg.min_ex = 1
+        s_cfg.max_ex = 1
+        s_cfg.calibration_steps = 0
+        s_slv = WorkoutSolver(s_cfg)
+        assert s_slv.unique_ex_count == 1
+    finally:
+        solver_mod.exercises_list = orig_db

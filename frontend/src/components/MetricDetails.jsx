@@ -434,7 +434,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
             { symbol: '\\text{Sets}', desc: 'The accumulated sets credit assigned to a target muscle group.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient (from 0.0 to 1.0).' }
           ],
-          example: 'If you perform 4 sets of Squats targeting Quads at 100% (D_m = 1.0) and Glutes at 50% (D_m = 0.5):\n- Quads: 4 sets * 1.0 = 4.0 sets\n- Glutes: 4 sets * 0.5 = 2.0 sets'
+          example: 'If you perform 4 sets of Squats targeting Quads at 45% (D_m = 0.45) and Glutes at 35% (D_m = 0.35):\n- Quads: 4 sets * 0.45 = 1.8 sets\n- Glutes: 4 sets * 0.35 = 1.4 sets'
         };
       case 'tension-profiles':
         return {

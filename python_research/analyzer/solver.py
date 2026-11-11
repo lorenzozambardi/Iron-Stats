@@ -196,8 +196,10 @@ class WorkoutSolver:
                     continue
                 macro_subs = subs_dict.get(macro)
                 if macro_subs:
+                    sub_sum = sum(max(0.0, float(v)) for v in macro_subs.values())
                     for sub, s_val in macro_subs.items():
-                        self.target_sub_vol[sub] = (m_val / 100.0) * (s_val / 100.0)
+                        val = max(0.0, float(s_val))
+                        self.target_sub_vol[sub] = (m_val / 100.0) * (val / sub_sum) if sub_sum > 0.0 else 0.0
                 else:
                     fallback_subs = macro_to_db_subs.get(macro) or macro_to_subs.get(macro, [])
                     if fallback_subs:
@@ -234,6 +236,7 @@ class WorkoutSolver:
         self.default_curve = np.ones(self.resolution)
 
         self.scales: dict[str, float] = {}
+        self.unique_ex_count = len({ex.name for ex in self.db})
 
         # Precompute physical-ROM-aligned Bezier curves and stretched-ROM partial magnitudes
         self.ex_curves: dict[str, dict[str, np.ndarray]] = {}
@@ -477,7 +480,7 @@ class WorkoutSolver:
             eligible_mutations.append('add_ex')
         if len(day) > self.config.min_ex:
             eligible_mutations.append('remove_ex')
-        if len(day) > 0 and len(self.db) > 1:
+        if len(day) > 0 and self.unique_ex_count > 1:
             eligible_mutations.append('swap_ex')
         if eligible_add_set:
             eligible_mutations.append('add_set')
@@ -523,11 +526,13 @@ class WorkoutSolver:
 
         elif mutation_type == 'mut_reps':
             s = random.choice(sets_on_day)
-            rep_choices = [
-                max(self.config.min_reps, min(self.config.max_reps, s.base_reps + d_rep))
-                for d_rep in (-2, -1, 1, 2)
-            ]
-            rep_choices = [r for r in rep_choices if r != s.base_reps]
+            rep_choices = list(dict.fromkeys(
+                r for r in (
+                    max(self.config.min_reps, min(self.config.max_reps, s.base_reps + d_rep))
+                    for d_rep in (-2, -1, 1, 2)
+                )
+                if r != s.base_reps
+            ))
             if rep_choices:
                 s.base_reps = random.choice(rep_choices)
 
@@ -587,6 +592,7 @@ class WorkoutSolver:
         by `cooling_rate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
         is applied and the new state is evaluated.
         """
+        iterations = max(0, int(iterations))
         if cooling_rate is None:
             cooling_rate = (0.01 / initial_temp) ** (1.0 / iterations) if iterations > 0 else 0.995
             
@@ -635,7 +641,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = SolverConfig()
-    iterations = 5000
+    iterations = 10000
     
     if args.config:
         try:

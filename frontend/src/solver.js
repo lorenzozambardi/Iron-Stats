@@ -265,9 +265,10 @@ export class WorkoutSolver {
                 if (m_val <= 0) continue;
                 const macroSubs = subs_dict[macro];
                 if (macroSubs && Object.keys(macroSubs).length > 0) {
+                    const subSum = Object.values(macroSubs).reduce((acc, v) => acc + Math.max(0.0, Number(v) || 0.0), 0.0);
                     for (const sub in macroSubs) {
-                        const s_val = macroSubs[sub];
-                        this.target_sub_vol[sub] = (m_val / 100.0) * (s_val / 100.0);
+                        const s_val = Math.max(0.0, Number(macroSubs[sub]) || 0.0);
+                        this.target_sub_vol[sub] = subSum > 0.0 ? (m_val / 100.0) * (s_val / subSum) : 0.0;
                     }
                 } else {
                     const fallbackSubs = (macroToDbSubs[macro] && macroToDbSubs[macro].length > 0)
@@ -323,6 +324,7 @@ export class WorkoutSolver {
         
         this.default_curve = new Float32Array(this.resolution).fill(1);
         this.scales = {};
+        this.unique_ex_count = new Set(this.db.map(ex => ex.name)).size;
 
         // Precompute curves and stretched-ROM partial magnitudes
         this.max_ex_fatigue = Math.max(10.0, ...this.db.map(ex => Number(ex.fatigue) || 0));
@@ -649,7 +651,7 @@ export class WorkoutSolver {
         const eligibleMutations = [];
         if (day.length < this.config.max_ex) eligibleMutations.push('add_ex');
         if (day.length > this.config.min_ex) eligibleMutations.push('remove_ex');
-        if (day.length > 0 && this.db.length > 1) eligibleMutations.push('swap_ex');
+        if (day.length > 0 && this.unique_ex_count > 1) eligibleMutations.push('swap_ex');
         if (eligibleAddSet.length > 0) eligibleMutations.push('add_set');
         if (eligibleRemSet.length > 0) eligibleMutations.push('remove_set');
         if (setsOnDay.length > 0 && this.config.min_reps < this.config.max_reps) eligibleMutations.push('mut_reps');
@@ -687,9 +689,11 @@ export class WorkoutSolver {
             ex.sets.splice(randomInt(0, ex.sets.length - 1), 1);
         } else if (mType === 'mut_reps') {
             const s = randomChoice(setsOnDay);
-            const repChoices = [-2, -1, 1, 2]
-                .map(dRep => Math.max(this.config.min_reps, Math.min(this.config.max_reps, s.base_reps + dRep)))
-                .filter(r => r !== s.base_reps);
+            const repChoices = [...new Set(
+                [-2, -1, 1, 2]
+                    .map(dRep => Math.max(this.config.min_reps, Math.min(this.config.max_reps, s.base_reps + dRep)))
+                    .filter(r => r !== s.base_reps)
+            )];
             if (repChoices.length > 0) {
                 s.base_reps = randomChoice(repChoices);
             }
