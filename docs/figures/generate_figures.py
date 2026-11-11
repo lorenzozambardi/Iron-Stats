@@ -117,6 +117,16 @@ def evaluate_true_profile(
     return np.array([solve_bezier_y_exact(float(xv), p0, p1, p2, p3) for xv in x_target], dtype=np.float64)
 
 
+def make_sup_grid(x0: float, x3: float) -> NDArray[np.float64]:
+    """Dense [0, 1] grid bracketing x0 and x3 discontinuities for true L^inf norm."""
+    eps = 1e-12
+    pts = np.concatenate([
+        np.linspace(0.0, 1.0, 10001),
+        [max(0.0, x0 - eps), x0, min(1.0, x0 + eps), max(0.0, x3 - eps), x3, min(1.0, x3 + eps)],
+    ])
+    return np.unique(pts)
+
+
 def gauss_lobatto_nodes(n: int, a: float = 0.0, b: float = 1.0) -> NDArray[np.float64]:
     """Compute Chebyshev-Gauss-Lobatto nodes mapped to [a, b]."""
     k = np.arange(n)
@@ -162,8 +172,11 @@ def plot_lagrange_runge(
     x_full = np.linspace(0.0, 1.0, n_nodes)
     y_full = evaluate_true_profile(x_full, p0, p1, p2, p3)
     cond_full = float(np.linalg.cond(np.vander(x_full, increasing=True)))
-    y_poly_full = np.polyval(np.polyfit(x_full, y_full, deg=n_nodes - 1), rom_grid)
-    linf_full = float(np.max(np.abs(y_ideal - y_poly_full)))
+    coeffs_full = np.polyfit(x_full, y_full, deg=n_nodes - 1)
+    y_poly_full = np.polyval(coeffs_full, rom_grid)
+    sup_grid = make_sup_grid(x0, x3)
+    y_sup_ideal = evaluate_true_profile(sup_grid, p0, p1, p2, p3)
+    linf_full = float(np.max(np.abs(y_sup_ideal - np.polyval(coeffs_full, sup_grid))))
 
     # Restricted smooth domain [a, b] (scale to [0, 1] for Vandermonde conditioning clarity too)
     x_rest = np.linspace(a, b, n_nodes)
@@ -242,12 +255,15 @@ def plot_lagrange_gauss_lobatto(
     ax1.plot(rom_grid, y_ideal, "k-", lw=2.1, label="Reference LR")
     ax2.plot(rest_grid, y_rest_ideal, "k-", lw=2.1, label="Reference LR")
 
+    sup_grid = make_sup_grid(x0, x3)
+    y_sup_ideal = evaluate_true_profile(sup_grid, p0, p1, p2, p3)
     metrics: dict[str, float] = {}
     for n_nodes, color, ls in zip([6, 12], ["#e67e22", "#c0392b"], ["--", "-."], strict=True):
         nodes_full = gauss_lobatto_nodes(n_nodes, 0.0, 1.0)
         y_nf = evaluate_true_profile(nodes_full, p0, p1, p2, p3)
-        y_pf = np.polyval(np.polyfit(nodes_full, y_nf, deg=n_nodes - 1), rom_grid)
-        metrics[f"cgl{n_nodes}_full_linf"] = float(np.max(np.abs(y_ideal - y_pf)))
+        coeffs_nf = np.polyfit(nodes_full, y_nf, deg=n_nodes - 1)
+        y_pf = np.polyval(coeffs_nf, rom_grid)
+        metrics[f"cgl{n_nodes}_full_linf"] = float(np.max(np.abs(y_sup_ideal - np.polyval(coeffs_nf, sup_grid))))
         ax1.plot(rom_grid, y_pf, color=color, lw=1.7, ls=ls, label=rf"CGL $N={n_nodes}$ ($L^\infty={metrics[f'cgl{n_nodes}_full_linf']:.2f}$)")
         ax1.scatter(nodes_full, y_nf, color=color, s=26, zorder=4)
 
@@ -297,8 +313,11 @@ def plot_spline_overshoot(
 
     x_knots_full = np.array([0.0, 0.2, 0.45, 0.75, 0.9, 1.0])
     y_knots_full = evaluate_true_profile(x_knots_full, p0, p1, p2, p3)
-    y_spline_full = CubicSpline(x_knots_full, y_knots_full, bc_type="natural")(rom_grid)
-    linf_full = float(np.max(np.abs(y_ideal - y_spline_full)))
+    spline_full = CubicSpline(x_knots_full, y_knots_full, bc_type="natural")
+    y_spline_full = spline_full(rom_grid)
+    sup_grid = make_sup_grid(x0, x3)
+    y_sup_ideal = evaluate_true_profile(sup_grid, p0, p1, p2, p3)
+    linf_full = float(np.max(np.abs(y_sup_ideal - spline_full(sup_grid))))
 
     x_knots_rest = np.linspace(a, b, 6)
     y_knots_rest = evaluate_true_profile(x_knots_rest, p0, p1, p2, p3)

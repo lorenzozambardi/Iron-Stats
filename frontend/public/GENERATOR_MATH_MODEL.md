@@ -53,7 +53,7 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
 6.  **Variety Error:**
     $$E_{\text{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
 7.  **Daily Balance Error:** Population variance of daily fatigue and daily volume normalized by conservative Popoviciu bounds $(F_{\max}/2)^2$ and $(V_{\max}/2)^2$ (equal to $0$ when $D \le 1$):
-    $$E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(D_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}$$
+    $$E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(V_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}$$
 
 ### 3.3 Calibrated Global Objective Function
 Prior to Simulated Annealing, $K$ random states estimate $s_i = 2\,\hat{\mu}(E_i)$ (guarded at $10^{-6}$ if zero; pass `calibrationSteps = 0` to disable). The solver minimizes:
@@ -72,4 +72,4 @@ Rest is computed a priori from systemic exercise fatigue $F_e$:
 Values are rounded half-up to the nearest half minute.
 
 ### 4.3 Same-Day Duplicate Penalty
-To encourage diverse movement angles and avoid concentrating all volume into one exercise on the same day, each duplicate exercise on the same day adds a hard penalty of $150{,}000$ to $J(x)$.
+To encourage diverse movement angles and avoid concentrating all volume into one exercise on the same day, each duplicate exercise on the same day adds a hard penalty of $150{,}000$ to $J(\omega)$.
