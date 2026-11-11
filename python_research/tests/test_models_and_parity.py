@@ -5,15 +5,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from analyzer.constants import COEFF_PARTIAL
+from analyzer.constants import COEFF_PARTIAL, HARD_MAP
 from analyzer.metrics import (
     calculate_metrics,
     calculate_set_fatigue,
     calculate_set_tuts,
     compute_effective_tut,
 )
-from analyzer.models import BezierProfile, Exercise, exercises_list
-from analyzer.parser import analyze_workout_log, parse_rep_token
+from analyzer.models import BezierProfile, Exercise, SetData, exercises_list
+from analyzer.parser import analyze_workout_log, match_exercise, parse_rep_token
 from analyzer.solver import (
     ScheduledExercise,
     ScheduledSet,
@@ -22,6 +22,7 @@ from analyzer.solver import (
     WorkoutState,
     _set_tuts,
     calculate_rest,
+    get_target_curve,
 )
 
 
@@ -334,3 +335,51 @@ def test_stretched_partial_magnitude_and_unrepresented_target_ecurve() -> None:
     solver_macro._return_raw = False
     expected_distr = 0.5 * (0.9**2 + 0.1**2 + sum(v**2 for v in solver_macro.target_sub_vol.values()))
     assert raw_m["distr"] == pytest.approx(expected_distr, abs=1e-12)
+
+
+def test_rpe_clamping_hard_map_and_weighted_ecurve() -> None:
+    # RPE > 10 is clamped to 10.0 across parser, SetData, and metrics; negative SetData raises
+    parsed_high = parse_rep_token("10@12", [50.0])
+    assert parsed_high[0].rpe == 10.0
+    assert SetData(load=50.0, base_reps=10, rpe=12.0).rpe == 10.0
+    assert calculate_set_fatigue(10, 0, 0, 12.0, 1.0, 0.0, 2.0, 0.0, 5.0) == pytest.approx(
+        calculate_set_fatigue(10, 0, 0, 10.0, 1.0, 0.0, 2.0, 0.0, 5.0), rel=1e-12
+    )
+    with pytest.raises(ValueError, match="Negative RPE"):
+        SetData(load=50.0, base_reps=10, rpe=-1.0)
+    with pytest.raises(ValueError, match="Negative repetition"):
+        SetData(load=50.0, base_reps=-1, rpe=9.0)
+
+    # Case-insensitive "OLD" prefix works identically in Python
+    old_parsed = analyze_workout_log("# 1\nLR | 2' | 1-0-2-0\nOLD 10, 8\n", exercises_list)
+    assert len(old_parsed) == 1 and len(old_parsed[0].weeks[0].sets) == 2
+
+    # Every HARD_MAP target exists in defaultExercises.json
+    ex_names = {e.name for e in exercises_list}
+    assert all(target in ex_names for target in HARD_MAP.values())
+    assert match_exercise("Shoulder Press Machine", exercises_list).name == "Machine Shoulder Press"
+    assert match_exercise("Incl Cable Pushdown", exercises_list).name == "Bench 54 Pushdown"
+
+    # Peak-normalized logistic target curves & target-weighted E_curve invariance to untargeted synergists
+    assert float(np.max(get_target_curve("sigmoid"))) == pytest.approx(1.0, abs=1e-12)
+    assert float(np.max(get_target_curve("inv_sigmoid"))) == pytest.approx(1.0, abs=1e-12)
+
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 0
+    cfg.volume_dist = {"macros": {"Shoulders": 100}, "subs": {"Shoulders": {"Lateral Deltoid": 100}}}
+    solver = WorkoutSolver(cfg)
+    assert solver.config.target_ratios["tut"] == 0.74
+    lr = next(e for e in exercises_list if e.name == "LR")
+    st = WorkoutState(1)
+    ex = ScheduledExercise(lr)
+    ex.sets = [ScheduledSet(10, 0, 9.0)]
+    st.days[0] = [ex]
+    solver._return_raw = True
+    _, raw = solver.evaluate_workout(st)
+    solver._return_raw = False
+    # Untargeted Upper and Mid Trapezius (10% of LR) must not affect E_curve when Lateral Deltoid has 100% target
+    curve_ld = solver.ex_curves["LR"]["Lateral Deltoid"]
+    norm_ld = curve_ld / np.max(curve_ld)
+    expected_mse = float(np.mean((norm_ld - 1.0) ** 2))
+    assert raw["curve"] == pytest.approx(expected_mse, abs=1e-7)

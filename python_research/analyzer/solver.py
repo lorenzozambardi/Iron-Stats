@@ -22,11 +22,13 @@ def get_target_curve(curve_type: str, resolution: int = 50) -> np.ndarray:
     if curve_type == 'constant':
         return np.ones(resolution)
     elif curve_type == 'sigmoid':
-        # S-shape emphasizing peak contraction (t=1)
-        return 1 / (1 + np.exp(-10 * (t - 0.5)))
+        # Peak-normalized S-shape emphasizing peak contraction (t=1)
+        raw = 1.0 / (1.0 + np.exp(-10.0 * (t - 0.5)))
+        return raw / float(np.max(raw))
     elif curve_type == 'inv_sigmoid':
-        # S-shape emphasizing stretch (t=0)
-        return 1 / (1 + np.exp(10 * (t - 0.5)))
+        # Peak-normalized S-shape emphasizing stretch (t=0)
+        raw = 1.0 / (1.0 + np.exp(10.0 * (t - 0.5)))
+        return raw / float(np.max(raw))
     elif curve_type == 'linear':
         # Linear decrease from 1 to 0
         return 1 - t
@@ -148,7 +150,7 @@ class SolverConfig:
         self.target_ratios = {
             'vol': 0.70,
             'ton': 0.70,
-            'tut': 0.70
+            'tut': 0.74
         }
         
         # Default all muscles to constant
@@ -350,24 +352,36 @@ class WorkoutSolver:
             daily_fatigue.append(day_fatigue)
             daily_vol.append(day_vol)
                 
-        # 1. Curve Error (include targeted muscles even when omitted so skipping muscles never reduces E_curve)
+        # 1. Curve Error (weighted by target_sub_vol when set, or active ROM volume W_m otherwise)
         E_curve = 0.0
-        if len(V_m) > 0:
-            eval_muscles = 0
+        total_sub_vol = sum(sub_vols.values())
+        if self.target_sub_vol:
+            for m, target_w in self.target_sub_vol.items():
+                if target_w <= 0.0:
+                    continue
+                curve = V_m.get(m)
+                max_v = float(np.max(curve)) if curve is not None else 0.0
+                target = self.T_m.get(m, self.default_curve)
+                if max_v > 0.0 and curve is not None:
+                    normalized_v = curve / max_v
+                    mse = float(np.sum((normalized_v - target) ** 2)) / self.resolution
+                else:
+                    mse = float(np.sum(target ** 2)) / self.resolution
+                E_curve += target_w * mse
+        elif len(V_m) > 0:
+            active_mses: list[tuple[float, float]] = []
             for m, curve in V_m.items():
-                max_v = np.max(curve)
-                is_targeted = self.target_sub_vol.get(m, 0.0) > 0.0
+                max_v = float(np.max(curve))
                 if max_v > 0.0:
                     target = self.T_m.get(m, self.default_curve)
                     normalized_v = curve / max_v
-                    E_curve += np.sum((normalized_v - target)**2) / self.resolution
-                    eval_muscles += 1
-                elif is_targeted:
-                    target = self.T_m.get(m, self.default_curve)
-                    E_curve += np.sum(target**2) / self.resolution
-                    eval_muscles += 1
-            if eval_muscles > 0:
-                E_curve /= eval_muscles # Normalize to [0, 1] range
+                    mse = float(np.sum((normalized_v - target) ** 2)) / self.resolution
+                    active_mses.append((sub_vols.get(m, 0.0), mse))
+            if active_mses:
+                if total_sub_vol > 0.0:
+                    E_curve = sum((w / total_sub_vol) * mse for w, mse in active_mses)
+                else:
+                    E_curve = sum(mse for _, mse in active_mses) / len(active_mses)
             
         # 2. Ratio Errors
         E_vol = (eff_vol / total_vol - self.config.target_ratios['vol'])**2 if total_vol > 0 else 0.0
@@ -376,7 +390,6 @@ class WorkoutSolver:
         
         # 3. Distribution Error
         E_distr = 0.0
-        total_sub_vol = sum(sub_vols.values())
         if total_sub_vol > 0 and self.target_sub_vol:
             for m in self.distr_muscles:
                 target_pct = self.target_sub_vol.get(m, 0.0)

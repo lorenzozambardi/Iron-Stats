@@ -16,8 +16,8 @@
 *   $B_{e,m}(x)$: Area-normalized cubic Bézier tension profile of exercise $e$ on sub-muscle $m$ (normalized via exact 3-point Gauss–Legendre quadrature).
 *   $T_m(x)$: Ideal target tension curve on $x \in [0, 1]$:
     *   **Constant (Flat):** $T_m(x) = 1$.
-    *   **Sigmoid:** $1 / (1 + e^{-10(x - 0.5)})$ (emphasis on peak contraction).
-    *   **Inverse Sigmoid:** $1 / (1 + e^{10(x - 0.5)})$ (emphasis on maximal stretch).
+    *   **Sigmoid:** Peak-normalized $S_{\mathrm{sig}}(x) / \max_{x'} S_{\mathrm{sig}}(x')$ where $S_{\mathrm{sig}}(x) = 1 / (1 + e^{-10(x - 0.5)})$ (emphasis on peak contraction).
+    *   **Inverse Sigmoid:** Peak-normalized $S_{\mathrm{inv}}(x) / \max_{x'} S_{\mathrm{inv}}(x')$ where $S_{\mathrm{inv}}(x) = 1 / (1 + e^{10(x - 0.5)})$ (emphasis on maximal stretch).
     *   **Linear:** $1 - x$ (decreasing linearly from stretch to contraction).
 *   $F_e \in [1, 10]$: Systemic fatigue cost of exercise $e$.
 
@@ -32,7 +32,7 @@
 The solver simultaneously minimizes seven normalized error metrics via Monte Carlo scale calibration and Simulated Annealing.
 
 ### 3.1 Efficiency Weights and Targets (UI Editable)
-The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal efficiency ratio targets $\rho_q^* \in [0, 1]$ (default $0.70$):
+The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal efficiency ratio targets $\rho_q^* \in [0, 1]$ (defaults $\rho_{\text{vol}}^* = \rho_{\text{ton}}^* = 0.70$ and $\rho_{\text{tut}}^* = 0.74$, accounting for concentric RIR slowdown so all three targets are jointly feasible):
 *   $w_{\text{curve}}$: Weight for adherence to the Target Curve.
 *   $w_{\text{vol}}$: Weight for Volume efficiency ($\rho_{\text{vol}}^*$).
 *   $w_{\text{ton}}$: Weight for Tonnage efficiency ($\rho_{\text{ton}}^*$, evaluated using the RPE-aware normalized Epley load surrogate $\hat{L} = \frac{100}{1 + 0.033(r + \max(0, 10 - \mathrm{RPE}))} \cdot c_{\mathrm{load}}$).
@@ -42,8 +42,8 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
 *   $w_{\text{balance}}$: Weight to balance daily volume and fatigue across days.
 
 ### 3.2 Raw Error Metrics
-1.  **Curve Error (Mean MSE):** Evaluated over $\mathcal{M}_{\mathrm{eval}} = \{m : \max_{x'} V_m(x') > 0 \text{ or } \mathrm{Target}_{\mathrm{global}}(m) > 0\}$ (so omitting a targeted muscle incurs $\frac{1}{R}\sum_i T_m(x_i)^2$ instead of shrinking the denominator), using $\hat{V}_m(x) = V_m(x) / \max_{x'} V_m(x')$ when $\max_{x'} V_m(x') > 0$ (and $\hat{V}_m \equiv 0$ otherwise):
-    $$E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\mathrm{eval}}|} \sum_{m \in \mathcal{M}_{\mathrm{eval}}} \frac{1}{R} \sum_{i=0}^{R-1} \bigl(\hat{V}_m(x_i) - T_m(x_i)\bigr)^2$$
+1.  **Curve Error (Weighted Mean MSE):** When target distribution shares are configured ($\mathcal{M}_{\mathrm{eval}} = \{m : \mathrm{Target}_{\mathrm{global}}(m) > 0\}$), evaluated via target-weighted MSE so untargeted synergists cannot dilute the objective; otherwise evaluated over active muscles ($\max_{x'} V_m(x') > 0$) weighted by normalized ROM-active volume $W_m / \sum_{m'} W_{m'}$. Using $\hat{V}_m(x) = V_m(x) / \max_{x'} V_m(x')$ when $\max_{x'} V_m(x') > 0$ (and $\hat{V}_m \equiv 0$ otherwise):
+    $$E_{\text{curve}} = \sum_{m \in \mathcal{M}_{\mathrm{eval}}} \omega_m \frac{1}{R} \sum_{i=0}^{R-1} \bigl(\hat{V}_m(x_i) - T_m(x_i)\bigr)^2$$
 2.  **Volume Error:** $E_{\text{vol}} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - \rho_{\text{vol}}^* \right)^2$
 3.  **Tonnage Error:** $E_{\text{ton}} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - \rho_{\text{ton}}^* \right)^2$
 4.  **TUT Error:** $E_{\text{tut}} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - \rho_{\text{tut}}^* \right)^2$

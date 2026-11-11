@@ -10,9 +10,13 @@ function getTargetCurve(curveType, resolution = 50) {
     if (curveType === 'constant') {
         return new Float32Array(resolution).fill(1);
     } else if (curveType === 'sigmoid') {
-        return new Float32Array(t.map(v => 1 / (1 + Math.exp(-10 * (v - 0.5)))));
+        const raw = t.map(v => 1.0 / (1.0 + Math.exp(-10.0 * (v - 0.5))));
+        const maxVal = Math.max(...raw);
+        return new Float32Array(raw.map(v => v / maxVal));
     } else if (curveType === 'inv_sigmoid') {
-        return new Float32Array(t.map(v => 1 / (1 + Math.exp(10 * (v - 0.5)))));
+        const raw = t.map(v => 1.0 / (1.0 + Math.exp(10.0 * (v - 0.5))));
+        const maxVal = Math.max(...raw);
+        return new Float32Array(raw.map(v => v / maxVal));
     } else if (curveType === 'linear') {
         return new Float32Array(t.map(v => 1 - v));
     } else {
@@ -172,7 +176,7 @@ export class WorkoutSolver {
             target_ratios: {
                 vol: 0.70,
                 ton: 0.70,
-                tut: 0.70
+                tut: 0.74
             },
             muscle_targets: {},
             volume_dist: { macros: {}, subs: {} },
@@ -468,37 +472,68 @@ export class WorkoutSolver {
             dailyVol.push(dayVol);
         }
 
-        // 1. Curve Error (include targeted muscles even when omitted so skipping muscles never reduces E_curve)
+        // 1. Curve Error (weighted by target_sub_vol when set, or active ROM volume W_m otherwise)
         let E_curve = 0.0;
-        let evalMuscles = 0;
-        for (const m in V_m) {
-            const curve = V_m[m];
-            let maxV = 0.0;
-            for (let i = 0; i < this.resolution; i++) {
-                if (curve[i] > maxV) maxV = curve[i];
+        let totalSubVol = 0.0;
+        for (const m in subVols) totalSubVol += subVols[m];
+        const hasTargetDistr = Object.keys(this.target_sub_vol).length > 0;
+
+        if (hasTargetDistr) {
+            for (const m in this.target_sub_vol) {
+                const targetW = this.target_sub_vol[m];
+                if (targetW <= 0.0) continue;
+                const curve = V_m[m];
+                let maxV = 0.0;
+                if (curve) {
+                    for (let i = 0; i < this.resolution; i++) {
+                        if (curve[i] > maxV) maxV = curve[i];
+                    }
+                }
+                const target = this.T_m[m] || this.default_curve;
+                let sumSq = 0.0;
+                if (maxV > 0.0 && curve) {
+                    for (let i = 0; i < this.resolution; i++) {
+                        const diff = (curve[i] / maxV) - target[i];
+                        sumSq += diff * diff;
+                    }
+                } else {
+                    for (let i = 0; i < this.resolution; i++) {
+                        sumSq += target[i] * target[i];
+                    }
+                }
+                E_curve += targetW * (sumSq / this.resolution);
             }
-            const isTargeted = (this.target_sub_vol[m] || 0.0) > 0.0;
-            if (maxV > 0.0) {
-                const target = this.T_m[m] || this.default_curve;
-                let sumSq = 0.0;
+        } else {
+            const activeMses = [];
+            for (const m in V_m) {
+                const curve = V_m[m];
+                let maxV = 0.0;
                 for (let i = 0; i < this.resolution; i++) {
-                    const normV = curve[i] / maxV;
-                    const diff = normV - target[i];
-                    sumSq += diff * diff;
+                    if (curve[i] > maxV) maxV = curve[i];
                 }
-                E_curve += sumSq / this.resolution;
-                evalMuscles++;
-            } else if (isTargeted) {
-                const target = this.T_m[m] || this.default_curve;
-                let sumSq = 0.0;
-                for (let i = 0; i < this.resolution; i++) {
-                    sumSq += target[i] * target[i];
+                if (maxV > 0.0) {
+                    const target = this.T_m[m] || this.default_curve;
+                    let sumSq = 0.0;
+                    for (let i = 0; i < this.resolution; i++) {
+                        const diff = (curve[i] / maxV) - target[i];
+                        sumSq += diff * diff;
+                    }
+                    activeMses.push([subVols[m] || 0.0, sumSq / this.resolution]);
                 }
-                E_curve += sumSq / this.resolution;
-                evalMuscles++;
+            }
+            if (activeMses.length > 0) {
+                if (totalSubVol > 0.0) {
+                    for (const [w, mse] of activeMses) {
+                        E_curve += (w / totalSubVol) * mse;
+                    }
+                } else {
+                    for (const [, mse] of activeMses) {
+                        E_curve += mse;
+                    }
+                    E_curve /= activeMses.length;
+                }
             }
         }
-        if (evalMuscles > 0) E_curve /= evalMuscles;
 
         // 2. Ratio Errors
         const vDiff = effVol / totalVol - this.config.target_ratios.vol;
@@ -510,9 +545,6 @@ export class WorkoutSolver {
 
         // 3. Distribution Error
         let E_distr = 0.0;
-        let totalSubVol = 0.0;
-        for (const m in subVols) totalSubVol += subVols[m];
-        const hasTargetDistr = Object.keys(this.target_sub_vol).length > 0;
         
         if (totalSubVol > 0 && hasTargetDistr) {
             for (const m of this.distr_muscles) {

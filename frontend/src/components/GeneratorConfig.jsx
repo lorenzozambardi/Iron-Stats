@@ -69,7 +69,7 @@ export default function GeneratorConfig({ isMobile }) {
   const [targets, setTargets] = useState({
     vol: 70,
     ton: 70,
-    tut: 70
+    tut: 74
   });
 
   const [muscleCurves, setMuscleCurves] = useState(() => {
@@ -218,8 +218,9 @@ export default function GeneratorConfig({ isMobile }) {
         const setsStr = ex.sets.map(s => {
           let str = s.base_reps.toString();
           if (s.partial_reps > 0) str += `+${s.partial_reps}`;
+          if (s.rpe !== undefined && s.rpe !== 9.0) str += `@${s.rpe}`;
           return str;
-        }).join('.');
+        }).join(', ');
         markdown += `0..${setsStr}\n\n`; // 0 is a dummy load
       });
     });
@@ -429,7 +430,7 @@ export default function GeneratorConfig({ isMobile }) {
             {Object.entries(targets).map(([key, val]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <label style={{ width: '80px', fontSize: '0.85rem', color: '#d1d1d6', textTransform: 'capitalize' }}>{key} Ratio</label>
-                <input type="range" min="0" max="100" step="5" value={val} onChange={e => setTargets(prev => ({...prev, [key]: parseInt(e.target.value)}))} style={{ flex: '1', accentColor: '#ff9f0a' }} />
+                <input type="range" min="0" max="100" step="1" value={val} onChange={e => setTargets(prev => ({...prev, [key]: parseInt(e.target.value)}))} style={{ flex: '1', accentColor: '#ff9f0a' }} />
                 <span style={{ width: '40px', fontSize: '0.85rem', textAlign: 'right', color: '#ff9f0a' }}>{val}%</span>
               </div>
             ))}

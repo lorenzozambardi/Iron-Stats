@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import defaultExercises from '../defaultExercises.json';
 import { bezierArea, bezierPartialFraction, solveBezierY } from '../components/helpers';
 import { WorkoutSolver, calculateRest } from '../solver';
-import { calculateMetrics, calculateSetTuts, calculateSetFatigue, getExercisesWithOverrides, parseLogbook } from '../parser';
+import { calculateMetrics, calculateSetTuts, calculateSetFatigue, getExercisesWithOverrides, matchExercise, parseLine, parseLogbook } from '../parser';
 
 describe('Mathematical invariants and frontend/solver parity', () => {
   it('enforces strict 0 <= x0 < x1 < x2 < x3 <= 1 and y >= 0 across all default exercises', () => {
@@ -182,5 +182,34 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     const overridden = getExercisesWithOverrides('override: LR | load_offset=not_a_number', defaultExercises);
     const lrOver = overridden.find((e) => e.name === 'LR');
     expect(lrOver.load_offset).toBe(0);
+  });
+
+  it('clamps RPE > 10, resolves updated HARD_MAP aliases, and weights E_curve by target_sub_vol', () => {
+    const sets = parseLine('50.. 10@12');
+    expect(sets[0].rpe).toBe(10.0);
+    expect(calculateSetFatigue(10, 0, 0, 12.0, 1.0, 0.0, 2.0, 0.0, 5.0)).toBeCloseTo(
+      calculateSetFatigue(10, 0, 0, 10.0, 1.0, 0.0, 2.0, 0.0, 5.0),
+      12
+    );
+
+    expect(matchExercise('Shoulder Press Machine', defaultExercises)?.name).toBe('Machine Shoulder Press');
+    expect(matchExercise('Incl Cable Pushdown', defaultExercises)?.name).toBe('Bench 54 Pushdown');
+
+    const solver = new WorkoutSolver({
+      days: 1,
+      calibration_steps: 0,
+      volume_dist: { macros: { Shoulders: 100 }, subs: { Shoulders: { 'Lateral Deltoid': 100 } } }
+    }, defaultExercises);
+    expect(solver.config.target_ratios.tut).toBe(0.74);
+
+    const lr = defaultExercises.find((e) => e.name === 'LR');
+    const st = { days: [[{ exercise: lr, sets: [{ base_reps: 10, partial_reps: 0, rpe: 9.0, total_reps: 10, effective_reps: 5 }] }]] };
+    solver._return_raw = true;
+    const { rawMetrics } = solver.evaluateWorkout(st);
+    solver._return_raw = false;
+    const curveLd = solver.ex_curves.LR['Lateral Deltoid'];
+    const maxLd = Math.max(...curveLd);
+    const expectedMse = curveLd.reduce((acc, v) => acc + Math.pow(v / maxLd - 1.0, 2), 0) / curveLd.length;
+    expect(rawMetrics.curve).toBeCloseTo(expectedMse, 6);
   });
 });
