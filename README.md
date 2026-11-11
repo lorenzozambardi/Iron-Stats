@@ -36,10 +36,10 @@ All definitions below correspond directly to the reference implementation in [`p
 
 ### 1. Cubic Bézier Muscle Tension Curve & Normalization
 
-In [`models.py`](python_research/analyzer/models.py) (`BezierProfile.get_curve`), each exercise $e$ maps muscle group $m$ to a cubic Bézier curve over $R = 50$ uniformly spaced parameter samples $t_k \in [0, 1]$ (`resolution = 50`), defined by control points $(x_0, y_0), (x_1, y_1), (x_2, y_2), (x_3, y_3)$ and target muscle contribution magnitude $M_m$:
+In [`models.py`](python_research/analyzer/models.py) (`BezierProfile`), each exercise $e$ maps muscle group $m$ to a strictly monotone ($x_0 < x_1 < x_2 < x_3$) cubic Bézier curve over $R = 50$ samples (`resolution = 50`), defined by absolute control points $(x_0, y_0), (x_1, y_1), (x_2, y_2), (x_3, y_3)$ and target muscle contribution magnitude $M_m$ (with $y(x) = 0$ for $x \notin [x_0, x_3]$):
 
 $$
-x(t) = x_0 + x_{\text{span}} \Bigl( 3(1 - t)^2 t \, x_1 + 3(1 - t) t^2 \, x_2 + t^3 \Bigr), \qquad x_{\text{span}} = \begin{cases} x_3 - x_0, & x_3 \neq x_0 \\ 1.0, & x_3 = x_0 \end{cases}
+x(t) = (1 - t)^3 x_0 + 3(1 - t)^2 t \, x_1 + 3(1 - t) t^2 \, x_2 + t^3 x_3
 $$
 
 $$
@@ -63,7 +63,7 @@ $$
 
 ### 2. Effective Repetitions, Dynamic TUT & Exponential CNS Fatigue
 
-Let a set consist of $n_b$ base repetitions (`base_reps`), $n_a$ assisted repetitions (`assisted_reps`), and $n_p$ partial repetitions (`partial_reps`) performed at set Rate of Perceived Exertion $\text{RPE} \in [5.0, 10.0]$ (default $9.0$). With discount coefficients $\alpha_{\text{ass}} = 0.5$ (`COEFF_ASSISTED`) and $\alpha_{\text{part}} = 0.33$ (`COEFF_PARTIAL`) from [`constants.py`](python_research/analyzer/constants.py), total and HTMU-effective repetitions (`SetData` in [`models.py`](python_research/analyzer/models.py)) are:
+Let a set consist of $n_b$ base repetitions (`base_reps`), $n_a$ assisted repetitions (`assisted_reps`), and $n_p$ partial repetitions (`partial_reps`) at $\text{RPE} \ge 0$ (default $9.0$; the solver mutates candidate RPEs within $[5.0, 10.0]$). With discount coefficients $\alpha_{\text{ass}} = 0.5$ (`COEFF_ASSISTED`) and $\alpha_{\text{part}} = 0.33$ (`COEFF_PARTIAL`) from [`constants.py`](python_research/analyzer/constants.py), total and HTMU-effective repetitions (`SetData` in [`models.py`](python_research/analyzer/models.py)) are:
 
 $$
 R_{\text{tot}} = n_b + \alpha_{\text{ass}} \, n_a + \alpha_{\text{part}} \, n_p
@@ -92,7 +92,7 @@ $$
 
 Assisted repetitions take $\tau_0$, and partial repetitions take $0.5 \, \tau_0$.
 
-In `calculate_set_fatigue`, per-rep RPE is $\text{RPE}_j = \max(0, 10.0 - \text{RIR}_j)$, and CNS fatigue scales exponentially above $\text{RPE} = 7.5$ via $\mu(\text{RPE}_j) = 1.1^{\text{RPE}_j - 7.5}$ (or $1.0$ if $\text{RPE} = 0$). Weighted by exercise fatigue factor $F_{\text{ex}}$ (`fatigue`) and load coefficient $K_{\text{load}}$ (`load_coeff`), total set fatigue is:
+In `calculate_set_fatigue`, per-rep RPE is $\text{RPE}_j = \max(0, 10.0 - \text{RIR}_j)$, and CNS fatigue scales continuously as $\mu(\text{RPE}_j) = 1.1^{\text{RPE}_j - 7.5}$ for all $\text{RPE}_j \ge 0$. Weighted by exercise fatigue factor $F_{\text{ex}}$ (`fatigue`) and load coefficient $K_{\text{load}}$ (`load_coeff`), total set fatigue is:
 
 $$
 \Phi_{\text{set}} = F_{\text{ex}} \cdot K_{\text{load}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{7.0 - 7.5} \sum_{a=0}^{n_a - 1} \tau_0 \;+\; \frac{\alpha_{\text{part}}}{0.5} \sum_{p=0}^{n_p - 1} 0.5 \, \tau_0 \right]
@@ -106,16 +106,18 @@ For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text
 
 In [`solver.py`](python_research/analyzer/solver.py) (`WorkoutSolver`), a candidate mesocycle $x$ specifies $D$ training days, each assigning $N_d \in [N_{\min}, N_{\max}]$ exercises with $S_{d,e} \in [S_{\min}, S_{\max}]$ sets, base reps $r \in [r_{\min}, r_{\max}]$, $\text{RPE} \in \{7.0, 8.0, 8.5, 9.0, 10.0\}$, and partials $p \in \{0, 2, 4, 6\}$ (active only when $\text{RPE} \ge 9.0$).
 
-Cumulative muscle tension $V_m(t_k)$ aggregates each exercise's Bézier profile over base reps and stretched-range partials ($t_k \le 0.3333$):
+Cumulative muscle tension $V_m(x_i)$ is evaluated on a common physical ROM grid $x_i = i/(R - 1)$ via bisection ($t_{e,i} = x_e^{-1}(x_i)$) over exercise-summed base reps $N_{b,e}$ and $\alpha_{\text{part}}$-weighted stretched-range partials ($x_i \le 0.3333$):
 
 $$
-V_m(t_k) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(t_k) \Bigl( n_{b,e} + n_{p,e} \, \mathbb{I}[t_k \le 0.3333] \Bigr)
+V_m(x_i) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(x_i) \Bigl( N_{b,e} + \alpha_{\text{part}} N_{p,e} \, \mathbb{I}[x_i \le 0.3333] \Bigr)
 $$
+
+*(Note: for Simulated Annealing speed, `evaluate_workout` uses fast surrogates—Epley-like load $\hat{L}$, constant $2.0\,\text{s/rep}$ TUT so $E_{\text{tut}} \equiv E_{\text{vol}}$, and linear fatigue—rather than the full logbook models above.)*
 
 The solver evaluates seven dimensionless error terms $\mathcal{I} = \{\text{curve}, \text{vol}, \text{ton}, \text{tut}, \text{distr}, \text{variety}, \text{balance}\}$:
 
 $$
-E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\text{trained}}|} \sum_{m \in \mathcal{M}_{\text{trained}}} \frac{1}{R} \sum_{k=0}^{R-1} \left( \frac{V_m(t_k)}{\max_r V_m(t_r)} - T_m(t_k) \right)^2
+E_{\text{curve}} = \frac{1}{|\mathcal{M}_{\text{trained}}|} \sum_{m \in \mathcal{M}_{\text{trained}}} \frac{1}{R} \sum_{i=0}^{R-1} \left( \frac{V_m(x_i)}{\max_r V_m(x_r)} - T_m(x_i) \right)^2
 $$
 
 $$
@@ -128,7 +130,7 @@ E_{\text{variety}} = \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\text{tot}}(x)} \righ
 E_{\text{balance}} = \frac{1}{2} \left( \frac{\operatorname{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\operatorname{Var}_d(V_d)}{(V_{\max}/2)^2} \right)
 $$
 
-During `calibrate()`, Monte Carlo sampling over $K = 500$ random states sets scaling denominators $s_i = 2 \cdot \mathbb{E}[E_i]$. `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(x) = 150 \cdot N_{\text{dup}}(x)$ via Simulated Annealing ($T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):
+During `calibrate()`, Monte Carlo sampling over $K = 500$ random states estimates scaling denominators $s_i = 2 \cdot \hat{\mu}_i$ (empirical sample mean, guarded at $10^{-6}$). `solve()` then minimizes the calibrated scalarized objective with same-day duplicate penalty $P_{\text{dup}}(x) = 150 \cdot N_{\text{dup}}(x)$ via Simulated Annealing ($T_0 = 50.0$, $T_t = T_0 \gamma^t$, Metropolis acceptance $\exp(-\Delta J / T_t)$):
 
 $$
 \min_{x \in \mathcal{X}} \; J(x) = 10^4 \sum_{i \in \mathcal{I}} w_i \, \frac{E_i(x)}{s_i} + 10^3 \, P_{\text{dup}}(x)
@@ -188,7 +190,7 @@ mypy
 pytest
 ```
 
-> **Note**: The Python test suite (`pytest`) currently collects 0 tests; core unit tests live in the frontend test suite below.
+> **Note**: Both Python (`pytest`) and frontend (`npm test`) include unit and numerical-invariant parity tests.
 
 **Frontend web app & Vitest suite**:
 

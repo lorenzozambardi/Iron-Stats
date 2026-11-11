@@ -1,7 +1,12 @@
-"""Generate 300-DPI English numerical analysis figures for docs/paper.tex."""
+"""Generate 300-DPI English numerical analysis figures for docs/paper.tex.
+
+Includes companion restricted-domain panels [x0 + delta, x3 - delta] to isolate
+interpolation error from the piecewise jump discontinuities at x0 and x3.
+"""
 
 from __future__ import annotations
 
+import argparse
 import json
 from math import comb
 from pathlib import Path
@@ -50,10 +55,11 @@ def solve_bezier(
     p3: NDArray[np.float64],
     n_points: int = 1000,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    """Evaluate a cubic Bezier curve on [0, 1]."""
+    """Evaluate a standard cubic Bezier curve on t in [0, 1]."""
     t = np.linspace(0.0, 1.0, n_points)
-    bx = (1 - t) ** 3 * p0[0] + 3 * (1 - t) ** 2 * t * p1[0] + 3 * (1 - t) * t**2 * p2[0] + t**3 * p3[0]
-    by = (1 - t) ** 3 * p0[1] + 3 * (1 - t) ** 2 * t * p1[1] + 3 * (1 - t) * t**2 * p2[1] + t**3 * p3[1]
+    u = 1.0 - t
+    bx = (u**3) * p0[0] + 3.0 * (u**2) * t * p1[0] + 3.0 * u * (t**2) * p2[0] + (t**3) * p3[0]
+    by = (u**3) * p0[1] + 3.0 * (u**2) * t * p1[1] + 3.0 * u * (t**2) * p2[1] + (t**3) * p3[1]
     return bx, by
 
 
@@ -64,17 +70,23 @@ def evaluate_true_profile(
     x0: float,
     x3: float,
 ) -> NDArray[np.float64]:
-    """Evaluate the ground-truth LR tension profile across ROM x in [0, 1]."""
-    y_out = np.zeros_like(x_target)
+    """Evaluate the piecewise LR tension profile across x in [0, 1].
+
+    Defined as y(x) = 0 for x < x0 or x > x3, and interpolated from the Bezier
+    curve on [x0, x3]. Note that jump discontinuities occur at x0 (if y0 != 0)
+    and at x3 (for LR, y(x3^-) = 1.0 -> y(x3^+) = 0.0).
+    """
+    y_out = np.zeros_like(x_target, dtype=np.float64)
     mask = (x_target >= x0) & (x_target <= x3)
     y_out[mask] = np.interp(x_target[mask], bx, by)
     return y_out
 
 
-def gauss_lobatto_nodes(n: int) -> NDArray[np.float64]:
-    """Compute Chebyshev-Gauss-Lobatto nodes mapped to [0, 1]."""
+def gauss_lobatto_nodes(n: int, a: float = 0.0, b: float = 1.0) -> NDArray[np.float64]:
+    """Compute Chebyshev-Gauss-Lobatto nodes mapped to [a, b]."""
     k = np.arange(n)
-    return 0.5 * (1.0 - np.cos(k * np.pi / (n - 1)))
+    unit = 0.5 * (1.0 - np.cos(k * np.pi / (n - 1)))
+    return a + (b - a) * unit
 
 
 def bernstein_poly(i: int, n: int, t: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -87,12 +99,12 @@ def apply_style() -> None:
     plt.style.use(style)
     plt.rcParams.update(
         {
-            "font.size": 10.5,
-            "axes.titlesize": 12.5,
-            "axes.labelsize": 11,
-            "legend.fontsize": 9.5,
-            "xtick.labelsize": 9.5,
-            "ytick.labelsize": 9.5,
+            "font.size": 10.0,
+            "axes.titlesize": 11.5,
+            "axes.labelsize": 10.0,
+            "legend.fontsize": 8.5,
+            "xtick.labelsize": 9.0,
+            "ytick.labelsize": 9.0,
         }
     )
 
@@ -104,52 +116,78 @@ def plot_lagrange_runge(
     by: NDArray[np.float64],
     x0: float,
     x3: float,
-) -> None:
+    delta: float,
+) -> dict[str, float]:
     n_nodes = 9
-    x_nodes = np.linspace(0.0, 1.0, n_nodes)
-    y_nodes = evaluate_true_profile(x_nodes, bx, by, x0, x3)
+    a, b = x0 + delta, x3 - delta
+    rest_grid = np.linspace(a, b, 600)
+    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
 
-    vand = np.vander(x_nodes, increasing=True)
-    cond_v = float(np.linalg.cond(vand))
-    poly_coeffs = np.polyfit(x_nodes, y_nodes, deg=n_nodes - 1)
-    y_poly = np.polyval(poly_coeffs, rom_grid)
+    # Full domain [0, 1]
+    x_full = np.linspace(0.0, 1.0, n_nodes)
+    y_full = evaluate_true_profile(x_full, bx, by, x0, x3)
+    cond_full = float(np.linalg.cond(np.vander(x_full, increasing=True)))
+    y_poly_full = np.polyval(np.polyfit(x_full, y_full, deg=n_nodes - 1), rom_grid)
+    linf_full = float(np.max(np.abs(y_ideal - y_poly_full)))
 
-    fig, ax = plt.subplots(figsize=(8.2, 4.6), dpi=300)
-    ax.plot(rom_grid, y_ideal, "k-", linewidth=2.2, label="Reference LR Profile (Lateral Deltoid)")
-    ax.scatter(x_nodes, y_nodes, color="#2980b9", s=55, zorder=5, label=f"Equispaced Nodes ($n={n_nodes}$)")
-    ax.plot(
-        rom_grid,
-        y_poly,
-        color="#e74c3c",
-        linewidth=2.0,
-        linestyle="--",
-        label=rf"Lagrange Interpolant (degree $d={n_nodes - 1}$)",
-    )
-    ax.axvspan(0.0, 0.2, color="#e74c3c", alpha=0.12, label="Runge Boundary Regions")
-    ax.axvspan(0.85, 1.0, color="#e74c3c", alpha=0.12)
+    # Restricted smooth domain [a, b] (scale to [0, 1] for Vandermonde conditioning clarity too)
+    x_rest = np.linspace(a, b, n_nodes)
+    y_rest = evaluate_true_profile(x_rest, bx, by, x0, x3)
+    u_rest = (x_rest - a) / (b - a)
+    u_grid = (rest_grid - a) / (b - a)
+    y_poly_rest = np.polyval(np.polyfit(u_rest, y_rest, deg=n_nodes - 1), u_grid)
+    linf_rest = float(np.max(np.abs(y_rest_ideal - y_poly_rest)))
 
-    ax.annotate(
-        f"Runge Phenomenon: boundary blow-up\n$\\kappa(V) = {cond_v:.2e}$",
-        xy=(0.06, float(y_poly[60])),
-        xytext=(0.05, 1.25),
-        arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 1.5},
-        bbox={"boxstyle": "round,pad=0.45", "facecolor": "#fadbd8", "edgecolor": "#e74c3c", "alpha": 0.92},
-        fontsize=9.5,
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.4), dpi=300)
+
+    ax1.plot(rom_grid, y_ideal, "k-", lw=2.0, label="Reference LR Profile")
+    ax1.scatter(x_full, y_full, color="#2980b9", s=40, zorder=5, label=f"Equispaced Nodes ($n={n_nodes}$)")
+    ax1.plot(rom_grid, y_poly_full, color="#e74c3c", lw=1.8, ls="--", label=rf"Lagrange ($d={n_nodes - 1}$)")
+    ax1.axvspan(0.0, x0, color="#e74c3c", alpha=0.10)
+    ax1.axvspan(x3 - 0.05, 1.0, color="#e74c3c", alpha=0.10, label="Jump / Boundary Regions")
+    ax1.annotate(
+        f"Gibbs + Runge\n$\\kappa(V) = {cond_full:.2e}$\n$L^\\infty = {linf_full:.2f}$",
+        xy=(0.06, float(y_poly_full[60])),
+        xytext=(0.05, 1.15),
+        arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 1.3},
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "#fadbd8", "edgecolor": "#e74c3c", "alpha": 0.92},
+        fontsize=8.5,
         fontweight="bold",
         color="#922b21",
     )
+    ax1.set_title(r"Full Domain $[0, 1]$ (Includes Jumps at $x_0, x_3$)", fontweight="bold")
+    ax1.set_xlabel(r"Normalized ROM $x \in [0, 1]$")
+    ax1.set_ylabel(r"Normalized Tension $y(x)$")
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.35, 1.70)
+    ax1.axhline(0.0, color="black", lw=0.7, ls=":")
+    ax1.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
-    ax.set_title("Lagrange Interpolation on Equispaced Nodes (Runge Phenomenon)", fontweight="bold", pad=10)
-    ax.set_xlabel(r"Normalized Range of Motion ($t \in [0, 1]$)")
-    ax.set_ylabel(r"Normalized Muscle Tension $y(t)$")
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.35, 1.75)
-    ax.axhline(0.0, color="black", linewidth=0.8, linestyle=":")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True)
+    ax2.plot(rest_grid, y_rest_ideal, "k-", lw=2.0, label="Reference LR (Smooth Interior)")
+    ax2.scatter(x_rest, y_rest, color="#2980b9", s=40, zorder=5, label=f"Equispaced Nodes ($n={n_nodes}$)")
+    ax2.plot(rest_grid, y_poly_rest, color="#e74c3c", lw=1.8, ls="--", label=rf"Lagrange ($d={n_nodes - 1}$)")
+    ax2.text(
+        0.04,
+        0.92,
+        rf"Restricted $[{a:.2f}, {b:.2f}]$" + "\n" + rf"$L^\infty$ error $= {linf_rest:.2e}$",
+        transform=ax2.transAxes,
+        va="top",
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "#ebf5fb", "edgecolor": "#2980b9", "alpha": 0.92},
+        fontsize=8.5,
+        fontweight="bold",
+        color="#1b4f72",
+    )
+    ax2.set_title(rf"Restricted Domain $[{a:.2f}, {b:.2f}]$ ($\delta={delta:.2f}$)", fontweight="bold")
+    ax2.set_xlabel(rf"Restricted ROM $x \in [{a:.2f}, {b:.2f}]$")
+    ax2.set_ylabel(r"Normalized Tension $y(x)$")
+    ax2.set_xlim(a - 0.02, b + 0.02)
+    ax2.set_ylim(-0.05, 1.10)
+    ax2.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
     plt.tight_layout()
     fig.savefig(FIG_DIR / "lagrange_runge.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
+    return {"lagrange_full_linf": linf_full, "lagrange_rest_linf": linf_rest, "cond_v9": cond_full}
 
 
 def plot_lagrange_gauss_lobatto(
@@ -159,48 +197,54 @@ def plot_lagrange_gauss_lobatto(
     by: NDArray[np.float64],
     x0: float,
     x3: float,
-) -> None:
-    fig, ax = plt.subplots(figsize=(8.2, 4.6), dpi=300)
-    ax.plot(rom_grid, y_ideal, "k-", linewidth=2.3, label="Reference LR Profile (Lateral Deltoid)")
+    delta: float,
+) -> dict[str, float]:
+    a, b = x0 + delta, x3 - delta
+    rest_grid = np.linspace(a, b, 600)
+    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
 
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.4), dpi=300)
+    ax1.plot(rom_grid, y_ideal, "k-", lw=2.1, label="Reference LR")
+    ax2.plot(rest_grid, y_rest_ideal, "k-", lw=2.1, label="Reference LR")
+
+    metrics: dict[str, float] = {}
     for n_nodes, color, ls in zip([6, 12], ["#e67e22", "#c0392b"], ["--", "-."], strict=True):
-        nodes = gauss_lobatto_nodes(n_nodes)
-        y_nodes = evaluate_true_profile(nodes, bx, by, x0, x3)
-        poly_coeffs = np.polyfit(nodes, y_nodes, deg=n_nodes - 1)
-        y_poly = np.polyval(poly_coeffs, rom_grid)
-        ax.plot(
-            rom_grid,
-            y_poly,
-            color=color,
-            linewidth=1.8,
-            linestyle=ls,
-            label=rf"Gauss-Lobatto ($N={n_nodes}$ nodes, degree $d={n_nodes - 1}$)",
-        )
-        ax.scatter(nodes, y_nodes, color=color, s=35, zorder=4)
+        nodes_full = gauss_lobatto_nodes(n_nodes, 0.0, 1.0)
+        y_nf = evaluate_true_profile(nodes_full, bx, by, x0, x3)
+        y_pf = np.polyval(np.polyfit(nodes_full, y_nf, deg=n_nodes - 1), rom_grid)
+        metrics[f"cgl{n_nodes}_full_linf"] = float(np.max(np.abs(y_ideal - y_pf)))
+        ax1.plot(rom_grid, y_pf, color=color, lw=1.7, ls=ls, label=rf"CGL $N={n_nodes}$ ($L^\infty={metrics[f'cgl{n_nodes}_full_linf']:.2f}$)")
+        ax1.scatter(nodes_full, y_nf, color=color, s=26, zorder=4)
 
-    ax.axvspan(0.0, 0.22, color="#e74c3c", alpha=0.10, label=r"Resting Zone ($t \in [0, 0.2]$): spurious ripples")
-    ax.annotate(
-        "Residual oscillations & $y(t) < 0$\nRequires $\\geq 12$ nodes yet still violates positivity",
-        xy=(0.10, -0.05),
-        xytext=(0.04, 0.50),
-        arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 1.5},
-        bbox={"boxstyle": "round,pad=0.45", "facecolor": "#fef5e7", "edgecolor": "#e67e22", "alpha": 0.92},
-        fontsize=9.5,
-        fontweight="bold",
-        color="#935116",
-    )
+        nodes_rest = gauss_lobatto_nodes(n_nodes, a, b)
+        y_nr = evaluate_true_profile(nodes_rest, bx, by, x0, x3)
+        u_nr = (nodes_rest - a) / (b - a)
+        u_grid = (rest_grid - a) / (b - a)
+        y_pr = np.polyval(np.polyfit(u_nr, y_nr, deg=n_nodes - 1), u_grid)
+        metrics[f"cgl{n_nodes}_rest_linf"] = float(np.max(np.abs(y_rest_ideal - y_pr)))
+        ax2.plot(rest_grid, y_pr, color=color, lw=1.7, ls=ls, label=rf"CGL $N={n_nodes}$ ($L^\infty={metrics[f'cgl{n_nodes}_rest_linf']:.2e}$)")
+        ax2.scatter(nodes_rest, y_nr, color=color, s=26, zorder=4)
 
-    ax.set_title("Chebyshev-Gauss-Lobatto Polynomial Interpolation on LR", fontweight="bold", pad=10)
-    ax.set_xlabel(r"Normalized Range of Motion ($t \in [0, 1]$)")
-    ax.set_ylabel(r"Normalized Muscle Tension $y(t)$")
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.22, 1.22)
-    ax.axhline(0.0, color="black", linewidth=0.8, linestyle=":")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True)
+    ax1.axvspan(0.0, 0.22, color="#e74c3c", alpha=0.09, label="Resting Zone Ripples")
+    ax1.set_title(r"Full Domain $[0, 1]$ (Gibbs + Flat Transition)", fontweight="bold")
+    ax1.set_xlabel(r"Normalized ROM $x \in [0, 1]$")
+    ax1.set_ylabel(r"Normalized Tension $y(x)$")
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.22, 1.20)
+    ax1.axhline(0.0, color="black", lw=0.7, ls=":")
+    ax1.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
+
+    ax2.set_title(rf"Restricted Domain $[{a:.2f}, {b:.2f}]$ ($\delta={delta:.2f}$)", fontweight="bold")
+    ax2.set_xlabel(rf"Restricted ROM $x \in [{a:.2f}, {b:.2f}]$")
+    ax2.set_ylabel(r"Normalized Tension $y(x)$")
+    ax2.set_xlim(a - 0.02, b + 0.02)
+    ax2.set_ylim(-0.05, 1.10)
+    ax2.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
     plt.tight_layout()
     fig.savefig(FIG_DIR / "lagrange_gauss_lobatto.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
+    return metrics
 
 
 def plot_spline_overshoot(
@@ -210,55 +254,61 @@ def plot_spline_overshoot(
     by: NDArray[np.float64],
     x0: float,
     x3: float,
-) -> None:
-    x_knots = np.array([0.0, 0.2, 0.45, 0.75, 0.9, 1.0])
-    y_knots = evaluate_true_profile(x_knots, bx, by, x0, x3)
-    cs = CubicSpline(x_knots, y_knots, bc_type="natural")
-    y_spline = cs(rom_grid)
+    delta: float,
+) -> dict[str, float]:
+    a, b = x0 + delta, x3 - delta
+    rest_grid = np.linspace(a, b, 600)
+    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
 
-    fig, ax = plt.subplots(figsize=(8.2, 4.6), dpi=300)
-    ax.plot(rom_grid, y_ideal, "k-", linewidth=2.2, label="Reference LR Profile (Lateral Deltoid)")
-    ax.scatter(x_knots, y_knots, color="#2c3e50", s=55, zorder=5, label=r"Spline Knots ($N=6$)")
-    ax.plot(
-        rom_grid,
-        y_spline,
-        color="#8e44ad",
-        linewidth=2.2,
-        label=r"Natural $C^2$ Cubic Spline (Thomas Solver)",
-    )
-    ax.fill_between(
-        rom_grid,
-        y_spline,
-        0.0,
-        where=(y_spline < 0.0),
-        color="#e74c3c",
-        alpha=0.35,
-        label=r"Non-Physical Region ($y(t) < 0$)",
-    )
+    x_knots_full = np.array([0.0, 0.2, 0.45, 0.75, 0.9, 1.0])
+    y_knots_full = evaluate_true_profile(x_knots_full, bx, by, x0, x3)
+    y_spline_full = CubicSpline(x_knots_full, y_knots_full, bc_type="natural")(rom_grid)
+    linf_full = float(np.max(np.abs(y_ideal - y_spline_full)))
 
-    idx_min = int(np.argmin(y_spline))
-    ax.annotate(
-        "Non-physical undershoot: $y(t) < 0$\nNegative muscle tension is impossible",
-        xy=(float(rom_grid[idx_min]), float(y_spline[idx_min])),
-        xytext=(0.25, -0.25),
-        arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 1.5},
-        bbox={"boxstyle": "round,pad=0.45", "facecolor": "#fadbd8", "edgecolor": "#e74c3c", "alpha": 0.92},
-        fontsize=9.5,
+    x_knots_rest = np.linspace(a, b, 6)
+    y_knots_rest = evaluate_true_profile(x_knots_rest, bx, by, x0, x3)
+    y_spline_rest = CubicSpline(x_knots_rest, y_knots_rest, bc_type="natural")(rest_grid)
+    linf_rest = float(np.max(np.abs(y_rest_ideal - y_spline_rest)))
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.4), dpi=300)
+
+    ax1.plot(rom_grid, y_ideal, "k-", lw=2.0, label="Reference LR")
+    ax1.scatter(x_knots_full, y_knots_full, color="#2c3e50", s=42, zorder=5, label=r"Knots ($N=6$)")
+    ax1.plot(rom_grid, y_spline_full, color="#8e44ad", lw=2.0, label=rf"$C^2$ Spline ($L^\infty={linf_full:.2f}$)")
+    ax1.fill_between(rom_grid, y_spline_full, 0.0, where=(y_spline_full < 0.0), color="#e74c3c", alpha=0.35, label=r"Negative ($y<0$)")
+    idx_min = int(np.argmin(y_spline_full))
+    ax1.annotate(
+        r"Undershoot $y(x) < 0$",
+        xy=(float(rom_grid[idx_min]), float(y_spline_full[idx_min])),
+        xytext=(0.24, -0.22),
+        arrowprops={"arrowstyle": "->", "color": "#c0392b", "lw": 1.3},
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "#fadbd8", "edgecolor": "#e74c3c", "alpha": 0.92},
+        fontsize=8.5,
         fontweight="bold",
         color="#922b21",
     )
+    ax1.set_title(r"Full Domain $[0, 1]$ (Undershoot + Jump at $x_3$)", fontweight="bold")
+    ax1.set_xlabel(r"Normalized ROM $x \in [0, 1]$")
+    ax1.set_ylabel(r"Normalized Tension $y(x)$")
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.32, 1.25)
+    ax1.axhline(0.0, color="black", lw=0.8, ls="--")
+    ax1.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
-    ax.set_title(r"$C^2$ Natural Cubic Spline Overshoot / Undershoot on LR", fontweight="bold", pad=10)
-    ax.set_xlabel(r"Normalized Range of Motion ($t \in [0, 1]$)")
-    ax.set_ylabel(r"Normalized Muscle Tension $y(t)$")
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.34, 1.25)
-    ax.axhline(0.0, color="black", linewidth=0.9, linestyle="--")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True)
+    ax2.plot(rest_grid, y_rest_ideal, "k-", lw=2.0, label="Reference LR")
+    ax2.scatter(x_knots_rest, y_knots_rest, color="#2c3e50", s=42, zorder=5, label=r"Knots ($N=6$)")
+    ax2.plot(rest_grid, y_spline_rest, color="#8e44ad", lw=2.0, label=rf"$C^2$ Spline ($L^\infty={linf_rest:.2e}$)")
+    ax2.set_title(rf"Restricted Domain $[{a:.2f}, {b:.2f}]$ ($\delta={delta:.2f}$)", fontweight="bold")
+    ax2.set_xlabel(rf"Restricted ROM $x \in [{a:.2f}, {b:.2f}]$")
+    ax2.set_ylabel(r"Normalized Tension $y(x)$")
+    ax2.set_xlim(a - 0.02, b + 0.02)
+    ax2.set_ylim(-0.05, 1.10)
+    ax2.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
     plt.tight_layout()
     fig.savefig(FIG_DIR / "spline_overshoot.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
+    return {"spline6_full_linf": linf_full, "spline6_rest_linf": linf_rest}
 
 
 def plot_spline_density(
@@ -268,32 +318,55 @@ def plot_spline_density(
     by: NDArray[np.float64],
     x0: float,
     x3: float,
+    delta: float,
 ) -> None:
-    knots_sparse = np.array([0.0, 0.2, 0.5, 0.85, 1.0])
-    y_sparse = evaluate_true_profile(knots_sparse, bx, by, x0, x3)
-    y_spline_sparse = CubicSpline(knots_sparse, y_sparse, bc_type="natural")(rom_grid)
+    a, b = x0 + delta, x3 - delta
+    rest_grid = np.linspace(a, b, 600)
+    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
 
-    knots_dense = np.linspace(0.0, 1.0, 10)
-    y_dense = evaluate_true_profile(knots_dense, bx, by, x0, x3)
-    y_spline_dense = CubicSpline(knots_dense, y_dense, bc_type="natural")(rom_grid)
+    # Full domain
+    k5 = np.array([0.0, 0.2, 0.5, 0.85, 1.0])
+    yk5 = evaluate_true_profile(k5, bx, by, x0, x3)
+    ys5 = CubicSpline(k5, yk5, bc_type="natural")(rom_grid)
+    k10 = np.linspace(0.0, 1.0, 10)
+    ys10 = CubicSpline(k10, evaluate_true_profile(k10, bx, by, x0, x3), bc_type="natural")(rom_grid)
+    ypchip = PchipInterpolator(k5, yk5)(rom_grid)
 
-    y_pchip = PchipInterpolator(knots_sparse, y_sparse)(rom_grid)
+    # Restricted domain
+    rk5 = np.linspace(a, b, 5)
+    ryk5 = evaluate_true_profile(rk5, bx, by, x0, x3)
+    rys5 = CubicSpline(rk5, ryk5, bc_type="natural")(rest_grid)
+    rk10 = np.linspace(a, b, 10)
+    rys10 = CubicSpline(rk10, evaluate_true_profile(rk10, bx, by, x0, x3), bc_type="natural")(rest_grid)
+    rypchip = PchipInterpolator(rk5, ryk5)(rest_grid)
 
-    fig, ax = plt.subplots(figsize=(8.2, 4.6), dpi=300)
-    ax.plot(rom_grid, y_ideal, "k-", linewidth=2.3, label="Reference LR Profile")
-    ax.plot(rom_grid, y_spline_sparse, color="#8e44ad", lw=1.8, ls="--", label=r"Natural $C^2$ ($N=5$ knots, undershoot)")
-    ax.plot(rom_grid, y_spline_dense, color="#2980b9", lw=1.8, ls=":", label=r"Dense $C^2$ ($N=10$ knots, high parameter count)")
-    ax.plot(rom_grid, y_pchip, color="#d35400", lw=1.8, ls="-.", label=r"Monotone PCHIP ($y \geq 0$, reduced to $C^1$)")
-    ax.scatter(knots_sparse, y_sparse, color="#8e44ad", s=45, zorder=5)
-    ax.fill_between(rom_grid, y_spline_sparse, 0.0, where=(y_spline_sparse < 0.0), color="#e74c3c", alpha=0.25)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.4), dpi=300)
 
-    ax.set_title("Spline Trade-off: Knot Density vs. Curvature Continuity", fontweight="bold", pad=10)
-    ax.set_xlabel(r"Normalized Range of Motion ($t \in [0, 1]$)")
-    ax.set_ylabel(r"Normalized Muscle Tension $y(t)$")
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.18, 1.22)
-    ax.axhline(0.0, color="black", linewidth=0.8, linestyle=":")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True, fontsize=8.8)
+    ax1.plot(rom_grid, y_ideal, "k-", lw=2.1, label="Reference LR")
+    ax1.plot(rom_grid, ys5, color="#8e44ad", lw=1.7, ls="--", label=r"$C^2$ ($N=5$)")
+    ax1.plot(rom_grid, ys10, color="#2980b9", lw=1.7, ls=":", label=r"$C^2$ ($N=10$)")
+    ax1.plot(rom_grid, ypchip, color="#d35400", lw=1.7, ls="-.", label=r"PCHIP ($C^1$)")
+    ax1.scatter(k5, yk5, color="#8e44ad", s=34, zorder=5)
+    ax1.fill_between(rom_grid, ys5, 0.0, where=(ys5 < 0.0), color="#e74c3c", alpha=0.25)
+    ax1.set_title(r"Full Domain $[0, 1]$ (Undershoot + Jump at $x_3$)", fontweight="bold")
+    ax1.set_xlabel(r"Normalized ROM $x \in [0, 1]$")
+    ax1.set_ylabel(r"Normalized Tension $y(x)$")
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.18, 1.22)
+    ax1.axhline(0.0, color="black", lw=0.7, ls=":")
+    ax1.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
+
+    ax2.plot(rest_grid, y_rest_ideal, "k-", lw=2.1, label="Reference LR")
+    ax2.plot(rest_grid, rys5, color="#8e44ad", lw=1.7, ls="--", label=r"$C^2$ ($N=5$)")
+    ax2.plot(rest_grid, rys10, color="#2980b9", lw=1.7, ls=":", label=r"$C^2$ ($N=10$)")
+    ax2.plot(rest_grid, rypchip, color="#d35400", lw=1.7, ls="-.", label=r"PCHIP ($C^1$)")
+    ax2.scatter(rk5, ryk5, color="#8e44ad", s=34, zorder=5)
+    ax2.set_title(rf"Restricted Domain $[{a:.2f}, {b:.2f}]$ ($\delta={delta:.2f}$)", fontweight="bold")
+    ax2.set_xlabel(rf"Restricted ROM $x \in [{a:.2f}, {b:.2f}]$")
+    ax2.set_ylabel(r"Normalized Tension $y(x)$")
+    ax2.set_xlim(a - 0.02, b + 0.02)
+    ax2.set_ylim(-0.05, 1.10)
+    ax2.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
     plt.tight_layout()
     fig.savefig(FIG_DIR / "spline_density.png", dpi=300, bbox_inches="tight")
@@ -326,17 +399,17 @@ def plot_de_casteljau(
         ax.text(float(node[0]) + dx, float(node[1]) + dy, rf"$P_{idx}$", fontsize=10, fontweight="bold", color="#2c3e50")
 
     q_pts = np.array([q0, q1, q2])
-    ax.plot(q_pts[:, 0], q_pts[:, 1], "s--", color="#2980b9", lw=1.4, ms=6, label=r"Level 1: $Q_i = (1-t)P_i + t P_{i+1}$")
+    ax.plot(q_pts[:, 0], q_pts[:, 1], "s--", color="#2980b9", lw=1.4, ms=6, label=r"Level 1: $\mathbf{Q}_i = (1-t)\mathbf{P}_i + t\mathbf{P}_{i+1}$")
     q_offsets = [(0.018, -0.045), (-0.04, 0.04), (0.018, -0.045)]
     for idx, (node, (dx, dy)) in enumerate(zip(q_pts, q_offsets, strict=True)):
-        ax.text(float(node[0]) + dx, float(node[1]) + dy, rf"$Q_{idx}$", fontsize=9.2, color="#1b4f72")
+        ax.text(float(node[0]) + dx, float(node[1]) + dy, rf"$\mathbf{{Q}}_{idx}$", fontsize=9.2, color="#1b4f72")
 
     r_pts = np.array([r0, r1])
-    ax.plot(r_pts[:, 0], r_pts[:, 1], "^--", color="#e67e22", lw=1.5, ms=6.5, label=r"Level 2: $R_i = (1-t)Q_i + t Q_{i+1}$")
+    ax.plot(r_pts[:, 0], r_pts[:, 1], "^--", color="#e67e22", lw=1.5, ms=6.5, label=r"Level 2: $\mathbf{R}_i = (1-t)\mathbf{Q}_i + t\mathbf{Q}_{i+1}$")
     for idx, node in enumerate(r_pts):
-        ax.text(float(node[0]) + 0.018, float(node[1]) - 0.045, rf"$R_{idx}$", fontsize=9.2, color="#935116")
+        ax.text(float(node[0]) + 0.018, float(node[1]) - 0.045, rf"$\mathbf{{R}}_{idx}$", fontsize=9.2, color="#935116")
 
-    ax.scatter([pt[0]], [pt[1]], color="#c0392b", s=95, zorder=7, label=rf"Level 3: $\mathbf{{P}}(t={t_val}) = (1-t)R_0 + t R_1$")
+    ax.scatter([pt[0]], [pt[1]], color="#c0392b", s=95, zorder=7, label=rf"Level 3: $\mathbf{{P}}(t={t_val}) = (1-t)\mathbf{{R}}_0 + t\mathbf{{R}}_1$")
     ax.annotate(
         rf"$\mathbf{{P}}({t_val}) = ({pt[0]:.2f}, {pt[1]:.2f})$",
         xy=(float(pt[0]), float(pt[1])),
@@ -413,62 +486,69 @@ def plot_bezier_comparison(
     by: NDArray[np.float64],
     x0: float,
     x3: float,
-) -> None:
+    delta: float,
+) -> dict[str, float]:
+    a, b = x0 + delta, x3 - delta
+    rest_grid = np.linspace(a, b, 600)
+    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
+
+    # Full domain
     x_knots = np.array([0.0, 0.2, 0.45, 0.75, 0.9, 1.0])
-    y_knots = evaluate_true_profile(x_knots, bx, by, x0, x3)
-    y_spline = CubicSpline(x_knots, y_knots, bc_type="natural")(rom_grid)
-
+    y_spline_full = CubicSpline(x_knots, evaluate_true_profile(x_knots, bx, by, x0, x3), bc_type="natural")(rom_grid)
     x_poly = np.linspace(0.0, 1.0, 8)
-    y_poly_knots = evaluate_true_profile(x_poly, bx, by, x0, x3)
-    y_lagrange = np.polyval(np.polyfit(x_poly, y_poly_knots, deg=7), rom_grid)
+    y_lagrange_full = np.polyval(np.polyfit(x_poly, evaluate_true_profile(x_poly, bx, by, x0, x3), deg=7), rom_grid)
 
-    fig, ax = plt.subplots(figsize=(8.6, 4.9), dpi=300)
+    # Restricted domain
+    rk = np.linspace(a, b, 6)
+    y_spline_rest = CubicSpline(rk, evaluate_true_profile(rk, bx, by, x0, x3), bc_type="natural")(rest_grid)
+    rx_poly = np.linspace(a, b, 8)
+    u_rx = (rx_poly - a) / (b - a)
+    u_grid = (rest_grid - a) / (b - a)
+    y_lagrange_rest = np.polyval(np.polyfit(u_rx, evaluate_true_profile(rx_poly, bx, by, x0, x3), deg=7), u_grid)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.6), dpi=300)
+
     hull = ConvexHull(ctrl_pts)
     hull_pts = ctrl_pts[hull.vertices]
     hull_plot = np.vstack([hull_pts, hull_pts[0]])
-    ax.fill(hull_plot[:, 0], hull_plot[:, 1], color="#27ae60", alpha=0.12, label="Bézier Convex Hull")
-    ax.plot(hull_plot[:, 0], hull_plot[:, 1], color="#27ae60", linestyle=":", linewidth=1.2)
+    ax1.fill(hull_plot[:, 0], hull_plot[:, 1], color="#27ae60", alpha=0.12, label="Convex Hull")
+    ax1.plot(hull_plot[:, 0], hull_plot[:, 1], color="#27ae60", ls=":", lw=1.1)
+    ax1.plot(ctrl_pts[:, 0], ctrl_pts[:, 1], "o--", color="#16a085", lw=1.3, ms=5.5, label=r"Control Polygon $\{P_i\}$")
+    ax1.plot(rom_grid, y_bezier, color="#27ae60", lw=2.4, label=r"Cubic Bézier ($\mathcal{O}(1)$, $y \geq 0$)")
+    ax1.plot(rom_grid, y_spline_full, color="#8e44ad", lw=1.7, ls="-.", label=r"$C^2$ Spline ($y < 0$)")
+    ax1.plot(rom_grid, y_lagrange_full, color="#e74c3c", lw=1.7, ls="--", label=r"Lagrange $d=7$ (Gibbs/Runge)")
+    ax1.set_title(r"Full Domain $[0, 1]$ (Gibbs Overshoot at $x_3=0.90$)", fontweight="bold")
+    ax1.set_xlabel(r"Normalized ROM $x \in [0, 1]$")
+    ax1.set_ylabel(r"Normalized Tension $y(x)$")
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.32, 1.25)
+    ax1.axhline(0.0, color="black", lw=0.7)
+    ax1.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
-    ax.plot(ctrl_pts[:, 0], ctrl_pts[:, 1], "o--", color="#16a085", lw=1.4, ms=6.5, label=r"Control Polygon ($P_0, P_1, P_2, P_3$)")
-    p_cfg = [(0.015, -0.055, "left"), (-0.015, 0.045, "right"), (-0.015, 0.045, "right"), (0.015, 0.02, "left")]
-    for idx, (node, (dx, dy, ha)) in enumerate(zip(ctrl_pts, p_cfg, strict=True)):
-        ax.text(float(node[0]) + dx, float(node[1]) + dy, rf"$P_{idx}({node[0]:.2f}, {node[1]:.2f})$", fontsize=8.5, fontweight="bold", color="#0e6251", ha=ha)
+    ax2.plot(rest_grid, y_rest_ideal, color="#27ae60", lw=2.6, label=r"Cubic Bézier (Exact Reference)")
+    ax2.plot(rest_grid, y_spline_rest, color="#8e44ad", lw=1.7, ls="-.", label=rf"$C^2$ Spline ($L^\infty={np.max(np.abs(y_rest_ideal - y_spline_rest)):.2e}$)")
+    ax2.plot(rest_grid, y_lagrange_rest, color="#e74c3c", lw=1.7, ls="--", label=rf"Lagrange $d=7$ ($L^\infty={np.max(np.abs(y_rest_ideal - y_lagrange_rest)):.2e}$)")
+    ax2.set_title(rf"Restricted Domain $[{a:.2f}, {b:.2f}]$ ($\delta={delta:.2f}$)", fontweight="bold")
+    ax2.set_xlabel(rf"Restricted ROM $x \in [{a:.2f}, {b:.2f}]$")
+    ax2.set_ylabel(r"Normalized Tension $y(x)$")
+    ax2.set_xlim(a - 0.02, b + 0.02)
+    ax2.set_ylim(-0.05, 1.10)
+    ax2.legend(loc="upper left", bbox_to_anchor=(0.0, -0.17), ncol=2, frameon=True, fontsize=8.0)
 
-    ax.plot(rom_grid, y_bezier, color="#27ae60", lw=2.8, label=r"Cubic Bézier ($\mathcal{O}(1)$, guaranteed $y(t) \geq 0$)")
-    ax.plot(rom_grid, y_spline, color="#8e44ad", lw=1.8, ls="-.", label=r"$C^2$ Cubic Spline (undershoot $y < 0$)")
-    ax.plot(rom_grid, y_lagrange, color="#e74c3c", lw=1.8, ls="--", label=r"Lagrange Polynomial $d=7$ (Runge boundary oscillation)")
-
-    ax.set_title("Bézier ROM Comparison vs. Cubic Spline and Lagrange on LR", fontweight="bold", pad=10)
-    ax.set_xlabel(r"Normalized Range of Motion ($t \in [0, 1]$)")
-    ax.set_ylabel(r"Normalized Muscle Tension $y(t)$")
-    ax.set_xlim(-0.02, 1.08)
-    ax.set_ylim(-0.32, 1.32)
-    ax.axhline(0.0, color="black", linewidth=0.8, linestyle="-")
-
-    props_text = (
-        "Cubic Bézier Guarantees:\n"
-        r"• Partition of unity: $\sum B_{i,3}(t) \equiv 1$" "\n"
-        r"• Convex hull: $0 \leq y(t) \leq 1$" "\n"
-        r"• Exact $\mathcal{O}(1)$ De Casteljau evaluation"
-    )
-    ax.text(
-        0.025,
-        0.95,
-        props_text,
-        transform=ax.transAxes,
-        verticalalignment="top",
-        bbox={"boxstyle": "round,pad=0.45", "facecolor": "#e8f8f5", "edgecolor": "#1abc9c", "alpha": 0.92},
-        fontsize=8.8,
-        color="#0b5345",
-    )
-
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=True, fontsize=9.0)
     plt.tight_layout()
     fig.savefig(FIG_DIR / "bezier_comparison.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
+    return {
+        "comp_spline_rest_linf": float(np.max(np.abs(y_rest_ideal - y_spline_rest))),
+        "comp_lagrange_rest_linf": float(np.max(np.abs(y_rest_ideal - y_lagrange_rest))),
+    }
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate paper figures with configurable boundary delta.")
+    parser.add_argument("--delta", type=float, default=0.05, help="Interior margin delta for restricted domain [x0+delta, x3-delta].")
+    args = parser.parse_args()
+
     apply_style()
     m = load_lr_profile()
     ctrl_pts = np.array(
@@ -484,14 +564,18 @@ def main() -> None:
     rom_grid = np.linspace(0.0, 1.0, 1000)
     y_ideal = evaluate_true_profile(rom_grid, bx, by, m["x0"], m["x3"])
 
-    plot_lagrange_runge(rom_grid, y_ideal, bx, by, m["x0"], m["x3"])
-    plot_lagrange_gauss_lobatto(rom_grid, y_ideal, bx, by, m["x0"], m["x3"])
-    plot_spline_overshoot(rom_grid, y_ideal, bx, by, m["x0"], m["x3"])
-    plot_spline_density(rom_grid, y_ideal, bx, by, m["x0"], m["x3"])
+    stats: dict[str, float] = {}
+    stats.update(plot_lagrange_runge(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
+    stats.update(plot_lagrange_gauss_lobatto(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
+    stats.update(plot_spline_overshoot(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
+    plot_spline_density(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta)
     plot_de_casteljau(ctrl_pts[0], ctrl_pts[1], ctrl_pts[2], ctrl_pts[3])
     plot_bezier_bernstein(ctrl_pts)
-    plot_bezier_comparison(ctrl_pts, rom_grid, y_ideal, bx, by, m["x0"], m["x3"])
-    print(f"Generated 7 figures in {FIG_DIR}")
+    stats.update(plot_bezier_comparison(ctrl_pts, rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
+
+    print(f"Generated 7 figures in {FIG_DIR} (delta={args.delta})")
+    for k, v in stats.items():
+        print(f"  {k}: {v:.6e}")
 
 
 if __name__ == "__main__":
