@@ -383,3 +383,44 @@ def test_rpe_clamping_hard_map_and_weighted_ecurve() -> None:
     norm_ld = curve_ld / np.max(curve_ld)
     expected_mse = float(np.mean((norm_ld - 1.0) ** 2))
     assert raw["curve"] == pytest.approx(expected_mse, abs=1e-7)
+
+
+def test_rest_clamp_narrow_grid_ecurve_and_single_ex_db() -> None:
+    assert calculate_rest(15.0) == "3'30\""
+
+    # Narrow profile between adjacent 50-pt grid nodes (1/49 ~ 0.0204) misses grid hits
+    # yet E_curve in non-target mode must still weight active M_eval to sum 1.0
+    ex_narrow = Exercise(
+        name="NarrowEx",
+        muscles_distr={
+            "Lateral Deltoid": BezierProfile(0.501, 1.0, 0.503, 1.0, 0.506, 1.0, 0.509, 1.0, 0.5),
+            "Sternal Head": BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, 0.5),
+        },
+        fatigue=4.0,
+        load_coeff=0.5,
+    )
+    import analyzer.solver as solver_mod
+    orig_db = solver_mod.exercises_list
+    try:
+        solver_mod.exercises_list = [ex_narrow]
+        cfg = SolverConfig()
+        cfg.days = 1
+        cfg.min_ex = 1
+        cfg.max_ex = 1
+        cfg.calibration_steps = 0
+        cfg.muscle_targets = {"Sternal Head": "linear"}
+        slv = WorkoutSolver(cfg)
+        st = WorkoutState(1)
+        se = ScheduledExercise(ex_narrow)
+        se.sets = [ScheduledSet(10, 0, 9.0)]
+        st.days[0] = [se]
+        slv._return_raw = True
+        _, raw = slv.evaluate_workout(st)
+        slv._return_raw = False
+        # Sternal Head is constant 1.0 vs linear (1-x); MSE = mean(x^2) over 50 pts ~ 0.340136
+        expected_lin_mse = float(np.mean((1.0 - np.linspace(0.0, 1.0, 50)) ** 2))
+        assert raw["curve"] == pytest.approx(expected_lin_mse, abs=1e-9)
+        mutated = slv.mutate_workout(st)
+        assert len(mutated.days[0]) == 1
+    finally:
+        solver_mod.exercises_list = orig_db

@@ -91,7 +91,8 @@ export function calculateRest(fatigue) {
     } else if (fatigue <= 7.0) {
         mins = 1.0 + (fatigue - 2.0) * (2.0 / 5.0);
     } else {
-        mins = 3.0 + (fatigue - 7.0) * (0.5 / 3.0);
+        const cappedFatigue = Math.min(10.0, fatigue);
+        mins = 3.0 + (cappedFatigue - 7.0) * (0.5 / 3.0);
     }
     
     const roundedMins = Math.round(mins * 2) / 2;
@@ -522,9 +523,10 @@ export class WorkoutSolver {
                 }
             }
             if (activeMses.length > 0) {
-                if (totalSubVol > 0.0) {
+                const activeTotalVol = activeMses.reduce((acc, [w]) => acc + w, 0.0);
+                if (activeTotalVol > 0.0) {
                     for (const [w, mse] of activeMses) {
-                        E_curve += (w / totalSubVol) * mse;
+                        E_curve += (w / activeTotalVol) * mse;
                     }
                 } else {
                     for (const [, mse] of activeMses) {
@@ -647,7 +649,7 @@ export class WorkoutSolver {
         const eligibleMutations = [];
         if (day.length < this.config.max_ex) eligibleMutations.push('add_ex');
         if (day.length > this.config.min_ex) eligibleMutations.push('remove_ex');
-        if (day.length > 0) eligibleMutations.push('swap_ex');
+        if (day.length > 0 && this.db.length > 1) eligibleMutations.push('swap_ex');
         if (eligibleAddSet.length > 0) eligibleMutations.push('add_set');
         if (eligibleRemSet.length > 0) eligibleMutations.push('remove_set');
         if (setsOnDay.length > 0 && this.config.min_reps < this.config.max_reps) eligibleMutations.push('mut_reps');
@@ -746,7 +748,7 @@ export class WorkoutSolver {
      * by `coolingRate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
      * is applied and the new state is evaluated.
      */
-    async solve(iterations = 10000, initialTemp = 50.0, coolingRate = null, progressCallback = null) {
+    async solve(iterations = null, initialTemp = 50.0, coolingRate = null, progressCallback = null) {
         const effectiveIterations = Math.min(
             Math.max(0, iterations ?? this.config.iterations ?? 10000),
             100000

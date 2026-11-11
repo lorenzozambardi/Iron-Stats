@@ -43,8 +43,9 @@ def calculate_rest(fatigue: float) -> str:
         # 2.0 -> 7.0 mapped to 1.0 -> 3.0
         mins = 1.0 + (fatigue - 2.0) * (2.0 / 5.0)
     else:
-        # 7.0 -> 10.0 mapped to 3.0 -> 3.5
-        mins = 3.0 + (fatigue - 7.0) * (0.5 / 3.0)
+        # 7.0 -> 10.0 mapped to 3.0 -> 3.5 (clamped at 10.0 so Rest_max = 3'30")
+        capped_fatigue = min(10.0, fatigue)
+        mins = 3.0 + (capped_fatigue - 7.0) * (0.5 / 3.0)
 
     rounded_mins = math.floor(mins * 2.0 + 0.5) / 2.0
     if rounded_mins == int(rounded_mins):
@@ -378,8 +379,9 @@ class WorkoutSolver:
                     mse = float(np.sum((normalized_v - target) ** 2)) / self.resolution
                     active_mses.append((sub_vols.get(m, 0.0), mse))
             if active_mses:
-                if total_sub_vol > 0.0:
-                    E_curve = sum((w / total_sub_vol) * mse for w, mse in active_mses)
+                active_total_vol = sum(w for w, _ in active_mses)
+                if active_total_vol > 0.0:
+                    E_curve = sum((w / active_total_vol) * mse for w, mse in active_mses)
                 else:
                     E_curve = sum(mse for _, mse in active_mses) / len(active_mses)
             
@@ -475,7 +477,7 @@ class WorkoutSolver:
             eligible_mutations.append('add_ex')
         if len(day) > self.config.min_ex:
             eligible_mutations.append('remove_ex')
-        if len(day) > 0:
+        if len(day) > 0 and len(self.db) > 1:
             eligible_mutations.append('swap_ex')
         if eligible_add_set:
             eligible_mutations.append('add_set')
@@ -662,7 +664,7 @@ if __name__ == "__main__":
             if 'ratios' in data:
                 config.target_ratios['vol'] = float(data['ratios'].get('vol', 0.70))
                 config.target_ratios['ton'] = float(data['ratios'].get('ton', 0.70))
-                config.target_ratios['tut'] = float(data['ratios'].get('tut', 0.70))
+                config.target_ratios['tut'] = float(data['ratios'].get('tut', 0.74))
                 
             if 'muscleTargets' in data:
                 config.muscle_targets = data['muscleTargets']
