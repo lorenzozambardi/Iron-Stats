@@ -1,7 +1,7 @@
 """Generate 300-DPI English numerical analysis figures for docs/paper.tex.
 
 Includes companion restricted-domain panels [x0 + delta, x3 - delta] to isolate
-interpolation error from the piecewise jump discontinuities at x0 and x3.
+interpolation error from the boundary slope corner at x0 and jump discontinuity at x3.
 """
 
 from __future__ import annotations
@@ -63,23 +63,58 @@ def solve_bezier(
     return bx, by
 
 
+def solve_bezier_y_exact(
+    target_x: float,
+    p0: NDArray[np.float64],
+    p1: NDArray[np.float64],
+    p2: NDArray[np.float64],
+    p3: NDArray[np.float64],
+    tol: float = 1e-13,
+    max_iter: int = 60,
+) -> float:
+    """Invert x(t) = target_x via bisection and return exact cubic Bezier y(t)."""
+    x0, y0 = float(p0[0]), float(p0[1])
+    x1, y1 = float(p1[0]), float(p1[1])
+    x2, y2 = float(p2[0]), float(p2[1])
+    x3, y3 = float(p3[0]), float(p3[1])
+    if target_x < x0 or target_x > x3:
+        return 0.0
+    if target_x == x0:
+        return y0
+    if target_x == x3:
+        return y3
+
+    lo, hi = 0.0, 1.0
+    t = 0.5
+    for _ in range(max_iter):
+        u = 1.0 - t
+        x = (u**3) * x0 + 3.0 * (u**2) * t * x1 + 3.0 * u * (t**2) * x2 + (t**3) * x3
+        if abs(x - target_x) < tol:
+            break
+        if x < target_x:
+            lo = t
+        else:
+            hi = t
+        t = 0.5 * (lo + hi)
+
+    u = 1.0 - t
+    return float((u**3) * y0 + 3.0 * (u**2) * t * y1 + 3.0 * u * (t**2) * y2 + (t**3) * y3)
+
+
 def evaluate_true_profile(
     x_target: NDArray[np.float64],
-    bx: NDArray[np.float64],
-    by: NDArray[np.float64],
-    x0: float,
-    x3: float,
+    p0: NDArray[np.float64],
+    p1: NDArray[np.float64],
+    p2: NDArray[np.float64],
+    p3: NDArray[np.float64],
 ) -> NDArray[np.float64]:
-    """Evaluate the piecewise LR tension profile across x in [0, 1].
+    """Evaluate the exact piecewise LR tension profile across x in [0, 1].
 
-    Defined as y(x) = 0 for x < x0 or x > x3, and interpolated from the Bezier
-    curve on [x0, x3]. Note that jump discontinuities occur at x0 (if y0 != 0)
-    and at x3 (for LR, y(x3^-) = 1.0 -> y(x3^+) = 0.0).
+    Defined as y(x) = 0 for x < x0 or x > x3, and exact Bezier inversion y(t*(x))
+    on [x0, x3]. For LR (y0=0, y3=1), x0 has a slope corner (C^0) and x3 has a
+    jump discontinuity y(x3^-) = 1.0 -> y(x3^+) = 0.0.
     """
-    y_out = np.zeros_like(x_target, dtype=np.float64)
-    mask = (x_target >= x0) & (x_target <= x3)
-    y_out[mask] = np.interp(x_target[mask], bx, by)
-    return y_out
+    return np.array([solve_bezier_y_exact(float(xv), p0, p1, p2, p3) for xv in x_target], dtype=np.float64)
 
 
 def gauss_lobatto_nodes(n: int, a: float = 0.0, b: float = 1.0) -> NDArray[np.float64]:
@@ -112,8 +147,7 @@ def apply_style() -> None:
 def plot_lagrange_runge(
     rom_grid: NDArray[np.float64],
     y_ideal: NDArray[np.float64],
-    bx: NDArray[np.float64],
-    by: NDArray[np.float64],
+    ctrl_pts: NDArray[np.float64],
     x0: float,
     x3: float,
     delta: float,
@@ -121,18 +155,19 @@ def plot_lagrange_runge(
     n_nodes = 9
     a, b = x0 + delta, x3 - delta
     rest_grid = np.linspace(a, b, 600)
-    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
+    p0, p1, p2, p3 = ctrl_pts
+    y_rest_ideal = evaluate_true_profile(rest_grid, p0, p1, p2, p3)
 
     # Full domain [0, 1]
     x_full = np.linspace(0.0, 1.0, n_nodes)
-    y_full = evaluate_true_profile(x_full, bx, by, x0, x3)
+    y_full = evaluate_true_profile(x_full, p0, p1, p2, p3)
     cond_full = float(np.linalg.cond(np.vander(x_full, increasing=True)))
     y_poly_full = np.polyval(np.polyfit(x_full, y_full, deg=n_nodes - 1), rom_grid)
     linf_full = float(np.max(np.abs(y_ideal - y_poly_full)))
 
     # Restricted smooth domain [a, b] (scale to [0, 1] for Vandermonde conditioning clarity too)
     x_rest = np.linspace(a, b, n_nodes)
-    y_rest = evaluate_true_profile(x_rest, bx, by, x0, x3)
+    y_rest = evaluate_true_profile(x_rest, p0, p1, p2, p3)
     u_rest = (x_rest - a) / (b - a)
     u_grid = (rest_grid - a) / (b - a)
     y_poly_rest = np.polyval(np.polyfit(u_rest, y_rest, deg=n_nodes - 1), u_grid)
@@ -155,7 +190,7 @@ def plot_lagrange_runge(
         fontweight="bold",
         color="#922b21",
     )
-    ax1.set_title(r"Full Domain $[0, 1]$ (Includes Jumps at $x_0, x_3$)", fontweight="bold")
+    ax1.set_title(r"Full Domain $[0, 1]$ (Corner at $x_0$, Jump at $x_3$)", fontweight="bold")
     ax1.set_xlabel(r"Normalized ROM $x \in [0, 1]$")
     ax1.set_ylabel(r"Normalized Tension $y(x)$")
     ax1.set_xlim(-0.02, 1.02)
@@ -193,15 +228,15 @@ def plot_lagrange_runge(
 def plot_lagrange_gauss_lobatto(
     rom_grid: NDArray[np.float64],
     y_ideal: NDArray[np.float64],
-    bx: NDArray[np.float64],
-    by: NDArray[np.float64],
+    ctrl_pts: NDArray[np.float64],
     x0: float,
     x3: float,
     delta: float,
 ) -> dict[str, float]:
     a, b = x0 + delta, x3 - delta
     rest_grid = np.linspace(a, b, 600)
-    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
+    p0, p1, p2, p3 = ctrl_pts
+    y_rest_ideal = evaluate_true_profile(rest_grid, p0, p1, p2, p3)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.4), dpi=300)
     ax1.plot(rom_grid, y_ideal, "k-", lw=2.1, label="Reference LR")
@@ -210,14 +245,14 @@ def plot_lagrange_gauss_lobatto(
     metrics: dict[str, float] = {}
     for n_nodes, color, ls in zip([6, 12], ["#e67e22", "#c0392b"], ["--", "-."], strict=True):
         nodes_full = gauss_lobatto_nodes(n_nodes, 0.0, 1.0)
-        y_nf = evaluate_true_profile(nodes_full, bx, by, x0, x3)
+        y_nf = evaluate_true_profile(nodes_full, p0, p1, p2, p3)
         y_pf = np.polyval(np.polyfit(nodes_full, y_nf, deg=n_nodes - 1), rom_grid)
         metrics[f"cgl{n_nodes}_full_linf"] = float(np.max(np.abs(y_ideal - y_pf)))
         ax1.plot(rom_grid, y_pf, color=color, lw=1.7, ls=ls, label=rf"CGL $N={n_nodes}$ ($L^\infty={metrics[f'cgl{n_nodes}_full_linf']:.2f}$)")
         ax1.scatter(nodes_full, y_nf, color=color, s=26, zorder=4)
 
         nodes_rest = gauss_lobatto_nodes(n_nodes, a, b)
-        y_nr = evaluate_true_profile(nodes_rest, bx, by, x0, x3)
+        y_nr = evaluate_true_profile(nodes_rest, p0, p1, p2, p3)
         u_nr = (nodes_rest - a) / (b - a)
         u_grid = (rest_grid - a) / (b - a)
         y_pr = np.polyval(np.polyfit(u_nr, y_nr, deg=n_nodes - 1), u_grid)
@@ -250,23 +285,23 @@ def plot_lagrange_gauss_lobatto(
 def plot_spline_overshoot(
     rom_grid: NDArray[np.float64],
     y_ideal: NDArray[np.float64],
-    bx: NDArray[np.float64],
-    by: NDArray[np.float64],
+    ctrl_pts: NDArray[np.float64],
     x0: float,
     x3: float,
     delta: float,
 ) -> dict[str, float]:
     a, b = x0 + delta, x3 - delta
     rest_grid = np.linspace(a, b, 600)
-    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
+    p0, p1, p2, p3 = ctrl_pts
+    y_rest_ideal = evaluate_true_profile(rest_grid, p0, p1, p2, p3)
 
     x_knots_full = np.array([0.0, 0.2, 0.45, 0.75, 0.9, 1.0])
-    y_knots_full = evaluate_true_profile(x_knots_full, bx, by, x0, x3)
+    y_knots_full = evaluate_true_profile(x_knots_full, p0, p1, p2, p3)
     y_spline_full = CubicSpline(x_knots_full, y_knots_full, bc_type="natural")(rom_grid)
     linf_full = float(np.max(np.abs(y_ideal - y_spline_full)))
 
     x_knots_rest = np.linspace(a, b, 6)
-    y_knots_rest = evaluate_true_profile(x_knots_rest, bx, by, x0, x3)
+    y_knots_rest = evaluate_true_profile(x_knots_rest, p0, p1, p2, p3)
     y_spline_rest = CubicSpline(x_knots_rest, y_knots_rest, bc_type="natural")(rest_grid)
     linf_rest = float(np.max(np.abs(y_rest_ideal - y_spline_rest)))
 
@@ -314,30 +349,30 @@ def plot_spline_overshoot(
 def plot_spline_density(
     rom_grid: NDArray[np.float64],
     y_ideal: NDArray[np.float64],
-    bx: NDArray[np.float64],
-    by: NDArray[np.float64],
+    ctrl_pts: NDArray[np.float64],
     x0: float,
     x3: float,
     delta: float,
 ) -> None:
     a, b = x0 + delta, x3 - delta
     rest_grid = np.linspace(a, b, 600)
-    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
+    p0, p1, p2, p3 = ctrl_pts
+    y_rest_ideal = evaluate_true_profile(rest_grid, p0, p1, p2, p3)
 
     # Full domain
     k5 = np.array([0.0, 0.2, 0.5, 0.85, 1.0])
-    yk5 = evaluate_true_profile(k5, bx, by, x0, x3)
+    yk5 = evaluate_true_profile(k5, p0, p1, p2, p3)
     ys5 = CubicSpline(k5, yk5, bc_type="natural")(rom_grid)
     k10 = np.linspace(0.0, 1.0, 10)
-    ys10 = CubicSpline(k10, evaluate_true_profile(k10, bx, by, x0, x3), bc_type="natural")(rom_grid)
+    ys10 = CubicSpline(k10, evaluate_true_profile(k10, p0, p1, p2, p3), bc_type="natural")(rom_grid)
     ypchip = PchipInterpolator(k5, yk5)(rom_grid)
 
     # Restricted domain
     rk5 = np.linspace(a, b, 5)
-    ryk5 = evaluate_true_profile(rk5, bx, by, x0, x3)
+    ryk5 = evaluate_true_profile(rk5, p0, p1, p2, p3)
     rys5 = CubicSpline(rk5, ryk5, bc_type="natural")(rest_grid)
     rk10 = np.linspace(a, b, 10)
-    rys10 = CubicSpline(rk10, evaluate_true_profile(rk10, bx, by, x0, x3), bc_type="natural")(rest_grid)
+    rys10 = CubicSpline(rk10, evaluate_true_profile(rk10, p0, p1, p2, p3), bc_type="natural")(rest_grid)
     rypchip = PchipInterpolator(rk5, ryk5)(rest_grid)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.4), dpi=300)
@@ -482,29 +517,28 @@ def plot_bezier_comparison(
     ctrl_pts: NDArray[np.float64],
     rom_grid: NDArray[np.float64],
     y_bezier: NDArray[np.float64],
-    bx: NDArray[np.float64],
-    by: NDArray[np.float64],
     x0: float,
     x3: float,
     delta: float,
 ) -> dict[str, float]:
     a, b = x0 + delta, x3 - delta
     rest_grid = np.linspace(a, b, 600)
-    y_rest_ideal = evaluate_true_profile(rest_grid, bx, by, x0, x3)
+    p0, p1, p2, p3 = ctrl_pts
+    y_rest_ideal = evaluate_true_profile(rest_grid, p0, p1, p2, p3)
 
     # Full domain
     x_knots = np.array([0.0, 0.2, 0.45, 0.75, 0.9, 1.0])
-    y_spline_full = CubicSpline(x_knots, evaluate_true_profile(x_knots, bx, by, x0, x3), bc_type="natural")(rom_grid)
+    y_spline_full = CubicSpline(x_knots, evaluate_true_profile(x_knots, p0, p1, p2, p3), bc_type="natural")(rom_grid)
     x_poly = np.linspace(0.0, 1.0, 8)
-    y_lagrange_full = np.polyval(np.polyfit(x_poly, evaluate_true_profile(x_poly, bx, by, x0, x3), deg=7), rom_grid)
+    y_lagrange_full = np.polyval(np.polyfit(x_poly, evaluate_true_profile(x_poly, p0, p1, p2, p3), deg=7), rom_grid)
 
     # Restricted domain
     rk = np.linspace(a, b, 6)
-    y_spline_rest = CubicSpline(rk, evaluate_true_profile(rk, bx, by, x0, x3), bc_type="natural")(rest_grid)
+    y_spline_rest = CubicSpline(rk, evaluate_true_profile(rk, p0, p1, p2, p3), bc_type="natural")(rest_grid)
     rx_poly = np.linspace(a, b, 8)
     u_rx = (rx_poly - a) / (b - a)
     u_grid = (rest_grid - a) / (b - a)
-    y_lagrange_rest = np.polyval(np.polyfit(u_rx, evaluate_true_profile(rx_poly, bx, by, x0, x3), deg=7), u_grid)
+    y_lagrange_rest = np.polyval(np.polyfit(u_rx, evaluate_true_profile(rx_poly, p0, p1, p2, p3), deg=7), u_grid)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.6), dpi=300)
 
@@ -560,18 +594,17 @@ def main() -> None:
         ],
         dtype=np.float64,
     )
-    bx, by = solve_bezier(ctrl_pts[0], ctrl_pts[1], ctrl_pts[2], ctrl_pts[3])
     rom_grid = np.linspace(0.0, 1.0, 1000)
-    y_ideal = evaluate_true_profile(rom_grid, bx, by, m["x0"], m["x3"])
+    y_ideal = evaluate_true_profile(rom_grid, ctrl_pts[0], ctrl_pts[1], ctrl_pts[2], ctrl_pts[3])
 
     stats: dict[str, float] = {}
-    stats.update(plot_lagrange_runge(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
-    stats.update(plot_lagrange_gauss_lobatto(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
-    stats.update(plot_spline_overshoot(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
-    plot_spline_density(rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta)
+    stats.update(plot_lagrange_runge(rom_grid, y_ideal, ctrl_pts, m["x0"], m["x3"], args.delta))
+    stats.update(plot_lagrange_gauss_lobatto(rom_grid, y_ideal, ctrl_pts, m["x0"], m["x3"], args.delta))
+    stats.update(plot_spline_overshoot(rom_grid, y_ideal, ctrl_pts, m["x0"], m["x3"], args.delta))
+    plot_spline_density(rom_grid, y_ideal, ctrl_pts, m["x0"], m["x3"], args.delta)
     plot_de_casteljau(ctrl_pts[0], ctrl_pts[1], ctrl_pts[2], ctrl_pts[3])
     plot_bezier_bernstein(ctrl_pts)
-    stats.update(plot_bezier_comparison(ctrl_pts, rom_grid, y_ideal, bx, by, m["x0"], m["x3"], args.delta))
+    stats.update(plot_bezier_comparison(ctrl_pts, rom_grid, y_ideal, m["x0"], m["x3"], args.delta))
 
     print(f"Generated 7 figures in {FIG_DIR} (delta={args.delta})")
     for k, v in stats.items():

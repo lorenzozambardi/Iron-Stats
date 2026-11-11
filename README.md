@@ -92,10 +92,10 @@ $$
 
 Assisted repetitions take $\tau_0$, and partial repetitions take $0.5 \, \tau_0$.
 
-In `calculate_set_fatigue`, per-rep RPE is $\text{RPE}_j = \max(0, 10.0 - \text{RIR}_j)$, and CNS fatigue scales continuously as $\mu(\text{RPE}_j) = 1.1^{\text{RPE}_j - 7.5}$ for all $\text{RPE}_j \ge 0$. Weighted by exercise fatigue factor $F_{\text{ex}}$ (`fatigue`) and load coefficient $K_{\text{load}}$ (`load_coeff`), total set fatigue is:
+In `calculate_set_fatigue`, per-rep RPE is $\text{RPE}_j = \max(0, 10.0 - \text{RIR}_j)$, and CNS fatigue scales continuously as $\mu(\text{RPE}_j) = 1.1^{\text{RPE}_j - 7.5}$ for all $\text{RPE}_j \ge 0$. Weighted by exercise fatigue factor $F_{\text{ex}}$ (`fatigue`), total set fatigue is:
 
 $$
-\Phi_{\text{set}} = F_{\text{ex}} \cdot K_{\text{load}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{7.0 - 7.5} \sum_{a=0}^{n_a - 1} \tau_0 \;+\; \frac{\alpha_{\text{part}}}{0.5} \sum_{p=0}^{n_p - 1} 0.5 \, \tau_0 \right]
+\Phi_{\text{set}} = F_{\text{ex}} \left[ \sum_{j=0}^{n_b - 1} \tau_j \, \mu(\text{RPE}_j) \;+\; \alpha_{\text{ass}} \, 1.1^{7.0 - 7.5} \sum_{a=0}^{n_a - 1} \tau_0 \;+\; \frac{\alpha_{\text{part}}}{0.5} \sum_{p=0}^{n_p - 1} 0.5 \, \tau_0 \right]
 $$
 
 For each logged set with raw load $L_{\text{raw}}$, actual load is $L = L_{\text{raw}} \cdot \text{load\_multiplier} + \text{load\_offset}$, yielding set tonnage $L \cdot R_{\text{tot}}$ and effective tonnage $L \cdot R_{\text{eff}}$ scaled by the queried muscle's `magnitude` coefficient $M_m$.

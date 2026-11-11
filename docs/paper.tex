@@ -44,7 +44,7 @@
 \begin{@twocolumnfalse}
 \maketitle
 \begin{abstract}
-Conventional resistance-training analytics quantify training stress via coarse discrete scalars—raw set counts, repetition totals, and mechanical tonnage ($L \times R$). Such aggregates implicitly assume uniform mechanical tension across the entire Range of Motion (ROM), identical motor-unit recruitment regardless of proximity to muscular failure, and linear fatigue accumulation across repetitions. \textbf{Iron Stats} replaces these scalar heuristics with a unified computational model spanning three layers: (1) \emph{continuous biomechanical tension fields}, parameterizing per-muscle resistance profiles over normalized ROM $x \in [0,1]$ via area-normalized, strictly monotone cubic B\'ezier curves; (2) \emph{physiological load and fatigue dynamics}, modeling High-Threshold Motor Unit (HTMU) recruitment via an RPE-gated effective-repetition threshold, piecewise RIR-dependent concentric Time Under Tension (TUT) slowdown, and continuous exponential central nervous system (CNS) fatigue; and (3) \emph{constrained combinatorial optimization}, synthesizing balanced multi-day mesocycles via Monte Carlo scale calibration and scalarized Simulated Annealing. We present a numerical analysis comparing Lagrange interpolation, $C^2$ natural cubic splines, and Bernstein-basis cubic B\'ezier curves on empirical exercise profiles—explicitly separating boundary jump discontinuities from smooth interior interpolation errors—and prove why B\'ezier convex-hull containment and $\mathcal{O}(1)$ De Casteljau evaluation eliminate non-physical negative tension while supporting $\mathcal{O}(h^2)$ trapezoidal magnitude conservation.
+Conventional resistance-training analytics quantify training stress via coarse discrete scalars—raw set counts, repetition totals, and mechanical tonnage ($L \times R$). Such aggregates implicitly assume uniform mechanical tension across the entire Range of Motion (ROM), identical motor-unit recruitment regardless of proximity to muscular failure, and linear fatigue accumulation across repetitions. \textbf{Iron Stats} replaces these scalar heuristics with a unified computational model spanning three layers: (1) \emph{continuous biomechanical tension fields}, parameterizing per-muscle resistance profiles over normalized ROM $x \in [0,1]$ via area-normalized parametric cubic B\'ezier curves with strictly monotone ROM coordinate $x(t)$; (2) \emph{physiological load and fatigue dynamics}, modeling High-Threshold Motor Unit (HTMU) recruitment via an RPE-gated effective-repetition threshold, piecewise RIR-dependent concentric Time Under Tension (TUT) slowdown, and continuous exponential central nervous system (CNS) fatigue; and (3) \emph{constrained combinatorial optimization}, synthesizing balanced multi-day mesocycles via Monte Carlo scale calibration and scalarized Simulated Annealing. We present a numerical analysis comparing Lagrange interpolation, $C^2$ natural cubic splines, and Bernstein-basis cubic B\'ezier curves on empirical exercise profiles—explicitly separating boundary discontinuities from smooth interior interpolation errors—and prove why B\'ezier convex-hull containment and $\mathcal{O}(1)$ Bernstein/De Casteljau evaluation eliminate non-physical negative tension while supporting $\mathcal{O}(h^2)$ trapezoidal magnitude conservation.
 \end{abstract}
 \vspace{0.8em}
 \end{@twocolumnfalse}
@@ -84,26 +84,26 @@ Each exercise targets an anatomical sub-muscle set $\mathcal{M}_e = \{m_1, \dots
   \sum_{m \in \mathcal{M}_e} M_{e,m} = 1.0,
   \label{eq:partition}
 \end{equation}
-automatically re-normalizing $M_{e,m} \leftarrow \mathrm{round}(M_{e,m} / \sum_j M_{e,j}, 4)$ whenever $\lvert \sum_m M_{e,m} - 1.0 \rvert > 10^{-4}$ (accounting for IEEE-754 floating-point tolerances across the 61-exercise JSON catalog).
+automatically re-normalizing $M_{e,m} \leftarrow M_{e,m} / \sum_j M_{e,j}$ whenever $\lvert \sum_m M_{e,m} - 1.0 \rvert > 10^{-4}$ (preserving exact IEEE-754 floating-point summation across the 61-exercise JSON catalog and \texttt{override:} directives).
 
 \section{Numerical Analysis of Tension Profiles}
 \label{sec:numerical}
 
 Representing muscle tension $y(x)$ across normalized ROM $x \in [0, 1]$ requires a functional basis that is parsimonious for interactive editing, smooth, numerically stable, and physically non-negative ($y(x) \ge 0$, as skeletal muscle cannot generate repulsive active tension). We evaluate three candidate numerical frameworks on the \texttt{LR} (\emph{Lateral Deltoid}) reference profile defined in \texttt{defaultExercises.json} ($P_0=(0.20, 0.00)$, $P_1=(0.33, 0.30)$, $P_2=(0.66, 0.80)$, $P_3=(0.90, 1.00)$, $M = 0.90$).
 
-The reference \texttt{LR} profile is $y(x) = 0$ for $x < x_0$ and $x > x_3$, with $y(x_3^-) = 1.0$ and $y(x_3^+) = 0.0$ (and analogously a slope discontinuity at $x_0 = 0.20$). Any continuous global interpolant (Lagrange or $C^2$ cubic spline) on $[0, 1]$ must therefore exhibit a Gibbs-like overshoot near $x_3$—and undershoot near $x_0$—independent of node spacing. The large oscillations visible in full-domain plots across $x \in [0.8, 1.0]$ are \emph{Gibbs oscillations driven by the discontinuity}, not Runge oscillations driven by node clustering. To isolate pure approximation error from the discontinuity, each comparison below pairs the full domain $[0, 1]$ with a restricted smooth interior domain $[x_0 + \delta, x_3 - \delta] = [0.25, 0.85]$ ($\delta = 0.05$).
+The reference \texttt{LR} profile is $y(x) = 0$ for $x < x_0$ and $x > x_3$, with $y(x_3^-) = 1.0$ and $y(x_3^+) = 0.0$ (a jump discontinuity at $x_3$) and a $C^0$ slope corner at $x_0 = 0.20$ ($y(x_0^-) = y(x_0^+) = 0$, $y'(x_0^+) \approx 2.31$). Any continuous global interpolant (Lagrange or $C^2$ cubic spline) on $[0, 1]$ must therefore exhibit a Gibbs-like overshoot near $x_3$—and oscillatory ripples across $[0, x_0]$—independent of node spacing; on equispaced nodes, exponential Lebesgue amplification (the Runge effect) further magnifies boundary errors relative to clustered Chebyshev nodes. To isolate pure approximation error from the boundary discontinuities, each comparison below pairs the full domain $[0, 1]$ with a restricted smooth interior domain $[x_0 + \delta, x_3 - \delta] = [0.25, 0.85]$ ($\delta = 0.05$).
 
 \subsection{Lagrange Interpolation and Runge vs.\ Gibbs Effects}
 Given $n$ sampled ROM-tension nodes $\{(x_i, y_i)\}_{i=1}^n$, the unique degree-$(n-1)$ global interpolating polynomial is
 \begin{equation}
   p_{n-1}(x) = \sum_{i=1}^{n} y_i \ell_i(x), \qquad \ell_i(x) = \prod_{\substack{j=1 \\ j \ne i}}^{n} \frac{x - x_j}{x_i - x_j}.
 \end{equation}
-On uniform nodes, the Vandermonde system $V\mathbf{a} = \mathbf{y}$ reaches condition number $\kappa(V) = 2.01 \times 10^6$ at $n=9$, and the Lebesgue constant grows exponentially as $\Lambda_n \sim \mathcal{O}(2^n)$. On the full domain $[0, 1]$, equispaced Lagrange interpolation ($n=9$) yields $L^\infty$ error $0.960$, dominated by the jump at $x_3 = 0.90$ and resting-zone ripples in $[0, 0.20]$. On the restricted smooth interior $[0.25, 0.85]$, however, the $L^\infty$ error drops to $2.90 \times 10^{-5}$ (Fig.~\ref{fig:runge}).
+On uniform nodes, solving in the monomial Vandermonde basis ($V\mathbf{a} = \mathbf{y}$, as used by \texttt{numpy.polyfit}) reaches condition number $\kappa(V) = 2.01 \times 10^6$ at $n=9$, while the equispaced Lebesgue constant itself grows exponentially as $\Lambda_n \sim \frac{2^{n}}{e(n-1)\ln(n-1)}$ (avoided in evaluation only via barycentric weights, not basis choice). On the full domain $[0, 1]$, equispaced Lagrange interpolation ($n=9$) yields $L^\infty$ error $0.960$, dominated by the jump at $x_3 = 0.90$ and resting-zone ripples in $[0, 0.20]$. On the restricted smooth interior $[0.25, 0.85]$, however, the $L^\infty$ error drops to $2.89 \times 10^{-5}$ (Fig.~\ref{fig:runge}).
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.96\textwidth]{lagrange_runge.png}
-  \caption{Lagrange interpolation ($n=9$ equispaced nodes) on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs overshoot at $x_3 = 0.90$ and resting-zone oscillations ($L^\infty = 0.960$, $\kappa(V) = 2.01 \times 10^6$). Right: restricted domain $[0.25, 0.85]$ ($\delta = 0.05$), isolating smooth interior error ($L^\infty = 2.90 \times 10^{-5}$).}
+  \caption{Lagrange interpolation ($n=9$ equispaced nodes) on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs overshoot at $x_3 = 0.90$ and resting-zone oscillations ($L^\infty = 0.960$, monomial $\kappa(V) = 2.01 \times 10^6$). Right: restricted domain $[0.25, 0.85]$ ($\delta = 0.05$), isolating smooth interior error ($L^\infty = 2.89 \times 10^{-5}$).}
   \label{fig:runge}
 \end{figure*}
 
@@ -111,12 +111,12 @@ Replacing equispaced nodes with Chebyshev--Gauss--Lobatto (CGL) nodes mapped to 
 \begin{equation}
   x_k = a + \frac{b - a}{2}\left(1 - \cos\frac{k\pi}{N - 1}\right), \qquad k = 0, \dots, N-1,
 \end{equation}
-reduces Lebesgue growth to $\Lambda_N \sim \frac{2}{\pi}\ln N + \mathcal{O}(1)$. On the smooth interior $[0.25, 0.85]$, CGL achieves $L^\infty = 2.07 \times 10^{-4}$ ($N=6$) and $5.42 \times 10^{-7}$ ($N=12$). Yet on the full physical domain $[0, 1]$, global coupling still yields $L^\infty = 0.988$ ($N=6$) and $0.804$ ($N=12$) with negative dips ($y(x) < 0$) in the resting zone $x \in [0, 0.2]$ (Fig.~\ref{fig:cgl}), making polynomial interpolation unsuitable for bounded-support exercise profiles.
+suppresses the Runge phenomenon and reduces Lebesgue growth to $\Lambda_N = \frac{2}{\pi}\ln N + \mathcal{O}(1)$. On the smooth interior $[0.25, 0.85]$, CGL achieves $L^\infty = 2.07 \times 10^{-4}$ ($N=6$) and $4.90 \times 10^{-7}$ ($N=12$). Yet on the full physical domain $[0, 1]$, global coupling across the discontinuity at $x_3$ still yields $L^\infty = 0.988$ ($N=6$) and $0.804$ ($N=12$) with negative dips ($y(x) < 0$) in the resting zone $x \in [0, 0.2]$ (Fig.~\ref{fig:cgl}), making polynomial interpolation unsuitable for bounded-support exercise profiles.
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.96\textwidth]{lagrange_gauss_lobatto.png}
-  \caption{Chebyshev--Gauss--Lobatto interpolation ($N=6, 12$) on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs error at $x_3$ and negative ripples in $x \in [0, 0.2]$ ($L^\infty = 0.988$ for $N=6$, $0.804$ for $N=12$). Right: restricted domain $[0.25, 0.85]$ ($L^\infty = 2.07 \times 10^{-4}$ and $5.42 \times 10^{-7}$).}
+  \caption{Chebyshev--Gauss--Lobatto interpolation ($N=6, 12$) on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs error at $x_3$ and negative ripples in $x \in [0, 0.2]$ ($L^\infty = 0.988$ for $N=6$, $0.804$ for $N=12$). Right: restricted domain $[0.25, 0.85]$ ($L^\infty = 2.07 \times 10^{-4}$ and $4.90 \times 10^{-7}$).}
   \label{fig:cgl}
 \end{figure*}
 
@@ -167,11 +167,11 @@ Furthermore, $\mathbf{P}(t)$ is evaluated stably in $\mathcal{O}(1)$ time withou
 \end{align*}
 where $\mathbf{R}_0(t)\mathbf{R}_1(t)$ gives the exact tangent direction and endpoints obey $\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)$ and $\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)$.
 
-While \texttt{BezierProfile.get\_curve} evaluates~\eqref{eq:bx}--\eqref{eq:by} directly over $t \in [0, 1]$, querying tension at a physical ROM coordinate $x_{\mathrm{target}} \in [x_0, x_3]$ requires inverting $x(t^*) = x_{\mathrm{target}}$ (implemented in \texttt{models.py::BezierProfile.solve\_y} and \texttt{helpers.js::solveBezierY}). The inversion $x(t^*) = x_{\mathrm{target}}$ is well-posed only if $x_0 < x_1 < x_2 < x_3$; under this condition $x'(t) > 0$ on $(0, 1)$, so $x(t)$ is strictly increasing on $[0, 1]$ and $t^*$ is unique. This precondition is enforced at load and edit time in \texttt{BezierProfile.\_\_post\_init\_\_}, \texttt{WorkoutSolver} (\texttt{solver.js}), \texttt{solveBezierY}, and \texttt{BezierEditor.jsx}, and across all 61 exercises in \texttt{defaultExercises.json}. After $K$ bisection iterations on $t \in [0, 1]$,
+While \texttt{BezierProfile.get\_curve} evaluates~\eqref{eq:bx}--\eqref{eq:by} directly over $t \in [0, 1]$, querying tension at a physical ROM coordinate $x_{\mathrm{target}} \in [x_0, x_3]$ requires inverting $x(t^*) = x_{\mathrm{target}}$ (implemented in \texttt{models.py::BezierProfile.solve\_y} and \texttt{helpers.js::solveBezierY}). Requiring $x_0 < x_1 < x_2 < x_3$ is a clean \emph{sufficient} (though not necessary) condition for strict monotonicity: since $x'(t) = 3(1-t)^2(x_1 - x_0) + 6(1-t)t(x_2 - x_1) + 3t^2(x_3 - x_2)$ is a convex combination of strictly positive increments, $x'(t) > 0$ on $[0, 1]$ and $t^*$ is unique. This invariant is enforced at load and edit time in \texttt{BezierProfile.\_\_post\_init\_\_}, \texttt{parser.py} (\texttt{override:} handling), \texttt{WorkoutSolver} (\texttt{solver.js}), \texttt{solveBezierY}, and \texttt{BezierEditor.jsx}, and holds across all 61 exercises in \texttt{defaultExercises.json}. After $K$ bisection updates on $t \in [0, 1]$ (without early exit),
 \begin{equation}
-  \lvert t^{(K)} - t^* \rvert \le 2^{-K}, \quad \lvert x(t^{(K)}) - x_{\mathrm{target}} \rvert \le 2^{-K} \max_{[0,1]} \lvert x'(t) \rvert,
+  \lvert t^{(K)} - t^* \rvert \le 2^{-(K+1)}, \quad \lvert x(t^{(K)}) - x_{\mathrm{target}} \rvert \le 2^{-(K+1)} \max_{[0,1]} \lvert x'(t) \rvert.
 \end{equation}
-so bounding $t$ controls $x$-error up to the local slope $\lvert x'(t) \rvert$; both \texttt{solve\_y} and \texttt{solveBezierY} run up to $K = 30$ iterations with early exit at $\lvert x(t^{(k)}) - x_{\mathrm{target}} \rvert < 10^{-6}$. Fig.~\ref{fig:bernstein}, Fig.~\ref{fig:comparison}, and Table~\ref{tab:comparison} summarize the Bernstein basis and method comparison.
+Both \texttt{solve\_y} and \texttt{solveBezierY} run up to $K = 30$ iterations with early exit at $\lvert x(t^{(k)}) - x_{\mathrm{target}} \rvert < 10^{-6}$, so upon early exit the residual tension error satisfies $\lvert y(t^{(k)}) - y(t^*) \rvert \lesssim 10^{-6} \lvert y'(t^*) / x'(t^*) \rvert$. Fig.~\ref{fig:bernstein}, Fig.~\ref{fig:comparison}, and Table~\ref{tab:comparison} summarize the Bernstein basis and method comparison.
 
 \begin{figure}[t]
   \centering
@@ -190,23 +190,23 @@ so bounding $t$ controls $x$-error up to the local slope $\lvert x'(t) \rvert$; 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.96\textwidth]{bezier_comparison.png}
-  \caption{Synoptic comparison on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs overshoot at $x_3 = 0.90$ for continuous global interpolants. Right: restricted domain $[0.25, 0.85]$ ($\delta = 0.05$), isolating smooth interior errors ($L^\infty = 6.28 \times 10^{-5}$ for Lagrange $d=7$, $2.46 \times 10^{-3}$ for $C^2$ spline).}
+  \caption{Synoptic comparison on \texttt{LR}. Left: full domain $[0, 1]$, showing Gibbs overshoot at $x_3 = 0.90$ for continuous global interpolants. Right: restricted domain $[0.25, 0.85]$ ($\delta = 0.05$), isolating smooth interior errors ($L^\infty = 6.29 \times 10^{-5}$ for Lagrange $d=7$, $2.46 \times 10^{-3}$ for $C^2$ spline).}
   \label{fig:comparison}
 \end{figure*}
 
 \begin{table}[t]
   \centering
-  \caption{Numerical properties of ROM tension approximations.}
+  \caption{Numerical properties of ROM tension approximations (per-point evaluation cost).}
   \label{tab:comparison}
   \scriptsize
-  \setlength{\tabcolsep}{4pt}
+  \setlength{\tabcolsep}{3.5pt}
   \begin{tabular}{@{}lcccc@{}}
     \toprule
-    \textbf{Method} & \textbf{Params} & \textbf{Cost} & \textbf{$y(x)\!\ge\!0$} & \textbf{Support $[x_0,x_3]$} \\
+    \textbf{Method} & \textbf{Params} & \textbf{Query Cost} & \textbf{$y(x)\!\ge\!0$} & \textbf{Support $[x_0,x_3]$} \\
     \midrule
-    Lagrange (Equi.) & $n$ nodes & $\mathcal{O}(n^2)$ & No & Gibbs at jump \\
-    Lagrange (CGL) & $N\!\ge\!12$ & $\mathcal{O}(n\log n)$ & No & Resting ripples \\
-    Natural $C^2$ Spline & $N$ knots & $\mathcal{O}(N)$ & No & Undershoot $x_0$ \\
+    Lagrange (Equi.) & $n$ nodes & $\mathcal{O}(n)$ (bary.) & No & Gibbs + Runge \\
+    Lagrange (CGL) & $N$ nodes & $\mathcal{O}(N)$ (bary.) & No & Resting ripples \\
+    Natural $C^2$ Spline & $N$ knots & $\mathcal{O}(\log N)$ & No & Undershoot $x_0$ \\
     \textbf{Cubic B\'ezier} & \textbf{4 pts} & $\bm{\mathcal{O}(1)}$ & \textbf{Yes} & \textbf{Exact $[x_0,x_3]$} \\
     \bottomrule
   \end{tabular}
@@ -217,15 +217,15 @@ To conserve muscle contribution magnitude $M_{e,m}$ under arbitrary control-poin
 \begin{equation}
   I_{\mathrm{trap}} = \sum_{k=0}^{R-2} \frac{y(t_k) + y(t_{k+1})}{2}\,\Delta x_k.
 \end{equation}
-Because $t_k$ is uniform while $x(t_k)$ is \emph{non-uniformly spaced}, the classical uniform-grid formula $-\frac{(x_3 - x_0)^3}{12(R-1)^2} y''(\xi)$ does \emph{not} apply. Under strict monotonicity ($x_0 < x_1 < x_2 < x_3$, ensuring $\Delta x_k > 0$), the truncation error over non-uniform nodes is
+Because $t_k$ is uniform while $x(t_k)$ is \emph{non-uniformly spaced}, the classical uniform-grid formula $-\frac{(x_3 - x_0)^3}{12(R-1)^2} y''(\xi)$ does \emph{not} apply. Under strict monotonicity ($x_0 < x_1 < x_2 < x_3$, ensuring $\Delta x_k > 0$), the quadrature error $E_{\mathrm{trap}} = I_{\mathrm{exact}} - I_{\mathrm{trap}}$ over non-uniform nodes is
 \begin{equation}
   E_{\mathrm{trap}} = -\frac{1}{12} \sum_{k=0}^{R-2} y''(\xi_k)\,(\Delta x_k)^3,
 \end{equation}
-with $\xi_k \in [x(t_k), x(t_{k+1})]$, or equivalently in terms of the parametric integrand $g(t) = y(t)x'(t)$ with uniform step $h = 1/(R-1)$,
+with $\xi_k \in [x(t_k), x(t_{k+1})]$ and $y'' = d^2y/dx^2$. Substituting $\Delta x_k = h x'(t_{k+1/2}) + \mathcal{O}(h^3)$ and $y''(x) = \bigl(y''(t)x'(t) - y'(t)x''(t)\bigr)/(x'(t))^3$ yields the $\mathcal{O}(h^2)$ parametric asymptotic expansion
 \begin{equation}
-  E_{\mathrm{trap}} = -\frac{h^2}{12} \int_0^1 g''(t)\,dt + \mathcal{O}(h^4).
+  E_{\mathrm{trap}} = -\frac{h^2}{12} \int_0^1 \bigl(y''(t)x'(t) - y'(t)x''(t)\bigr)\,dt + \mathcal{O}(h^4),
 \end{equation}
-The curve is then rescaled as $B_{e,m}(x) = y(t^*(x)) \cdot \frac{M_{e,m}}{I_{\mathrm{trap}}}$ for $x \in [x_0, x_3]$ (or $0$ if $I_{\mathrm{trap}} \le 0$ or $x \notin [x_0, x_3]$), guaranteeing discrete area conservation on the parametric quadrature grid and continuous convergence to $M_{e,m} + \mathcal{O}(h^2)$.
+which equals $2.31 \times 10^{-5}$ on \texttt{LR} ($R=50$). (Note that $I_{\mathrm{trap}}$ differs from applying the trapezoidal rule directly to $g(t) = y(t)x'(t)$, and since $y(t)x'(t)$ is a degree-5 polynomial, exact integration could alternatively be obtained in closed form or via 3-point Gauss--Legendre quadrature.) The curve is rescaled by $M_{e,m} / I_{\mathrm{trap}}$ for $x \in [x_0, x_3]$ (or $0$ if $I_{\mathrm{trap}} \le 0$ or $x \notin [x_0, x_3]$), guaranteeing discrete area conservation on the parametric quadrature grid and continuous convergence to $M_{e,m} + \mathcal{O}(h^2)$.
 
 \section{Physiological Dynamics \texorpdfstring{\&}{and} Optimization}
 \label{sec:metrics_solver}
@@ -251,19 +251,19 @@ In \texttt{metrics.py} (\texttt{calculate\_set\_tuts}), given execution tempo $(
     0.00\,\text{s}, & \mathrm{RIR}_j \ge 5.0,
   \end{cases}
 \end{equation}
-yielding per-rep TUT $\tau_j = \tau_0 + \Delta c(\mathrm{RIR}_j)$ for base reps, $\tau_0$ for assisted reps, and $0.5\tau_0$ for partial reps. Set \texttt{total\_tut} and \texttt{effective\_tut} are computed during logbook ingestion in \texttt{parser.py::analyze\_workout\_log}, where \texttt{effective\_tut} sums over the last $\lfloor n_{b,\mathrm{eff}} + 0.5 \rfloor$ base reps plus all assisted and partial reps.
+yielding per-rep TUT $\tau_j = \tau_0 + \Delta c(\mathrm{RIR}_j)$ for base reps, $\tau_0$ for assisted reps, and $0.5\tau_0$ for partial reps. Set \texttt{total\_tut} and \texttt{effective\_tut} are computed during logbook ingestion in \texttt{parser.py::analyze\_workout\_log} (and on the fly in \texttt{metrics.py::calculate\_metrics} when omitted), where \texttt{effective\_tut} sums continuously over the last $\lfloor n_{b,\mathrm{eff}} \rfloor$ base reps plus $\{n_{b,\mathrm{eff}}\}\,\tau_{n_b - \lfloor n_{b,\mathrm{eff}} \rfloor - 1}$ (when fractional remainder $\{n_{b,\mathrm{eff}}\} > 0$) and all assisted and partial reps.
 
 In \texttt{metrics.py} (\texttt{calculate\_set\_fatigue}), per-rep effort $\mathrm{RPE}_j = \max(0, 10.0 - \mathrm{RIR}_j)$ drives a continuous exponential CNS fatigue multiplier $\mu(\mathrm{RPE}_j) = 1.1^{\mathrm{RPE}_j - 7.5}$ for all $\mathrm{RPE}_j \ge 0$:
 \begin{equation}
 \begin{aligned}
-  \Phi_{\mathrm{set}} = F_{\mathrm{ex}} K_{\mathrm{load}} \Biggl[ &\sum_{j=0}^{n_b-1} \tau_j \, 1.1^{\mathrm{RPE}_j - 7.5} \\
+  \Phi_{\mathrm{set}} = F_{\mathrm{ex}} \Biggl[ &\sum_{j=0}^{n_b-1} \tau_j \, 1.1^{\mathrm{RPE}_j - 7.5} \\
   &+ \alpha_{\mathrm{ass}} 1.1^{-0.5} n_a \tau_0 + \alpha_{\mathrm{part}} n_p \tau_0 \Biggr],
 \end{aligned}
 \end{equation}
-where $F_{\mathrm{ex}} = f_{\mathrm{base}}$ and $K_{\mathrm{load}} = c_{\mathrm{load}}$. All set-level volume, tonnage ($L R_{\mathrm{tot}}$), weighted tonnage ($L R_{\mathrm{tot}} c_{\mathrm{load}}$), TUT, and fatigue totals are projected onto queried macro- or sub-muscles via $M_{e,m}$ in \texttt{metrics.py::calculate\_metrics}.
+where $F_{\mathrm{ex}} = f_{\mathrm{base}}$ (note that $c_{\mathrm{load}}$ scales weighted tonnage, not $\Phi_{\mathrm{set}}$, preventing low-$c_{\mathrm{load}}$ heavy compounds like \texttt{Squat} and \texttt{Deadlift} from scoring lower fatigue than light isolations). All set-level volume, tonnage ($L R_{\mathrm{tot}}$), weighted tonnage ($L R_{\mathrm{tot}} c_{\mathrm{load}}$), TUT, and fatigue totals are projected onto queried macro- or sub-muscles via $M_{e,m}$ in \texttt{metrics.py::calculate\_metrics}.
 
 \subsection{Constrained Multi-Objective Combinatorial Solver}
-In \texttt{solver.py} (\texttt{WorkoutSolver}), a candidate mesocycle $x \in \mathcal{X}$ assigns $D$ training days, each containing $N_d \in [N_{\min}, N_{\max}]$ exercises, $S_{d,e} \in [S_{\min}, S_{\max}]$ sets, base reps $r \in [r_{\min}, r_{\max}]$, $\mathrm{RPE} \in \{7.0, 8.0, 8.5, 9.0, 10.0\}$ (mutated within $[5.0, 10.0]$), and stretched-ROM partials $p \in \{0, 2, 4, 6\}$ (enabled when $\mathrm{RPE} \ge 9.0$). Let $x_i = i / (R - 1)$, $i = 0, \dots, R - 1$ ($R = 50$), be a uniform grid on physical ROM $[0, 1]$. For each exercise $e$, let $t_{e,i} = x_e^{-1}(x_i)$ be the inverted parameter when $x_i \in [x_{0,e}, x_{3,e}]$, evaluated via \texttt{BezierProfile.get\_physical\_curve}. Writing $N_{b,e} = \sum_{s \in e} n_{b,e,s}$ and $N_{p,e} = \sum_{s \in e} n_{p,e,s}$ for exercise-level rep sums over sets, the aggregate tension curve for muscle $m$ is
+In \texttt{solver.py} (\texttt{WorkoutSolver}), a candidate mesocycle $x \in \mathcal{X}$ assigns $D$ training days, each containing $N_d \in [N_{\min}, N_{\max}]$ exercises, $S_{d,e} \in [S_{\min}, S_{\max}]$ sets, base reps $r \in [r_{\min}, r_{\max}]$, $\mathrm{RPE} \in \{7.0, 8.0, 8.5, 9.0, 10.0\}$ (mutated within $[5.0, 10.0]$), and stretched-ROM partials $p \in \{0, 2, 4, 6\}$ (enabled only when $\mathrm{RPE} \ge 9.0$, cleared if mutation lowers $\mathrm{RPE} < 9.0$). Let $x_i = i / (R - 1)$, $i = 0, \dots, R - 1$ ($R = 50$), be a uniform grid on physical ROM $[0, 1]$. For each exercise $e$, let $t_{e,i} = x_e^{-1}(x_i)$ be the inverted parameter when $x_i \in [x_{0,e}, x_{3,e}]$, evaluated via \texttt{BezierProfile.get\_physical\_curve}. Writing $N_{b,e} = \sum_{s \in e} n_{b,e,s}$ and $N_{p,e} = \sum_{s \in e} n_{p,e,s}$ for exercise-level rep sums over sets, the aggregate tension curve for muscle $m$ is
 \begin{equation}
   V_m(x_i) = \sum_{d=1}^{D} \sum_{e \in x_d} B_{e,m}(x_i) \bigl( N_{b,e} + \alpha_{\mathrm{part}} N_{p,e} \chi_{\mathrm{part}}(x_i) \bigr),
   \label{eq:agg_curve}
@@ -274,7 +274,7 @@ where $\chi_{\mathrm{part}}(x_i) = \mathbb{I}[x_i \le 0.3333]$ restricts partial
 \begin{itemize}
   \item \emph{Load:} $\hat{L} = \mu_{\mathrm{load}} \frac{100.0}{1.0 + 0.033\,n_b} + q_{\mathrm{load}}$ (Epley-like 1RM scaling).
   \item \emph{TUT:} constant $2.0\,\mathrm{s/rep}$, i.e.\ $\mathrm{TUT}_{\mathrm{tot}} = 2.0 R_{\mathrm{tot}}$ and $\mathrm{TUT}_{\mathrm{eff}} = 2.0 R_{\mathrm{eff}}$. Because the factor $2.0$ cancels in $\mathrm{TUT}_{\mathrm{eff}}/\mathrm{TUT}_{\mathrm{tot}}$, $E_{\mathrm{tut}} \equiv E_{\mathrm{vol}}$ identically during search.
-  \item \emph{Fatigue:} linear $0.01 R_{\mathrm{tot}} \hat{L} f_{\mathrm{base}} c_{\mathrm{load}}$, omitting exponential RPE scaling and dynamic TUT.
+  \item \emph{Fatigue:} linear $R_{\mathrm{tot}} f_{\mathrm{base}}$, omitting exponential RPE scaling and dynamic TUT while preserving the $[1, 10]$ exercise fatigue ordering.
 \end{itemize}
 
 Letting $\hat{V}_m(x_i) = V_m(x_i)/\max_r V_m(x_r)$, seven dimensionless error metrics $\mathcal{I} = \{\mathrm{curve}, \mathrm{vol}, \mathrm{ton}, \mathrm{tut}, \mathrm{distr}, \mathrm{variety}, \mathrm{balance}\}$ evaluate mesocycle quality:
@@ -285,9 +285,9 @@ Letting $\hat{V}_m(x_i) = V_m(x_i)/\max_r V_m(x_r)$, seven dimensionless error m
   E_{\mathrm{variety}} &= \left( 1 - \frac{|\mathcal{U}(x)|}{N_{\mathrm{tot}}(x)} \right)^2, \\
   E_{\mathrm{balance}} &= \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(V_d)}{(V_{\max}/2)^2} \right),
 \end{align}
-where $T_m \in \{\mathrm{constant}, \mathrm{sigmoid}, \mathrm{inv\_sigmoid}, \mathrm{linear}\}$, default $\rho_q^* = 0.70$, $p_m^{\mathrm{target}}$ is the user-configured target share from \texttt{volume\_dist}, $p_m^{\mathrm{actual}} = V_m / \sum_{m'} V_{m'}$ is the actual share of effective muscle-weighted total volume, $\mathrm{Var}_d(\cdot)$ denotes the population variance (\texttt{np.var}, $\mathrm{ddof}=0$) across days $d = 1,\dots,D$, $F_{\max} = 15\,N_{\max} S_{\max} r_{\max}$, and $V_{\max} = N_{\max} S_{\max} r_{\max}$.
+where $T_m \in \{\mathrm{constant}, \mathrm{sigmoid}, \mathrm{inv\_sigmoid}, \mathrm{linear}\}$ (mapped across macro/sub-muscles via \texttt{MUSCLES} when sub-shares are omitted), default $\rho_q^* = 0.70$, $p_m^{\mathrm{target}}$ is the user-configured target share from \texttt{volume\_dist}, $p_m^{\mathrm{actual}} = V_m / \sum_{m'} V_{m'}$ is the actual share of muscle-weighted total volume ($R_{\mathrm{tot}}$), $\mathrm{Var}_d(\cdot)$ denotes the population variance (\texttt{np.var}, $\mathrm{ddof}=0$) across days $d = 1,\dots,D$, $V_{\max} = N_{\max} S_{\max} (r_{\max} + 6 \alpha_{\mathrm{part}})$, and $F_{\max} = 10\,V_{\max}$.
 
-Prior to optimization, \texttt{calibrate()} estimates normalization denominators via the empirical sample mean $\hat{\mu}_i = \frac{1}{K}\sum_{r=1}^{K} E_i(x^{(r)})$ over $K = 500$ random states, setting $s_i = 2 \hat{\mu}_i$ (with $\mathcal{O}(K^{-1/2})$ sampling variance and zero-guard $s_i \leftarrow 10^{-6}$ if $s_i = 0$). \texttt{solve()} then minimizes
+Prior to optimization, \texttt{calibrate()} estimates normalization denominators via the empirical sample mean $\hat{\mu}_i = \frac{1}{K}\sum_{r=1}^{K} E_i(x^{(r)})$ over $K = 500$ random states, setting $s_i = 2 \hat{\mu}_i$ (with $\mathcal{O}(K^{-1/2})$ standard error, $\mathcal{O}(K^{-1})$ sampling variance, and zero-guard $s_i \leftarrow 10^{-6}$ if $s_i = 0$). \texttt{solve()} then minimizes
 \begin{equation}
   \min_{x \in \mathcal{X}}\; J(x) = 10^4 \sum_{i \in \mathcal{I}} w_i \frac{E_i(x)}{s_i} + 10^3 \, P_{\mathrm{dup}}(x),
 \end{equation}
@@ -296,6 +296,6 @@ where $P_{\mathrm{dup}}(x) = 150 \cdot N_{\mathrm{dup}}(x)$ penalizes same-day d
 \section{Conclusions \texorpdfstring{\&}{and} Software Architecture}
 \label{sec:conclusions}
 
-Iron Stats replaces scalar training logs with strictly monotone, Bernstein-basis B\'ezier tension fields, RIR-aware concentric slowdown, continuous exponential CNS fatigue, and Monte Carlo calibrated Simulated Annealing. The Python analyzer (\texttt{python\_research/analyzer/}, packaged via \texttt{pyproject.toml} and \texttt{requirements.txt} with \texttt{numpy} as sole runtime dependency) and the React/Vite/Capacitor frontend (\texttt{frontend/}) share the same B\'ezier curve definition~\eqref{eq:bezier}--\eqref{eq:by} and the same solver objective. They differ intentionally in two client-UI implementation details: (i) the analyzer and solver integrate $\int y\,dx$ parametrically over $t$ by the trapezoidal rule, whereas the dashboard chart (\texttt{DashboardTab.jsx}) samples $y$ on a $51$-point uniform $x$-grid and normalizes by a Riemann sum with $1/50$ spacing (agreeing within $\sim 10^{-2}$ on \texttt{LR}, verified by automated parity tests); and (ii) the interactive curve editor (\texttt{BezierEditor.jsx}) normalizes its SVG preview by peak height $y / \max y$ rather than area. Future work will collect longitudinal training datasets to empirically calibrate weights $w_i$ and integrate IMU or computer-vision kinematics to refine exercise-specific $B_{e,m}(x)$ profiles.
+Iron Stats replaces scalar training logs with Bernstein-basis B\'ezier tension fields having strictly monotone ROM coordinate $x(t)$, RIR-aware concentric slowdown, continuous exponential CNS fatigue, and Monte Carlo calibrated Simulated Annealing. The Python analyzer (\texttt{python\_research/analyzer/}, packaged via \texttt{pyproject.toml} and \texttt{requirements.txt} with \texttt{numpy} as sole runtime dependency) and the React/Vite/Capacitor frontend (\texttt{frontend/}) share the same B\'ezier curve definition~\eqref{eq:bezier}--\eqref{eq:by} and the same solver objective. They differ intentionally in two client-UI implementation details: (i) the analyzer and solver integrate $\int y\,dx$ parametrically over $t$ by the trapezoidal rule, whereas the dashboard chart (\texttt{DashboardTab.jsx}) samples $y$ on a $51$-point uniform $x$-grid and normalizes by the composite trapezoidal rule with $1/50$ spacing (agreeing closely on \texttt{LR}, verified by automated parity tests); and (ii) the interactive curve editor (\texttt{BezierEditor.jsx}) normalizes its SVG preview by peak height $y / \max y$ rather than area. Future work will collect longitudinal training datasets to empirically calibrate weights $w_i$ and integrate IMU or computer-vision kinematics to refine exercise-specific $B_{e,m}(x)$ profiles.
 
 \end{document}

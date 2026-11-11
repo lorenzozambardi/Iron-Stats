@@ -46,9 +46,9 @@ To ensure that the weights ($w$) assigned by the interface have a perfectly symm
 2.  **Volume Error:** $E_{vol} = \left( \frac{\text{Effective Volume}}{\text{Total Volume}} - Target_{vol} \right)^2$
 3.  **Tonnage Error:** $E_{ton} = \left( \frac{\text{Effective Tonnage}}{\text{Total Tonnage}} - Target_{ton} \right)^2$
 4.  **TUT Error:** $E_{tut} = \left( \frac{\text{Effective TUT}}{\text{Total TUT}} - Target_{tut} \right)^2$
-5.  **Volume Distribution Error:** Divided by 2 (maximum theoretical distance between two percentage distributions)
+5.  **Volume Distribution Error:** Divided by 2 (maximum theoretical squared $\ell_2$ distance between two distributions on the simplex)
     $$ Target_{global}(m) = Macro\%(M) \times Sub\%(m) $$
-    $$ E_{distr} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{effective}(m)}{V_{total}} - Target_{global}(m) \right)^2 $$
+    $$ E_{distr} = \frac{1}{2.0} \sum_{m} \left( \frac{V_{total}(m)}{\sum_{m'} V_{total}(m')} - Target_{global}(m) \right)^2 $$
 6.  **Variety Error:**
     $$ E_{variety} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2 $$
 7.  **Daily Balance Error (Ex-Variance):**
