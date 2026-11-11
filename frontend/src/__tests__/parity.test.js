@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import defaultExercises from '../defaultExercises.json';
-import { bezierArea, solveBezierY } from '../components/helpers';
+import { bezierArea, bezierPartialFraction, solveBezierY } from '../components/helpers';
 import { WorkoutSolver, calculateRest } from '../solver';
-import { calculateMetrics, calculateSetTuts, calculateSetFatigue, parseLogbook } from '../parser';
+import { calculateMetrics, calculateSetTuts, calculateSetFatigue, getExercisesWithOverrides, parseLogbook } from '../parser';
 
 describe('Mathematical invariants and frontend/solver parity', () => {
   it('enforces strict 0 <= x0 < x1 < x2 < x3 <= 1 and y >= 0 across all default exercises', () => {
@@ -136,5 +136,51 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     const fat = calculateSetFatigue(0, 2, 4, 10.0, 1.0, 0.0, 2.0, 0.0, 2.0, 1.0, tuts);
     const expected = (2 * 3.0 * 0.5 + 4 * 1.5 * 0.33) * Math.pow(1.1, 2.5) * 2.0;
     expect(fat).toBeCloseTo(expected, 9);
+  });
+
+  it('computes exact stretched-ROM partial fractions, includes unrepresented targets in E_curve, and guards NaN load_offset', () => {
+    const hlr = defaultExercises.find((e) => e.name === 'Hanging Leg Raises');
+    const absProf = hlr.muscles_distr.Abdominals;
+    const hlrFrac = bezierPartialFraction(
+      absProf.x0, absProf.y0, absProf.x1, absProf.y1, absProf.x2, absProf.y2, absProf.x3, absProf.y3, 0.3333
+    );
+    expect(hlrFrac).toBeGreaterThan(0);
+    expect(hlrFrac).toBeLessThan(0.02);
+
+    const dl = defaultExercises.find((e) => e.name === 'Deadlift');
+    const erProf = dl.muscles_distr.Erectors;
+    expect(bezierPartialFraction(
+      erProf.x0, erProf.y0, erProf.x1, erProf.y1, erProf.x2, erProf.y2, erProf.x3, erProf.y3, 0.3333
+    )).toBe(0);
+
+    // Unrepresented targeted muscle (Wrist Flexors) included in M_eval for E_curve
+    const solver = new WorkoutSolver({
+      days: 1,
+      calibration_steps: 0,
+      volume_dist: {
+        macros: { Forearms: 50, Shoulders: 50 },
+        subs: { Forearms: { 'Wrist Flexors': 100 }, Shoulders: { 'Lateral Deltoid': 100 } }
+      }
+    }, defaultExercises);
+    const lr = defaultExercises.find((e) => e.name === 'LR');
+    const st = { days: [[{ exercise: lr, sets: [{ base_reps: 10, partial_reps: 0, rpe: 9.0, total_reps: 10, effective_reps: 5 }] }]] };
+    solver._return_raw = true;
+    const { rawMetrics } = solver.evaluateWorkout(st);
+    solver._return_raw = false;
+    expect(rawMetrics.curve).toBeGreaterThan(0.5);
+
+    // Macro-only volume_dist without subs falls back cleanly
+    const macroSolver = new WorkoutSolver({
+      days: 1,
+      calibration_steps: 0,
+      volume_dist: { macros: { Chest: 100 }, subs: {} }
+    }, defaultExercises);
+    const macroSum = Object.values(macroSolver.target_sub_vol).reduce((a, b) => a + b, 0);
+    expect(macroSum).toBeCloseTo(1.0, 12);
+
+    // NaN load_offset override is ignored cleanly
+    const overridden = getExercisesWithOverrides('override: LR | load_offset=not_a_number', defaultExercises);
+    const lrOver = overridden.find((e) => e.name === 'LR');
+    expect(lrOver.load_offset).toBe(0);
   });
 });

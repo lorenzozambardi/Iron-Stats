@@ -1,5 +1,5 @@
 import defaultExercises from './defaultExercises.json';
-import { bezierArea, solveBezierY } from './components/helpers';
+import { bezierArea, bezierPartialFraction, solveBezierY } from './components/helpers';
 import { MUSCLES } from './parser';
 
 const COEFF_PARTIAL = 0.33;
@@ -236,14 +236,43 @@ export class WorkoutSolver {
             };
         });
 
+        const macroToSubs = {};
+        for (const [sub, macro] of Object.entries(MUSCLES)) {
+            if (!macroToSubs[macro]) macroToSubs[macro] = [];
+            macroToSubs[macro].push(sub);
+        }
+        const macroToDbSubs = {};
+        for (const ex of this.db) {
+            for (const m in ex.muscles_distr) {
+                const macro = MUSCLES[m];
+                if (macro) {
+                    if (!macroToDbSubs[macro]) macroToDbSubs[macro] = [];
+                    if (!macroToDbSubs[macro].includes(m)) macroToDbSubs[macro].push(m);
+                }
+            }
+        }
+
         this.target_sub_vol = {};
+        const subs_dict = this.config.volume_dist.subs || {};
         if (this.config.volume_dist.macros) {
             for (const macro in this.config.volume_dist.macros) {
                 const m_val = this.config.volume_dist.macros[macro];
-                if (this.config.volume_dist.subs && this.config.volume_dist.subs[macro]) {
-                    for (const sub in this.config.volume_dist.subs[macro]) {
-                        const s_val = this.config.volume_dist.subs[macro][sub];
+                if (m_val <= 0) continue;
+                const macroSubs = subs_dict[macro];
+                if (macroSubs && Object.keys(macroSubs).length > 0) {
+                    for (const sub in macroSubs) {
+                        const s_val = macroSubs[sub];
                         this.target_sub_vol[sub] = (m_val / 100.0) * (s_val / 100.0);
+                    }
+                } else {
+                    const fallbackSubs = (macroToDbSubs[macro] && macroToDbSubs[macro].length > 0)
+                        ? macroToDbSubs[macro]
+                        : (macroToSubs[macro] || []);
+                    if (fallbackSubs.length > 0) {
+                        const share = 1.0 / fallbackSubs.length;
+                        for (const sub of fallbackSubs) {
+                            this.target_sub_vol[sub] = (m_val / 100.0) * share;
+                        }
                     }
                 }
             }
@@ -258,12 +287,6 @@ export class WorkoutSolver {
         }
 
         this.T_m = {};
-        const subs_dict = this.config.volume_dist.subs || {};
-        const macroToSubs = {};
-        for (const [sub, macro] of Object.entries(MUSCLES)) {
-            if (!macroToSubs[macro]) macroToSubs[macro] = [];
-            macroToSubs[macro].push(sub);
-        }
         for (const m in this.config.muscle_targets) {
             if (macroToSubs[m] || (subs_dict[m] && Object.keys(subs_dict[m]).length > 0)) {
                 const curve = getTargetCurve(this.config.muscle_targets[m], this.resolution);
@@ -296,35 +319,32 @@ export class WorkoutSolver {
         this.default_curve = new Float32Array(this.resolution).fill(1);
         this.scales = {};
 
-        // Precompute curves and support flags
+        // Precompute curves and stretched-ROM partial magnitudes
         this.max_ex_fatigue = Math.max(10.0, ...this.db.map(ex => Number(ex.fatigue) || 0));
         this.ex_curves = {};
         this.ex_has_area = {};
-        this.ex_partial_active = {};
+        this.ex_partial_mag = {};
         this.db.forEach(ex => {
             this.ex_curves[ex.name] = {};
             this.ex_has_area[ex.name] = {};
-            this.ex_partial_active[ex.name] = {};
+            this.ex_partial_mag[ex.name] = {};
             for (const m in ex.muscles_distr) {
                 const prof = ex.muscles_distr[m];
                 const phys = getBezierCurve(prof, this.resolution);
                 this.ex_curves[ex.name][m] = phys;
-                this.ex_has_area[ex.name][m] = bezierArea(prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) > 0.0;
-                let partialActive = false;
-                for (let i = 0; i < this.resolution; i++) {
-                    if (phys[i] * this.partial_mask[i] > 0.0) {
-                        partialActive = true;
-                        break;
-                    }
-                }
-                this.ex_partial_active[ex.name][m] = partialActive;
+                const area = bezierArea(prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3);
+                this.ex_has_area[ex.name][m] = area > 0.0;
+                const frac = area > 0.0
+                    ? bezierPartialFraction(prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3, 0.3333)
+                    : 0.0;
+                this.ex_partial_mag[ex.name][m] = prof.magnitude * frac;
             }
         });
 
-        // Pre-allocate evaluation buffers to avoid GC thrashing during SA loop
+        // Pre-allocate evaluation buffers over all tracked/targeted muscles
         this.V_m_buffers = {};
         this.subVols = {};
-        this.all_submuscles.forEach(m => {
+        this.distr_muscles.forEach(m => {
             this.V_m_buffers[m] = new Float32Array(this.resolution);
             this.subVols[m] = 0.0;
         });
@@ -370,7 +390,7 @@ export class WorkoutSolver {
 
         const V_m = this.V_m_buffers;
         const subVols = this.subVols;
-        for (const m of this.all_submuscles) {
+        for (const m of this.distr_muscles) {
             V_m[m].fill(0);
             subVols[m] = 0.0;
         }
@@ -435,10 +455,9 @@ export class WorkoutSolver {
                         }
                     }
                     if (this.ex_has_area[ex.name][m]) {
-                        const muscleReps = exBaseReps + (
-                            this.ex_partial_active[ex.name][m] ? exPartialReps * COEFF_PARTIAL : 0.0
-                        );
-                        subVols[m] += bezierProf.magnitude * muscleReps;
+                        subVols[m] +=
+                            bezierProf.magnitude * exBaseReps
+                            + this.ex_partial_mag[ex.name][m] * (exPartialReps * COEFF_PARTIAL);
                     }
                 }
 

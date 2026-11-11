@@ -290,3 +290,47 @@ def test_extended_rep_fatigue_and_solver_surrogate_consistency() -> None:
     solver._return_raw = False
     # Sternal Head has target > 0 but 0 volume -> must contribute mean(1^2)=1.0, averaged with LR Lateral Deltoid
     assert raw["curve"] > 0.5
+
+
+def test_stretched_partial_magnitude_and_unrepresented_target_ecurve() -> None:
+    # Exact GL3 stretched-ROM integral matches high-res physical-ROM integration
+    hlr = next(e for e in exercises_list if e.name == "Hanging Leg Raises")
+    abs_prof = hlr.muscles_distr["Abdominals"]
+    p_mag = abs_prof.partial_magnitude(0.3333)
+    assert 0.0 < p_mag < 0.02
+
+    dl = next(e for e in exercises_list if e.name == "Deadlift")
+    assert dl.muscles_distr["Erectors"].partial_magnitude(0.3333) == 0.0
+
+    # Target muscle absent from DB (Wrist Flexors) must still be counted in E_curve's M_eval
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.calibration_steps = 0
+    cfg.volume_dist = {
+        "macros": {"Forearms": 50, "Shoulders": 50},
+        "subs": {"Forearms": {"Wrist Flexors": 100}, "Shoulders": {"Lateral Deltoid": 100}},
+    }
+    solver = WorkoutSolver(cfg)
+    lr = next(e for e in exercises_list if e.name == "LR")
+    st = WorkoutState(1)
+    ex = ScheduledExercise(lr)
+    ex.sets = [ScheduledSet(10, 0, 9.0)]
+    st.days[0] = [ex]
+    solver._return_raw = True
+    _, raw = solver.evaluate_workout(st)
+    solver._return_raw = False
+    # Wrist Flexors has target > 0 and 0 volume -> contributes mean(1^2) = 1.0 to M_eval
+    assert raw["curve"] > 0.5
+
+    # Macro-only volume_dist without subs falls back cleanly instead of disabling E_distr
+    cfg_macro = SolverConfig()
+    cfg_macro.days = 1
+    cfg_macro.calibration_steps = 0
+    cfg_macro.volume_dist = {"macros": {"Chest": 100}, "subs": {}}
+    solver_macro = WorkoutSolver(cfg_macro)
+    assert sum(solver_macro.target_sub_vol.values()) == pytest.approx(1.0, abs=1e-12)
+    solver_macro._return_raw = True
+    _, raw_m = solver_macro.evaluate_workout(st)
+    solver_macro._return_raw = False
+    expected_distr = 0.5 * (0.9**2 + 0.1**2 + sum(v**2 for v in solver_macro.target_sub_vol.values()))
+    assert raw_m["distr"] == pytest.approx(expected_distr, abs=1e-12)

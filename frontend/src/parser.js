@@ -92,7 +92,8 @@ export function getExercisesWithOverrides(logText, globalExercises) {
               const parsedVal = parseFloat(val);
               if (!Number.isNaN(parsedVal) && parsedVal > 0.0) exObj.load_multiplier = parsedVal;
             } else if (key === 'load_offset') {
-              exObj.load_offset = parseFloat(val);
+              const parsedVal = parseFloat(val);
+              if (!Number.isNaN(parsedVal)) exObj.load_offset = parsedVal;
             } else if (key === 'is_isolation') {
               exObj.is_isolation = val.toLowerCase() === 'true';
             } else if (key === 'muscles_distr') {

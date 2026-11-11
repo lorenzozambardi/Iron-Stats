@@ -100,13 +100,29 @@ const BezierEditor = ({ value, onChange }) => {
   const { pathD, normalizedPathD } = useMemo(() => {
     const rawPath = `M ${toSvgX(p0.x)} ${toSvgY(p0.y)} C ${toSvgX(p1.x)} ${toSvgY(p1.y)}, ${toSvgX(p2.x)} ${toSvgY(p2.y)}, ${toSvgX(p3.x)} ${toSvgY(p3.y)}`;
 
-    let maxY = 0;
-    const resolution = 50;
-    for (let i = 0; i <= resolution; i++) {
-      const t = i / resolution;
-      const y = Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * Math.pow(t, 2) * p2.y + Math.pow(t, 3) * p3.y;
-      if (y > maxY) maxY = y;
+    const evalY = (t) => {
+      const u = 1 - t;
+      return u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y;
+    };
+    let maxY = Math.max(evalY(0), evalY(1));
+    const cDeriv = p1.y - p0.y;
+    const bDeriv = p2.y - 2 * p1.y + p0.y;
+    const aDeriv = p3.y - 3 * p2.y + 3 * p1.y - p0.y;
+    if (Math.abs(aDeriv) < 1e-12) {
+      if (Math.abs(bDeriv) > 1e-12) {
+        const tRoot = -cDeriv / (2 * bDeriv);
+        if (tRoot > 0 && tRoot < 1) maxY = Math.max(maxY, evalY(tRoot));
+      }
+    } else {
+      const disc = bDeriv * bDeriv - aDeriv * cDeriv;
+      if (disc >= 0) {
+        const sqrtDisc = Math.sqrt(disc);
+        for (const tRoot of [(-bDeriv - sqrtDisc) / aDeriv, (-bDeriv + sqrtDisc) / aDeriv]) {
+          if (tRoot > 0 && tRoot < 1) maxY = Math.max(maxY, evalY(tRoot));
+        }
+      }
     }
+    const resolution = 50;
 
     let normPath = '';
     if (maxY > 0) {

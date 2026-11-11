@@ -46,6 +46,39 @@ export const bezierArea = (x0, y0, x1, y1, x2, y2, x3, y3) => {
   return area;
 };
 
+export const bezierPartialFraction = (x0, y0, x1, y1, x2, y2, x3, y3, xCut = 0.3333) => {
+  const totalArea = bezierArea(x0, y0, x1, y1, x2, y2, x3, y3);
+  if (totalArea <= 0.0 || xCut <= x0) return 0.0;
+  if (xCut >= x3) return 1.0;
+
+  let lower = 0.0;
+  let upper = 1.0;
+  let tCut = 0.5;
+  for (let i = 0; i < 50; i++) {
+    const u = 1.0 - tCut;
+    const x = (u * u * u) * x0 + 3.0 * (u * u) * tCut * x1 + 3.0 * u * (tCut * tCut) * x2 + (tCut * tCut * tCut) * x3;
+    if (Math.abs(x - xCut) < 1e-12 && (upper - lower) < 1e-12) break;
+    if (x < xCut) lower = tCut;
+    else upper = tCut;
+    tCut = 0.5 * (lower + upper);
+  }
+
+  const dx0 = x1 - x0;
+  const dx1 = x2 - x1;
+  const dx2 = x3 - x2;
+  let subArea = 0.0;
+  for (let k = 0; k < 3; k++) {
+    const t = tCut * GL3_T[k];
+    const u = 1.0 - t;
+    const u2 = u * u;
+    const t2 = t * t;
+    const y = (u2 * u) * y0 + 3.0 * u2 * t * y1 + 3.0 * u * t2 * y2 + (t2 * t) * y3;
+    const xp = 3.0 * u2 * dx0 + 6.0 * u * t * dx1 + 3.0 * t2 * dx2;
+    subArea += (tCut * GL3_W[k]) * y * xp;
+  }
+  return Math.min(1.0, Math.max(0.0, subArea / totalArea));
+};
+
 export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
   validateBezierProfile(x0, y0, x1, y1, x2, y2, x3, y3);
   if (targetX < x0) return 0.0;

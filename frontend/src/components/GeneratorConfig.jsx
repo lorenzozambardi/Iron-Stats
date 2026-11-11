@@ -465,7 +465,7 @@ export default function GeneratorConfig({ isMobile }) {
           style={{ marginTop: '20px', width: '100%', padding: '12px', background: (isGenerating || !isVolumeValid) ? '#636366' : '#30d158', color: (isGenerating || !isVolumeValid) ? '#aeaeb2' : 'black', border: 'none', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (isGenerating || !isVolumeValid) ? 'not-allowed' : 'pointer' }}
         >
           {isGenerating ? <Activity size={18} className="spin" /> : <Play size={18} />}
-          {isGenerating ? 'Calculating...' : 'Start Solver (Numpy)'}
+          {isGenerating ? 'Calculating...' : 'Start Solver'}
         </button>
 
         {error && (

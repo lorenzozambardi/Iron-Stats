@@ -242,7 +242,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
           ],
           variables: [
             { symbol: '\\text{Volume}', desc: 'The accumulated workload credit assigned to a target muscle group.' },
-            { symbol: '\\text{TotReps}_s', desc: 'The effective rep count of set s, combining base, assisted, and partial repetitions.' },
+            { symbol: '\\text{TotReps}_s', desc: 'The total weighted rep count of set s, combining base, assisted, and partial repetitions.' },
             { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
             { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
             { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },

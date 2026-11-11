@@ -173,12 +173,34 @@ class WorkoutSolver:
         self.resolution = 50
         self.max_ex_fatigue = max(10.0, max((ex.fatigue for ex in self.db), default=10.0))
         
+        macro_to_db_subs: dict[str, list[str]] = {}
+        macro_to_subs: dict[str, list[str]] = {}
+        for sub, macro in MUSCLES.items():
+            macro_to_subs.setdefault(macro, []).append(sub)
+        for ex in self.db:
+            for m in ex.muscles_distr:
+                macro_grp = MUSCLES.get(m)
+                if macro_grp:
+                    lst = macro_to_db_subs.setdefault(macro_grp, [])
+                    if m not in lst:
+                        lst.append(m)
+
         self.target_sub_vol = {}
+        subs_dict = self.config.volume_dist.get('subs', {})
         if self.config.volume_dist.get('macros'):
             for macro, m_val in self.config.volume_dist['macros'].items():
-                if macro in self.config.volume_dist.get('subs', {}):
-                    for sub, s_val in self.config.volume_dist['subs'][macro].items():
+                if m_val <= 0:
+                    continue
+                macro_subs = subs_dict.get(macro)
+                if macro_subs:
+                    for sub, s_val in macro_subs.items():
                         self.target_sub_vol[sub] = (m_val / 100.0) * (s_val / 100.0)
+                else:
+                    fallback_subs = macro_to_db_subs.get(macro) or macro_to_subs.get(macro, [])
+                    if fallback_subs:
+                        share = 1.0 / len(fallback_subs)
+                        for sub in fallback_subs:
+                            self.target_sub_vol[sub] = (m_val / 100.0) * share
         total_target = sum(self.target_sub_vol.values())
         if total_target <= 0.0:
             self.target_sub_vol = {}
@@ -187,10 +209,6 @@ class WorkoutSolver:
         
         # Precompute target curves per muscle based on config
         self.T_m = {}
-        subs_dict = self.config.volume_dist.get('subs', {})
-        macro_to_subs: dict[str, list[str]] = {}
-        for sub, macro in MUSCLES.items():
-            macro_to_subs.setdefault(macro, []).append(sub)
         for m, curve_type in self.config.muscle_targets.items():
             if m in macro_to_subs or len(subs_dict.get(m, {})) > 0:
                 curve = get_target_curve(curve_type, self.resolution)
@@ -214,19 +232,19 @@ class WorkoutSolver:
 
         self.scales: dict[str, float] = {}
 
-        # Precompute physical-ROM-aligned Bezier curves and support flags for all exercises
+        # Precompute physical-ROM-aligned Bezier curves and stretched-ROM partial magnitudes
         self.ex_curves: dict[str, dict[str, np.ndarray]] = {}
         self.ex_has_area: dict[str, dict[str, bool]] = {}
-        self.ex_partial_active: dict[str, dict[str, bool]] = {}
+        self.ex_partial_mag: dict[str, dict[str, float]] = {}
         for ex in self.db:
             self.ex_curves[ex.name] = {}
             self.ex_has_area[ex.name] = {}
-            self.ex_partial_active[ex.name] = {}
+            self.ex_partial_mag[ex.name] = {}
             for m, prof in ex.muscles_distr.items():
                 phys = prof.get_physical_curve(self.resolution)
                 self.ex_curves[ex.name][m] = phys
                 self.ex_has_area[ex.name][m] = prof.exact_area() > 0.0
-                self.ex_partial_active[ex.name][m] = bool(np.any(phys * self.partial_mask > 0.0))
+                self.ex_partial_mag[ex.name][m] = prof.partial_magnitude(0.3333)
             
     def get_random_exercise(self) -> Exercise:
         return random.choice(self.db)
@@ -265,8 +283,8 @@ class WorkoutSolver:
         total_tut = 0.0
         eff_tut = 0.0
         
-        V_m = {m: np.zeros(self.resolution) for m in self.all_submuscles}
-        sub_vols = {m: 0.0 for m in self.all_submuscles}
+        V_m = {m: np.zeros(self.resolution) for m in self.distr_muscles}
+        sub_vols = {m: 0.0 for m in self.distr_muscles}
         
         unique_exercises = set()
         total_exercises = 0
@@ -322,10 +340,10 @@ class WorkoutSolver:
                     if ex_partial_reps > 0:
                         V_m[m] += base_curve * (ex_partial_reps * COEFF_PARTIAL) * self.partial_mask
                     if self.ex_has_area[ex.name][m]:
-                        muscle_reps = ex_base_reps + (
-                            ex_partial_reps * COEFF_PARTIAL if self.ex_partial_active[ex.name][m] else 0.0
+                        sub_vols[m] += (
+                            bezier_prof.magnitude * ex_base_reps
+                            + self.ex_partial_mag[ex.name][m] * (ex_partial_reps * COEFF_PARTIAL)
                         )
-                        sub_vols[m] += bezier_prof.magnitude * muscle_reps
 
                 day_fatigue += ex_fatigue
                 

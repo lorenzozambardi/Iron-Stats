@@ -67,6 +67,53 @@ class BezierProfile:
             area += w * y * xp
         return float(area)
 
+    def stretched_area(self, x_cut: float = 0.3333) -> float:
+        """Compute exact area integral int_{x0}^{min(x3, x_cut)} y(x^-1(x)) dx via GL3."""
+        if x_cut <= self.x0:
+            return 0.0
+        if x_cut >= self.x3:
+            return self.exact_area()
+
+        lower, upper = 0.0, 1.0
+        t_cut = 0.5
+        for _ in range(50):
+            u = 1.0 - t_cut
+            x = (
+                (u**3) * self.x0
+                + 3.0 * (u**2) * t_cut * self.x1
+                + 3.0 * u * (t_cut**2) * self.x2
+                + (t_cut**3) * self.x3
+            )
+            if abs(x - x_cut) < 1e-12 and (upper - lower) < 1e-12:
+                break
+            if x < x_cut:
+                lower = t_cut
+            else:
+                upper = t_cut
+            t_cut = 0.5 * (lower + upper)
+
+        dx0 = self.x1 - self.x0
+        dx1 = self.x2 - self.x1
+        dx2 = self.x3 - self.x2
+        area = 0.0
+        for tk, wk in zip(_GL3_T, _GL3_W, strict=True):
+            t = t_cut * tk
+            u = 1.0 - t
+            u2 = u * u
+            t2 = t * t
+            y = (u2 * u) * self.y0 + 3.0 * u2 * t * self.y1 + 3.0 * u * t2 * self.y2 + (t2 * t) * self.y3
+            xp = 3.0 * u2 * dx0 + 6.0 * u * t * dx1 + 3.0 * t2 * dx2
+            area += (t_cut * wk) * y * xp
+        return float(area)
+
+    def partial_magnitude(self, x_cut: float = 0.3333) -> float:
+        """Return effective magnitude int_0^{x_cut} B_{e,m}(x) dx in the stretched ROM zone."""
+        total = self.exact_area()
+        if total <= 0.0 or self.magnitude <= 0.0:
+            return 0.0
+        frac = min(1.0, max(0.0, self.stretched_area(x_cut) / total))
+        return float(self.magnitude * frac)
+
     def get_curve(self, resolution: int = 50) -> np.ndarray:
         """Evaluate the area-normalized cubic Bezier tension curve at uniform parameter t."""
         t = np.linspace(0.0, 1.0, resolution)
