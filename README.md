@@ -19,8 +19,6 @@ Conventional resistance-training analytics rely on coarse scalar aggregates—su
 
 ## System Architecture
 
-![Iron Stats Architecture](docs/architecture.svg)
-
 | Component | Path | Responsibility |
 | :--- | :--- | :--- |
 | **Logbook Parser** | [`python_research/analyzer/parser.py`](python_research/analyzer/parser.py) | Parses compact markdown logs (`# Session`, dropsets, tempo `c-p_s-e-p_l`, RPE, `override:` directives) with alias and Levenshtein matching. |
