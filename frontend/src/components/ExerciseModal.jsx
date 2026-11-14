@@ -66,7 +66,7 @@ export const ExerciseModal = ({
             </button>
           )}
         </div>
-        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: isMobile ? '16px 8px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: isMobile ? '10px 8px 20px 8px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '14px' }}>
           
           <div>
             <label className="modal-label">Exercise Name</label>
@@ -149,11 +149,11 @@ export const ExerciseModal = ({
             </label>
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: isMobile ? '10px' : '14px', marginTop: '4px' }}>
             {exerciseForm.muscles.length > 0 && (
               <div style={{
                 width: '100%',
-                marginBottom: isMobile ? '10px' : '16px',
+                marginBottom: isMobile ? '8px' : '16px',
                 background: 'var(--bg-secondary)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--card-radius)',
@@ -299,7 +299,7 @@ export const ExerciseModal = ({
                 No muscle groups assigned yet. Select a muscle below to add it.
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '10px' }}>
                 {exerciseForm.muscles.map((m, index) => {
                   const dotColor = chartColors[index % chartColors.length];
                   const isExpanded = editingCurveIndex === index;
