@@ -52,7 +52,7 @@ The UI applies Softmax normalization so $\sum_{i} w_i = 1.0$, and sets ideal eff
     $$E_{\text{distr}} = \frac{1}{2.0} \sum_{m} \left( \frac{W_m}{\sum_{m'} W_{m'}} - \text{Target}_{\text{global}}(m) \right)^2$$
 6.  **Variety Error:**
     $$E_{\text{variety}} = \left( 1 - \frac{\text{Unique Exercises}}{\text{Total Exercises}} \right)^2$$
-7.  **Daily Balance Error:** Population variance of daily fatigue and daily volume normalized by conservative Popoviciu bounds $(F_{\max}/2)^2$ and $(V_{\max}/2)^2$ (equal to $0$ when $D \le 1$):
+7.  **Daily Balance Error:** Population variance of daily fatigue and daily volume normalized by conservative Popoviciu bounds $(F_{\max}/2)^2$ and $(V_{\max}/2)^2$ (equal to $0$ when $D \le 1$, and strictly $< 1$—at most $0.9248$ under default configuration—because $V_d \ge N_{\min} S_{\min} r_{\min} > 0$ and $F_d \ge (\min_e f_{\mathrm{base},e}) V_{\min} > 0$):
     $$E_{\text{balance}} = \begin{cases} \frac{1}{2} \left( \frac{\mathrm{Var}_d(F_d)}{(F_{\max}/2)^2} + \frac{\mathrm{Var}_d(V_d)}{(V_{\max}/2)^2} \right), & D > 1 \\ 0, & D \le 1 \end{cases}$$
 
 ### 3.3 Calibrated Global Objective Function
