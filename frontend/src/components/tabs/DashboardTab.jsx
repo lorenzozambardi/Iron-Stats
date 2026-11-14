@@ -234,9 +234,10 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: '5px',
-        padding: '4px 8px',
-        minHeight: '24px',
+        padding: '0 8px',
+        height: '24px',
         margin: '-3px -4px -3px 0',
         borderRadius: '999px',
         border: '1px solid var(--border-color)',
@@ -252,7 +253,7 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
         transition: 'background 0.15s ease, border-color 0.15s ease',
       }}
     >
-      <span>{mode === 'total' ? 'TOT.' : 'EFF.'}</span>
+      <span style={{ transform: 'translateY(0.5px)' }}>{mode === 'total' ? 'TOT.' : 'EFF.'}</span>
       <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
         <path d="M11 2l3 3-3 3" />
         <path d="M14 5H3" />
