@@ -220,25 +220,43 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   );
 });
 
-const CARD_MODE_OPTIONS = [
-  { value: 'total', label: 'TOT' },
-  { value: 'effective', label: 'EFF' },
-];
-
-const CardModeToggle = React.memo(({ mode, onSelect }) => (
-  <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
-    <LockWheelPicker
-      options={CARD_MODE_OPTIONS}
-      value={mode}
-      onChange={onSelect}
-      itemWidth={34}
-      gap={10}
-      circular={false}
-      compact
-      style={{ width: '72px' }}
-    />
-  </div>
-));
+const CardModeToggle = React.memo(({ mode, onSelect }) => {
+  const nextMode = mode === 'total' ? 'effective' : 'total';
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(nextMode);
+      }}
+      aria-label={`Switch to ${nextMode === 'total' ? 'Total' : 'Effective'}`}
+      title={`Switch to ${nextMode === 'total' ? 'Total' : 'Effective'}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        border: 'none',
+        background: 'transparent',
+        padding: '4px 2px',
+        cursor: 'pointer',
+        flexShrink: 0,
+      }}
+    >
+      {['total', 'effective'].map((m) => (
+        <span
+          key={m}
+          style={{
+            width: '5px',
+            height: '5px',
+            borderRadius: '50%',
+            background: mode === m ? '#ffffff' : 'rgba(255, 255, 255, 0.22)',
+            transition: 'background 0.15s ease',
+          }}
+        />
+      ))}
+    </button>
+  );
+});
 
 const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
   const hasA = values && values.length >= 1;
@@ -1281,7 +1299,7 @@ const DashboardTab = ({
                           const valsB = sparkSeriesB[metricKey];
                           return (
                             <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                                 <span className="metric-label">{label}</span>
                                 {hasToggle && (
                                   <CardModeToggle
@@ -1377,7 +1395,7 @@ const DashboardTab = ({
                         const vals = sparkSeriesA[metricKey];
                         return (
                           <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                               <span className="metric-label">{label}</span>
                               {hasToggle && (
                                 <CardModeToggle
