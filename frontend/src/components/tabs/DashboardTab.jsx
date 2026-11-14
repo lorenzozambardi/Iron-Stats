@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
@@ -161,6 +161,20 @@ const DashboardTab = ({
   const [dashMuscleMacro, setDashMuscleMacro] = useState('all');   // 'all' or macro name e.g. 'Back'
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const filterContentRef = useRef(null);
+  const [filterHeight, setFilterHeight] = useState(0);
+
+  useEffect(() => {
+    const el = filterContentRef.current;
+    if (!el) return;
+    const update = () => setFilterHeight(el.scrollHeight);
+    update();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, []);
   const [tensionSliderPos, setTensionSliderPos] = useState(50); // 0-100 ROM % for mobile scrubber
 
 
@@ -642,15 +656,15 @@ const DashboardTab = ({
                     const isFilterPanelOpen = !isMobile || mobileFiltersOpen || (compareMode && Boolean(compareProgram));
                     return (
                   <div style={{
-                    display: 'grid',
-                    gridTemplateRows: isFilterPanelOpen ? '1fr' : '0fr',
+                    height: !isMobile ? 'auto' : (isFilterPanelOpen ? `${filterHeight}px` : '0px'),
                     opacity: isFilterPanelOpen ? 1 : 0,
                     marginBottom: isFilterPanelOpen ? (isMobile ? '8px' : '16px') : '0px',
-                    transition: 'grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, margin-bottom 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    overflow: 'hidden',
+                    borderRadius: 'var(--card-radius)',
+                    transition: 'height 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease, margin-bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)',
                     pointerEvents: isFilterPanelOpen ? 'auto' : 'none',
                   }}>
-                  <div style={{ overflow: 'hidden', borderRadius: 'var(--card-radius)' }}>
-                  <div style={{
+                  <div ref={filterContentRef} style={{
                     display: 'flex', flexDirection: 'column', gap: '12px',
                     padding: isMobile ? '12px' : '14px 16px',
                     background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
@@ -820,7 +834,6 @@ const DashboardTab = ({
                         </button>
                       </div>
                     )}
-                  </div>
                   </div>
                   </div>
                     );
