@@ -212,7 +212,7 @@ export const DualWeekSlider = ({
 }) => {
   const trackRef = useRef(null);
   const [draggingThumb, setDraggingThumb] = useState(null);
-  const dragStateRef = useRef({ thumb: null, fromIdx: 0, toIdx: 0, pendingOverlap: false, startX: 0 });
+  const dragStateRef = useRef({ thumb: null, fromIdx: 0, toIdx: 0, pendingOverlap: false, startX: 0, rect: null });
 
   const maxIdx = Math.max(0, weeks.length - 1);
   const resolvedFrom = fromVal === 'all' ? 0 : Math.max(0, weeks.indexOf(parseInt(fromVal, 10)));
@@ -229,10 +229,9 @@ export const DualWeekSlider = ({
     }
   }, [weeks, maxIdx, onChange]);
 
-  const idxFromClientX = useCallback((clientX) => {
-    const el = trackRef.current;
-    if (!el || maxIdx <= 0) return 0;
-    const rect = el.getBoundingClientRect();
+  const idxFromClientX = useCallback((clientX, cachedRect = null) => {
+    const rect = cachedRect || trackRef.current?.getBoundingClientRect();
+    if (!rect || maxIdx <= 0) return 0;
     const frac = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
     return Math.round(frac * maxIdx);
   }, [maxIdx]);
@@ -240,8 +239,9 @@ export const DualWeekSlider = ({
   const handlePointerDown = (e) => {
     if (weeks.length <= 1) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = trackRef.current?.getBoundingClientRect() || null;
     const thumbAttr = e.target.getAttribute('data-thumb');
-    const clickIdx = idxFromClientX(e.clientX);
+    const clickIdx = idxFromClientX(e.clientX, rect);
 
     let activeThumb = thumbAttr;
     let pendingOverlap = false;
@@ -266,7 +266,7 @@ export const DualWeekSlider = ({
       }
     }
 
-    dragStateRef.current = { thumb: activeThumb, fromIdx, toIdx, pendingOverlap, startX: e.clientX };
+    dragStateRef.current = { thumb: activeThumb, fromIdx, toIdx, pendingOverlap, startX: e.clientX, rect };
     setDraggingThumb(activeThumb);
 
     if (!thumbAttr) {
@@ -292,7 +292,7 @@ export const DualWeekSlider = ({
       st.pendingOverlap = false;
       setDraggingThumb(st.thumb);
     }
-    const idx = idxFromClientX(e.clientX);
+    const idx = idxFromClientX(e.clientX, st.rect);
     if (st.thumb === 'from') {
       const nextF = Math.min(idx, st.toIdx);
       if (nextF !== st.fromIdx) {
@@ -424,7 +424,7 @@ export const DualWeekSlider = ({
           )}
         </div>
 
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', flexShrink: 0, minWidth: '84px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
           {rangeText}
         </span>
       </div>
