@@ -722,10 +722,10 @@ const DashboardTab = ({
             const rpe = s.rpe !== undefined ? s.rpe : 9.0;
             const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
             sumBase += effBase + (s.assisted_reps || 0) * 0.5;
-            sumPartial += (s.partial_reps || 0) * 0.33;
+            sumPartial += s.partial_reps || 0;
           } else if (muscleMetric === 'volume') {
             sumBase += (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
-            sumPartial += (s.partial_reps || 0) * 0.33;
+            sumPartial += s.partial_reps || 0;
           } else if (muscleMetric === 'sets') {
             sumBase += 1.0;
           }
