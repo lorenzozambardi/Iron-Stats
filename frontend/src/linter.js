@@ -14,6 +14,66 @@ const REP_PART_REGEX = /^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?$/;
 const VALID_OVERRIDE_NUMERIC_KEYS = new Set(['fatigue', 'load_coeff', 'load_multiplier', 'load_offset']);
 
 /**
+ * Normalize spacing on a single logbook line without altering its meaning.
+ */
+export function formatLogbookLine(rawLine) {
+  const trimmed = rawLine.trim();
+  if (!trimmed) return '';
+
+  if (trimmed.startsWith('#')) {
+    const m = trimmed.match(/^#\s*(.+)$/);
+    return m ? `# ${m[1].trim()}` : '#';
+  }
+
+  if (trimmed.toLowerCase().startsWith('override:')) {
+    const rest = trimmed.slice('override:'.length).trim();
+    const parts = rest.split('|').map(p => p.trim());
+    return `override: ${parts.join(' | ')}`;
+  }
+
+  const isLogLine = trimmed.includes('..') || /^(?:old\s+)*[\d().+/@,\s]+$/i.test(trimmed);
+  if (isLogLine) {
+    const oldMatch = trimmed.match(/^(old)\s+(.*)$/i);
+    const prefix = oldMatch ? 'old ' : '';
+    const body = oldMatch ? oldMatch[2].trim() : trimmed;
+
+    const tokens = body.split(',').map(t => t.trim()).filter(Boolean);
+    const formattedTokens = tokens.map((token) => {
+      if (!token.includes('..')) {
+        return token.split('/').map(s => s.trim()).join('/');
+      }
+      const subparts = token.split('..');
+      const repStr = subparts[subparts.length - 1].trim();
+      const loadParts = subparts.slice(0, -1).map(lp =>
+        lp.trim().split('/').map(s => s.trim()).join('/')
+      );
+
+      if (!repStr) {
+        return `${loadParts.join('.. ')}..`;
+      }
+      const formattedReps = repStr.split('/').map(s => s.trim()).join('/');
+      return `${loadParts.join('.. ')}.. ${formattedReps}`;
+    });
+
+    return `${prefix}${formattedTokens.join(', ')}`;
+  }
+
+  if (trimmed.includes('|')) {
+    return trimmed.split('|').map(p => p.trim()).join(' | ');
+  }
+
+  return trimmed;
+}
+
+/**
+ * Format an entire logbook document with uniform spacing.
+ */
+export function formatLogbook(logText) {
+  if (!logText || typeof logText !== 'string') return '';
+  return logText.split('\n').map(formatLogbookLine).join('\n');
+}
+
+/**
  * Find the closest exercise name suggestion for an unrecognized header.
  */
 function suggestExerciseName(rawHeader, exercises) {
@@ -446,6 +506,20 @@ export function lintLogbook(logText, exercises = [], preParsedWorkoutData = null
     if (!trimmed) continue;
 
     const lineOffset = rawLine.indexOf(trimmed);
+    const formattedLine = formatLogbookLine(rawLine);
+    if (formattedLine !== rawLine) {
+      diagnostics.push({
+        id: 'format-spacing',
+        lineIndex: i,
+        from: 0,
+        to: rawLine.length,
+        severity: 'info',
+        category: 'syntax',
+        message: 'Inconsistent spacing. Format line to standardize.',
+        suggestion: formattedLine,
+        replaceFullLine: true
+      });
+    }
 
     if (trimmed.startsWith('#')) {
       const match = trimmed.match(/\d+/);
@@ -530,6 +604,12 @@ export function lintLogbook(logText, exercises = [], preParsedWorkoutData = null
 
   const workoutData = preParsedWorkoutData || parseLogbook(logText, exercises);
   diagnostics.push(...checkWorkoutAnomalies(workoutData, lines, sessionHeaderLines));
+
+  // Attach a stable fingerprint so users can bypass/acknowledge anomalies across line shifts
+  for (const d of diagnostics) {
+    const lineContent = (lines[d.lineIndex] || '').trim();
+    d.fingerprint = `${d.id}::${lineContent}`;
+  }
 
   const severityOrder = { error: 0, warning: 1, info: 2 };
   diagnostics.sort((a, b) => {

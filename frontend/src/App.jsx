@@ -20,13 +20,15 @@ import {
   Info,
   CheckCircle2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Wand2,
+  Check
 } from 'lucide-react';
 import {
   parseLogbook,
   getExercisesWithOverrides
 } from './parser';
-import { lintLogbook } from './linter';
+import { lintLogbook, formatLogbook } from './linter';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 import { App as CapacitorApp } from '@capacitor/app';
 
@@ -509,6 +511,39 @@ export default function App() {
 
   // Programs State
   const [currentProgram, setCurrentProgram] = useState(() => localStorage.getItem('lastSelectedProgram') || 'S1M3');
+  const [dismissedByProgram, setDismissedByProgram] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('iron-stats-dismissed-map') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const dismissedFingerprints = useMemo(() => {
+    const list = dismissedByProgram[currentProgram];
+    return Array.isArray(list) ? list : [];
+  }, [dismissedByProgram, currentProgram]);
+
+  const handleDismissDiagnostic = useCallback((diag) => {
+    if (!diag?.fingerprint) return;
+    setDismissedByProgram(prev => {
+      const current = Array.isArray(prev[currentProgram]) ? prev[currentProgram] : [];
+      if (current.includes(diag.fingerprint)) return prev;
+      const next = { ...prev, [currentProgram]: [...current, diag.fingerprint] };
+      localStorage.setItem('iron-stats-dismissed-map', JSON.stringify(next));
+      return next;
+    });
+  }, [currentProgram]);
+
+  const handleClearDismissed = useCallback(() => {
+    setDismissedByProgram(prev => {
+      if (!prev[currentProgram]) return prev;
+      const next = { ...prev };
+      delete next[currentProgram];
+      localStorage.setItem('iron-stats-dismissed-map', JSON.stringify(next));
+      return next;
+    });
+  }, [currentProgram]);
   const [programs, setPrograms] = useState(['S1M3']);
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
@@ -619,10 +654,22 @@ export default function App() {
     return [];
   }, [debouncedLogbookText, exercisesDb]);
 
-  const diagnostics = useMemo(() => {
+  const rawDiagnostics = useMemo(() => {
     if (!debouncedLogbookText || exercisesDb.length === 0) return [];
     return lintLogbook(debouncedLogbookText, exercisesDb, workoutData);
   }, [debouncedLogbookText, exercisesDb, workoutData]);
+
+  const dismissedSet = useMemo(() => new Set(dismissedFingerprints), [dismissedFingerprints]);
+
+  const diagnostics = useMemo(() => {
+    return rawDiagnostics.filter(d => !dismissedSet.has(d.fingerprint));
+  }, [rawDiagnostics, dismissedSet]);
+
+  const bypassedCount = rawDiagnostics.length - diagnostics.length;
+
+  const hasFormattingIssues = useMemo(() => {
+    return rawDiagnostics.some(d => d.id === 'format-spacing');
+  }, [rawDiagnostics]);
 
   const lintCounts = useMemo(() => {
     let errors = 0, warnings = 0, infos = 0;
@@ -1061,6 +1108,19 @@ export default function App() {
       });
   };
 
+  const handleFormatLogbook = () => {
+    const formatted = formatLogbook(logbookText);
+    if (formatted !== logbookText) {
+      setLogbookText(formatted);
+      setDebouncedLogbookText(formatted);
+      setSyncStatus('syncing');
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+        saveLogbookContent(formatted, currentProgram);
+      }, 1500);
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Header */}
@@ -1377,6 +1437,17 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="editor-actions">
+                {editorType !== 'easy' && (
+                  <button
+                    type="button"
+                    className={`btn btn-secondary lint-format-btn ${hasFormattingIssues ? 'needs-format' : ''}`}
+                    onClick={handleFormatLogbook}
+                    disabled={!hasFormattingIssues}
+                    title="Uniform spacing across all lines"
+                  >
+                    <Wand2 size={14} /> Format
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`lint-status-pill ${lintCounts.errors > 0 ? 'has-errors' : lintCounts.warnings > 0 ? 'has-warnings' : 'is-clean'} ${showLintPanel ? 'open' : ''}`}
@@ -1433,30 +1504,51 @@ export default function App() {
                       Anomalies ({diagnostics.filter(d => d.category === 'anomaly').length})
                     </button>
                   </div>
+                  {bypassedCount > 0 && (
+                    <button
+                      type="button"
+                      className="lint-restore-btn"
+                      onClick={handleClearDismissed}
+                      title="Restore bypassed anomalies"
+                    >
+                      Restore {bypassedCount} bypassed
+                    </button>
+                  )}
                 </div>
                 <div className="lint-drawer-list">
                   {filteredDiagnostics.length === 0 ? (
                     <div className="lint-empty-state">No issues in this category.</div>
                   ) : (
                     filteredDiagnostics.map((d, idx) => (
-                      <button
-                        key={`${d.id}-${d.lineIndex}-${idx}`}
-                        type="button"
-                        className={`lint-item severity-${d.severity}`}
-                        onClick={() => {
-                          if (editorMode === 'preview') setEditorMode('split');
-                          setTimeout(() => {
-                            foldableEditorRef.current?.scrollToLine(d.lineIndex);
-                          }, 0);
-                        }}
-                      >
-                        <span className="lint-item-icon">
-                          {d.severity === 'error' ? <AlertCircle size={13} /> : d.severity === 'warning' ? <AlertTriangle size={13} /> : <Info size={13} />}
-                        </span>
-                        <span className="lint-item-line">L{d.lineIndex + 1}</span>
-                        <span className="lint-item-msg">{d.message}</span>
-                        <span className={`lint-item-cat cat-${d.category}`}>{d.category}</span>
-                      </button>
+                      <div key={`${d.id}-${d.lineIndex}-${idx}`} className={`lint-item severity-${d.severity}`}>
+                        <button
+                          type="button"
+                          className="lint-item-main"
+                          onClick={() => {
+                            if (editorMode === 'preview') setEditorMode('split');
+                            setTimeout(() => {
+                              foldableEditorRef.current?.scrollToLine(d.lineIndex);
+                            }, 0);
+                          }}
+                        >
+                          <span className="lint-item-icon">
+                            {d.severity === 'error' ? <AlertCircle size={13} /> : d.severity === 'warning' ? <AlertTriangle size={13} /> : <Info size={13} />}
+                          </span>
+                          <span className="lint-item-line">L{d.lineIndex + 1}</span>
+                          <span className="lint-item-msg">{d.message}</span>
+                          <span className={`lint-item-cat cat-${d.category}`}>{d.category}</span>
+                        </button>
+                        {d.category === 'anomaly' && (
+                          <button
+                            type="button"
+                            className="lint-bypass-btn"
+                            onClick={() => handleDismissDiagnostic(d)}
+                            title="Mark anomaly as intentional (bypass)"
+                          >
+                            <Check size={12} /> OK
+                          </button>
+                        )}
+                      </div>
                     ))
                   )}
                 </div>
@@ -1493,6 +1585,7 @@ export default function App() {
                         }}
                         exercisesDb={activeExercises}
                         diagnostics={diagnostics}
+                        onDismissDiagnostic={handleDismissDiagnostic}
                         onCursorLineChange={!isMobile && (editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
                       />
                     )}

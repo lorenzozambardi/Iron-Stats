@@ -178,7 +178,8 @@ const FoldableEditor = forwardRef(function FoldableEditor({
   onChange,
   exercisesDb = [],
   onCursorLineChange,
-  diagnostics = []
+  diagnostics = [],
+  onDismissDiagnostic
 }, ref) {
   const exercisesDbRef = useRef(exercisesDb);
   exercisesDbRef.current = exercisesDb;
@@ -191,6 +192,9 @@ const FoldableEditor = forwardRef(function FoldableEditor({
 
   const diagnosticsRef = useRef(diagnostics);
   diagnosticsRef.current = diagnostics;
+
+  const onDismissDiagnosticRef = useRef(onDismissDiagnostic);
+  onDismissDiagnosticRef.current = onDismissDiagnostic;
 
   const editorViewRef = useRef(null);
   const lastEmittedValueRef = useRef(value);
@@ -278,17 +282,27 @@ const FoldableEditor = forwardRef(function FoldableEditor({
           message: d.message
         };
 
-        if (d.suggestion) {
-          entry.actions = [
-            {
-              name: `Use "${d.suggestion}"`,
-              apply(targetView, f, t) {
-                targetView.dispatch({
-                  changes: { from: f, to: t, insert: d.suggestion }
-                });
-              }
+        const actions = [];
+        if (d.suggestion !== undefined) {
+          actions.push({
+            name: d.replaceFullLine ? 'Format line' : `Use "${d.suggestion}"`,
+            apply(targetView, f, t) {
+              targetView.dispatch({
+                changes: { from: f, to: t, insert: d.suggestion }
+              });
             }
-          ];
+          });
+        }
+        if (d.category === 'anomaly' && onDismissDiagnosticRef.current) {
+          actions.push({
+            name: 'Mark as OK',
+            apply() {
+              onDismissDiagnosticRef.current(d);
+            }
+          });
+        }
+        if (actions.length > 0) {
+          entry.actions = actions;
         }
 
         cmDiagnostics.push(entry);

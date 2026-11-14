@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lintLogbook } from '../linter';
+import { lintLogbook, formatLogbook } from '../linter';
 import defaultExercises from '../defaultExercises.json';
 import { defaultLogbook } from '../defaultLogbook';
 
@@ -84,5 +84,19 @@ describe('lintLogbook', () => {
     const log = `# 1\nLat Machine | 2'\n90.. 10\n\nLat Machine | 2'\n80.. 12`;
     const diags = lintLogbook(log, defaultExercises);
     expect(diags).toEqual([]);
+  });
+
+  it('formats inconsistent spacing uniformly and reports format-spacing diagnostics', () => {
+    const unformatted = `#1\nLat Machine|2'|notes\n60.. 4+3\n160..5+3\n160..   5+3,8\n90..`;
+    const expected = `# 1\nLat Machine | 2' | notes\n60.. 4+3\n160.. 5+3\n160.. 5+3, 8\n90..`;
+
+    expect(formatLogbook(unformatted)).toBe(expected);
+    expect(formatLogbook(expected)).toBe(expected);
+
+    const diags = lintLogbook(unformatted, defaultExercises);
+    const fmtDiags = diags.filter(d => d.id === 'format-spacing');
+    expect(fmtDiags.map(d => d.lineIndex)).toEqual([0, 1, 3, 4]);
+    expect(fmtDiags[2].suggestion).toBe('160.. 5+3');
+    expect(fmtDiags.every(d => typeof d.fingerprint === 'string' && d.fingerprint.length > 0)).toBe(true);
   });
 });
