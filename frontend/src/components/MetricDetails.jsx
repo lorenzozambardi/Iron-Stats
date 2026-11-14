@@ -550,16 +550,12 @@ export default function MetricDetailsPage({ metric, onBack }) {
         <div style={dashboardCardStyle}>
           <div>
             <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
               fontSize: '0.75rem',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               color: data.color,
             }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: data.color, flexShrink: 0 }} />
               Math Details
             </span>
           </div>
