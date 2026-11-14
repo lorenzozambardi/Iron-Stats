@@ -707,19 +707,117 @@ const DashboardTab = ({
   return (
     <>
         <div className={`swipe-view ${activeTab === 'dashboard' || activeTab === 'metric-details' ? 'active-desktop' : ''}`} id="view-dashboard">
+          {/* Mobile Floating Filter Pill next to Settings button */}
+          {isMobile && activeTab !== 'metric-details' && (
+            <div
+              id="mobile-header-dash-controls"
+              style={{
+                position: 'absolute',
+                top: '18px',
+                left: '70px',
+                right: '12px',
+                zIndex: 50,
+                height: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '0 6px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '99px',
+                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+              }}
+            >
+              <button
+                id="dash-compare-toggle"
+                className={`btn ${compareMode ? 'btn-secondary' : ''}`}
+                style={{ padding: '5px 12px', fontSize: '0.75rem', borderRadius: '99px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                onClick={() => {
+                  const next = !compareMode;
+                  setCompareMode(next);
+                  if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeek('all'); }
+                  else if (compareProgram) loadCompareProgram(compareProgram);
+                }}
+              >
+                {compareMode ? 'Compare' : 'Compare Programs'}
+              </button>
+              {compareMode ? (
+                <>
+                  <select
+                    id="dash-compare-program"
+                    className="select-control"
+                    style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                    value={compareProgram}
+                    onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeek('all'); }}
+                  >
+                    <option value="">— pick program —</option>
+                    {programs.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  {compareLoading && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>Loading…</span>}
+                </>
+              ) : (
+                <>
+                  <select id="dash-session-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                    value={dashFilterSession}
+                    onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                  >
+                    <option value="all">All Sessions</option>
+                    {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
+                  </select>
+                  <select id="dash-week-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                    value={dashFilterWeek}
+                    onChange={e => setDashFilterWeek(e.target.value)}
+                  >
+                    <option value="all">All Weeks</option>
+                    {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
+                  </select>
+                  <select id="dash-muscle-macro" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                    value={dashMuscleMacro}
+                    onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
+                  >
+                    <option value="all">All Groups</option>
+                    {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
+                    <select id="dash-muscle-sub" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                      value={dashMuscleSubgroup}
+                      onChange={e => setDashMuscleSubgroup(e.target.value)}
+                    >
+                      <option value="all">All {dashMuscleMacro}</option>
+                      {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  )}
+                </>
+              )}
+              {hasAnyFilter && (
+                <button
+                  className="btn"
+                  style={{ marginLeft: 'auto', padding: '4px 10px', fontSize: '0.72rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                  onClick={clearAllDashFilters}
+                >
+                  ✕ Clear
+                </button>
+              )}
+            </div>
+          )}
+
           {(isMobile || activeTab === 'dashboard') ? (
             <div className="main-content-card" style={{ overflow: 'hidden' }}>
                 <div className="glass-card-body" style={{ padding: '4px 8px 20px 8px' }}>
 
-                  {/* ── Dashboard Filter Bar ── */}
+                  {/* ── Dashboard Filter Bar (Desktop full bar; Mobile only when comparing two programs) ── */}
+                  {(!isMobile || (compareMode && compareProgram)) && (
                   <div style={{
                     display: 'flex', flexDirection: 'column', gap: '10px',
-                    padding: '14px 16px', marginBottom: '20px',
+                    padding: isMobile ? '10px' : '14px 16px', marginBottom: isMobile ? '8px' : '16px',
                     background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
-                    borderRadius: '12px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
+                    borderRadius: 'var(--card-radius)', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
                   }}>
 
-                    {/* Top row: Compare toggle + program picker + clear */}
+                    {/* Top row (Desktop only): Compare toggle + program picker + clear */}
+                    {!isMobile && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                       <button
                         id="dash-compare-toggle"
@@ -759,6 +857,7 @@ const DashboardTab = ({
                         </button>
                       )}
                     </div>
+                    )}
 
                     {/* Filter rows */}
                     {compareMode && compareProgram ? (
@@ -872,6 +971,7 @@ const DashboardTab = ({
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Active filter pills */}
                   {hasAnyFilter && (
