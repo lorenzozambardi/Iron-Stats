@@ -152,16 +152,6 @@ const DatabaseTab = React.memo(({
                     </span>
                   )}
                 </div>
-                <div className="ex-card-muscle-badges">
-                  {Object.entries(ex.muscles_distr).map(([muscle, pct]) => (
-                    <span key={muscle} className="badge muscle">
-                      <span>{muscle}</span>
-                      <span className="ex-muscle-pct">
-                        {Math.round((typeof pct === 'number' ? pct : (pct.magnitude || 0)) * 100)}%
-                      </span>
-                    </span>
-                  ))}
-                </div>
               </div>
             ))}
           </div>

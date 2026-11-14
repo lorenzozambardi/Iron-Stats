@@ -2251,7 +2251,8 @@ input::-webkit-list-button {
   }
   .exercise-db-grid {
     gap: 8px !important;
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
   }
   .exercise-db-card {
     padding: 10px 12px !important;
