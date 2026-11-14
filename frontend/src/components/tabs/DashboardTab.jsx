@@ -62,8 +62,8 @@ const MetricSparkline = ({ values, compareValues, color, compareColor = 'var(--a
   if (!hasA && !hasB) return null;
 
   const w = 120;
-  const h = 42;
-  const padY = 4;
+  const h = 60;
+  const padY = 2;
   const allVals = [...(hasA ? values : []), ...(hasB ? compareValues : [])];
   const min = Math.min(...allVals);
   const max = Math.max(...allVals);
@@ -77,7 +77,7 @@ const MetricSparkline = ({ values, compareValues, color, compareColor = 'var(--a
     <svg
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
-      style={{ width: '100%', height: '42px', display: 'block', marginTop: '4px', overflow: 'visible' }}
+      style={{ width: '100%', height: '58px', display: 'block', marginTop: '4px', overflow: 'visible' }}
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
