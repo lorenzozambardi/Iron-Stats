@@ -178,10 +178,30 @@ const SingleDonut = ({
     );
     const yMap = new Map([...leftLabels, ...rightLabels].map((item) => [item.idx, item.y]));
 
-    const finalSlices = rawSlices.map((s) => ({
-      ...s,
-      labelY: yMap.get(s.idx) ?? s.labelY,
-    }));
+    const rLabel = rOut + 16;
+    const finalSlices = rawSlices.map((s) => {
+      const newY = yMap.get(s.idx) ?? s.labelY;
+      let newX = s.labelX;
+      let newAnchor = s.textAnchor;
+      if (newY !== s.labelY) {
+        const dy = newY - cy;
+        if (Math.abs(dy) < rLabel) {
+          const minDx = Math.sqrt(rLabel * rLabel - dy * dy);
+          newX = s.side === 'left'
+            ? Math.min(s.labelX, cx - minDx)
+            : Math.max(s.labelX, cx + minDx);
+        }
+        if (Math.abs(newX - cx) > 18) {
+          newAnchor = s.side === 'left' ? 'end' : 'start';
+        }
+      }
+      return {
+        ...s,
+        labelX: newX,
+        labelY: newY,
+        textAnchor: newAnchor,
+      };
+    });
 
     return { slices: finalSlices, total: sum };
   }, [data, colorMap]);
