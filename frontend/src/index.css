@@ -36,6 +36,7 @@
   --font-mono: 'Courier New', Courier, monospace;
 
   --nav-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  --card-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.85);
 
   --card-radius: 16px;
   --button-radius: 100px;
@@ -270,6 +271,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
   transition: border-color var(--transition-normal);
 }
 
@@ -606,6 +608,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--card-radius);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -672,9 +675,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .chart-container {
-  background: rgba(255, 255, 255, 0.01);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -747,9 +751,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .exercise-db-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
+  box-shadow: var(--card-shadow);
   padding: 18px;
   transition: background-color , color , border-color , opacity , transform , box-shadow ;
   display: flex;
@@ -856,9 +861,10 @@ input::-webkit-list-button {
   gap: 10px;
   margin-bottom: 20px;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.01);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 
 .select-control {

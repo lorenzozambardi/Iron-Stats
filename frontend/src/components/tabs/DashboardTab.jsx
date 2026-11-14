@@ -696,8 +696,8 @@ const DashboardTab = ({
                   <div ref={filterContentRef} style={{
                     display: 'flex', flexDirection: 'column', gap: '12px',
                     padding: isMobile ? '12px' : '14px 16px',
-                    background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--card-radius)'
+                    background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--card-radius)', boxShadow: 'var(--card-shadow)'
                   }}>
 
                     {/* Top row (Desktop only): Compare toggle + program picker + clear */}
