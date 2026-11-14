@@ -126,14 +126,19 @@ export const SettingsPanel = ({
         <span className="settings-header-title">Settings</span>
       </div>
 
-      {/* Workspace Card */}
-      <div className="settings-card">
-        <div className="settings-card-title">Workspace</div>
-
-        {showProgramSelector && (
-          <div className="settings-program-block">
-            <div className="settings-program-row">
-              <span className="settings-row-label">Program</span>
+      {/* Workspace Section */}
+      <div className="settings-section">
+        <div className="settings-section-label">Workspace</div>
+        <div className="settings-group-card">
+          {showProgramSelector && (
+            <div className="settings-group-row settings-program-row-wrap">
+              <div className="settings-program-left">
+                <span className="settings-row-label">Program</span>
+                <div className="settings-sync-row">
+                  <span className={`status-dot ${syncStatus}`} />
+                  <span className="settings-sync-text">{syncText}</span>
+                </div>
+              </div>
               <div className="settings-program-controls">
                 <select
                   className="settings-program-select"
@@ -157,108 +162,103 @@ export const SettingsPanel = ({
                 </button>
               </div>
             </div>
+          )}
 
-            <div className="settings-sync-row">
-              <span className={`status-dot ${syncStatus}`} />
-              <span className="settings-sync-text">{syncText}</span>
-            </div>
-          </div>
-        )}
+          {/* Storage Folder Accordion */}
+          <div className={`storage-settings-container${showProgramSelector ? ' with-divider' : ''}`}>
+            <button
+              type="button"
+              className="storage-toggle-btn settings-storage-btn"
+              onClick={toggleStorageSettings}
+            >
+              <FolderOpen size={15} className="icon-folder" />
+              <span style={{ flex: 1 }}>Storage Folder</span>
+              <ChevronDown size={14} className={`storage-chevron${showStorageSettings ? ' open' : ''}`} />
+            </button>
 
-        {/* Storage Folder Accordion */}
-        <div className={`storage-settings-container${showProgramSelector ? ' with-divider' : ''}`}>
-          <button
-            type="button"
-            className="storage-toggle-btn settings-storage-btn"
-            onClick={toggleStorageSettings}
-          >
-            <FolderOpen size={15} className="icon-folder" />
-            <span style={{ flex: 1 }}>Storage Folder</span>
-            <ChevronDown size={14} className={`storage-chevron${showStorageSettings ? ' open' : ''}`} />
-          </button>
-
-          {(showStorageSettings || isStorageClosing) && (() => {
-            const cfg = getStorageConfig();
-            const isCustom = cfg.dirType === 'custom' && cfg.safUri;
-            return (
-              <div className={`storage-panel${isStorageClosing ? ' closing' : ''}`}>
-                <div className="storage-current-row">
-                  <span className="storage-section-label">Current Folder</span>
-                  <div className={`storage-status-path${isCustom ? ' custom' : ''}`}>
-                    {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
-                  </div>
-                </div>
-
-                <div className="storage-actions-row">
-                  <button type="button" className="storage-primary-btn" onClick={handlePickFolder}>
-                    <FolderOpen size={15} />
-                    <span>Pick Any Folder</span>
-                  </button>
-                  {isCustom && (
-                    <button
-                      type="button"
-                      className="storage-reset-btn"
-                      onClick={handleResetStorage}
-                      title="Reset to Default"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                  )}
-                </div>
-
-                {storagePickError && (
-                  <div className="storage-error-alert">
-                    <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                    <span>{storagePickError}</span>
-                  </div>
-                )}
-
-                <div className="storage-fallback-section">
-                  <span className="storage-section-label">Standard Location</span>
-
-                  <div className="storage-form-group">
-                    <select
-                      className="storage-select"
-                      value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
-                      onChange={e => setPendingDirType(e.target.value)}
-                      aria-label="Location Type"
-                    >
-                      <option value="documents">Public Documents (PC sync)</option>
-                      <option value="data">Private App Storage</option>
-                    </select>
-                  </div>
-
-                  <div className="storage-form-group">
-                    <input
-                      type="text"
-                      className="storage-input"
-                      value={pendingSubfolder}
-                      onChange={e => setPendingSubfolder(e.target.value)}
-                      placeholder="Subfolder name (e.g. Iron Stats)"
-                      aria-label="Subfolder Name"
-                    />
-                    <div className="storage-path-preview">
-                      {pendingDirType === 'data'
-                        ? `App private storage/${pendingSubfolder || '(root)'}`
-                        : `Documents/${pendingSubfolder || '(root)'}`}
+            {(showStorageSettings || isStorageClosing) && (() => {
+              const cfg = getStorageConfig();
+              const isCustom = cfg.dirType === 'custom' && cfg.safUri;
+              return (
+                <div className={`storage-panel settings-storage-drawer${isStorageClosing ? ' closing' : ''}`}>
+                  <div className="storage-current-row">
+                    <span className="storage-section-label">Current Folder</span>
+                    <div className={`storage-status-path${isCustom ? ' custom' : ''}`}>
+                      {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
                     </div>
                   </div>
 
-                  <button type="button" className="storage-apply-btn" onClick={applyStorageConfig}>
-                    <RefreshCw size={13} />
-                    <span>Apply &amp; Refresh</span>
-                  </button>
+                  <div className="storage-actions-row">
+                    <button type="button" className="storage-primary-btn" onClick={handlePickFolder}>
+                      <FolderOpen size={15} />
+                      <span>Pick Any Folder</span>
+                    </button>
+                    {isCustom && (
+                      <button
+                        type="button"
+                        className="storage-reset-btn"
+                        onClick={handleResetStorage}
+                        title="Reset to Default"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {storagePickError && (
+                    <div className="storage-error-alert">
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      <span>{storagePickError}</span>
+                    </div>
+                  )}
+
+                  <div className="storage-fallback-section">
+                    <span className="storage-section-label">Standard Location</span>
+
+                    <div className="storage-form-group">
+                      <select
+                        className="storage-select"
+                        value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
+                        onChange={e => setPendingDirType(e.target.value)}
+                        aria-label="Location Type"
+                      >
+                        <option value="documents">Public Documents (PC sync)</option>
+                        <option value="data">Private App Storage</option>
+                      </select>
+                    </div>
+
+                    <div className="storage-form-group">
+                      <input
+                        type="text"
+                        className="storage-input"
+                        value={pendingSubfolder}
+                        onChange={e => setPendingSubfolder(e.target.value)}
+                        placeholder="Subfolder name (e.g. Iron Stats)"
+                        aria-label="Subfolder Name"
+                      />
+                      <div className="storage-path-preview">
+                        {pendingDirType === 'data'
+                          ? `App private storage/${pendingSubfolder || '(root)'}`
+                          : `Documents/${pendingSubfolder || '(root)'}`}
+                      </div>
+                    </div>
+
+                    <button type="button" className="storage-apply-btn" onClick={applyStorageConfig}>
+                      <RefreshCw size={13} />
+                      <span>Apply &amp; Refresh</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </div>
         </div>
       </div>
 
-      {/* Editor Card */}
-      <div className="settings-card">
-        <div className="settings-card-title">Editor</div>
-        <div className="settings-pill-toggle">
+      {/* Editor Section */}
+      <div className="settings-section">
+        <div className="settings-section-label">Editor Mode</div>
+        <div className="settings-pill-toggle settings-segmented">
           <div className={`settings-pill-indicator ${editorType}`} />
           <button
             type="button"
@@ -281,22 +281,21 @@ export const SettingsPanel = ({
         </div>
       </div>
 
-      {/* Appearance Card */}
-      <div className="settings-card">
-        <div className="settings-card-header-row">
-          <span className="settings-card-title">Appearance</span>
-        </div>
-
-        {/* Compact Color Rows */}
-        <div className="settings-color-list">
-          {colorRows.map(row => {
+      {/* Appearance Section */}
+      <div className="settings-section">
+        <div className="settings-section-label">Appearance</div>
+        <div className="settings-group-card">
+          {colorRows.map((row, idx) => {
             const isOpen = openColorSlot === row.id;
             const activeColor = resolveColor(row.value, row.items, row.colorKey);
             const activeLabel = resolveLabel(row.value, row.items);
             const isHexValue = typeof row.value === 'string' && row.value.startsWith('#');
 
             return (
-              <div key={row.id} className={`settings-color-row-group${isOpen ? ' open' : ''}`}>
+              <div
+                key={row.id}
+                className={`settings-color-row-group${idx > 0 ? ' with-divider' : ''}${isOpen ? ' open' : ''}`}
+              >
                 <button
                   type="button"
                   className="settings-color-row-btn"
@@ -304,12 +303,12 @@ export const SettingsPanel = ({
                   aria-expanded={isOpen}
                 >
                   <span className="settings-row-label">{row.label}</span>
-                  <span className="settings-color-preview-chip">
+                  <span className="settings-color-value">
+                    <span className="settings-color-name">{activeLabel}</span>
                     <span
                       className="settings-color-dot"
                       style={{ background: activeColor }}
                     />
-                    <span className="settings-color-name">{activeLabel}</span>
                     <ChevronDown size={14} className={`settings-row-chevron${isOpen ? ' open' : ''}`} />
                   </span>
                 </button>
