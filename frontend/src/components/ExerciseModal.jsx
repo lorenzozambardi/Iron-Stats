@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Trash2, Sliders } from 'lucide-react';
 import {
   LineChart,
@@ -41,6 +41,8 @@ export const ExerciseModal = ({
   const chartData = useMemo(() => {
     return getBezierCurveData(exerciseForm?.muscles || []);
   }, [exerciseForm]);
+
+  const [curveSnapshot, setCurveSnapshot] = useState(null);
 
   const muscleSum = useMemo(() => {
     return (exerciseForm?.muscles || []).reduce((sum, m) => sum + m.percentage, 0);
@@ -339,16 +341,56 @@ export const ExerciseModal = ({
                         </button>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                        <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'flex-end' }}>
-                          <button 
-                            type="button" 
-                            className={`btn ${isExpanded ? 'btn-primary' : 'btn-outline'}`}
-                            style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
-                            onClick={() => setEditingCurveIndex(isExpanded ? null : index)}
-                          >
-                            <Sliders size={14} style={{ marginRight: '6px' }} />
-                            {isExpanded ? 'Done' : 'Sculpt Curve'}
-                          </button>
+                        <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                          {isExpanded ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-outline"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                                onClick={() => {
+                                  if (curveSnapshot) {
+                                    const updated = [...exerciseForm.muscles];
+                                    updated[index] = { ...updated[index], ...curveSnapshot };
+                                    setExerciseForm({ ...exerciseForm, muscles: updated });
+                                  }
+                                  setEditingCurveIndex(null);
+                                  setCurveSnapshot(null);
+                                }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                                onClick={() => {
+                                  setEditingCurveIndex(null);
+                                  setCurveSnapshot(null);
+                                }}
+                              >
+                                Done
+                              </button>
+                            </>
+                          ) : (
+                            <button 
+                              type="button" 
+                              className="btn btn-outline"
+                              style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                              onClick={() => {
+                                setCurveSnapshot({
+                                  x0: m.x0, y0: m.y0,
+                                  x1: m.x1, y1: m.y1,
+                                  x2: m.x2, y2: m.y2,
+                                  x3: m.x3, y3: m.y3,
+                                });
+                                setEditingCurveIndex(index);
+                              }}
+                            >
+                              <Sliders size={14} style={{ marginRight: '6px' }} />
+                              Sculpt Curve
+                            </button>
+                          )}
                         </div>
                         <div>
                           <label className="modal-label" style={{ fontSize: '0.7rem' }}>Magnitude (%)</label>
