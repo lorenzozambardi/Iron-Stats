@@ -207,21 +207,24 @@ const SingleDonut = ({
     const rightLabels = resolveLabelCollisions(rawSlices.filter((s) => s.side === 'right').map(toCollisionItem));
     const yMap = new Map([...leftLabels, ...rightLabels].map((item) => [item.idx, item.y]));
 
-    const rRingClear = rOut + 8;
+    const rSafe = rOut + 6;
     const finalSlices = rawSlices.map((s) => {
-      const newY = yMap.get(s.idx) ?? s.labelY;
+      let newY = yMap.get(s.idx) ?? s.labelY;
       let newX = s.labelX;
       let newAnchor = s.textAnchor;
-      if (newY !== s.labelY) {
-        const dy = newY - cy;
-        if (Math.abs(dy) < rRingClear) {
-          const minDx = Math.sqrt(rRingClear * rRingClear - dy * dy);
-          newX = s.side === 'left'
-            ? Math.min(s.labelX, cx - minDx)
-            : Math.max(s.labelX, cx + minDx);
-        }
-        if (Math.abs(newX - cx) > 18) {
-          newAnchor = s.side === 'left' ? 'end' : 'start';
+      if (newY !== s.labelY && Math.abs(newX - cx) > 18) {
+        newAnchor = s.side === 'left' ? 'end' : 'start';
+      }
+      // Ensure the label's closest vertical edge (bottom for top half, top for bottom half) clears the outer arc
+      const closestDy = newY < cy ? (newY + 15) - cy : (newY - 12) - cy;
+      if (Math.abs(closestDy) < rSafe) {
+        if (newAnchor === 'middle') {
+          newY = newY < cy ? cy - rSafe - 15 : cy + rSafe + 12;
+        } else {
+          const minDx = Math.sqrt(rSafe * rSafe - closestDy * closestDy);
+          newX = newAnchor === 'end'
+            ? Math.min(newX, cx - minDx)
+            : Math.max(newX, cx + minDx);
         }
       }
       return {
