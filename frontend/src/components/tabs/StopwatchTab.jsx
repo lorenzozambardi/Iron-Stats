@@ -521,13 +521,14 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
               boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
             }}
           >
-            <span style={{ fontSize: '0.8rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)' }}>
+            <span style={{ fontSize: '0.8rem', lineHeight: 1, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)' }}>
               Session
             </span>
             <span
               ref={sessionDisplayRef}
               style={{
                 fontSize: '1.1rem',
+                lineHeight: 1,
                 fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
                 color: '#fff',
                 fontVariantNumeric: 'tabular-nums',
