@@ -385,8 +385,8 @@ const MuscleDonutChart = ({
   compareData,
   currentProgram,
   compareProgram,
-  weeksA = 1,
-  weeksB = 1,
+  weekA = null,
+  weekB = null,
   metric,
   isMobile,
 }) => {
@@ -436,9 +436,10 @@ const MuscleDonutChart = ({
 
   const baseA = currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram;
   const baseB = currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram;
-  const labelA = weeksA > 1 ? `${baseA} · ${weeksA}w avg` : `${baseA} · ${weeksA}w`;
-  const labelB = weeksB > 1 ? `${baseB} · ${weeksB}w avg` : `${baseB} · ${weeksB}w`;
-  const compareSubLabel = `AVG ${metricUnitLabel} / WK`;
+  const labelA = weekA !== null ? `${baseA} · W${weekA}` : baseA;
+  const labelB = weekB !== null ? `${baseB} · W${weekB}` : baseB;
+  const subLabelA = weekA !== null ? `W${weekA} ${metricUnitLabel}` : metricUnitLabel;
+  const subLabelB = weekB !== null ? `W${weekB} ${metricUnitLabel}` : metricUnitLabel;
 
   return (
     <div
@@ -454,7 +455,7 @@ const MuscleDonutChart = ({
         data={data}
         colorMap={colorMap}
         metricUnitLabel={metricUnitLabel}
-        centerSubLabel={compareSubLabel}
+        centerSubLabel={subLabelA}
         isMobile={isMobile}
         compact
         headerLabel={labelA}
@@ -464,7 +465,7 @@ const MuscleDonutChart = ({
         data={alignedCompareData}
         colorMap={colorMap}
         metricUnitLabel={metricUnitLabel}
-        centerSubLabel={compareSubLabel}
+        centerSubLabel={subLabelB}
         isMobile={isMobile}
         compact
         headerLabel={labelB}

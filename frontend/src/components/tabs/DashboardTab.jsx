@@ -271,11 +271,29 @@ const DashboardTab = ({
     })).sort((a,b) => b.value - a.value);
   }, [dashFilterWeek, activeWeeksList, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
 
-  const normWeeksA = compareMode ? Math.max(1, activeWeeksList.length) : 1;
-  const normWeeksB = compareMode ? Math.max(1, compareActiveWeeksList.length) : 1;
+  const lastFullWeekA = activeWeeksList.length > 0 ? activeWeeksList[activeWeeksList.length - 1] : null;
+  const lastFullWeekB = compareActiveWeeksList.length > 0 ? compareActiveWeeksList[compareActiveWeeksList.length - 1] : null;
 
-  const muscleData = useMemo(() => calculateMuscleDistribution(dashFilteredData, undefined, undefined, normWeeksA), [dashFilteredData, calculateMuscleDistribution, normWeeksA]);
-  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all', compareActiveWeeksList, normWeeksB) : [], [compareMode, cmpFilteredData, cmpFilterWeek, compareActiveWeeksList, calculateMuscleDistribution, normWeeksB]);
+  const muscleData = useMemo(
+    () => calculateMuscleDistribution(
+      dashFilteredData,
+      compareMode && lastFullWeekA !== null ? lastFullWeekA : undefined,
+      undefined,
+      1
+    ),
+    [dashFilteredData, calculateMuscleDistribution, compareMode, lastFullWeekA]
+  );
+  const compareMuscleData = useMemo(
+    () => compareMode
+      ? calculateMuscleDistribution(
+          cmpFilteredData,
+          lastFullWeekB !== null ? lastFullWeekB : (cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all'),
+          compareActiveWeeksList,
+          1
+        )
+      : [],
+    [compareMode, cmpFilteredData, cmpFilterWeek, compareActiveWeeksList, calculateMuscleDistribution, lastFullWeekB]
+  );
 
   const displayMuscleData = useMemo(() => {
     if (dashMuscleMacro === 'all') return muscleData;
@@ -367,13 +385,12 @@ const DashboardTab = ({
     return data;
   }, [dashFilteredData, dashFilterWeek, activeWeeksList, dashMuscleMacro, muscleMetric, displayMuscleData]);
 
-  // Overall totals (filtered; normalized per week in compare mode so programs of different lengths compare fairly)
+  // Overall totals (filtered; in compare mode, uses each selection's last full week so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
-    const div = normWeeksA;
-    const agg = (fn) => {
-      const sum = metricsByWeek.reduce((acc, m) => acc + fn(m), 0);
-      return compareMode ? parseFloat((sum / div).toFixed(1)) : sum;
-    };
+    const rows = compareMode && lastFullWeekA !== null
+      ? metricsByWeek.filter(m => m.week === `W${lastFullWeekA}`)
+      : metricsByWeek;
+    const agg = (fn) => parseFloat(rows.reduce((acc, m) => acc + fn(m), 0).toFixed(1));
     return {
       totalVolume: agg(m => m.Volume),
       totalTonnage: agg(m => m.Tonnage),
@@ -386,11 +403,13 @@ const DashboardTab = ({
       totalEffectiveTut: agg(m => m.EffectiveTut || 0),
       totalSets: agg(m => m.Sets || 0),
     };
-  }, [metricsByWeek, normWeeksA, compareMode]);
+  }, [metricsByWeek, compareMode, lastFullWeekA]);
 
   const compareTotals = useMemo(() => {
-    const div = normWeeksB;
-    const agg = (fn) => parseFloat((compareMetricsByWeek.reduce((acc, m) => acc + fn(m), 0) / div).toFixed(1));
+    const rows = lastFullWeekB !== null
+      ? compareMetricsByWeek.filter(m => m.week === `W${lastFullWeekB}`)
+      : compareMetricsByWeek;
+    const agg = (fn) => parseFloat(rows.reduce((acc, m) => acc + fn(m), 0).toFixed(1));
     return {
       compareTotalVolume: agg(m => m.Volume_B || 0),
       compareTotalTonnage: agg(m => m.Tonnage_B || 0),
@@ -403,7 +422,7 @@ const DashboardTab = ({
       compareTotalEffectiveTut: agg(m => m.EffectiveTut_B || 0),
       compareTotalSets: agg(m => m.Sets_B || 0),
     };
-  }, [compareMetricsByWeek, normWeeksB]);
+  }, [compareMetricsByWeek, lastFullWeekB]);
 
   const { totalVolume, totalTonnage, totalEffectiveTonnage, totalWeightedTonnage, totalEffectiveWeightedTonnage, totalFatigue,
     totalEffectiveReps, totalTut, totalEffectiveTut, totalSets } = mainTotals;
@@ -828,7 +847,7 @@ const DashboardTab = ({
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
                         {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                         <span style={{ marginLeft: 'auto', fontSize: '0.72rem', opacity: 0.85 }}>
-                          {activeWeeksList.length > 1 ? `avg/wk (${activeWeeksList.length}w)` : `${activeWeeksList.length}w`}
+                          {lastFullWeekA !== null ? `W${lastFullWeekA}` : '—'}
                         </span>
                       </div>
                       <div style={{
@@ -840,7 +859,7 @@ const DashboardTab = ({
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
                         {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                         <span style={{ marginLeft: 'auto', fontSize: '0.72rem', opacity: 0.85 }}>
-                          {compareActiveWeeksList.length > 1 ? `avg/wk (${compareActiveWeeksList.length}w)` : `${compareActiveWeeksList.length}w`}
+                          {lastFullWeekB !== null ? `W${lastFullWeekB}` : '—'}
                         </span>
                       </div>
 
@@ -1228,8 +1247,8 @@ const DashboardTab = ({
                         compareData={compareMode ? displayCompareMuscleData : null}
                         currentProgram={currentProgram}
                         compareProgram={compareProgram}
-                        weeksA={activeWeeksList.length}
-                        weeksB={compareActiveWeeksList.length}
+                        weekA={lastFullWeekA}
+                        weekB={lastFullWeekB}
                         metric={muscleMetric}
                         isMobile={isMobile}
                       />
