@@ -547,7 +547,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  ...(isSessionRunning ? { background: 'rgba(255, 255, 255, 0.12)', border: '1px solid var(--border-color)', color: '#fff' } : {})
+                  ...(isSessionRunning ? { background: 'rgba(255, 255, 255, 0.12)', border: '1px solid var(--border-color)', color: '#fff' } : { boxShadow: '0 4px 12px var(--accent-primary-glow)' })
                 }}
               >
                 {isSessionRunning ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
