@@ -16,10 +16,39 @@ const BezierEditor = ({ value, onChange }) => {
   const fromSvgX = (svgX) => Math.max(0, Math.min(1, (svgX - paddingX) / innerWidth));
   const fromSvgY = (svgY) => Math.max(0, Math.min(1, (paddingY + innerHeight - svgY) / innerHeight));
 
-  const handlePointerDown = (e, point) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(point);
+  const handleSvgPointerDown = (e) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+    const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+    if (clientX === undefined || clientY === undefined) return;
+    const svgX = clientX - rect.left;
+    const svgY = clientY - rect.top;
+
+    const candidates = [
+      { id: 'p0', x: toSvgX(p0.x), y: toSvgY(p0.y) },
+      { id: 'p1', x: toSvgX(p1.x), y: toSvgY(p1.y) },
+      { id: 'p2', x: toSvgX(p2.x), y: toSvgY(p2.y) },
+      { id: 'p3', x: toSvgX(p3.x), y: toSvgY(p3.y) },
+    ];
+
+    let nearest = null;
+    let minDistSq = 28 * 28;
+    for (const c of candidates) {
+      const dx = svgX - c.x;
+      const dy = svgY - c.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= minDistSq) {
+        minDistSq = d2;
+        nearest = c.id;
+      }
+    }
+
+    if (nearest) {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(nearest);
+    }
   };
 
   const valueRef = useRef(value);
@@ -158,6 +187,7 @@ const BezierEditor = ({ value, onChange }) => {
         width="300" 
         height="200" 
         style={{ cursor: dragging ? 'grabbing' : 'default', touchAction: 'none' }}
+        onPointerDown={handleSvgPointerDown}
       >
         <defs>
           <linearGradient id="curveGradient" x1="0" y1="0" x2="300" y2="0" gradientUnits="userSpaceOnUse">
@@ -183,12 +213,24 @@ const BezierEditor = ({ value, onChange }) => {
         <path d={normalizedPathD} fill="none" stroke="url(#curveGradient)" strokeWidth="4" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px rgba(99,102,241,0.3))' }} />
         
         {/* Control points (Maniglie blu) */}
-        <circle cx={toSvgX(p1.x)} cy={toSvgY(p1.y)} r="7" fill="var(--bg-primary)" stroke="var(--accent-secondary)" strokeWidth="2.5" style={{ cursor: 'grab' }} onPointerDown={(e) => handlePointerDown(e, 'p1')} />
-        <circle cx={toSvgX(p2.x)} cy={toSvgY(p2.y)} r="7" fill="var(--bg-primary)" stroke="var(--accent-secondary)" strokeWidth="2.5" style={{ cursor: 'grab' }} onPointerDown={(e) => handlePointerDown(e, 'p2')} />
+        <g style={{ cursor: 'grab' }}>
+          <circle cx={toSvgX(p1.x)} cy={toSvgY(p1.y)} r="22" fill="transparent" />
+          <circle cx={toSvgX(p1.x)} cy={toSvgY(p1.y)} r="7" fill="var(--bg-primary)" stroke="var(--accent-secondary)" strokeWidth="2.5" />
+        </g>
+        <g style={{ cursor: 'grab' }}>
+          <circle cx={toSvgX(p2.x)} cy={toSvgY(p2.y)} r="22" fill="transparent" />
+          <circle cx={toSvgX(p2.x)} cy={toSvgY(p2.y)} r="7" fill="var(--bg-primary)" stroke="var(--accent-secondary)" strokeWidth="2.5" />
+        </g>
         
         {/* End points */}
-        <circle cx={toSvgX(p0.x)} cy={toSvgY(p0.y)} r="8" fill="var(--color-volume)" style={{ cursor: 'pointer' }} onPointerDown={(e) => handlePointerDown(e, 'p0')} />
-        <circle cx={toSvgX(p3.x)} cy={toSvgY(p3.y)} r="8" fill="var(--color-tonnage)" style={{ cursor: 'pointer' }} onPointerDown={(e) => handlePointerDown(e, 'p3')} />
+        <g style={{ cursor: 'pointer' }}>
+          <circle cx={toSvgX(p0.x)} cy={toSvgY(p0.y)} r="22" fill="transparent" />
+          <circle cx={toSvgX(p0.x)} cy={toSvgY(p0.y)} r="8" fill="var(--color-volume)" />
+        </g>
+        <g style={{ cursor: 'pointer' }}>
+          <circle cx={toSvgX(p3.x)} cy={toSvgY(p3.y)} r="22" fill="transparent" />
+          <circle cx={toSvgX(p3.x)} cy={toSvgY(p3.y)} r="8" fill="var(--color-tonnage)" />
+        </g>
       </svg>
       {/* Labels */}
       <div style={{ position: 'absolute', bottom: '6px', left: '8px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }}>STRETCH</div>
