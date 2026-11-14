@@ -309,7 +309,7 @@ const FoldableEditor = forwardRef(function FoldableEditor({
       }
 
       return cmDiagnostics;
-    }, { delay: 150 });
+    }, { delay: 0 });
   }, []);
 
   const extensions = useMemo(() => [

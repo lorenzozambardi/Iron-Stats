@@ -1,7 +1,6 @@
 import {
   getExercisesWithOverrides,
   matchExercise,
-  parseLine,
   parseLogbook
 } from './parser';
 import { fuzzyScore } from './components/helpers';
@@ -71,6 +70,18 @@ export function formatLogbookLine(rawLine) {
 export function formatLogbook(logText) {
   if (!logText || typeof logText !== 'string') return '';
   return logText.split('\n').map(formatLogbookLine).join('\n');
+}
+
+/**
+ * Fast early-exit check for whether any line in the logbook has inconsistent spacing.
+ */
+export function needsFormatting(logText) {
+  if (!logText || typeof logText !== 'string') return false;
+  const lines = logText.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (formatLogbookLine(lines[i]) !== lines[i]) return true;
+  }
+  return false;
 }
 
 /**
@@ -489,11 +500,11 @@ function checkWorkoutAnomalies(workoutData, lines, sessionHeaderLines) {
  * @param {Array|null} preParsedWorkoutData - Optional result of parseLogbook(logText, exercises)
  * @returns {Array} Sorted diagnostics
  */
-export function lintLogbook(logText, exercises = [], preParsedWorkoutData = null) {
+export function lintLogbook(logText, exercises = [], preParsedWorkoutData = null, preResolvedExercises = null) {
   if (!logText || typeof logText !== 'string') return [];
 
   const lines = logText.split('\n');
-  const localExercises = getExercisesWithOverrides(logText, exercises);
+  const localExercises = preResolvedExercises || getExercisesWithOverrides(logText, exercises);
   const diagnostics = [];
   const sessionHeaderLines = new Map();
 
@@ -506,20 +517,6 @@ export function lintLogbook(logText, exercises = [], preParsedWorkoutData = null
     if (!trimmed) continue;
 
     const lineOffset = rawLine.indexOf(trimmed);
-    const formattedLine = formatLogbookLine(rawLine);
-    if (formattedLine !== rawLine) {
-      diagnostics.push({
-        id: 'format-spacing',
-        lineIndex: i,
-        from: 0,
-        to: rawLine.length,
-        severity: 'info',
-        category: 'syntax',
-        message: 'Inconsistent spacing. Format line to standardize.',
-        suggestion: formattedLine,
-        replaceFullLine: true
-      });
-    }
 
     if (trimmed.startsWith('#')) {
       const match = trimmed.match(/\d+/);
@@ -551,10 +548,7 @@ export function lintLogbook(logText, exercises = [], preParsedWorkoutData = null
     if (isLogLine) {
       diagnostics.push(...lintSetLine(trimmed, rawLine, i, hasCurrentExercise, currentWeeksCount));
       if (hasCurrentExercise) {
-        const parsed = parseLine(trimmed, i);
-        if (parsed.length > 0 || (trimmed.includes('..') && currentWeeksCount > 0)) {
-          currentWeeksCount++;
-        }
+        currentWeeksCount++;
       }
       continue;
     }

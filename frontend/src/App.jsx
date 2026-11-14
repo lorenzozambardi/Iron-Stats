@@ -28,7 +28,7 @@ import {
   parseLogbook,
   getExercisesWithOverrides
 } from './parser';
-import { lintLogbook, formatLogbook } from './linter';
+import { lintLogbook, formatLogbook, needsFormatting } from './linter';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 import { App as CapacitorApp } from '@capacitor/app';
 
@@ -269,7 +269,7 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedLogbookText(logbookText);
-    }, 500);
+    }, 250);
     return () => clearTimeout(timer);
   }, [logbookText]);
 
@@ -655,9 +655,9 @@ export default function App() {
   }, [debouncedLogbookText, exercisesDb]);
 
   const rawDiagnostics = useMemo(() => {
-    if (!debouncedLogbookText || exercisesDb.length === 0) return [];
-    return lintLogbook(debouncedLogbookText, exercisesDb, workoutData);
-  }, [debouncedLogbookText, exercisesDb, workoutData]);
+    if (activeTab !== 'editor' || !debouncedLogbookText || exercisesDb.length === 0) return [];
+    return lintLogbook(debouncedLogbookText, exercisesDb, workoutData, activeExercises);
+  }, [activeTab, debouncedLogbookText, exercisesDb, workoutData, activeExercises]);
 
   const dismissedSet = useMemo(() => new Set(dismissedFingerprints), [dismissedFingerprints]);
 
@@ -668,8 +668,9 @@ export default function App() {
   const bypassedCount = rawDiagnostics.length - diagnostics.length;
 
   const hasFormattingIssues = useMemo(() => {
-    return rawDiagnostics.some(d => d.id === 'format-spacing');
-  }, [rawDiagnostics]);
+    if (activeTab !== 'editor') return false;
+    return needsFormatting(logbookText);
+  }, [activeTab, logbookText]);
 
   const lintCounts = useMemo(() => {
     let errors = 0, warnings = 0, infos = 0;
@@ -1440,9 +1441,10 @@ export default function App() {
                 {editorType !== 'easy' && (
                   <button
                     type="button"
-                    className={`btn btn-secondary lint-format-btn ${hasFormattingIssues ? 'needs-format' : ''}`}
+                    className="btn btn-secondary"
                     onClick={handleFormatLogbook}
                     disabled={!hasFormattingIssues}
+                    style={{ opacity: hasFormattingIssues ? 1 : 0.45 }}
                     title="Uniform spacing across all lines"
                   >
                     <Wand2 size={14} /> Format
