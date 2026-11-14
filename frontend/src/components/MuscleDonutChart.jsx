@@ -91,12 +91,33 @@ const describeRoundedArc = (cx, cy, rIn, rOut, startAngle, endAngle, cornerRadiu
   ].join(' ');
 };
 
-const nudgeVerticalCollisions = (items, minGap = 30) => {
-  const sorted = [...items].sort((a, b) => a.y - b.y);
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].y - sorted[i - 1].y < minGap) {
-      sorted[i].y = sorted[i - 1].y + minGap;
+const getLabelXSpan = (x, anchor, width) => {
+  if (anchor === 'end') return [x - width, x];
+  if (anchor === 'middle') return [x - width / 2, x + width / 2];
+  return [x, x + width];
+};
+
+const resolveLabelCollisions = (items, minGap = 28) => {
+  const sorted = items.map((item) => ({ ...item })).sort((a, b) => a.y - b.y);
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const curr = sorted[i];
+      const yOverlap = minGap - (curr.y - prev.y);
+      if (yOverlap <= 0) continue;
+
+      const [pMin, pMax] = getLabelXSpan(prev.x, prev.anchor, prev.width);
+      const [cMin, cMax] = getLabelXSpan(curr.x, curr.anchor, curr.width);
+      const xOverlaps = Math.min(pMax, cMax) - Math.max(pMin, cMin) > -4;
+      if (!xOverlaps) continue;
+
+      const shift = yOverlap / 2;
+      prev.y -= shift;
+      curr.y += shift;
+      changed = true;
     }
+    if (!changed) break;
   }
   return sorted;
 };
@@ -145,14 +166,16 @@ const SingleDonut = ({
 
       const rMid = (rIn + rOut) / 2;
       const innerPos = polarToCartesian(cx, cy, rMid, midAngle);
+      const outerPos = polarToCartesian(cx, cy, rOut + 15, midAngle);
       const cos = Math.cos(midAngle);
-      const sin = Math.sin(midAngle);
-      // Extra radial clearance near 12/6 o'clock where stacked 2-line labels sit vertically above/below the arc
-      const outerPos = polarToCartesian(cx, cy, rOut + 14 + 6 * Math.abs(sin), midAngle);
 
       let textAnchor = 'start';
       if (cos < -0.22) textAnchor = 'end';
       else if (Math.abs(cos) <= 0.22) textAnchor = 'middle';
+
+      const formattedVal = item.value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+      const subText = fitsInside ? formattedVal : `${formattedVal} · ${pctText}`;
+      const labelWidth = Math.max(item.name.length * 7.2, subText.length * 6.2) + 6;
 
       return {
         idx,
@@ -166,29 +189,33 @@ const SingleDonut = ({
         innerPos,
         labelX: outerPos.x,
         labelY: outerPos.y,
+        labelWidth,
         textAnchor,
         side: cos >= 0 ? 'right' : 'left',
         path: describeRoundedArc(cx, cy, rIn, rOut, startAngle, endAngle, 8),
       };
     });
 
-    const leftLabels = nudgeVerticalCollisions(
-      rawSlices.filter((s) => s.side === 'left').map((s) => ({ idx: s.idx, y: s.labelY }))
-    );
-    const rightLabels = nudgeVerticalCollisions(
-      rawSlices.filter((s) => s.side === 'right').map((s) => ({ idx: s.idx, y: s.labelY }))
-    );
+    const toCollisionItem = (s) => ({
+      idx: s.idx,
+      x: s.labelX,
+      y: s.labelY,
+      anchor: s.textAnchor,
+      width: s.labelWidth,
+    });
+    const leftLabels = resolveLabelCollisions(rawSlices.filter((s) => s.side === 'left').map(toCollisionItem));
+    const rightLabels = resolveLabelCollisions(rawSlices.filter((s) => s.side === 'right').map(toCollisionItem));
     const yMap = new Map([...leftLabels, ...rightLabels].map((item) => [item.idx, item.y]));
 
-    const rLabel = rOut + 16;
+    const rRingClear = rOut + 8;
     const finalSlices = rawSlices.map((s) => {
       const newY = yMap.get(s.idx) ?? s.labelY;
       let newX = s.labelX;
       let newAnchor = s.textAnchor;
       if (newY !== s.labelY) {
         const dy = newY - cy;
-        if (Math.abs(dy) < rLabel) {
-          const minDx = Math.sqrt(rLabel * rLabel - dy * dy);
+        if (Math.abs(dy) < rRingClear) {
+          const minDx = Math.sqrt(rRingClear * rRingClear - dy * dy);
           newX = s.side === 'left'
             ? Math.min(s.labelX, cx - minDx)
             : Math.max(s.labelX, cx + minDx);
@@ -237,7 +264,7 @@ const SingleDonut = ({
         </div>
       )}
       <svg
-        viewBox="0 -4 390 312"
+        viewBox="0 0 390 304"
         style={{
           width: '100%',
           maxWidth: compact ? (isMobile ? '340px' : '380px') : (isMobile ? '360px' : '440px'),
