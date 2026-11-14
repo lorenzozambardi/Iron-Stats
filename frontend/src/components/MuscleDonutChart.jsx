@@ -145,8 +145,10 @@ const SingleDonut = ({
 
       const rMid = (rIn + rOut) / 2;
       const innerPos = polarToCartesian(cx, cy, rMid, midAngle);
-      const outerPos = polarToCartesian(cx, cy, rOut + 15, midAngle);
       const cos = Math.cos(midAngle);
+      const sin = Math.sin(midAngle);
+      // Extra radial clearance near 12/6 o'clock where stacked 2-line labels sit vertically above/below the arc
+      const outerPos = polarToCartesian(cx, cy, rOut + 16 + 11 * Math.abs(sin), midAngle);
 
       let textAnchor = 'start';
       if (cos < -0.22) textAnchor = 'end';
@@ -235,7 +237,7 @@ const SingleDonut = ({
         </div>
       )}
       <svg
-        viewBox="0 0 390 304"
+        viewBox="0 -8 390 320"
         style={{
           width: '100%',
           maxWidth: compact ? (isMobile ? '340px' : '380px') : (isMobile ? '360px' : '440px'),
