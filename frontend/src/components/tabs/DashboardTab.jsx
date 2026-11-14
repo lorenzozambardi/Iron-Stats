@@ -1026,7 +1026,7 @@ const DashboardTab = ({
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '16px' : '12px' }}>
                             <LockWheelPicker
                               label="Session"
                               options={sessionWheelOptions}
@@ -1051,7 +1051,7 @@ const DashboardTab = ({
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '16px' : '12px' }}>
                             <LockWheelPicker
                               label="Session"
                               options={cmpSessionWheelOptions}
@@ -1071,7 +1071,7 @@ const DashboardTab = ({
                         </div>
 
                         {/* Shared muscle lock wheels — full width row */}
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: isMobile ? '16px' : '12px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                           <LockWheelPicker
                             label="Muscle Group"
                             options={macroWheelOptions}
@@ -1092,7 +1092,7 @@ const DashboardTab = ({
                       </div>
                     ) : (
                       // Normal mode: minimal lateral lock-wheels + Dual-thumb Week slider
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '16px' : '12px' }}>
                         <LockWheelPicker
                           label="Session"
                           options={sessionWheelOptions}
