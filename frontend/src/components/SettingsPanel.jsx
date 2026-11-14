@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, startTransition, useEffect, useOptimistic, useRef, useState } from 'react';
 import {
   FolderOpen,
   ChevronDown,
@@ -60,9 +60,22 @@ export const SettingsPanel = memo(({
   applyStorageConfig
 }) => {
   const [openColorSlot, setOpenColorSlot] = useState(null);
+  const [optimisticEditorType, setOptimisticEditorType] = useOptimistic(editorType);
   const [isStorageOpen, setIsStorageOpen] = useState(false);
   const [storageHeight, setStorageHeight] = useState(0);
   const storageContentRef = useRef(null);
+
+  const handleEditorTypeChange = (nextType) => {
+    if (nextType === optimisticEditorType) return;
+    localStorage.setItem('editor-type', nextType);
+    startTransition(() => {
+      setOptimisticEditorType(nextType);
+      setEditorType(nextType);
+      if (nextType === 'easy' && editorMode === 'split') {
+        setEditorMode('edit');
+      }
+    });
+  };
 
   useEffect(() => {
     if (!storageDrawerRef) return;
@@ -294,22 +307,18 @@ export const SettingsPanel = memo(({
       <div className="settings-section">
         <div className="settings-section-label">Editor Mode</div>
         <div className="settings-pill-toggle settings-segmented">
-          <div className={`settings-pill-indicator ${editorType}`} />
+          <div className={`settings-pill-indicator ${optimisticEditorType}`} />
           <button
             type="button"
-            onClick={() => { setEditorType('manual'); localStorage.setItem('editor-type', 'manual'); }}
-            className={`settings-pill-btn ${editorType === 'manual' ? 'active' : ''}`}
+            onClick={() => handleEditorTypeChange('manual')}
+            className={`settings-pill-btn ${optimisticEditorType === 'manual' ? 'active' : ''}`}
           >
             Manual
           </button>
           <button
             type="button"
-            onClick={() => {
-              setEditorType('easy');
-              localStorage.setItem('editor-type', 'easy');
-              if (editorMode === 'split') setEditorMode('edit');
-            }}
-            className={`settings-pill-btn ${editorType === 'easy' ? 'active' : ''}`}
+            onClick={() => handleEditorTypeChange('easy')}
+            className={`settings-pill-btn ${optimisticEditorType === 'easy' ? 'active' : ''}`}
           >
             Easy
           </button>
