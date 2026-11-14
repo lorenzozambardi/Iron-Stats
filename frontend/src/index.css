@@ -1174,9 +1174,7 @@ input::-webkit-list-button {
 }
 
 .lint-drawer {
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--bg-glass-active, rgba(17, 17, 20, 0.94));
   border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
   overflow: hidden;

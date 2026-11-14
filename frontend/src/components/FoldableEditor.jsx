@@ -1,9 +1,9 @@
-import { useMemo, useCallback, useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState, forwardRef, useImperativeHandle, memo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
-import { linter, lintGutter, forceLinting } from '@codemirror/lint';
+import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { customFoldService } from './customFoldService';
 import { fuzzyScore } from './helpers';
 
@@ -98,18 +98,15 @@ const editorTheme = EditorView.theme({
   },
   '.cm-lintRange-error': {
     backgroundImage: 'none',
-    textDecoration: 'underline wavy #f87171',
-    textUnderlineOffset: '3px'
+    borderBottom: '2px solid #ef4444'
   },
   '.cm-lintRange-warning': {
     backgroundImage: 'none',
-    textDecoration: 'underline wavy #fbbf24',
-    textUnderlineOffset: '3px'
+    borderBottom: '2px dashed #f59e0b'
   },
   '.cm-lintRange-info': {
     backgroundImage: 'none',
-    textDecoration: 'underline dotted #60a5fa',
-    textUnderlineOffset: '3px'
+    borderBottom: '2px dotted #60a5fa'
   },
   '.cm-tooltip-lint': {
     backgroundColor: 'var(--bg-glass-active, #181818) !important',
@@ -198,6 +195,7 @@ const FoldableEditor = forwardRef(function FoldableEditor({
 
   const editorViewRef = useRef(null);
   const lastEmittedValueRef = useRef(value);
+  const lastCursorLineRef = useRef(-1);
   const [initialValue] = useState(value);
 
   useImperativeHandle(ref, () => ({
@@ -261,79 +259,78 @@ const FoldableEditor = forwardRef(function FoldableEditor({
     });
   }, []);
 
-  const lintExtension = useMemo(() => {
-    return linter((view) => {
-      const list = diagnosticsRef.current;
-      if (!list || list.length === 0) return [];
-      const doc = view.state.doc;
-      const cmDiagnostics = [];
+  const buildCmDiagnostics = useCallback((doc, list) => {
+    if (!list || list.length === 0) return [];
+    const cmDiagnostics = [];
 
-      for (const d of list) {
-        const lineNum = d.lineIndex + 1;
-        if (lineNum < 1 || lineNum > doc.lines) continue;
-        const line = doc.line(lineNum);
-        const from = Math.min(line.to, line.from + Math.max(0, d.from ?? 0));
-        const to = Math.min(line.to, Math.max(from, line.from + (d.to ?? line.length)));
+    for (const d of list) {
+      const lineNum = d.lineIndex + 1;
+      if (lineNum < 1 || lineNum > doc.lines) continue;
+      const line = doc.line(lineNum);
+      const from = Math.min(line.to, line.from + Math.max(0, d.from ?? 0));
+      const to = Math.min(line.to, Math.max(from, line.from + (d.to ?? line.length)));
 
-        const entry = {
-          from,
-          to,
-          severity: d.severity || 'warning',
-          message: d.message
-        };
+      const entry = {
+        from,
+        to,
+        severity: d.severity || 'warning',
+        message: d.message
+      };
 
-        const actions = [];
-        if (d.suggestion !== undefined) {
-          actions.push({
-            name: d.replaceFullLine ? 'Format line' : `Use "${d.suggestion}"`,
-            apply(targetView, f, t) {
-              targetView.dispatch({
-                changes: { from: f, to: t, insert: d.suggestion }
-              });
-            }
-          });
-        }
-        if (onDismissDiagnosticRef.current) {
-          actions.push({
-            name: 'Mark as OK',
-            apply() {
-              onDismissDiagnosticRef.current(d);
-            }
-          });
-        }
-        if (actions.length > 0) {
-          entry.actions = actions;
-        }
-
-        cmDiagnostics.push(entry);
+      const actions = [];
+      if (d.suggestion !== undefined) {
+        actions.push({
+          name: d.replaceFullLine ? 'Format line' : `Use "${d.suggestion}"`,
+          apply(targetView, f, t) {
+            targetView.dispatch({
+              changes: { from: f, to: t, insert: d.suggestion }
+            });
+          }
+        });
+      }
+      if (onDismissDiagnosticRef.current) {
+        actions.push({
+          name: 'Mark as OK',
+          apply() {
+            onDismissDiagnosticRef.current(d);
+          }
+        });
+      }
+      if (actions.length > 0) {
+        entry.actions = actions;
       }
 
-      return cmDiagnostics;
-    }, { delay: 0 });
+      cmDiagnostics.push(entry);
+    }
+
+    return cmDiagnostics;
   }, []);
 
   const extensions = useMemo(() => [
     customFoldService,
     foldGutterExtension,
     lintGutter(),
-    lintExtension,
     EditorView.lineWrapping,
     exerciseCompletion,
     editorTheme,
     EditorView.updateListener.of((update) => {
       if (update.selectionSet && onCursorLineChangeRef.current) {
         const head = update.state.selection.main.head;
-        const line = update.state.doc.lineAt(head);
-        onCursorLineChangeRef.current(line.number - 1);
+        const lineNum = update.state.doc.lineAt(head).number - 1;
+        if (lineNum !== lastCursorLineRef.current) {
+          lastCursorLineRef.current = lineNum;
+          onCursorLineChangeRef.current(lineNum);
+        }
       }
     })
-  ], [exerciseCompletion, lintExtension]);
+  ], [exerciseCompletion]);
 
   useEffect(() => {
-    if (editorViewRef.current) {
-      forceLinting(editorViewRef.current);
-    }
-  }, [diagnostics]);
+    const view = editorViewRef.current;
+    if (!view) return;
+    const cmDiags = buildCmDiagnostics(view.state.doc, diagnostics);
+    view.dispatch(setDiagnostics(view.state, cmDiags));
+  }, [diagnostics, buildCmDiagnostics]);
 
   const handleChange = useCallback((val) => {
     lastEmittedValueRef.current = val;
@@ -344,7 +341,11 @@ const FoldableEditor = forwardRef(function FoldableEditor({
 
   const handleCreateEditor = useCallback((view) => {
     editorViewRef.current = view;
-  }, []);
+    if (diagnosticsRef.current && diagnosticsRef.current.length > 0) {
+      const cmDiags = buildCmDiagnostics(view.state.doc, diagnosticsRef.current);
+      view.dispatch(setDiagnostics(view.state, cmDiags));
+    }
+  }, [buildCmDiagnostics]);
 
   // Only sync external value changes (program switch, undo/redo, modal edits) into CodeMirror.
   // Never echo back the user's own keystrokes, which prevents cursor resets during fast typing / IME.
@@ -382,4 +383,4 @@ const FoldableEditor = forwardRef(function FoldableEditor({
   );
 });
 
-export default FoldableEditor;
+export default memo(FoldableEditor);
