@@ -150,17 +150,6 @@ export const ExerciseModal = ({
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span className="modal-label" style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>
-                Muscle Distribution
-              </span>
-              {isMobile && exerciseForm.muscles.length > 0 && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                  ROM <strong style={{ color: '#fff', fontWeight: 600 }}>{tensionSliderPos}%</strong>
-                </span>
-              )}
-            </div>
-            
             {exerciseForm.muscles.length > 0 && (
               <div style={{
                 width: '100%',
@@ -171,6 +160,16 @@ export const ExerciseModal = ({
                 padding: isMobile ? '12px 12px 10px 12px' : '14px 16px 12px 16px',
                 boxShadow: 'var(--card-shadow)',
               }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className="chart-title" style={{ fontSize: '0.95rem', fontWeight: 600, color: '#fff' }}>
+                    Tension Profiles
+                  </span>
+                  {isMobile && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                      ROM <strong style={{ color: '#fff', fontWeight: 600 }}>{tensionSliderPos}%</strong>
+                    </span>
+                  )}
+                </div>
                 <div style={{ height: isMobile ? '150px' : '170px', width: '100%' }}>
                   <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
                     <LineChart
@@ -303,83 +302,104 @@ export const ExerciseModal = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {exerciseForm.muscles.map((m, index) => {
                   const dotColor = chartColors[index % chartColors.length];
+                  const isExpanded = editingCurveIndex === index;
                   return (
-                  <div key={m.name} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: dotColor }}></span>
-                        {m.name}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-icon-small"
-                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        onClick={() => {
-                          const updated = exerciseForm.muscles.filter((_, i) => i !== index);
-                          setExerciseForm({ ...exerciseForm, muscles: updated });
-                          setExerciseError('');
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'flex-end' }}>
-                        <button 
-                          type="button" 
-                          className="btn btn-outline" 
-                          style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
-                          onClick={() => setEditingCurveIndex(index)}
+                  <div
+                    key={m.name}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      background: 'var(--bg-secondary)',
+                      padding: isMobile ? '12px' : '14px 16px',
+                      borderRadius: 'var(--card-radius)',
+                      border: isExpanded ? '1px solid var(--border-color-hover)' : '1px solid var(--border-color)',
+                      boxShadow: 'var(--card-shadow)',
+                      transition: 'border-color 0.25s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '7px' }}>
+                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: dotColor }}></span>
+                          {m.name}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-icon-small"
+                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={() => {
+                            const updated = exerciseForm.muscles.filter((_, i) => i !== index);
+                            setExerciseForm({ ...exerciseForm, muscles: updated });
+                            if (editingCurveIndex === index) setEditingCurveIndex(null);
+                            else if (editingCurveIndex !== null && editingCurveIndex > index) setEditingCurveIndex(editingCurveIndex - 1);
+                            setExerciseError('');
+                          }}
                         >
-                          <Sliders size={14} style={{ marginRight: '6px' }} />
-                          Sculpt Curve
+                          ×
                         </button>
                       </div>
-                      <div>
-                        <label className="modal-label" style={{ fontSize: '0.7rem' }}>Magnitude (%)</label>
-                        <input type="number" className="modal-input" min="0" max="100" step="1" value={m.percentage} onChange={(e) => {
-                          const updated = [...exerciseForm.muscles];
-                          updated[index] = { ...m, percentage: Math.max(0, parseInt(e.target.value, 10) || 0) };
-                          setExerciseForm({ ...exerciseForm, muscles: updated });
-                        }} style={{ padding: '4px 8px', fontSize: '0.8rem' }} />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                        <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'flex-end' }}>
+                          <button 
+                            type="button" 
+                            className={`btn ${isExpanded ? 'btn-primary' : 'btn-outline'}`}
+                            style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                            onClick={() => setEditingCurveIndex(isExpanded ? null : index)}
+                          >
+                            <Sliders size={14} style={{ marginRight: '6px' }} />
+                            {isExpanded ? 'Done' : 'Sculpt Curve'}
+                          </button>
+                        </div>
+                        <div>
+                          <label className="modal-label" style={{ fontSize: '0.7rem' }}>Magnitude (%)</label>
+                          <input type="number" className="modal-input" min="0" max="100" step="1" value={m.percentage} onChange={(e) => {
+                            const updated = [...exerciseForm.muscles];
+                            updated[index] = { ...m, percentage: Math.max(0, parseInt(e.target.value, 10) || 0) };
+                            setExerciseForm({ ...exerciseForm, muscles: updated });
+                          }} style={{ padding: '4px 8px', fontSize: '0.8rem' }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Smoothly expanding curve sculptor inside the muscle card */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                        opacity: isExpanded ? 1 : 0,
+                        marginTop: isExpanded ? '12px' : '0px',
+                        transition: 'grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease, margin-top 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+                      }}
+                    >
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{
+                          paddingTop: '12px',
+                          borderTop: '1px solid rgba(255,255,255,0.06)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                        }}>
+                          <BezierEditor 
+                            value={m}
+                            onChange={(newCurve) => {
+                              const updated = [...exerciseForm.muscles];
+                              updated[index] = { ...updated[index], ...newCurve };
+                              setExerciseForm({ ...exerciseForm, muscles: updated });
+                            }}
+                          />
+                          <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '10px', marginBottom: 0, textAlign: 'center', lineHeight: 1.4 }}>
+                            Drag the orange points to set initial and final tension.<br/>
+                            Drag the blue handles to modify resistance acceleration.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 )})}
               </div>
             )}
-            
-            {editingCurveIndex !== null && (
-              <div style={{ marginTop: '20px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                    Tension Curve: {exerciseForm.muscles[editingCurveIndex]?.name}
-                  </h4>
-                  <button 
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ padding: '4px 12px', fontSize: '0.8rem' }}
-                    onClick={() => setEditingCurveIndex(null)}
-                  >
-                    Done
-                  </button>
-                </div>
-                <BezierEditor 
-                  value={exerciseForm.muscles[editingCurveIndex] || {}}
-                  onChange={(newCurve) => {
-                    const updated = [...exerciseForm.muscles];
-                    updated[editingCurveIndex] = { ...updated[editingCurveIndex], ...newCurve };
-                    setExerciseForm({ ...exerciseForm, muscles: updated });
-                  }}
-                />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', textAlign: 'center' }}>
-                  Drag the orange points to set initial and final tension.<br/>
-                  Drag the blue handles to modify resistance acceleration.
-                </p>
-              </div>
-            )}
 
-            {editingCurveIndex === null && Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m)).length > 0 && (() => {
+            {Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m)).length > 0 && (() => {
               const available = Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m));
               const scored = muscleSearch
                 ? available
