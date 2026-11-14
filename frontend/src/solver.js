@@ -8,19 +8,19 @@ const COEFF_PARTIAL = 0.33;
 function getTargetCurve(curveType, resolution = 50) {
     const t = Array.from({ length: resolution }, (_, i) => i / (resolution - 1));
     if (curveType === 'constant') {
-        return new Float32Array(resolution).fill(1);
+        return new Float64Array(resolution).fill(1);
     } else if (curveType === 'sigmoid') {
         const raw = t.map(v => 1.0 / (1.0 + Math.exp(-10.0 * (v - 0.5))));
         const maxVal = Math.max(...raw);
-        return new Float32Array(raw.map(v => v / maxVal));
+        return new Float64Array(raw.map(v => v / maxVal));
     } else if (curveType === 'inv_sigmoid') {
         const raw = t.map(v => 1.0 / (1.0 + Math.exp(10.0 * (v - 0.5))));
         const maxVal = Math.max(...raw);
-        return new Float32Array(raw.map(v => v / maxVal));
+        return new Float64Array(raw.map(v => v / maxVal));
     } else if (curveType === 'linear') {
-        return new Float32Array(t.map(v => 1 - v));
+        return new Float64Array(t.map(v => 1 - v));
     } else {
-        return new Float32Array(resolution).fill(1);
+        return new Float64Array(resolution).fill(1);
     }
 }
 
@@ -35,7 +35,7 @@ function getBezierCurve(rawProf, resolution = 50) {
         throw new RangeError(`Negative Bezier magnitude: ${prof.magnitude}`);
     }
 
-    const res = new Float32Array(resolution);
+    const res = new Float64Array(resolution);
     if (area > 0) {
         const scale = prof.magnitude / area;
         for (let i = 0; i < resolution; i++) {
@@ -205,6 +205,22 @@ export class WorkoutSolver {
 
         // Clone exercises and enforce partition-of-unity on muscles_distr without mutating caller DB
         this.db = db.map(ex => {
+            const fatigue = Number(ex.fatigue ?? 5.0);
+            const loadCoeff = Number(ex.load_coeff ?? 0.5);
+            const loadMult = Number(ex.load_multiplier ?? 1.0);
+            const loadOffset = Number(ex.load_offset ?? 0.0);
+            if (![fatigue, loadCoeff, loadMult, loadOffset].every(Number.isFinite)) {
+                throw new RangeError(`Non-finite scalar parameter in Exercise '${ex.name}'`);
+            }
+            if (fatigue < 0.0) {
+                throw new RangeError(`Exercise fatigue must be >= 0, got ${fatigue}`);
+            }
+            if (loadCoeff < 0.0) {
+                throw new RangeError(`Exercise load_coeff must be >= 0, got ${loadCoeff}`);
+            }
+            if (loadMult <= 0.0) {
+                throw new RangeError(`Exercise load_multiplier must be > 0, got ${loadMult}`);
+            }
             const rawDistr = ex.muscles_distr || {};
             const clonedDistr = {};
             let totalMag = 0.0;
@@ -216,13 +232,26 @@ export class WorkoutSolver {
                     }
                     clonedDistr[m] = { x0: 0.0, y0: 1.0, x1: 0.33, y1: 1.0, x2: 0.66, y2: 1.0, x3: 1.0, y3: 1.0, magnitude: entry };
                     totalMag += entry;
-                } else {
-                    const mag = Number(entry?.magnitude ?? 0.0);
+                } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+                    const mag = Number(entry.magnitude ?? 0.0);
                     if (!Number.isFinite(mag) || mag < 0.0) {
                         throw new RangeError(`Invalid Bezier magnitude: ${mag}`);
                     }
-                    clonedDistr[m] = { ...entry, magnitude: mag };
+                    clonedDistr[m] = {
+                        ...entry,
+                        x0: Number(entry.x0 ?? 0.0),
+                        y0: Number(entry.y0 ?? 1.0),
+                        x1: Number(entry.x1 ?? 0.33),
+                        y1: Number(entry.y1 ?? 1.0),
+                        x2: Number(entry.x2 ?? 0.66),
+                        y2: Number(entry.y2 ?? 1.0),
+                        x3: Number(entry.x3 ?? 1.0),
+                        y3: Number(entry.y3 ?? 1.0),
+                        magnitude: mag
+                    };
                     totalMag += mag;
+                } else {
+                    throw new RangeError(`Invalid muscle distribution entry for ${m}`);
                 }
             }
             if (Object.keys(clonedDistr).length > 0 && totalMag <= 0.0) {
@@ -235,8 +264,10 @@ export class WorkoutSolver {
             }
             return {
                 ...ex,
-                load_multiplier: ex.load_multiplier ?? 1.0,
-                load_offset: ex.load_offset ?? 0.0,
+                fatigue,
+                load_coeff: loadCoeff,
+                load_multiplier: loadMult,
+                load_offset: loadOffset,
                 muscles_distr: clonedDistr
             };
         });
@@ -319,10 +350,10 @@ export class WorkoutSolver {
         this.distr_muscles = new Set([...this.all_submuscles, ...Object.keys(this.target_sub_vol)]);
 
         const t_domain = Array.from({ length: this.resolution }, (_, i) => i / (this.resolution - 1));
-        this.partial_mask = new Float32Array(this.resolution);
+        this.partial_mask = new Float64Array(this.resolution);
         for(let i=0; i<this.resolution; i++) this.partial_mask[i] = t_domain[i] <= 0.3333 ? 1.0 : 0.0;
         
-        this.default_curve = new Float32Array(this.resolution).fill(1);
+        this.default_curve = new Float64Array(this.resolution).fill(1);
         this.scales = {};
         this.unique_ex_count = new Set(this.db.map(ex => ex.name)).size;
 
@@ -352,7 +383,7 @@ export class WorkoutSolver {
         this.V_m_buffers = {};
         this.subVols = {};
         this.distr_muscles.forEach(m => {
-            this.V_m_buffers[m] = new Float32Array(this.resolution);
+            this.V_m_buffers[m] = new Float64Array(this.resolution);
             this.subVols[m] = 0.0;
         });
     }

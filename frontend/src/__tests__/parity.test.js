@@ -60,8 +60,8 @@ describe('Mathematical invariants and frontend/solver parity', () => {
       const scale = prof.magnitude / area;
       const midIdx = Math.round(0.5 * (resolution - 1));
       const dashAtMid = solveBezierY(midIdx / (resolution - 1), prof.x0, prof.y0, prof.x1, prof.y1, prof.x2, prof.y2, prof.x3, prof.y3) * scale;
-      expect(solverCurve[midIdx]).toBeCloseTo(dashAtMid, 6);
-      expect(solverCurve[midIdx]).toBe(Math.fround(dashAtMid));
+      expect(solverCurve[midIdx]).toBeCloseTo(dashAtMid, 12);
+      expect(solverCurve[midIdx]).toBe(dashAtMid);
     }
   });
 
@@ -306,5 +306,37 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     solver.config.calibration_steps = 0;
     solver.calibrate();
     expect(Object.keys(solver.scales)).toHaveLength(0);
+  });
+
+  it('converges immediately on exact dyadic roots, populates partial override coordinates, and handles old/dropset carry-forward', () => {
+    expect(solveBezierY(0.5, 0.0, 0.0, 1 / 3, 1.0, 2 / 3, 1.0, 1.0, 0.0)).toBe(0.75);
+    expect(solveBezierY(0.5, 0.0, 0.0, 1 / 3, 0.0, 2 / 3, 1.0, 1.0, 1.0)).toBe(0.5);
+    expect(bezierPartialFraction(0.0, 0.0, 1 / 3, 0.0, 2 / 3, 1.0, 1.0, 1.0, 0.5)).toBeCloseTo(0.1875, 15);
+
+    const overLog = [
+      'override: LR | fatigue=Infinity | load_coeff=-Infinity | load_offset=Infinity',
+      'override: LR | muscles_distr={"Lateral Deltoid": {"magnitude": "1.0"}}',
+      'override: LR | muscles_distr=[1, 2]',
+      '# 1',
+      'LR',
+      '10.. 10',
+      'old 12..',
+      '14..12..'
+    ].join('\n');
+    const parsed = parseLogbook(overLog, defaultExercises);
+    expect(parsed).toHaveLength(1);
+    expect(Number.isFinite(parsed[0].exercise_obj.fatigue)).toBe(true);
+    expect(parsed[0].exercise_obj.load_offset).toBe(0);
+    expect(parsed[0].exercise_obj.muscles_distr['Lateral Deltoid'].x0).toBe(0.0);
+    expect(parsed[0].exercise_obj.muscles_distr['Lateral Deltoid'].magnitude).toBe(1.0);
+    expect(parsed[0].weeks).toHaveLength(3);
+    expect(parsed[0].weeks[1].sets[0].load).toBe(12);
+    expect(parsed[0].weeks[2].sets[0].load).toBe(14);
+
+    // Partial Bezier object in overridden DB can be passed directly into WorkoutSolver
+    const overDb = getExercisesWithOverrides('override: LR | muscles_distr={"Lateral Deltoid": {"magnitude": 1.0}}', defaultExercises);
+    expect(() => new WorkoutSolver({ days: 1, calibration_steps: 0 }, overDb)).not.toThrow();
+    expect(() => new WorkoutSolver({}, [{ ...defaultExercises[0], fatigue: -1 }])).toThrow(RangeError);
+    expect(() => new WorkoutSolver({}, [{ ...defaultExercises[0], load_multiplier: 0 }])).toThrow(RangeError);
   });
 });

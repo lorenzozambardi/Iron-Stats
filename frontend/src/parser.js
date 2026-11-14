@@ -84,24 +84,28 @@ export function getExercisesWithOverrides(logText, globalExercises) {
             
             if (key === 'fatigue') {
               const parsedVal = parseFloat(val);
-              if (!Number.isNaN(parsedVal) && parsedVal >= 0.0) exObj.fatigue = parsedVal;
+              if (Number.isFinite(parsedVal) && parsedVal >= 0.0) exObj.fatigue = parsedVal;
             } else if (key === 'load_coeff') {
               const parsedVal = parseFloat(val);
-              if (!Number.isNaN(parsedVal) && parsedVal >= 0.0) exObj.load_coeff = parsedVal;
+              if (Number.isFinite(parsedVal) && parsedVal >= 0.0) exObj.load_coeff = parsedVal;
             } else if (key === 'load_multiplier') {
               const parsedVal = parseFloat(val);
-              if (!Number.isNaN(parsedVal) && parsedVal > 0.0) exObj.load_multiplier = parsedVal;
+              if (Number.isFinite(parsedVal) && parsedVal > 0.0) exObj.load_multiplier = parsedVal;
             } else if (key === 'load_offset') {
               const parsedVal = parseFloat(val);
-              if (!Number.isNaN(parsedVal)) exObj.load_offset = parsedVal;
+              if (Number.isFinite(parsedVal)) exObj.load_offset = parsedVal;
             } else if (key === 'is_isolation') {
               exObj.is_isolation = val.toLowerCase() === 'true' || val === '1';
             } else if (key === 'muscles_distr') {
               try {
                 const parsedDistr = JSON.parse(val);
+                if (!parsedDistr || typeof parsedDistr !== 'object' || Array.isArray(parsedDistr)) {
+                  throw new TypeError('muscles_distr in override must be a plain object');
+                }
                 let totalMag = 0.0;
-                for (const prof of Object.values(parsedDistr)) {
-                  if (prof && typeof prof === 'object') {
+                const normalizedDistr = {};
+                for (const [mKey, prof] of Object.entries(parsedDistr)) {
+                  if (prof && typeof prof === 'object' && !Array.isArray(prof)) {
                     const x0 = Number(prof.x0 ?? 0.0);
                     const y0 = Number(prof.y0 ?? 1.0);
                     const x1 = Number(prof.x1 ?? 0.33);
@@ -120,27 +124,31 @@ export function getExercisesWithOverrides(logText, globalExercises) {
                     if (Math.min(y0, y1, y2, y3) < 0.0 || mag < 0.0) {
                       throw new RangeError(`Negative Bezier y or magnitude in override`);
                     }
+                    normalizedDistr[mKey] = { ...prof, x0, y0, x1, y1, x2, y2, x3, y3, magnitude: mag };
                     totalMag += mag;
                   } else if (typeof prof === 'number') {
                     if (!Number.isFinite(prof) || prof < 0.0) {
                       throw new RangeError(`Invalid muscle magnitude: ${prof}`);
                     }
+                    normalizedDistr[mKey] = prof;
                     totalMag += prof;
+                  } else {
+                    throw new TypeError(`Invalid muscle distribution entry for ${mKey}`);
                   }
                 }
-                if (Object.keys(parsedDistr).length > 0 && totalMag <= 0.0) {
+                if (Object.keys(normalizedDistr).length > 0 && totalMag <= 0.0) {
                   throw new RangeError('Muscle distribution magnitudes must sum to a positive value');
                 }
                 if (totalMag > 0 && Math.abs(totalMag - 1.0) > 1e-12) {
-                  for (const [mKey, prof] of Object.entries(parsedDistr)) {
+                  for (const [mKey, prof] of Object.entries(normalizedDistr)) {
                     if (prof && typeof prof === 'object') {
-                      prof.magnitude = Number(prof.magnitude || 0) / totalMag;
+                      prof.magnitude /= totalMag;
                     } else if (typeof prof === 'number') {
-                      parsedDistr[mKey] = prof / totalMag;
+                      normalizedDistr[mKey] = prof / totalMag;
                     }
                   }
                 }
-                exObj.muscles_distr = parsedDistr;
+                exObj.muscles_distr = normalizedDistr;
               } catch (e) {
                 console.error('Failed to parse muscles_distr JSON in override:', val, e);
               }
@@ -532,9 +540,12 @@ export function parseLine(line, lineIndex = 0) {
         ? subparts.slice(0, -1).join('/').trim()
         : subparts[0].trim();
       if (loadStr) {
-        currentLoads = loadStr.includes('/')
+        const parsedLoads = loadStr.includes('/')
           ? loadStr.split('/').filter(Boolean).map(Number)
           : [parseFloat(loadStr)];
+        if (parsedLoads.length > 0 && parsedLoads.every(Number.isFinite)) {
+          currentLoads = parsedLoads;
+        }
       }
       if (repStr) {
         parsedSets.push(...parseRepToken(repStr, currentLoads, dsId));
@@ -590,25 +601,31 @@ export function parseLogbook(logText, exercises) {
           
           // Carry forward load if empty (e.g. line is just reps but load exists from prev week)
           if (parsedSets.length === 0 && line.includes('..') && currentExercise.weeks.length > 0) {
-            const loadStr = line.split('..')[0].trim();
+            const cleanCf = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
+            const cfSubparts = cleanCf.split('..');
+            const loadStr = cfSubparts.length > 2
+              ? cfSubparts.slice(0, -1).join('/').trim()
+              : cfSubparts[0].trim();
             if (loadStr) {
               const loads = loadStr.includes('/') 
                 ? loadStr.split('/').filter(Boolean).map(Number) 
                 : [parseFloat(loadStr)];
-              const prevSets = currentExercise.weeks[currentExercise.weeks.length - 1].sets;
-              parsedSets = prevSets.map((s, idx) => {
-                const load = idx < loads.length ? loads[idx] : loads[loads.length - 1];
-                const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
-                const effectiveReps = effBase + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
-                const totalReps = s.base_reps + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
-                return {
-                  ...s,
-                  load,
-                  effectiveReps,
-                  totalReps,
-                  fatigue: s.fatigue
-                };
-              });
+              if (loads.length > 0 && loads.every(Number.isFinite)) {
+                const prevSets = currentExercise.weeks[currentExercise.weeks.length - 1].sets;
+                parsedSets = prevSets.map((s, idx) => {
+                  const load = idx < loads.length ? loads[idx] : loads[loads.length - 1];
+                  const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
+                  const effectiveReps = effBase + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
+                  const totalReps = s.base_reps + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
+                  return {
+                    ...s,
+                    load,
+                    effectiveReps,
+                    totalReps,
+                    fatigue: s.fatigue
+                  };
+                });
+              }
             }
           }
 
