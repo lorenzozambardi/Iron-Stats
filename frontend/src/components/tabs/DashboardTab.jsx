@@ -221,9 +221,24 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
 });
 
 const CARD_MODE_OPTIONS = [
-  { value: 'total', label: 'Total' },
-  { value: 'effective', label: 'Effective' },
+  { value: 'total', label: 'TOT' },
+  { value: 'effective', label: 'EFF' },
 ];
+
+const CardModeToggle = React.memo(({ mode, onSelect }) => (
+  <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+    <LockWheelPicker
+      options={CARD_MODE_OPTIONS}
+      value={mode}
+      onChange={onSelect}
+      itemWidth={34}
+      gap={10}
+      circular={false}
+      compact
+      style={{ width: '72px' }}
+    />
+  </div>
+));
 
 const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
   const hasA = values && values.length >= 1;
@@ -474,7 +489,12 @@ const DashboardTab = ({
   setSelectedMetricDetail
 }) => {
   const [muscleMetric, setMuscleMetric] = useState('sets');
-  const [globalCardMode, setGlobalCardMode] = useState('total');
+  const [cardModes, setCardModes] = useState({
+    reps: 'total',
+    tonnage: 'total',
+    weightedTonnage: 'total',
+    tut: 'total',
+  });
 
   // Dashboard filter state
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
@@ -1177,18 +1197,7 @@ const DashboardTab = ({
                     );
                   })()}
 
-                  {/* ── Summary Cards Mode Switcher & Grid ── */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: isMobile ? '6px' : '10px' }}>
-                    <LockWheelPicker
-                      options={CARD_MODE_OPTIONS}
-                      value={globalCardMode}
-                      onChange={setGlobalCardMode}
-                      itemWidth={68}
-                      gap={16}
-                      circular={false}
-                      style={{ width: isMobile ? '156px' : '170px' }}
-                    />
-                  </div>
+                  {/* ── Summary Cards ── */}
                   {compareMode && compareProgram && !compareLoading ? (
                     <>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '8px' : '16px', marginBottom: isMobile ? '8px' : '12px' }}>
@@ -1265,13 +1274,22 @@ const DashboardTab = ({
                             },
                           },
                         ].map((card) => {
-                          const mode = card.variants.effective ? globalCardMode : 'total';
+                          const hasToggle = Boolean(card.variants.effective);
+                          const mode = hasToggle ? (cardModes[card.id] || 'total') : 'total';
                           const [label, cls, metricKey, valA, valB, d] = card.variants[mode];
                           const valsA = sparkSeriesA[metricKey];
                           const valsB = sparkSeriesB[metricKey];
                           return (
                             <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
-                              <span className="metric-label">{label}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                                <span className="metric-label">{label}</span>
+                                {hasToggle && (
+                                  <CardModeToggle
+                                    mode={mode}
+                                    onSelect={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                                  />
+                                )}
+                              </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-primary)', flexShrink: 0 }} />
@@ -1353,12 +1371,21 @@ const DashboardTab = ({
                           },
                         },
                       ].map((card) => {
-                        const mode = card.variants.effective ? globalCardMode : 'total';
+                        const hasToggle = Boolean(card.variants.effective);
+                        const mode = hasToggle ? (cardModes[card.id] || 'total') : 'total';
                         const [label, cls, metricKey, color, formattedVal] = card.variants[mode];
                         const vals = sparkSeriesA[metricKey];
                         return (
                           <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
-                            <span className="metric-label">{label}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                              <span className="metric-label">{label}</span>
+                              {hasToggle && (
+                                <CardModeToggle
+                                  mode={mode}
+                                  onSelect={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                                />
+                              )}
+                            </div>
                             <span className="metric-value">{formattedVal}</span>
                             <TrendBadge values={vals} invertColor={cls === 'fatigue'} />
                             {card.isBar ? (

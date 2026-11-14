@@ -18,7 +18,7 @@ const measureLabelWidth = (text) => {
  * Minimal lateral (horizontal) circular lock-wheel picker.
  * Selected item is centered in white; neighbors left/right fade out in grayer shades.
  */
-export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, gap = null, circular = true, style }) => {
+export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, gap = null, circular = true, compact = false, style }) => {
   const containerRef = useRef(null);
 
   const count = options.length;
@@ -177,13 +177,17 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
           position: 'relative',
           flex: 1,
           minWidth: 0,
-          height: '28px',
+          height: compact ? '22px' : '28px',
           overflow: 'hidden',
           cursor: count > 1 ? (isDragging ? 'grabbing' : 'ew-resize') : 'default',
           touchAction: 'none',
           userSelect: 'none',
-          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
-          maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
+          WebkitMaskImage: compact
+            ? 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 10%, #000 26%, #000 74%, rgba(0,0,0,0.55) 90%, transparent 100%)'
+            : 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
+          maskImage: compact
+            ? 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 10%, #000 26%, #000 74%, rgba(0,0,0,0.55) 90%, transparent 100%)'
+            : 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
         }}
       >
         {offsets.map((rel) => {
@@ -218,7 +222,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
                 position: 'absolute',
                 left: '50%',
                 top: 0,
-                height: '28px',
+                height: compact ? '22px' : '28px',
                 width: `${slotWidth}px`,
                 transform: `translateX(calc(-50% + ${xPx}px)) scale(${scale})`,
                 transition: isDragging ? 'none' : 'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease',
@@ -226,7 +230,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '0 4px',
-                fontSize: isCenter ? '0.82rem' : '0.74rem',
+                fontSize: compact ? (isCenter ? '0.7rem' : '0.62rem') : (isCenter ? '0.82rem' : '0.74rem'),
                 fontWeight: isCenter ? 700 : 500,
                 color,
                 opacity,
