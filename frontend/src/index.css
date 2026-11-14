@@ -3364,6 +3364,26 @@ input::-webkit-list-button {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.settings-storage-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transition: grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
+  will-change: grid-template-rows, opacity;
+}
+
+.settings-storage-collapse.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.settings-storage-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .settings-storage-drawer {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0 !important;
@@ -3374,6 +3394,7 @@ input::-webkit-list-button {
   padding: 12px 16px 14px !important;
   background: rgba(0, 0, 0, 0.22) !important;
   gap: 12px !important;
+  animation: none !important;
 }
 
 .settings-storage-current {

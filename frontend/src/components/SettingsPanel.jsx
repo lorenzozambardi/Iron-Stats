@@ -176,81 +176,89 @@ export const SettingsPanel = ({
               <ChevronDown size={14} className={`storage-chevron${showStorageSettings ? ' open' : ''}`} />
             </button>
 
-            {(showStorageSettings || isStorageClosing) && (() => {
+            {(() => {
               const cfg = getStorageConfig();
               const isCustom = cfg.dirType === 'custom' && cfg.safUri;
+              const isExpanded = showStorageSettings && !isStorageClosing;
               return (
-                <div className={`storage-panel settings-storage-drawer${isStorageClosing ? ' closing' : ''}`}>
-                  <div className="settings-storage-current">
-                    <div className="settings-storage-current-info">
-                      <span className="settings-storage-sublabel">Current</span>
-                      <span className={`settings-storage-path${isCustom ? ' custom' : ''}`}>
-                        {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
-                      </span>
-                    </div>
-                    <div className="settings-storage-current-actions">
-                      <button type="button" className="settings-storage-pill-primary" onClick={handlePickFolder}>
-                        <FolderOpen size={13} />
-                        <span>Pick Folder</span>
-                      </button>
-                      {isCustom && (
-                        <button
-                          type="button"
-                          className="settings-icon-btn"
-                          onClick={handleResetStorage}
-                          title="Reset to Default"
-                        >
-                          <RotateCcw size={13} />
-                        </button>
+                <div
+                  className={`settings-storage-collapse${isExpanded ? ' open' : ''}`}
+                  aria-hidden={!isExpanded}
+                >
+                  <div className="settings-storage-collapse-inner">
+                    <div className="storage-panel settings-storage-drawer">
+                      <div className="settings-storage-current">
+                        <div className="settings-storage-current-info">
+                          <span className="settings-storage-sublabel">Current</span>
+                          <span className={`settings-storage-path${isCustom ? ' custom' : ''}`}>
+                            {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
+                          </span>
+                        </div>
+                        <div className="settings-storage-current-actions">
+                          <button type="button" className="settings-storage-pill-primary" onClick={handlePickFolder}>
+                            <FolderOpen size={13} />
+                            <span>Pick Folder</span>
+                          </button>
+                          {isCustom && (
+                            <button
+                              type="button"
+                              className="settings-icon-btn"
+                              onClick={handleResetStorage}
+                              title="Reset to Default"
+                            >
+                              <RotateCcw size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {storagePickError && (
+                        <div className="storage-error-alert">
+                          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                          <span>{storagePickError}</span>
+                        </div>
                       )}
-                    </div>
-                  </div>
 
-                  {storagePickError && (
-                    <div className="storage-error-alert">
-                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                      <span>{storagePickError}</span>
-                    </div>
-                  )}
+                      <div className="settings-storage-standard">
+                        <span className="settings-storage-sublabel">Standard Location</span>
 
-                  <div className="settings-storage-standard">
-                    <span className="settings-storage-sublabel">Standard Location</span>
+                        <div className="settings-storage-row">
+                          <span className="settings-row-label">Location</span>
+                          <select
+                            className="settings-program-select settings-storage-select"
+                            value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
+                            onChange={e => setPendingDirType(e.target.value)}
+                            aria-label="Location Type"
+                          >
+                            <option value="documents">Public Documents</option>
+                            <option value="data">Private Storage</option>
+                          </select>
+                        </div>
 
-                    <div className="settings-storage-row">
-                      <span className="settings-row-label">Location</span>
-                      <select
-                        className="settings-program-select settings-storage-select"
-                        value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
-                        onChange={e => setPendingDirType(e.target.value)}
-                        aria-label="Location Type"
-                      >
-                        <option value="documents">Public Documents</option>
-                        <option value="data">Private Storage</option>
-                      </select>
-                    </div>
+                        <div className="settings-storage-row">
+                          <span className="settings-row-label">Subfolder</span>
+                          <input
+                            type="text"
+                            className="settings-storage-input"
+                            value={pendingSubfolder}
+                            onChange={e => setPendingSubfolder(e.target.value)}
+                            placeholder="Iron Stats"
+                            aria-label="Subfolder Name"
+                          />
+                        </div>
 
-                    <div className="settings-storage-row">
-                      <span className="settings-row-label">Subfolder</span>
-                      <input
-                        type="text"
-                        className="settings-storage-input"
-                        value={pendingSubfolder}
-                        onChange={e => setPendingSubfolder(e.target.value)}
-                        placeholder="Iron Stats"
-                        aria-label="Subfolder Name"
-                      />
-                    </div>
-
-                    <div className="settings-storage-footer">
-                      <span className="settings-storage-preview">
-                        {pendingDirType === 'data'
-                          ? `Private/${pendingSubfolder || '(root)'}`
-                          : `Documents/${pendingSubfolder || '(root)'}`}
-                      </span>
-                      <button type="button" className="settings-storage-pill-apply" onClick={applyStorageConfig}>
-                        <RefreshCw size={12} />
-                        <span>Apply</span>
-                      </button>
+                        <div className="settings-storage-footer">
+                          <span className="settings-storage-preview">
+                            {pendingDirType === 'data'
+                              ? `Private/${pendingSubfolder || '(root)'}`
+                              : `Documents/${pendingSubfolder || '(root)'}`}
+                          </span>
+                          <button type="button" className="settings-storage-pill-apply" onClick={applyStorageConfig}>
+                            <RefreshCw size={12} />
+                            <span>Apply</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
