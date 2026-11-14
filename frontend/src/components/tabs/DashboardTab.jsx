@@ -8,6 +8,35 @@ import { bezierArea, solveBezierY } from '../helpers';
 const CURVE_RESOLUTION = 50;
 const normalizedCurveCache = new Map();
 
+const isWeekInRange = (weekNum, fromVal, toVal) => {
+  if (fromVal !== 'all' && weekNum < parseInt(fromVal, 10)) return false;
+  if (toVal !== 'all' && weekNum > parseInt(toVal, 10)) return false;
+  return true;
+};
+
+const formatWeekRangeLabel = (fromVal, toVal) => {
+  if (fromVal !== 'all' && toVal !== 'all') {
+    return fromVal === toVal ? `W${fromVal}` : `W${fromVal}–W${toVal}`;
+  }
+  if (fromVal !== 'all') return `W${fromVal}+`;
+  if (toVal !== 'all') return `≤W${toVal}`;
+  return null;
+};
+
+const TrendBadge = ({ values }) => {
+  if (!values || values.length < 2) return null;
+  const first = values[0];
+  const last = values[values.length - 1];
+  if (first === 0) return null;
+  const pct = ((last - first) / first) * 100;
+  const pos = pct >= 0;
+  return (
+    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: pos ? '#10b981' : '#f43f5e', lineHeight: 1.1 }}>
+      {pos ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
+    </span>
+  );
+};
+
 const MetricSparkline = ({ values, color, gradId }) => {
   if (!values || values.length < 2) return null;
 
@@ -98,14 +127,16 @@ const DashboardTab = ({
 
   // Dashboard filter state
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
-  const [dashFilterWeek, setDashFilterWeek] = useState('all');     // 'all' or week number
+  const [dashFilterWeekFrom, setDashFilterWeekFrom] = useState('all'); // 'all' or week number
+  const [dashFilterWeekTo, setDashFilterWeekTo] = useState('all');     // 'all' or week number
   const [compareMode, setCompareMode] = useState(false);
   const [compareProgram, setCompareProgram] = useState('');
   const [compareWorkoutData, setCompareWorkoutData] = useState([]);
   const [compareLoading, setCompareLoading] = useState(false);
   // Per-program filters in compare mode
   const [cmpFilterSession, setCmpFilterSession] = useState('all');
-  const [cmpFilterWeek, setCmpFilterWeek] = useState('all');
+  const [cmpFilterWeekFrom, setCmpFilterWeekFrom] = useState('all');
+  const [cmpFilterWeekTo, setCmpFilterWeekTo] = useState('all');
   // Shared muscle group/subgroup isolation filter
   const [dashMuscleMacro, setDashMuscleMacro] = useState('all');   // 'all' or macro name e.g. 'Back'
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
@@ -191,7 +222,7 @@ const DashboardTab = ({
   [cmpFilteredData]);
 
   const activeWeeksList = useMemo(() => {
-    const weeksToUse = dashFilterWeek === 'all' ? dashWeeksList : dashWeeksList.filter(w => w === parseInt(dashFilterWeek, 10));
+    const weeksToUse = dashWeeksList.filter(w => isWeekInRange(w, dashFilterWeekFrom, dashFilterWeekTo));
     const targetSession = dashFilterSession !== 'all' ? parseInt(dashFilterSession, 10) : null;
     return weeksToUse.filter(week => {
       if (targetSession !== null) return true;
@@ -200,7 +231,7 @@ const DashboardTab = ({
         workoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
       );
     });
-  }, [dashFilterWeek, dashWeeksList, dashFilterSession, sessionsList, workoutData]);
+  }, [dashFilterWeekFrom, dashFilterWeekTo, dashWeeksList, dashFilterSession, sessionsList, workoutData]);
 
   // Overall Progression Metrics (by Week) — respects session + muscle filters
   const metricsByWeek = useMemo(() => {
@@ -228,7 +259,7 @@ const DashboardTab = ({
 
 
   const compareActiveWeeksList = useMemo(() => {
-    const weeksToUse = cmpFilterWeek === 'all' ? cmpWeeksList : cmpWeeksList.filter(w => w === parseInt(cmpFilterWeek, 10));
+    const weeksToUse = cmpWeeksList.filter(w => isWeekInRange(w, cmpFilterWeekFrom, cmpFilterWeekTo));
     const targetSession = cmpFilterSession !== 'all' ? parseInt(cmpFilterSession, 10) : null;
     return weeksToUse.filter(week => {
       if (targetSession !== null) return true;
@@ -237,7 +268,7 @@ const DashboardTab = ({
         compareWorkoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
       );
     });
-  }, [cmpFilterWeek, cmpWeeksList, cmpFilterSession, compareSessionsList, compareWorkoutData]);
+  }, [cmpFilterWeekFrom, cmpFilterWeekTo, cmpWeeksList, cmpFilterSession, compareSessionsList, compareWorkoutData]);
 
   // Compare program B metrics by week — respects its own session/week + shared muscle filters
   const compareMetricsByWeek = useMemo(() => {
@@ -280,14 +311,14 @@ const DashboardTab = ({
     const distributions = {};
     const src = dataSource;
     if (!src) return [];
-    const effectiveWeekFilter = weekOverride !== undefined ? weekOverride : dashFilterWeek;
+    const hasWeekOverride = weekOverride !== undefined && weekOverride !== 'all';
     const allowedWeeks = new Set(activeWeeksOverride !== undefined ? activeWeeksOverride : activeWeeksList);
     src.forEach(wEx => {
       const ex = wEx.exercise_obj;
       if (!ex) return;
       wEx.weeks.forEach(wData => {
-        if (effectiveWeekFilter !== 'all' && wData.week_num !== parseInt(effectiveWeekFilter, 10)) return;
-        if (effectiveWeekFilter === 'all' && !allowedWeeks.has(wData.week_num)) return;
+        if (hasWeekOverride && wData.week_num !== parseInt(weekOverride, 10)) return;
+        if (!hasWeekOverride && !allowedWeeks.has(wData.week_num)) return;
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
             // Muscle group filter
@@ -321,7 +352,7 @@ const DashboardTab = ({
         value: parseFloat((val / div).toFixed(1))
       })).sort((a,b) => b.value - a.value)
     })).sort((a,b) => b.value - a.value);
-  }, [dashFilterWeek, activeWeeksList, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
+  }, [activeWeeksList, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
 
   const lastFullWeekA = activeWeeksList.length > 0 ? activeWeeksList[activeWeeksList.length - 1] : null;
   const lastFullWeekB = compareActiveWeeksList.length > 0 ? compareActiveWeeksList[compareActiveWeeksList.length - 1] : null;
@@ -339,12 +370,12 @@ const DashboardTab = ({
     () => compareMode
       ? calculateMuscleDistribution(
           cmpFilteredData,
-          lastFullWeekB !== null ? lastFullWeekB : (cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all'),
+          lastFullWeekB !== null ? lastFullWeekB : 'all',
           compareActiveWeeksList,
           1
         )
       : [],
-    [compareMode, cmpFilteredData, cmpFilterWeek, compareActiveWeeksList, calculateMuscleDistribution, lastFullWeekB]
+    [compareMode, cmpFilteredData, compareActiveWeeksList, calculateMuscleDistribution, lastFullWeekB]
   );
 
   const displayMuscleData = useMemo(() => {
@@ -382,8 +413,7 @@ const DashboardTab = ({
       if (!ex) return;
 
       wEx.weeks.forEach(wData => {
-        if (dashFilterWeek !== 'all' && wData.week_num !== parseInt(dashFilterWeek, 10)) return;
-        if (dashFilterWeek === 'all' && !allowedWeeks.has(wData.week_num)) return;
+        if (!allowedWeeks.has(wData.week_num)) return;
         
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
@@ -435,7 +465,7 @@ const DashboardTab = ({
     });
 
     return data;
-  }, [dashFilteredData, dashFilterWeek, activeWeeksList, dashMuscleMacro, muscleMetric, displayMuscleData]);
+  }, [dashFilteredData, activeWeeksList, dashMuscleMacro, muscleMetric, displayMuscleData]);
 
   // Overall totals (filtered; in compare mode, uses each selection's last full week so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
@@ -690,18 +720,46 @@ const DashboardTab = ({
   const delta = (a, b) => {
     if (b === 0) return null;
     const d = ((a - b) / b) * 100;
-    return { val: d.toFixed(1), pos: d >= 0 };
+    return { val: d.toFixed(2), pos: d >= 0 };
+  };
+
+  const handleDashWeekFromChange = (val) => {
+    setDashFilterWeekFrom(val);
+    if (val !== 'all' && dashFilterWeekTo !== 'all' && parseInt(val, 10) > parseInt(dashFilterWeekTo, 10)) {
+      setDashFilterWeekTo(val);
+    }
+  };
+  const handleDashWeekToChange = (val) => {
+    setDashFilterWeekTo(val);
+    if (val !== 'all' && dashFilterWeekFrom !== 'all' && parseInt(val, 10) < parseInt(dashFilterWeekFrom, 10)) {
+      setDashFilterWeekFrom(val);
+    }
+  };
+  const handleCmpWeekFromChange = (val) => {
+    setCmpFilterWeekFrom(val);
+    if (val !== 'all' && cmpFilterWeekTo !== 'all' && parseInt(val, 10) > parseInt(cmpFilterWeekTo, 10)) {
+      setCmpFilterWeekTo(val);
+    }
+  };
+  const handleCmpWeekToChange = (val) => {
+    setCmpFilterWeekTo(val);
+    if (val !== 'all' && cmpFilterWeekFrom !== 'all' && parseInt(val, 10) < parseInt(cmpFilterWeekFrom, 10)) {
+      setCmpFilterWeekFrom(val);
+    }
   };
 
   // Helper: clear all dashboard filters
   const clearAllDashFilters = () => {
-    setDashFilterSession('all'); setDashFilterWeek('all');
-    setCmpFilterSession('all'); setCmpFilterWeek('all');
+    setDashFilterSession('all'); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all');
+    setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all');
     setDashMuscleMacro('all'); setDashMuscleSubgroup('all');
   };
 
-  const hasAnyFilter = dashFilterSession !== 'all' || dashFilterWeek !== 'all' ||
-    cmpFilterSession !== 'all' || cmpFilterWeek !== 'all' ||
+  const dashWeekRangeLabel = formatWeekRangeLabel(dashFilterWeekFrom, dashFilterWeekTo);
+  const cmpWeekRangeLabel = formatWeekRangeLabel(cmpFilterWeekFrom, cmpFilterWeekTo);
+
+  const hasAnyFilter = dashFilterSession !== 'all' || dashWeekRangeLabel !== null ||
+    cmpFilterSession !== 'all' || cmpWeekRangeLabel !== null ||
     dashMuscleMacro !== 'all';
 
   return (
@@ -737,7 +795,7 @@ const DashboardTab = ({
                 onClick={() => {
                   const next = !compareMode;
                   setCompareMode(next);
-                  if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeek('all'); }
+                  if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }
                   else if (compareProgram) loadCompareProgram(compareProgram);
                 }}
               >
@@ -750,7 +808,7 @@ const DashboardTab = ({
                     className="select-control"
                     style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
                     value={compareProgram}
-                    onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeek('all'); }}
+                    onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
                   >
                     <option value="">— pick program —</option>
                     {programs.map(p => <option key={p} value={p}>{p}</option>)}
@@ -761,16 +819,23 @@ const DashboardTab = ({
                 <>
                   <select id="dash-session-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
                     value={dashFilterSession}
-                    onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                    onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
                   >
                     <option value="all">All Sessions</option>
                     {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
                   </select>
-                  <select id="dash-week-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
-                    value={dashFilterWeek}
-                    onChange={e => setDashFilterWeek(e.target.value)}
+                  <select id="dash-week-from-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                    value={dashFilterWeekFrom}
+                    onChange={e => handleDashWeekFromChange(e.target.value)}
                   >
-                    <option value="all">All Weeks</option>
+                    <option value="all">From</option>
+                    {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
+                  </select>
+                  <select id="dash-week-to-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
+                    value={dashFilterWeekTo}
+                    onChange={e => handleDashWeekToChange(e.target.value)}
+                  >
+                    <option value="all">To</option>
                     {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
                   </select>
                   <select id="dash-muscle-macro" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
@@ -826,7 +891,7 @@ const DashboardTab = ({
                         onClick={() => {
                           const next = !compareMode;
                           setCompareMode(next);
-                          if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeek('all'); }
+                          if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }
                           else if (compareProgram) loadCompareProgram(compareProgram);
                         }}
                       >
@@ -839,7 +904,7 @@ const DashboardTab = ({
                             className="select-control"
                             style={{ minWidth: '130px' }}
                             value={compareProgram}
-                            onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeek('all'); }}
+                            onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
                           >
                             <option value="">— pick program —</option>
                             {programs.map(p => <option key={p} value={p}>{p}</option>)}
@@ -872,17 +937,24 @@ const DashboardTab = ({
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                               <select id="dash-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
                                 value={dashFilterSession}
-                                onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                                onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
                               >
                                 <option value="all">All sessions</option>
                                 {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
                               </select>
-                              <select id="dash-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                                value={dashFilterWeek}
-                                onChange={e => setDashFilterWeek(e.target.value)}
+                              <select id="dash-week-from-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
+                                value={dashFilterWeekFrom}
+                                onChange={e => handleDashWeekFromChange(e.target.value)}
                               >
-                                <option value="all">All weeks</option>
-                                {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
+                                <option value="all">From: All</option>
+                                {dashWeeksList.map(w => <option key={w} value={w}>From W{w}</option>)}
+                              </select>
+                              <select id="dash-week-to-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
+                                value={dashFilterWeekTo}
+                                onChange={e => handleDashWeekToChange(e.target.value)}
+                              >
+                                <option value="all">To: All</option>
+                                {dashWeeksList.map(w => <option key={w} value={w}>To W{w}</option>)}
                               </select>
                           </div>
                         </div>
@@ -896,17 +968,24 @@ const DashboardTab = ({
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                               <select id="cmp-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
                                 value={cmpFilterSession}
-                                onChange={e => { setCmpFilterSession(e.target.value); setCmpFilterWeek('all'); }}
+                                onChange={e => { setCmpFilterSession(e.target.value); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
                               >
                                 <option value="all">All sessions</option>
                                 {compareSessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
                               </select>
-                              <select id="cmp-week-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                                value={cmpFilterWeek}
-                                onChange={e => setCmpFilterWeek(e.target.value)}
+                              <select id="cmp-week-from-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
+                                value={cmpFilterWeekFrom}
+                                onChange={e => handleCmpWeekFromChange(e.target.value)}
                               >
-                                <option value="all">All weeks</option>
-                                {cmpWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
+                                <option value="all">From: All</option>
+                                {cmpWeeksList.map(w => <option key={w} value={w}>From W{w}</option>)}
+                              </select>
+                              <select id="cmp-week-to-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
+                                value={cmpFilterWeekTo}
+                                onChange={e => handleCmpWeekToChange(e.target.value)}
+                              >
+                                <option value="all">To: All</option>
+                                {cmpWeeksList.map(w => <option key={w} value={w}>To W{w}</option>)}
                               </select>
                           </div>
                         </div>
@@ -940,17 +1019,24 @@ const DashboardTab = ({
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                         <select id="dash-session-filter" className="select-control" style={{ minWidth: '120px' }}
                           value={dashFilterSession}
-                          onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeek('all'); }}
+                          onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
                         >
                           <option value="all">All Sessions</option>
                           {sessionsList.map(s => <option key={s} value={s}>Session {s}</option>)}
                         </select>
-                        <select id="dash-week-filter" className="select-control" style={{ minWidth: '120px' }}
-                          value={dashFilterWeek}
-                          onChange={e => setDashFilterWeek(e.target.value)}
+                        <select id="dash-week-from-filter" className="select-control" style={{ minWidth: '110px' }}
+                          value={dashFilterWeekFrom}
+                          onChange={e => handleDashWeekFromChange(e.target.value)}
                         >
-                          <option value="all">All Weeks</option>
-                          {dashWeeksList.map(w => <option key={w} value={w}>Week {w}</option>)}
+                          <option value="all">From: All</option>
+                          {dashWeeksList.map(w => <option key={w} value={w}>From Week {w}</option>)}
+                        </select>
+                        <select id="dash-week-to-filter" className="select-control" style={{ minWidth: '110px' }}
+                          value={dashFilterWeekTo}
+                          onChange={e => handleDashWeekToChange(e.target.value)}
+                        >
+                          <option value="all">To: All</option>
+                          {dashWeeksList.map(w => <option key={w} value={w}>To Week {w}</option>)}
                         </select>
                         <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px' }}
                             value={dashMuscleMacro}
@@ -978,9 +1064,9 @@ const DashboardTab = ({
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Filters:</span>
                       {dashFilterSession !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · S{dashFilterSession}</span>}
-                      {dashFilterWeek !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · W{dashFilterWeek}</span>}
+                      {dashWeekRangeLabel && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · {dashWeekRangeLabel}</span>}
                       {cmpFilterSession !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · S{cmpFilterSession}</span>}
-                      {cmpFilterWeek !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · W{cmpFilterWeek}</span>}
+                      {cmpWeekRangeLabel && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · {cmpWeekRangeLabel}</span>}
                       {dashMuscleMacro !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro}</span>}
                     </div>
                   )}
@@ -1025,14 +1111,18 @@ const DashboardTab = ({
                         ['TUT', 'tut', 'Tut', 'var(--color-tut)', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
                         ['Effective TUT', 'effective-tut', 'EffectiveTut', 'var(--color-effective-tut)', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
                         ['Accumulated Fatigue', 'fatigue', 'Fatigue', 'var(--color-fatigue)', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
-                      ].map(([label, cls, metricKey, color, valA, valB, d]) => (
+                      ].map(([label, cls, metricKey, color, valA, valB, d]) => {
+                        const valsA = metricsByWeek.map(m => m[metricKey] || 0);
+                        const valsB = compareMetricsByWeek.map(m => m[`${metricKey}_B`] || 0);
+                        return (
                         <React.Fragment key={label}>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <span className="metric-label">
                               {label}
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
-                            <MetricSparkline values={metricsByWeek.map(m => m[metricKey] || 0)} color={color} gradId={`spark-a-${cls}`} />
+                            <TrendBadge values={valsA} />
+                            <MetricSparkline values={valsA} color={color} gradId={`spark-a-${cls}`} />
                             <span className="metric-trend">{currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}</span>
                           </div>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); }}>
@@ -1040,68 +1130,42 @@ const DashboardTab = ({
                               {label}
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
-                            <MetricSparkline values={compareMetricsByWeek.map(m => m[`${metricKey}_B`] || 0)} color={color} gradId={`spark-b-${cls}`} />
+                            <TrendBadge values={valsB} />
+                            <MetricSparkline values={valsB} color={color} gradId={`spark-b-${cls}`} />
                             {d ? (
-                              <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {currentProgram === compareProgram ? 'Selection A' : currentProgram}</span>
+                              <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val).toFixed(2)}% vs {currentProgram === compareProgram ? 'Selection A' : currentProgram}</span>
                             ) : (
                               <span className="metric-trend">{currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}</span>
                             )}
                           </div>
                         </React.Fragment>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="metrics-summary-grid">
-                      <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); }}>
-                        <span className="metric-label">Reps</span>
-                        <span className="metric-value">{totalVolume.toLocaleString()} reps</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.Volume || 0)} color="var(--color-volume)" gradId="spark-volume" />
-                      </div>
-                      <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); }}>
-                        <span className="metric-label">Effective Reps</span>
-                        <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveRepsCustom || 0)} color="var(--color-effective-volume)" gradId="spark-effective" />
-                      </div>
-                      <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); }}>
-                        <span className="metric-label">Tonnage</span>
-                        <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.Tonnage || 0)} color="var(--color-tonnage)" gradId="spark-tonnage" />
-                      </div>
-                      <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); }}>
-                        <span className="metric-label">Effective Tonnage</span>
-                        <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveTonnage || 0)} color="var(--color-effective-tonnage)" gradId="spark-effective-tonnage" />
-                      </div>
-                      <div className="metric-summary-card weighted-tonnage" onClick={() => { setSelectedMetricDetail('weighted-tonnage'); }}>
-                        <span className="metric-label">W. Tonnage</span>
-                        <span className="metric-value">{totalWeightedTonnage.toLocaleString()} kg</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.WeightedTonnage || 0)} color="var(--color-weighted-tonnage)" gradId="spark-weighted-tonnage" />
-                      </div>
-                      <div className="metric-summary-card effective-weighted-tonnage" onClick={() => { setSelectedMetricDetail('effective-weighted-tonnage'); }}>
-                        <span className="metric-label">Eff. W. Tonnage</span>
-                        <span className="metric-value">{totalEffectiveWeightedTonnage.toLocaleString()} kg</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveWeightedTonnage || 0)} color="var(--color-effective-weighted-tonnage)" gradId="spark-eff-weighted-tonnage" />
-                      </div>
-                      <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); }}>
-                        <span className="metric-label">TUT</span>
-                        <span className="metric-value">{totalTut.toLocaleString()}s</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.Tut || 0)} color="var(--color-tut)" gradId="spark-tut" />
-                      </div>
-                      <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); }}>
-                        <span className="metric-label">Effective TUT</span>
-                        <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveTut || 0)} color="var(--color-effective-tut)" gradId="spark-effective-tut" />
-                      </div>
-                      <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); }}>
-                        <span className="metric-label">Volume</span>
-                        <span className="metric-value">{totalSets.toLocaleString()} sets</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.Sets || 0)} color="var(--color-sets)" gradId="spark-sets" />
-                      </div>
-                      <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); }}>
-                        <span className="metric-label">Accumulated Fatigue</span>
-                        <span className="metric-value">{totalFatigue.toLocaleString()}</span>
-                        <MetricSparkline values={metricsByWeek.map(m => m.Fatigue || 0)} color="var(--color-fatigue)" gradId="spark-fatigue" />
-                      </div>
+                      {[
+                        ['Reps', 'volume', 'Volume', 'var(--color-volume)', `${totalVolume.toLocaleString()} reps`],
+                        ['Effective Reps', 'effective', 'EffectiveRepsCustom', 'var(--color-effective-volume)', `${totalEffectiveReps.toLocaleString()} reps`],
+                        ['Tonnage', 'tonnage', 'Tonnage', 'var(--color-tonnage)', `${totalTonnage.toLocaleString()} kg`],
+                        ['Effective Tonnage', 'effective-tonnage', 'EffectiveTonnage', 'var(--color-effective-tonnage)', `${totalEffectiveTonnage.toLocaleString()} kg`],
+                        ['W. Tonnage', 'weighted-tonnage', 'WeightedTonnage', 'var(--color-weighted-tonnage)', `${totalWeightedTonnage.toLocaleString()} kg`],
+                        ['Eff. W. Tonnage', 'effective-weighted-tonnage', 'EffectiveWeightedTonnage', 'var(--color-effective-weighted-tonnage)', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`],
+                        ['TUT', 'tut', 'Tut', 'var(--color-tut)', `${totalTut.toLocaleString()}s`],
+                        ['Effective TUT', 'effective-tut', 'EffectiveTut', 'var(--color-effective-tut)', `${totalEffectiveTut.toLocaleString()}s`],
+                        ['Volume', 'sets', 'Sets', 'var(--color-sets)', `${totalSets.toLocaleString()} sets`],
+                        ['Accumulated Fatigue', 'fatigue', 'Fatigue', 'var(--color-fatigue)', `${totalFatigue.toLocaleString()}`],
+                      ].map(([label, cls, metricKey, color, formattedVal]) => {
+                        const vals = metricsByWeek.map(m => m[metricKey] || 0);
+                        return (
+                          <div key={cls} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
+                            <span className="metric-label">{label}</span>
+                            <span className="metric-value">{formattedVal}</span>
+                            <TrendBadge values={vals} />
+                            <MetricSparkline values={vals} color={color} gradId={`spark-${cls}`} />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
