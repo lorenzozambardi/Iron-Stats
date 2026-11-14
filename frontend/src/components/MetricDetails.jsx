@@ -637,19 +637,43 @@ export default function MetricDetailsPage({ metric, onBack }) {
             {/* Example Card */}
             <div style={dashboardCardStyle}>
               <h3 style={sectionLabelStyle}>Example</h3>
-              <div style={{
-                padding: '14px 16px',
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '12px',
-                fontSize: '0.82rem',
-                lineHeight: 1.6,
-                color: 'var(--text-secondary)',
-                whiteSpace: 'pre-line',
-                fontFamily: 'var(--font-mono)',
-              }}>
-                {data.example}
-              </div>
+              {(() => {
+                const lines = data.example.split('\n').map(l => l.trim()).filter(Boolean);
+                if (lines.length <= 1) {
+                  return <p style={proseStyle}>{data.example}</p>;
+                }
+                const [intro, ...steps] = lines;
+                return (
+                  <>
+                    <p style={proseStyle}>{intro}</p>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      paddingTop: '10px',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {steps.map((step, idx) => {
+                        const isFinal = idx === steps.length - 1 && !step.startsWith('-');
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              fontSize: '0.85rem',
+                              lineHeight: 1.55,
+                              color: isFinal ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              fontWeight: isFinal ? 500 : 400,
+                            }}
+                          >
+                            {step}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
