@@ -774,7 +774,13 @@ export default function App() {
     }
 
     const musclesDistr = {};
+    let totalMag = 0.0;
     for (const m of exerciseForm.muscles) {
+      const pct = Number(m.percentage);
+      if (!Number.isFinite(pct) || pct < 0.0) {
+        setExerciseError(`Muscle percentage for ${m.name} must be non-negative.`);
+        return null;
+      }
       const x0 = m.x0 ?? 0.0;
       const y0 = m.y0 ?? 1.0;
       const x1 = m.x1 ?? 0.33;
@@ -791,10 +797,21 @@ export default function App() {
         setExerciseError(`Negative tension control point for ${m.name}.`);
         return null;
       }
+      const mag = pct / 100.0;
       musclesDistr[m.name] = {
         x0, y0, x1, y1, x2, y2, x3, y3,
-        magnitude: parseFloat((m.percentage / 100).toFixed(3))
+        magnitude: mag
       };
+      totalMag += mag;
+    }
+    if (totalMag <= 0.0) {
+      setExerciseError('Muscle distribution magnitudes must sum to a positive value.');
+      return null;
+    }
+    if (Math.abs(totalMag - 1.0) > 1e-12) {
+      for (const mName of Object.keys(musclesDistr)) {
+        musclesDistr[mName].magnitude /= totalMag;
+      }
     }
 
     return {
@@ -823,6 +840,11 @@ export default function App() {
 
     if (exerciseForm.muscles.length === 0) {
       setExerciseError('At least one muscle group must be selected.');
+      return;
+    }
+
+    if (exerciseForm.muscles.some(m => !Number.isFinite(Number(m.percentage)) || Number(m.percentage) < 0)) {
+      setExerciseError('Muscle percentages must be non-negative.');
       return;
     }
 
@@ -907,6 +929,11 @@ export default function App() {
 
     if (exerciseForm.muscles.length === 0) {
       setExerciseError('At least one muscle group must be selected.');
+      return;
+    }
+
+    if (exerciseForm.muscles.some(m => !Number.isFinite(Number(m.percentage)) || Number(m.percentage) < 0)) {
+      setExerciseError('Muscle percentages must be non-negative.');
       return;
     }
 

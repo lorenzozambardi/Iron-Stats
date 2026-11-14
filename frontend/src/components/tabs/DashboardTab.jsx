@@ -22,7 +22,7 @@ const getNormalizedCurve = (distr) => {
 
   const area = bezierArea(x0, y0, x1, y1, x2, y2, x3, y3);
   const factor = area > 0 ? (magnitude / area) : 0;
-  const rawY = new Float32Array(CURVE_RESOLUTION + 1);
+  const rawY = new Float64Array(CURVE_RESOLUTION + 1);
   for (let i = 0; i <= CURVE_RESOLUTION; i++) {
     rawY[i] = solveBezierY(i / CURVE_RESOLUTION, x0, y0, x1, y1, x2, y2, x3, y3) * factor;
   }
@@ -137,23 +137,25 @@ const DashboardTab = ({
     Array.from(new Set(cmpFilteredData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b),
   [cmpFilteredData]);
 
+  const activeWeeksList = useMemo(() => {
+    const weeksToUse = dashFilterWeek === 'all' ? dashWeeksList : dashWeeksList.filter(w => w === parseInt(dashFilterWeek, 10));
+    const targetSession = dashFilterSession !== 'all' ? parseInt(dashFilterSession, 10) : null;
+    return weeksToUse.filter(week => {
+      if (targetSession !== null) return true;
+      if (sessionsList.length === 0) return true;
+      return sessionsList.every(sess =>
+        workoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
+      );
+    });
+  }, [dashFilterWeek, dashWeeksList, dashFilterSession, sessionsList, workoutData]);
+
   // Overall Progression Metrics (by Week) — respects session + muscle filters
   const metricsByWeek = useMemo(() => {
-    const weeksToUse = dashFilterWeek === 'all' ? dashWeeksList : dashWeeksList.filter(w => w === parseInt(dashFilterWeek, 10));
     const targetSession = dashFilterSession !== 'all' ? parseInt(dashFilterSession, 10) : null;
     const targetMacro = dashMuscleMacro !== 'all' ? dashMuscleMacro : null;
     const targetSub = dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : null;
 
-    const activeWeeks = weeksToUse.filter(week => {
-      // Only filter out incomplete weeks if we are looking at overall progression (no specific session filter)
-      if (targetSession !== null) return true;
-      if (sessionsList.length === 0) return true;
-      return sessionsList.every(sess => 
-        workoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
-      );
-    });
-
-    return activeWeeks.map(week => {
+    return activeWeeksList.map(week => {
       const weeklyData = calculateMetrics(dashFilteredData, targetSession, week, targetMacro, targetSub);
       return {
         week: `W${week}`,
@@ -169,26 +171,28 @@ const DashboardTab = ({
         Sets: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
       };
     });
-  }, [dashFilteredData, dashFilterSession, dashFilterWeek, dashWeeksList, dashMuscleMacro, dashMuscleSubgroup, sessionsList, workoutData]);
+  }, [dashFilteredData, dashFilterSession, activeWeeksList, dashMuscleMacro, dashMuscleSubgroup]);
 
+
+  const compareActiveWeeksList = useMemo(() => {
+    const weeksToUse = cmpFilterWeek === 'all' ? cmpWeeksList : cmpWeeksList.filter(w => w === parseInt(cmpFilterWeek, 10));
+    const targetSession = cmpFilterSession !== 'all' ? parseInt(cmpFilterSession, 10) : null;
+    return weeksToUse.filter(week => {
+      if (targetSession !== null) return true;
+      if (compareSessionsList.length === 0) return true;
+      return compareSessionsList.every(sess =>
+        compareWorkoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
+      );
+    });
+  }, [cmpFilterWeek, cmpWeeksList, cmpFilterSession, compareSessionsList, compareWorkoutData]);
 
   // Compare program B metrics by week — respects its own session/week + shared muscle filters
   const compareMetricsByWeek = useMemo(() => {
-    const weeksToUse = cmpFilterWeek === 'all' ? cmpWeeksList : cmpWeeksList.filter(w => w === parseInt(cmpFilterWeek, 10));
     const targetSession = cmpFilterSession !== 'all' ? parseInt(cmpFilterSession, 10) : null;
     const targetMacro = dashMuscleMacro !== 'all' ? dashMuscleMacro : null;
     const targetSub = dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : null;
 
-    const activeWeeks = weeksToUse.filter(week => {
-      // Only filter out incomplete weeks if we are looking at overall progression (no specific session filter)
-      if (targetSession !== null) return true;
-      if (compareSessionsList.length === 0) return true;
-      return compareSessionsList.every(sess => 
-        compareWorkoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
-      );
-    });
-
-    return activeWeeks.map(week => {
+    return compareActiveWeeksList.map(week => {
       const weeklyData = calculateMetrics(cmpFilteredData, targetSession, week, targetMacro, targetSub);
       return {
         week: `W${week}`,
@@ -204,7 +208,7 @@ const DashboardTab = ({
         Sets_B: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
       };
     });
-  }, [cmpFilteredData, cmpFilterSession, cmpFilterWeek, cmpWeeksList, dashMuscleMacro, dashMuscleSubgroup, compareSessionsList, compareWorkoutData]);
+  }, [cmpFilteredData, cmpFilterSession, compareActiveWeeksList, dashMuscleMacro, dashMuscleSubgroup]);
 
   // Merged chart data for compare mode
   const mergedChartData = useMemo(() => {
@@ -219,17 +223,18 @@ const DashboardTab = ({
   }, [compareMode, metricsByWeek, compareMetricsByWeek]);
 
   // Calculate Muscle distribution breakdown — respects all filters
-  const calculateMuscleDistribution = useCallback((dataSource, weekOverride) => {
+  const calculateMuscleDistribution = useCallback((dataSource, weekOverride, activeWeeksOverride) => {
     const distributions = {};
     const src = dataSource;
     if (!src) return [];
     const effectiveWeekFilter = weekOverride !== undefined ? weekOverride : dashFilterWeek;
+    const allowedWeeks = new Set(activeWeeksOverride !== undefined ? activeWeeksOverride : activeWeeksList);
     src.forEach(wEx => {
       const ex = wEx.exercise_obj;
       if (!ex) return;
       wEx.weeks.forEach(wData => {
         if (effectiveWeekFilter !== 'all' && wData.week_num !== parseInt(effectiveWeekFilter, 10)) return;
-        if (effectiveWeekFilter === 'all' && wData.week_num !== Math.max(...wEx.weeks.map(w => w.week_num))) return;
+        if (effectiveWeekFilter === 'all' && !allowedWeeks.has(wData.week_num)) return;
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
             // Muscle group filter
@@ -262,10 +267,10 @@ const DashboardTab = ({
         value: parseFloat(val.toFixed(1))
       })).sort((a,b) => b.value - a.value)
     })).sort((a,b) => b.value - a.value);
-  }, [dashFilterWeek, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
+  }, [dashFilterWeek, activeWeeksList, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
 
   const muscleData = useMemo(() => calculateMuscleDistribution(dashFilteredData), [dashFilteredData, calculateMuscleDistribution]);
-  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all') : [], [compareMode, cmpFilteredData, cmpFilterWeek, calculateMuscleDistribution]);
+  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all', compareActiveWeeksList) : [], [compareMode, cmpFilteredData, cmpFilterWeek, compareActiveWeeksList, calculateMuscleDistribution]);
 
   const displayMuscleData = useMemo(() => {
     if (dashMuscleMacro === 'all') return muscleData;
@@ -295,18 +300,15 @@ const DashboardTab = ({
     }
 
     const topMusclesSet = new Set(topMuscles);
+    const allowedWeeks = new Set(activeWeeksList);
 
     dashFilteredData.forEach(wEx => {
       const ex = wEx.exercise_obj;
       if (!ex) return;
-      
-      const maxWeekNum = dashFilterWeek === 'all' && wEx.weeks.length > 0
-        ? Math.max(...wEx.weeks.map(w => w.week_num))
-        : null;
 
       wEx.weeks.forEach(wData => {
         if (dashFilterWeek !== 'all' && wData.week_num !== parseInt(dashFilterWeek, 10)) return;
-        if (dashFilterWeek === 'all' && wData.week_num !== maxWeekNum) return;
+        if (dashFilterWeek === 'all' && !allowedWeeks.has(wData.week_num)) return;
         
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
@@ -358,7 +360,7 @@ const DashboardTab = ({
     });
 
     return data;
-  }, [dashFilteredData, dashFilterWeek, dashMuscleMacro, muscleMetric, displayMuscleData]);
+  }, [dashFilteredData, dashFilterWeek, activeWeeksList, dashMuscleMacro, muscleMetric, displayMuscleData]);
 
   // Overall totals (filtered) — consolidated into a single useMemo
   const mainTotals = useMemo(() => ({

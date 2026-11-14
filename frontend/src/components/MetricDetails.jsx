@@ -265,12 +265,12 @@ export default function MetricDetailsPage({ metric, onBack }) {
             { symbol: '\\text{Tonnage}', desc: 'The total kilograms moved, scaled by target muscle distribution.' },
             { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
             { symbol: 'L_{\\text{raw}, s}', desc: 'The raw weight entered in the logbook (e.g. 100 kg).' },
-            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (e.g., 1.0 for free weights, 0.7 for leg press).' },
+            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (default 1.0 in defaultExercises.json; customizable via exercise settings or override: e.g. 0.7 for an angled sled).' },
             { symbol: 'O_{\\text{offset}}', desc: 'Bodyweight offset or platform weight adjustment.' },
             { symbol: '\\text{TotReps}_s', desc: 'Weighted repetitions count of set s: R_base + 0.5 * R_assisted + 0.33 * R_partial.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 total reps (e.g. 8 base reps + 4 partial reps = 9.32 reps), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nTonnage = 140 kg * 9.32 reps * 0.8 = 1,043.8 kg for Quads.'
+          example: 'If you configure an angled sled with leverage = 0.7 (offset = 0; note defaultExercises.json uses load_multiplier = 1.0 and load_coeff = 0.3 on Leg Press 45) with 200 kg for 10 total reps (e.g. 8 base reps + 4 partial reps = 9.32 reps), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nTonnage = 140 kg * 9.32 reps * 0.8 = 1,043.8 kg for Quads.'
         };
       case 'effective-tonnage':
         return {
@@ -287,12 +287,12 @@ export default function MetricDetailsPage({ metric, onBack }) {
             { symbol: '\\text{EffTonnage}', desc: 'The stimulative kilograms moved, scaled by target muscle distribution.' },
             { symbol: 'L_{\\text{adj}, s}', desc: 'The adjusted load for set s, accounting for machine leverage and offsets.' },
             { symbol: 'L_{\\text{raw}, s}', desc: 'The raw weight entered in the logbook (e.g. 100 kg).' },
-            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (e.g., 1.0 for free weights, 0.7 for leg press).' },
+            { symbol: 'M_{\\text{leverage}}', desc: 'Machine leverage multiplier (default 1.0 in defaultExercises.json; customizable via exercise settings or override: e.g. 0.7 for an angled sled).' },
             { symbol: 'O_{\\text{offset}}', desc: 'Bodyweight offset or platform weight adjustment.' },
             { symbol: '\\text{effReps}_s', desc: 'Weighted effective repetitions: min(R_base, max(0, RPE - 4.0)) + 0.5 * R_assisted + 0.33 * R_partial.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If you perform Incline Leg Press (leverage = 0.7, offset = 0) with 200 kg for 10 reps, where 2 are assisted (leaving 8 unassisted base reps) and 3 are partial reps, at RPE 9.0 (logged as 10(2)+3@9), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nEffective reps = min(8, 9.0 - 4.0) + (2 * 0.5) + (3 * 0.33) = 5.0 + 1.0 + 0.99 = 6.99 reps.\nEffective Tonnage = 140 kg * 6.99 reps * 0.8 = 782.88 kg for Quads.'
+          example: 'If you configure an angled sled with leverage = 0.7 (offset = 0) with 200 kg for 10 reps, where 2 are assisted (leaving 8 unassisted base reps) and 3 are partial reps, at RPE 9.0 (logged as 10(2)+3@9), targeting Quads at 80% (Dm = 0.8):\n Ladj = 200 * 0.7 = 140 kg\nEffective reps = min(8, 9.0 - 4.0) + (2 * 0.5) + (3 * 0.33) = 5.0 + 1.0 + 0.99 = 6.99 reps.\nEffective Tonnage = 140 kg * 6.99 reps * 0.8 = 782.88 kg for Quads.'
         };
       case 'weighted-tonnage':
         return {
@@ -376,7 +376,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
             { symbol: '\\text{slowdown}_i', desc: 'Physiological slowdown added to concentric phase as reps approach failure (scales strictly with per-rep RIR / proximity to failure).' },
             { symbol: 'T_{\\text{assist}}, T_{\\text{partial}}', desc: 'Time assigned to assisted repetitions (standard tempo, no slowdown) and partial repetitions (50% of assisted tempo).' }
           ],
-          example: 'A set of 6 reps at 2-0-4-0 tempo (2s concentric, 0s pause, 4s eccentric, 0s pause):\nEach base rep takes: C (2) + E (4) + slowdown. Assuming a moderate RPE (slowdown aggregates ~2s over the set), the set TUT is approximately: (6 * 6s) + 2s = 38 seconds.'
+          example: 'A set of 6 base reps at 2-0-4-0 tempo (2s concentric, 0s pause, 4s eccentric, 0s pause) taken to RPE 9.0 (1 RIR):\nEach base rep takes C (2s) + E (4s) + slowdown. At RPE 9.0, the 6 reps have RIR 6, 5, 4, 3, 2, 1 with concentric slowdowns 0.00 + 0.00 + 0.15 + 0.35 + 0.60 + 1.00 = 2.10s, giving a set TUT of (6 * 6s) + 2.10s = 38.1 seconds.'
         };
       case 'effective-tut':
         return {

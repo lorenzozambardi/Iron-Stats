@@ -271,7 +271,7 @@ export const ExerciseModal = ({
                         <label className="modal-label" style={{ fontSize: '0.7rem' }}>Magnitude (%)</label>
                         <input type="number" className="modal-input" min="0" max="100" step="1" value={m.percentage} onChange={(e) => {
                           const updated = [...exerciseForm.muscles];
-                          updated[index] = { ...m, percentage: parseInt(e.target.value) || 0 };
+                          updated[index] = { ...m, percentage: Math.max(0, parseInt(e.target.value, 10) || 0) };
                           setExerciseForm({ ...exerciseForm, muscles: updated });
                         }} style={{ padding: '4px 8px', fontSize: '0.8rem' }} />
                       </div>
