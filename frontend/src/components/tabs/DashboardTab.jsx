@@ -167,7 +167,7 @@ const DashboardTab = ({
   useEffect(() => {
     const el = filterContentRef.current;
     if (!el) return;
-    const update = () => setFilterHeight(el.scrollHeight);
+    const update = () => setFilterHeight(Math.ceil(el.getBoundingClientRect().height));
     update();
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(update);
