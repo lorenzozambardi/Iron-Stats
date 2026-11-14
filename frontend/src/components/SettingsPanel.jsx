@@ -10,41 +10,6 @@ import {
   Check
 } from 'lucide-react';
 
-const THEME_PRESETS = [
-  {
-    id: 'oled',
-    label: 'OLED',
-    app: 'slate',
-    secAccent: 'amber',
-    bg: 'black',
-    sec: 'darkest'
-  },
-  {
-    id: 'obsidian',
-    label: 'Obsidian',
-    app: 'indigo',
-    secAccent: 'cyan',
-    bg: 'dark',
-    sec: 'dark'
-  },
-  {
-    id: 'ember',
-    label: 'Ember',
-    app: 'orange',
-    secAccent: 'rose',
-    bg: 'darkest',
-    sec: 'slate'
-  },
-  {
-    id: 'emerald',
-    label: 'Emerald',
-    app: 'emerald',
-    secAccent: 'teal',
-    bg: 'zinc',
-    sec: 'zinc'
-  }
-];
-
 const resolveColor = (value, list, colorKey = 'color') => {
   if (!value) return '#000000';
   if (value.startsWith('#')) return value;
@@ -100,13 +65,6 @@ export const SettingsPanel = ({
 
   const toggleSlot = (slot) => {
     setOpenColorSlot(prev => (prev === slot ? null : slot));
-  };
-
-  const applyPreset = (preset) => {
-    setAppPalette(preset.app);
-    setSecAccentPalette(preset.secAccent);
-    setBgPalette(preset.bg);
-    setSecPalette(preset.sec);
   };
 
   const colorRows = [
@@ -327,35 +285,6 @@ export const SettingsPanel = ({
       <div className="settings-card">
         <div className="settings-card-header-row">
           <span className="settings-card-title">Appearance</span>
-        </div>
-
-        {/* Quick Theme Presets */}
-        <div className="settings-presets-row" role="group" aria-label="Theme Presets">
-          {THEME_PRESETS.map(preset => {
-            const isActive =
-              appPalette === preset.app &&
-              secAccentPalette === preset.secAccent &&
-              bgPalette === preset.bg &&
-              secPalette === preset.sec;
-            const accentHex = resolveColor(preset.app, APP_PALETTES, 'color');
-            const bgHex = resolveColor(preset.bg, BG_PALETTES, 'primary');
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                className={`settings-preset-chip${isActive ? ' active' : ''}`}
-                onClick={() => applyPreset(preset)}
-              >
-                <span
-                  className="settings-preset-dot"
-                  style={{
-                    background: `linear-gradient(135deg, ${accentHex} 50%, ${bgHex} 50%)`
-                  }}
-                />
-                <span>{preset.label}</span>
-              </button>
-            );
-          })}
         </div>
 
         {/* Compact Color Rows */}
