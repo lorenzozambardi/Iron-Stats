@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
-import { Info } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
-import { renderMetricTooltip } from '../Tooltips';
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
 
@@ -876,23 +874,15 @@ const DashboardTab = ({
                       ].map(([label, cls, valA, valB, d]) => (
                         <React.Fragment key={label}>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); }}>
-                            <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="metric-label">
                               {label}
-                              <span className="info-icon-wrapper">
-                                <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                                {renderMetricTooltip(cls)}
-                              </span>
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
                             <span className="metric-trend">{currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}</span>
                           </div>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); }}>
-                            <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="metric-label">
                               {label}
-                              <span className="info-icon-wrapper">
-                                <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                                {renderMetricTooltip(cls)}
-                              </span>
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
                             {d ? (
@@ -907,13 +897,7 @@ const DashboardTab = ({
                   ) : (
                     <div className="metrics-summary-grid">
                       <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Reps
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('volume')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Reps</span>
                         <span className="metric-value">{totalVolume.toLocaleString()} reps</span>
                         <span className="metric-trend">
                           {dashFilterSession !== 'all' ? `Session ${dashFilterSession}` : 'All sessions'}
@@ -921,101 +905,47 @@ const DashboardTab = ({
                         </span>
                       </div>
                       <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Effective Reps
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('effective')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Effective Reps</span>
                         <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
                         <span className="metric-trend">Stimulative reps</span>
                       </div>
                       <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Tonnage
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('tonnage')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Tonnage</span>
                         <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Load-adjusted</span>
                       </div>
                       <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Effective Tonnage
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('effective-tonnage')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Effective Tonnage</span>
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative load</span>
                       </div>
                       <div className="metric-summary-card weighted-tonnage" onClick={() => { setSelectedMetricDetail('weighted-tonnage'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          W. Tonnage
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('weighted-tonnage')}
-                          </span>
-                        </span>
+                        <span className="metric-label">W. Tonnage</span>
                         <span className="metric-value">{totalWeightedTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Weighted load</span>
                       </div>
                       <div className="metric-summary-card effective-weighted-tonnage" onClick={() => { setSelectedMetricDetail('effective-weighted-tonnage'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Eff. W. Tonnage
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('effective-weighted-tonnage')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Eff. W. Tonnage</span>
                         <span className="metric-value">{totalEffectiveWeightedTonnage.toLocaleString()} kg</span>
                         <span className="metric-trend">Stimulative weighted load</span>
                       </div>
                       <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          TUT
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('tut')}
-                          </span>
-                        </span>
+                        <span className="metric-label">TUT</span>
                         <span className="metric-value">{totalTut.toLocaleString()}s</span>
                         <span className="metric-trend">Time under tension</span>
                       </div>
                       <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Effective TUT
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('effective-tut')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Effective TUT</span>
                         <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
                         <span className="metric-trend">Stimulative TUT</span>
                       </div>
                       <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Volume
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('sets')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Volume</span>
                         <span className="metric-value">{totalSets.toLocaleString()} sets</span>
                         <span className="metric-trend">Total sets performed</span>
                       </div>
                       <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); }}>
-                        <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Accumulated Fatigue
-                          <span className="info-icon-wrapper">
-                            <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
-                            {renderMetricTooltip('fatigue')}
-                          </span>
-                        </span>
+                        <span className="metric-label">Accumulated Fatigue</span>
                         <span className="metric-value">{totalFatigue.toLocaleString()}</span>
                         <span className="metric-trend">Rep-level fatigue</span>
                       </div>
