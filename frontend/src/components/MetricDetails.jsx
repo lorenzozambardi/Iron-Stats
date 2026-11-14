@@ -521,6 +521,24 @@ export default function MetricDetailsPage({ metric, onBack }) {
       transform: visible ? 'translateY(0)' : 'translateY(16px)',
       transition: 'opacity 0.2s ease, transform 0.2s ease',
     }}>
+      {/* Close Button — exact copy of settings popup mobile-close-btn */}
+      <button
+        type="button"
+        onClick={handleClose}
+        aria-label="Close"
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--text-primary)',
+          fontSize: '2rem',
+          cursor: 'pointer',
+          lineHeight: 1,
+        }}
+      >×</button>
+
       <div style={{
         maxWidth: '760px',
         margin: '0 auto',
@@ -530,7 +548,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
       }}>
         {/* Header Card */}
         <div style={dashboardCardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -544,28 +562,6 @@ export default function MetricDetailsPage({ metric, onBack }) {
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: data.color, flexShrink: 0 }} />
               Math Details
             </span>
-            <button
-              type="button"
-              onClick={handleClose}
-              aria-label="Close"
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-secondary)',
-                fontSize: '1.15rem',
-                lineHeight: 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              ×
-            </button>
           </div>
 
           <div>
