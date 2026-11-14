@@ -521,7 +521,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
               boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
             }}
           >
-            <span style={{ fontSize: '0.7rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#fff' }}>
+            <span style={{ fontSize: '0.7rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)' }}>
               Session
             </span>
             <span
@@ -542,8 +542,8 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                 onClick={handleSessionStartStop}
                 aria-label={isSessionRunning ? 'Pause session timer' : 'Start session timer'}
                 style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '99px',
                   padding: 0,
                   display: 'flex',
@@ -552,15 +552,15 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                   ...(isSessionRunning ? { background: 'rgba(255, 255, 255, 0.12)', border: '1px solid var(--border-color)', color: '#fff' } : {})
                 }}
               >
-                {isSessionRunning ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+                {isSessionRunning ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
               </button>
               <button
                 className="btn"
                 onClick={handleSessionReset}
                 aria-label="Reset session timer"
                 style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '99px',
                   padding: 0,
                   display: 'flex',
@@ -571,7 +571,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                   color: '#fff'
                 }}
               >
-                <RotateCcw size={14} />
+                <RotateCcw size={18} />
               </button>
             </div>
           </div>
