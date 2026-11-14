@@ -8,6 +8,107 @@ import { LockWheelPicker, DualWeekSlider } from '../FilterControls';
 
 const CURVE_RESOLUTION = 50;
 const normalizedCurveCache = new Map();
+const TENSION_SERIES_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+
+/** Pointer-draggable ROM scrubber styled to match DualWeekSlider. */
+const TensionRomSlider = ({ value, onChange }) => {
+  const trackRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+
+  const updateFromClientX = useCallback((clientX) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    onChange(Math.round(ratio * 100));
+  }, [onChange]);
+
+  const handlePointerDown = (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+    updateFromClientX(e.clientX);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!dragging) return;
+    updateFromClientX(e.clientX);
+  };
+
+  const handlePointerUp = () => {
+    setDragging(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none' }}>
+        Stretch
+      </span>
+      <div
+        ref={trackRef}
+        role="slider"
+        aria-label="Range of motion percentage"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{
+          position: 'relative',
+          flex: 1,
+          height: '26px',
+          display: 'flex',
+          alignItems: 'center',
+          touchAction: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '4px',
+            borderRadius: '999px',
+            background: 'rgba(255, 255, 255, 0.14)',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              height: '100%',
+              width: `${value}%`,
+              borderRadius: '999px',
+              background: 'var(--accent-primary)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: `${value}%`,
+              top: '50%',
+              width: '15px',
+              height: '15px',
+              borderRadius: '50%',
+              background: '#ffffff',
+              border: '2px solid var(--accent-primary)',
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.45)',
+              transform: `translate(-50%, -50%) scale(${dragging ? 1.15 : 1})`,
+              transition: dragging ? 'none' : 'transform 0.12s ease',
+            }}
+          />
+        </div>
+      </div>
+      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none' }}>
+        Contract
+      </span>
+    </div>
+  );
+};
 
 const isWeekInRange = (weekNum, fromVal, toVal) => {
   if (fromVal !== 'all' && weekNum < parseInt(fromVal, 10)) return false;
@@ -1007,45 +1108,82 @@ const DashboardTab = ({
 
                     {/* Cumulative Tension Curves Chart */}
                     <div className="chart-container" style={{ gridColumn: '1 / -1' }}>
-                      <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); }}>
+                      <div
+                        className="chart-header"
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                        onClick={() => { setSelectedMetricDetail('tension-profiles'); }}
+                      >
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
                           Tension Profiles
                         </span>
+                        {isMobile && cumulativeCurveData.length > 0 && (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                            ROM <strong style={{ color: '#fff', fontWeight: 600 }}>{tensionSliderPos}%</strong>
+                          </span>
+                        )}
                       </div>
-                      <div style={{ height: isMobile ? '220px' : '300px', width: '100%', marginTop: '10px' }}>
+                      <div style={{ height: isMobile ? '205px' : '290px', width: '100%', marginTop: '8px' }}>
                         {cumulativeCurveData.length > 0 ? (
                           <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
-                            <LineChart data={cumulativeCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} style={isMobile ? { pointerEvents: 'none' } : undefined}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                            <LineChart
+                              data={cumulativeCurveData}
+                              margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+                              style={isMobile ? { pointerEvents: 'none' } : undefined}
+                            >
+                              <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                               <XAxis
                                 dataKey="rom"
-                                stroke="var(--text-muted)"
-                                fontSize={10}
+                                type="number"
+                                domain={[0, 1]}
+                                ticks={[0, 0.25, 0.5, 0.75, 1]}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
                                 tickFormatter={(val) => `${Math.round(val * 100)}%`}
                               />
-                              <YAxis stroke="var(--text-muted)" fontSize={10} />
-                              {!isMobile && <Tooltip
-                                contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
-                                labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
-                                formatter={(val) => parseFloat(val).toFixed(1)}
-                              />}
-                              {isMobile && <ReferenceLine x={tensionSliderPos / 100} stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="4 4" />}
-                              {displayMuscleData.slice(0, 6).map((m, idx) => {
-                                const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
-                                return (
-                                  <Line
-                                    key={m.name}
-                                    type="monotone"
-                                    dataKey={m.name}
-                                    name={m.name}
-                                    stroke={colors[idx % colors.length]}
-                                    strokeWidth={2.5}
-                                    dot={false}
-                                    activeDot={{ r: 4 }}
-                                    isAnimationActive={false}
-                                  />
-                                );
-                              })}
+                              <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                                width={42}
+                              />
+                              {!isMobile && (
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: 'var(--bg-glass-active)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '8px',
+                                    color: 'var(--text-primary)',
+                                    backdropFilter: 'blur(16px)',
+                                    WebkitBackdropFilter: 'blur(16px)',
+                                  }}
+                                  labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
+                                  formatter={(val) => parseFloat(val).toFixed(1)}
+                                />
+                              )}
+                              {isMobile && (
+                                <ReferenceLine
+                                  x={tensionSliderPos / 100}
+                                  stroke="rgba(255,255,255,0.35)"
+                                  strokeWidth={1.5}
+                                  strokeDasharray="3 3"
+                                />
+                              )}
+                              {displayMuscleData.slice(0, 6).map((m, idx) => (
+                                <Line
+                                  key={m.name}
+                                  type="monotone"
+                                  dataKey={m.name}
+                                  name={m.name}
+                                  stroke={TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length]}
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  dot={false}
+                                  activeDot={{ r: 4, strokeWidth: 0 }}
+                                  isAnimationActive={false}
+                                />
+                              ))}
                             </LineChart>
                           </ResponsiveContainer>
                         ) : (
@@ -1054,51 +1192,52 @@ const DashboardTab = ({
                           </div>
                         )}
                       </div>
-                      {/* Mobile ROM scrubber */}
-                      {isMobile && cumulativeCurveData.length > 0 && (
-                        <div style={{ padding: '4px 8px 0 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {/* Per-muscle values — above slider so finger doesn't cover */}
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
-                            {displayMuscleData.slice(0, 6).map((m, idx) => {
-                              const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
-                              const color = colors[idx % colors.length];
-                              const resolution = cumulativeCurveData.length - 1;
-                              const closestIdx = Math.round((tensionSliderPos / 100) * resolution);
-                              const closestPt = cumulativeCurveData[Math.min(closestIdx, resolution)];
-                              const val = closestPt ? (closestPt[m.name] ?? 0) : 0;
-                              return (
-                                <span key={m.name} style={{
-                                  fontSize: '0.68rem',
-                                  color: color,
-                                  background: 'rgba(0,0,0,0.35)',
-                                  padding: '2px 8px',
-                                  borderRadius: '100px',
-                                  border: `1px solid ${color}33`,
-                                  whiteSpace: 'nowrap'
-                                }}>
-                                  {m.name}: {val.toFixed(1)}
-                                </span>
-                              );
-                            })}
+                      {cumulativeCurveData.length > 0 && (
+                        isMobile ? (
+                          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px 18px' }}>
+                              {displayMuscleData.slice(0, 6).map((m, idx) => {
+                                const color = TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length];
+                                const resolution = cumulativeCurveData.length - 1;
+                                const closestIdx = Math.round((tensionSliderPos / 100) * resolution);
+                                const closestPt = cumulativeCurveData[Math.min(closestIdx, resolution)];
+                                const val = closestPt ? (closestPt[m.name] ?? 0) : 0;
+                                return (
+                                  <div
+                                    key={m.name}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      gap: '8px',
+                                      minWidth: 0,
+                                    }}
+                                  >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {m.name}
+                                      </span>
+                                    </span>
+                                    <span style={{ fontSize: '0.76rem', color: '#ffffff', fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                                      {val.toFixed(1)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <TensionRomSlider value={tensionSliderPos} onChange={setTensionSliderPos} />
                           </div>
-                          <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            ROM: {tensionSliderPos}%
+                        ) : (
+                          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'center' }}>
+                            {displayMuscleData.slice(0, 6).map((m, idx) => (
+                              <span key={m.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length] }} />
+                                {m.name}
+                              </span>
+                            ))}
                           </div>
-                          {/* Slider at the bottom so finger doesn't cover labels */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '36px', textAlign: 'right' }}>Stretch</span>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={tensionSliderPos}
-                              onChange={(e) => setTensionSliderPos(parseInt(e.target.value))}
-                              className="tension-scrubber-slider"
-                              style={{ flex: 1, accentColor: 'var(--accent-primary)' }}
-                            />
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '44px' }}>Contract</span>
-                          </div>
-                        </div>
+                        )
                       )}
                     </div>
 
