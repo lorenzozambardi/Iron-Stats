@@ -2,18 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MUSCLES } from '../parser';
 import { formatRestTime, groupSets } from './helpers';
 
-const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode, diagnostics = [] }) {
+function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode }) {
   const scrollAnimRef = useRef(null);
   const [expandedExerciseName, setExpandedExerciseName] = useState(null);
-
-  const diagnosticsByLine = useMemo(() => {
-    const map = new Map();
-    for (const d of diagnostics) {
-      if (!map.has(d.lineIndex)) map.set(d.lineIndex, []);
-      map.get(d.lineIndex).push(d);
-    }
-    return map;
-  }, [diagnostics]);
 
   useEffect(() => {
     if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
@@ -23,7 +14,7 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
         if (container) {
           const elementRect = element.getBoundingClientRect();
           const containerRect = container.getBoundingClientRect();
-          const offset = 68; // 12px (spazio sopra) + 44px (altezza pillola: 36px + 4px padding x2) + 12px (spazio sotto)
+          const offset = editorMode === 'split' ? 12 : 68;
           const targetY = Math.max(0, container.scrollTop + (elementRect.top - containerRect.top) - offset);
           
           if (scrollAnimRef.current) {
@@ -56,7 +47,7 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
         cancelAnimationFrame(scrollAnimRef.current);
       }
     };
-  }, [activeExerciseStartLine]);
+  }, [activeExerciseStartLine, editorMode]);
 
   // Group by session — memoized to avoid recomputing on every editor keystroke
   const sessionsWithMeta = useMemo(() => {
@@ -88,9 +79,8 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
 
       const qualifyingMuscles = Object.entries(muscleEffReps)
         .filter(([, reps]) => reps >= 10).map(([main]) => main).sort();
-      const musclesStr = qualifyingMuscles.length > 0 ? qualifyingMuscles.join(', ') : 'None';
 
-      return { sessNum, exercises, latestWeek, totalEffReps, musclesStr };
+      return { sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles };
     });
   }, [workoutData]);
 
@@ -104,25 +94,37 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
 
   return (
     <div className="logbook-preview-content">
-      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, musclesStr }) => {
+      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles }) => {
         return (
           <div key={sessNum} className="preview-session-group">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', borderLeft: '3px solid var(--accent-primary)' }}>
-              <h2 className="preview-session-title" style={{ margin: 0, paddingBottom: 0, borderBottom: 'none', color: 'var(--text-primary)' }}>Session {sessNum}</h2>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                <span><strong>{exercises.length}</strong> Exercises</span>
-                <span><strong>{totalEffReps.toFixed(0)}</strong> Eff. Reps (W{latestWeek})</span>
-                <span><strong>Muscles:</strong> {musclesStr}</span>
+            <div className="preview-session-header-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="preview-session-eyebrow">Session {sessNum}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span className="preview-session-pill">{exercises.length} ex</span>
+                  <span className="preview-session-pill">{totalEffReps.toFixed(0)} eff. reps · W{latestWeek}</span>
+                </div>
               </div>
+              {qualifyingMuscles.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {qualifyingMuscles.map(m => (
+                    <span key={m} className="preview-session-muscle-chip">{m}</span>
+                  ))}
+                </div>
+              )}
             </div>
           
           <div className="preview-exercises-list">
             {exercises.map((ex, exIdx) => {
               const isActive = activeExerciseStartLine === ex.startLine;
-              const exDiagnostics = [
-                ...(diagnosticsByLine.get(ex.startLine) || []),
-                ...ex.weeks.flatMap(w => diagnosticsByLine.get(w.lineIndex) || [])
-              ];
+              const primaryMuscleKey = ex.exercise_obj?.muscles_distr
+                ? Object.keys(ex.exercise_obj.muscles_distr)[0]
+                : null;
+              const primaryMuscleLabel = primaryMuscleKey
+                ? (MUSCLES[primaryMuscleKey] || primaryMuscleKey)
+                : null;
+              const isExpanded = editorMode === 'preview' && ex.exercise_obj && expandedExerciseName === ex.exercise_obj.name;
+
               return (
                 <div 
                   key={exIdx} 
@@ -137,25 +139,19 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
                 >
                   <div className="preview-exercise-header">
                     <div className="preview-exercise-info">
-                      <h3>{ex.exercise_obj ? ex.exercise_obj.name : ex.raw_name}</h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', width: '100%' }}>
+                        <h3>{ex.exercise_obj ? ex.exercise_obj.name : ex.raw_name}</h3>
+                        {primaryMuscleLabel && (
+                          <span className="badge muscle" style={{ flexShrink: 0 }}>
+                            {primaryMuscleLabel}
+                          </span>
+                        )}
+                      </div>
                       <div className="preview-badges">
                         <span className="badge">{formatRestTime(ex.rest_seconds)} rest</span>
-                        {ex.exercise_obj && (
-                          <span className="badge muscle">
-                            {MUSCLES[Object.keys(ex.exercise_obj.muscles_distr)[0]] || Object.keys(ex.exercise_obj.muscles_distr)[0]}
-                          </span>
-                        )}
                         {ex.concentric !== undefined && (
                           <span className="badge tempo">
-                            Tempo: {ex.concentric}-{ex.shortening_pause}-{ex.eccentric}-{ex.lengthening_pause}
-                          </span>
-                        )}
-                        {exDiagnostics.length > 0 && (
-                          <span
-                            className={`badge ${exDiagnostics.some(d => d.severity === 'error') ? 'lint-badge-error' : 'lint-badge-warn'}`}
-                            title={exDiagnostics.map(d => d.message).join('\n')}
-                          >
-                            {exDiagnostics.length} {exDiagnostics.length === 1 ? 'issue' : 'issues'}
+                            {ex.concentric}-{ex.shortening_pause}-{ex.eccentric}-{ex.lengthening_pause}
                           </span>
                         )}
                         {editorMode === 'preview' && ex.exercise_obj && (
@@ -166,7 +162,7 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
                               setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
                             }}
                           >
-                            {expandedExerciseName === ex.exercise_obj.name ? 'Hide Info' : 'Show Info'}
+                            {expandedExerciseName === ex.exercise_obj.name ? 'Hide Info' : 'Info'}
                           </span>
                         )}
                       </div>
@@ -174,25 +170,41 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
                   </div>
 
                   {/* Render Expanded Info under header if expanded */}
-                  {editorMode === 'preview' && ex.exercise_obj && expandedExerciseName === ex.exercise_obj.name && (
-                    <div style={{ 
-                      marginTop: '4px', 
-                      marginBottom: '12px', 
-                      padding: '10px', 
-                      background: 'var(--bg-primary)', 
-                      borderRadius: '8px', 
-                      border: '1px solid var(--border-color)', 
-                      fontSize: '0.75rem',
-                      textAlign: 'left'
-                    }} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '6px', marginBottom: '8px' }}>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Fatigue:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.fatigue}</strong></div>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Load Coeff:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_coeff}</strong></div>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Multiplier:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_multiplier}x</strong></div>
-                        <div><span style={{ color: 'var(--text-muted)' }}>Offset:</span> <strong style={{ color: 'var(--text-primary)' }}>{ex.exercise_obj.load_offset}kg</strong></div>
+                  {isExpanded && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        background: 'var(--bg-primary)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-color)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        textAlign: 'left'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px' }}>
+                        {[
+                          { label: 'FATIGUE', value: ex.exercise_obj.fatigue },
+                          { label: 'LOAD COEFF', value: ex.exercise_obj.load_coeff },
+                          { label: 'MULTIPLIER', value: `${ex.exercise_obj.load_multiplier}x` },
+                          { label: 'OFFSET', value: `${ex.exercise_obj.load_offset}kg` }
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                            <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: 'var(--text-muted)' }}>
+                              {label}
+                            </span>
+                            <strong style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                              {value}
+                            </strong>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Muscle Distribution:</span>
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                        <span style={{ display: 'block', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          Muscle Distribution
+                        </span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {Object.entries(ex.exercise_obj.muscles_distr).map(([muscle, pct]) => (
                             <span key={muscle} className="badge muscle">
@@ -204,28 +216,51 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
                     </div>
                   )}
 
-                  <div className="preview-weeks-grid">
+                  <div
+                    className="preview-weeks-grid"
+                    style={ex.weeks.length === 1 ? { gridTemplateColumns: '1fr' } : undefined}
+                  >
                     {ex.weeks.map(wk => {
                       const isWeekActive = activeWeekLineIndex === wk.lineIndex;
                       return (
                         <div key={wk.week_num} className={`preview-week-column ${isWeekActive ? 'active' : ''}`}>
-                          <div className="preview-week-header">W{wk.week_num}</div>
+                          <div className="preview-week-header">
+                            <span>W{wk.week_num}</span>
+                            <span className="preview-week-count">
+                              {wk.sets.length} {wk.sets.length === 1 ? 'set' : 'sets'}
+                            </span>
+                          </div>
                           <div className="preview-sets-list">
                             {groupSets(wk.sets).map((g, gIdx) => {
                               if (g.isDropset) {
                                 return (
-                                  <div key={gIdx} className="preview-set-row dropset" style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '4px', padding: '3px' }}>
-                                    <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: 'rgba(239, 68, 68, 0.8)', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid rgba(239, 68, 68, 0.1)', paddingBottom: '1px', marginBottom: '2px' }}>Dropset</div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px' }}>
+                                  <div
+                                    key={gIdx}
+                                    className="preview-set-row dropset"
+                                    style={{
+                                      background: 'rgba(244, 63, 94, 0.06)',
+                                      border: '1px solid rgba(244, 63, 94, 0.2)',
+                                      borderRadius: '6px',
+                                      padding: '4px 6px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '2px',
+                                      alignItems: 'stretch'
+                                    }}
+                                  >
+                                    <div style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-fatigue)', fontWeight: 700, textAlign: 'left' }}>
+                                      Dropset
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' }}>
                                       {g.sets.map((s, sIdx) => (
                                         <React.Fragment key={sIdx}>
-                                          {sIdx > 0 && <span style={{ color: 'rgba(239, 68, 68, 0.4)', fontSize: '0.65rem' }}>➔</span>}
-                                          <span style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
-                                            <span className="preview-set-weight">{s.load}</span>
+                                          {sIdx > 0 && <span style={{ color: 'rgba(244, 63, 94, 0.55)', fontSize: '0.68rem' }}>→</span>}
+                                          <span style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline', gap: '2px' }}>
+                                            <span className="preview-set-weight">{s.load}<span className="preview-set-unit">kg</span></span>
                                             <span className="preview-set-reps">×{s.base_reps + s.assisted_reps}</span>
-                                            {s.partial_reps > 0 && <span className="preview-set-partial" style={{ fontSize: '0.6rem' }}>+{s.partial_reps}p</span>}
-                                            {s.assisted_reps > 0 && <span className="preview-set-assisted" style={{ fontSize: '0.6rem' }}>({s.assisted_reps}a)</span>}
-                                            {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '2px' }}>@{s.rpe}</span>}
+                                            {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
+                                            {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
+                                            {s.rpe !== undefined && s.rpe !== null && <span className="preview-set-rpe" style={{ marginLeft: '2px' }}>@{s.rpe}</span>}
                                           </span>
                                         </React.Fragment>
                                       ))}
@@ -236,11 +271,13 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
                                 const s = g.set;
                                 return (
                                   <div key={gIdx} className="preview-set-row">
-                                    <span className="preview-set-weight">{s.load}kg</span>
-                                    <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
-                                    {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
-                                    {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
-                                    {s.rpe !== undefined && s.rpe !== null && <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.55rem', marginLeft: '3px' }}>@{s.rpe}</span>}
+                                    <span className="preview-set-main">
+                                      <span className="preview-set-weight">{s.load}<span className="preview-set-unit">kg</span></span>
+                                      <span className="preview-set-reps">× {s.base_reps + s.assisted_reps}</span>
+                                      {s.partial_reps > 0 && <span className="preview-set-partial">+{s.partial_reps}p</span>}
+                                      {s.assisted_reps > 0 && <span className="preview-set-assisted">({s.assisted_reps}a)</span>}
+                                    </span>
+                                    {s.rpe !== undefined && s.rpe !== null && <span className="preview-set-rpe">@{s.rpe}</span>}
                                   </div>
                                 );
                               }
@@ -261,6 +298,7 @@ const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeE
       )})}
     </div>
   );
-});
+}
 
-export default LogbookPreview;
+
+export default React.memo(LogbookPreview);
