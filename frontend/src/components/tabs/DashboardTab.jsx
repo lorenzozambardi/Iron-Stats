@@ -848,12 +848,12 @@ const DashboardTab = ({
                     transition: 'grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, margin-bottom 280ms cubic-bezier(0.22, 1, 0.36, 1)',
                     pointerEvents: isFilterPanelOpen ? 'auto' : 'none',
                   }}>
-                  <div style={{ overflow: 'hidden' }}>
+                  <div style={{ overflow: 'hidden', borderRadius: 'var(--card-radius)' }}>
                   <div style={{
                     display: 'flex', flexDirection: 'column', gap: '12px',
                     padding: isMobile ? '12px' : '14px 16px',
                     background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--card-radius)', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
+                    borderRadius: 'var(--card-radius)'
                   }}>
 
                     {/* Top row (Desktop only): Compare toggle + program picker + clear */}
