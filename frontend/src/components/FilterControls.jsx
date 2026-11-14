@@ -1,12 +1,24 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 const mod = (n, m) => ((n % m) + m) % m;
+
+let measureCtx = null;
+const measureLabelWidth = (text) => {
+  if (typeof document === 'undefined') return String(text).length * 8;
+  if (!measureCtx) {
+    const canvas = document.createElement('canvas');
+    measureCtx = canvas.getContext('2d');
+  }
+  if (!measureCtx) return String(text).length * 8;
+  measureCtx.font = '600 13px Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+  return measureCtx.measureText(String(text)).width;
+};
 
 /**
  * Minimal lateral (horizontal) circular lock-wheel picker.
  * Selected item is centered in white; neighbors left/right fade out in grayer shades.
  */
-export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, circular = true, style }) => {
+export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, gap = null, circular = true, style }) => {
   const containerRef = useRef(null);
 
   const count = options.length;
@@ -111,11 +123,32 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
     }
   };
 
+  // When gap is set, compute cumulative center positions so visual gaps between words are identical
+  const linearCenters = useMemo(() => {
+    if (gap === null || count === 0) return null;
+    const widths = options.map(o => measureLabelWidth(o.label));
+    const pos = [0];
+    for (let i = 1; i < count; i++) {
+      pos.push(pos[i - 1] + (widths[i - 1] + widths[i]) / 2 + gap);
+    }
+    return { pos, widths };
+  }, [gap, options, count]);
+
   if (count === 0) return null;
 
   const baseCenter = Math.round(virtualIdx);
   const fracOffset = virtualIdx - baseCenter;
   const offsets = count === 1 ? [0] : [-3, -2, -1, 0, 1, 2, 3];
+
+  const interpLinearX = (vIdx) => {
+    if (!linearCenters) return vIdx * itemWidth;
+    const { pos } = linearCenters;
+    if (vIdx <= 0) return pos[0] + vIdx * itemWidth;
+    if (vIdx >= count - 1) return pos[count - 1] + (vIdx - (count - 1)) * itemWidth;
+    const lo = Math.floor(vIdx);
+    const t = vIdx - lo;
+    return pos[lo] + t * (pos[lo + 1] - pos[lo]);
+  };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', ...style }}>
@@ -168,7 +201,10 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
             : dist < 1.35
               ? '#9ca3af'
               : '#52525b';
-          const xPx = (rel - fracOffset) * itemWidth;
+          const xPx = linearCenters
+            ? linearCenters.pos[optIdx] - interpLinearX(virtualIdx)
+            : (rel - fracOffset) * itemWidth;
+          const slotWidth = linearCenters ? Math.ceil(linearCenters.widths[optIdx] + 8) : itemWidth;
 
           return (
             <div
@@ -183,7 +219,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
                 left: '50%',
                 top: 0,
                 height: '28px',
-                width: `${itemWidth}px`,
+                width: `${slotWidth}px`,
                 transform: `translateX(calc(-50% + ${xPx}px)) scale(${scale})`,
                 transition: isDragging ? 'none' : 'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease',
                 display: 'flex',
