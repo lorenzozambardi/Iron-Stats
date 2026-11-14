@@ -396,7 +396,7 @@ const DashboardTab = ({
 
   const getMetricLabelAndUnit = (metric) => {
     switch (metric) {
-      case 'Volume': return { name: 'Volume', unit: 'reps' };
+      case 'Volume': return { name: 'Reps', unit: 'reps' };
       case 'Tonnage': return { name: 'Tonnage', unit: 'kg' };
       case 'EffectiveTonnage': return { name: 'Effective Tonnage', unit: 'kg' };
       case 'WeightedTonnage': return { name: 'Weighted Tonnage', unit: 'kg' };
@@ -405,7 +405,7 @@ const DashboardTab = ({
       case 'EffectiveRepsCustom': return { name: 'Effective Reps', unit: 'reps' };
       case 'EffectiveTut': return { name: 'Effective TUT', unit: 's' };
       case 'Tut': return { name: 'TUT', unit: 's' };
-      case 'Sets': return { name: 'Sets', unit: '' };
+      case 'Sets': return { name: 'Volume', unit: '' };
       default: return { name: metric, unit: '' };
     }
   };
@@ -824,11 +824,11 @@ const DashboardTab = ({
 
                       {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(compareTotalTonnage, totalTonnage)],
                         ['Effective Tonnage', 'effective-tonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveTonnage, totalEffectiveTonnage)],
-                        ['Volume', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
+                        ['Reps', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
                         ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(compareTotalEffReps, totalEffectiveReps)],
                         ['W. Tonnage', 'weighted-tonnage', `${totalWeightedTonnage.toLocaleString()} kg`, `${compareTotalWeightedTonnage.toLocaleString()} kg`, delta(compareTotalWeightedTonnage, totalWeightedTonnage)],
                         ['Eff. W. Tonnage', 'effective-weighted-tonnage', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`, `${compareTotalEffectiveWeightedTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveWeightedTonnage, totalEffectiveWeightedTonnage)],
-                        ['Sets', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
+                        ['Volume', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
                         ['TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
                         ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
                         ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
@@ -867,7 +867,7 @@ const DashboardTab = ({
                     <div className="metrics-summary-grid">
                       <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Volume
+                          Reps
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
                             {renderMetricTooltip('volume')}
@@ -958,7 +958,7 @@ const DashboardTab = ({
                       </div>
                       <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); }}>
                         <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Sets
+                          Volume
                           <span className="info-icon-wrapper">
                             <Info size={13} style={{ cursor: 'pointer', opacity: 0.6 }} />
                             {renderMetricTooltip('sets')}
@@ -1018,7 +1018,7 @@ const DashboardTab = ({
                                 onChange={(e) => setOverallChartMetric(e.target.value)}
                                 style={{ minWidth: '120px', padding: '4px 24px 4px 10px', fontSize: '0.75rem', height: '28px' }}
                               >
-                                <option value="Volume">Volume</option>
+                                <option value="Volume">Reps</option>
                                 <option value="Tonnage">Tonnage</option>
                                 <option value="EffectiveTonnage">Effective Tonnage</option>
                                 <option value="WeightedTonnage">Weighted Tonnage</option>
@@ -1027,7 +1027,7 @@ const DashboardTab = ({
                                 <option value="EffectiveRepsCustom">Effective Reps</option>
                                 <option value="EffectiveTut">Effective TUT</option>
                                 <option value="Tut">TUT</option>
-                                <option value="Sets">Sets</option>
+                                <option value="Sets">Volume</option>
                               </select>
                             </>
                           )}
@@ -1116,16 +1116,16 @@ const DashboardTab = ({
                                 fontSize={11} 
                                 domain={exerciseChartBounds.volumeDomain}
                                 tickFormatter={(val) => Math.round(val).toLocaleString()}
-                                label={{ value: 'Volume (reps)', angle: 90, position: 'insideRight', style: { fill: 'var(--text-muted)', fontSize: 9 } }} 
+                                label={{ value: 'Reps', angle: 90, position: 'insideRight', style: { fill: 'var(--text-muted)', fontSize: 9 } }} 
                               />
                               <Tooltip contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} />
                               <Legend fontSize={10} />
                               <Line isAnimationActive={false} yAxisId="left" type="monotone" dataKey="Tonnage" stroke="var(--accent-primary)" strokeWidth={3} activeDot={{ r: 6 }} name={compareMode ? 'Tonnage — Selection A' : 'Tonnage (kg)'} />
-                              <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--accent-secondary)" strokeWidth={2.5} name={compareMode ? 'Volume — Selection A' : 'Volume (reps)'} />
+                              <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="Volume" stroke="var(--accent-secondary)" strokeWidth={2.5} name={compareMode ? 'Reps — Selection A' : 'Reps'} />
                               {compareMode && compareProgram && (
                                 <>
                                   <Line isAnimationActive={false} yAxisId="left" type="monotone" dataKey="Tonnage_B" stroke="#fda4af" strokeWidth={2} strokeDasharray="6 3" activeDot={{ r: 5 }} name="Tonnage — Selection B" />
-                                  <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="Volume_B" stroke="#a855f7" strokeWidth={1.5} strokeDasharray="4 2" name="Volume — Selection B" />
+                                  <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="Volume_B" stroke="#a855f7" strokeWidth={1.5} strokeDasharray="4 2" name="Reps — Selection B" />
                                 </>
                               )}
                             </LineChart>
@@ -1143,7 +1143,7 @@ const DashboardTab = ({
                               const pt = metricsByWeek[idx];
                               if (!pt) return null;
                               const metrics = [
-                                { key: 'Volume', color: 'var(--color-volume)' },
+                                { key: 'Volume', label: 'Reps', color: 'var(--color-volume)' },
                                 { key: 'Tonnage', color: 'var(--color-tonnage)' },
                                 { key: 'EffectiveRepsCustom', label: 'Eff. Reps', color: 'var(--color-effective-volume)' },
                                 { key: 'Fatigue', color: 'var(--color-fatigue)' },
@@ -1188,8 +1188,8 @@ const DashboardTab = ({
                       <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {dashMuscleMacro !== 'all' 
-                            ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Sets` : `${dashMuscleMacro} Sub-group Volume`)
-                            : (muscleMetric === 'sets' ? 'Muscle Group Sets' : 'Muscle Group Volume')}
+                            ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Volume` : `${dashMuscleMacro} Sub-group Reps`)
+                            : (muscleMetric === 'sets' ? 'Muscle Group Volume' : 'Muscle Group Reps')}
                         </span>
                         <select
                           className="select-control select-small"
@@ -1197,8 +1197,8 @@ const DashboardTab = ({
                           onChange={(e) => setMuscleMetric(e.target.value)}
                         >
                           <option value="effective">Effective Reps</option>
-                          <option value="volume">Volume</option>
-                          <option value="sets">Sets</option>
+                          <option value="volume">Reps</option>
+                          <option value="sets">Volume</option>
                         </select>
                       </div>
                       <div className="muscle-list">

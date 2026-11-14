@@ -232,23 +232,23 @@ export default function MetricDetailsPage({ metric, onBack }) {
     switch (activeMetric) {
       case 'volume':
         return {
-          title: 'Total Volume',
+          title: 'Total Reps',
           subtitle: 'Weighted effective repetitions',
           color: 'var(--color-volume)',
-          description: 'Volume measures the total stimulative muscular workload of your exercises. It sums your base repetitions alongside weighted contributions from assisted and partial repetitions, scaled by the target muscle group distribution.',
+          description: 'Reps measures the total stimulative muscular workload of your exercises. It sums your base repetitions alongside weighted contributions from assisted and partial repetitions, scaled by the target muscle group distribution.',
           formulas: [
-            '\\text{Volume} = \\sum_{s \\in \\text{Sets}} \\text{TotReps}_s \\cdot D_m',
+            '\\text{Reps} = \\sum_{s \\in \\text{Sets}} \\text{TotReps}_s \\cdot D_m',
             '\\text{TotReps}_s = R_{\\text{base}, s} + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
           ],
           variables: [
-            { symbol: '\\text{Volume}', desc: 'The accumulated workload credit assigned to a target muscle group.' },
+            { symbol: '\\text{Reps}', desc: 'The accumulated workload credit assigned to a target muscle group.' },
             { symbol: '\\text{TotReps}_s', desc: 'The total weighted rep count of set s, combining base, assisted, and partial repetitions.' },
             { symbol: 'R_{\\text{base}, s}', desc: 'Base repetitions in set s (full range of motion, unassisted).' },
             { symbol: 'R_{\\text{assisted}, s}', desc: 'Assisted repetitions in set s (spotter-helped, weighted at 0.5).' },
             { symbol: 'R_{\\text{partial}, s}', desc: 'Partial range of motion repetitions in set s (weighted at 0.33).' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient.' }
           ],
-          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, targeting Quads (Dm = 1.0):\nBase reps = 8.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Volume for that set is (8.0 + 1.0 + 0.99) * 1.0 = 9.99 reps.'
+          example: 'If you perform a set of 10 base reps (where 2 are assisted, leaving 8 unassisted base reps) and 3 partial reps, targeting Quads (Dm = 1.0):\nBase reps = 8.0 reps.\nAssisted reps = 2 (weighted at 0.5) = 1.0 rep.\nPartial reps = 3 (weighted at 0.33) = 0.99 rep.\nTotal Reps for that set is (8.0 + 1.0 + 0.99) * 1.0 = 9.99 reps.'
         };
       case 'tonnage':
         return {
@@ -425,15 +425,15 @@ export default function MetricDetailsPage({ metric, onBack }) {
         };
       case 'sets':
         return {
-          title: 'Total Sets',
+          title: 'Total Volume',
           subtitle: 'Set count scaled by muscle distribution',
           color: 'var(--color-sets)',
-          description: 'Sets calculates the cumulative number of sets performed. Rather than treating all sets equally across all muscle groups, it weights each set based on the target muscle distribution coefficient (D_m) of the exercise. For example, a set targeting a primary muscle group counts as 1.0 sets, while targeting a secondary muscle group counts proportionally (e.g. 0.5 sets).',
+          description: 'Volume calculates the cumulative number of sets performed. Rather than treating all sets equally across all muscle groups, it weights each set based on the target muscle distribution coefficient (D_m) of the exercise. For example, a set targeting a primary muscle group counts as 1.0 sets, while targeting a secondary muscle group counts proportionally (e.g. 0.5 sets).',
           formulas: [
-            '\\text{Sets} = \\sum_{s \\in \\text{Sets}} 1.0 \\cdot D_m'
+            '\\text{Volume} = \\sum_{s \\in \\text{Sets}} 1.0 \\cdot D_m'
           ],
           variables: [
-            { symbol: '\\text{Sets}', desc: 'The accumulated sets credit assigned to a target muscle group.' },
+            { symbol: '\\text{Volume}', desc: 'The accumulated sets credit assigned to a target muscle group.' },
             { symbol: 'D_m', desc: 'Target muscle group distribution coefficient (from 0.0 to 1.0).' }
           ],
           example: 'If you perform 4 sets of Squats targeting Quads at 45% (D_m = 0.45) and Glutes at 35% (D_m = 0.35):\n- Quads: 4 sets * 0.45 = 1.8 sets\n- Glutes: 4 sets * 0.35 = 1.4 sets'

@@ -2,7 +2,7 @@
 
 const renderVolumeTooltip = () => (
   <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-volume)', fontSize: '0.8rem' }}>Volume</div>
+    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-volume)', fontSize: '0.8rem' }}>Reps</div>
     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
       Sums the repetitions of all sets
     </div>
@@ -65,7 +65,7 @@ const renderFatigueTooltip = () => (
 
 const renderSetsTooltip = () => (
   <div className="info-tooltip" style={{ textAlign: 'left' }}>
-    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-sets)', fontSize: '0.8rem' }}>Sets</div>
+    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--color-sets)', fontSize: '0.8rem' }}>Volume</div>
     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
       Sums the total number of sets performed
     </div>
