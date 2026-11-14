@@ -220,48 +220,24 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   );
 });
 
-const CardModeToggle = React.memo(({ mode, onSelect }) => {
-  const isEff = mode === 'effective';
-  const nextMode = isEff ? 'total' : 'effective';
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={isEff}
-      aria-label={`Switch to ${isEff ? 'Total' : 'Effective'}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect(nextMode);
-      }}
-      style={{
-        position: 'relative',
-        width: '24px',
-        height: '14px',
-        padding: 0,
-        border: '1px solid rgba(255, 255, 255, 0.14)',
-        borderRadius: '999px',
-        background: isEff ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.06)',
-        cursor: 'pointer',
-        flexShrink: 0,
-        transition: 'background 0.18s ease, border-color 0.18s ease',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: '2px',
-          left: isEff ? '12px' : '2px',
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: '#ffffff',
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
-          transition: 'left 0.18s cubic-bezier(0.22, 1, 0.36, 1)',
-        }}
-      />
-    </button>
-  );
-});
+const CARD_MODE_OPTIONS = [
+  { value: 'total', label: 'TOT' },
+  { value: 'effective', label: 'EFF' },
+];
+
+const CardModeToggle = React.memo(({ mode, onSelect }) => (
+  <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+    <LockWheelPicker
+      options={CARD_MODE_OPTIONS}
+      value={mode}
+      onChange={onSelect}
+      itemWidth={34}
+      gap={10}
+      circular={false}
+      style={{ width: '66px' }}
+    />
+  </div>
+));
 
 const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
   const hasA = values && values.length >= 1;
