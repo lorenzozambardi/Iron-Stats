@@ -54,12 +54,12 @@ export const ExerciseModal = ({
   const disabledStyle = { opacity: isInvalid ? 0.6 : 1, cursor: isInvalid ? 'not-allowed' : 'pointer' };
   const fieldInputStyle = {
     width: '100%',
-    padding: '8px 12px',
+    padding: '8px 14px',
     fontSize: '0.88rem',
     background: 'var(--bg-primary)',
     border: '1px solid var(--border-color)',
     color: 'var(--text-primary)',
-    borderRadius: '10px',
+    borderRadius: 'var(--button-radius)',
     outline: 'none',
   };
   const fieldLabelStyle = {
