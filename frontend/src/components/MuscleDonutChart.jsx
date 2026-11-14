@@ -109,7 +109,7 @@ const resolveLabelCollisions = (items, minGap = 28) => {
 
       const [pMin, pMax] = getLabelXSpan(prev.x, prev.anchor, prev.width);
       const [cMin, cMax] = getLabelXSpan(curr.x, curr.anchor, curr.width);
-      const xOverlaps = Math.min(pMax, cMax) - Math.max(pMin, cMin) > -4;
+      const xOverlaps = Math.min(pMax, cMax) - Math.max(pMin, cMin) > 0;
       if (!xOverlaps) continue;
 
       const shift = yOverlap / 2;
@@ -196,6 +196,29 @@ const SingleDonut = ({
       };
     });
 
+    const rSafe = rOut + 6;
+    const clearArc = (x, y, anchor) => {
+      let outX = x;
+      let outY = y;
+      const closestDy = outY < cy ? (outY + 15) - cy : (outY - 12) - cy;
+      if (Math.abs(closestDy) < rSafe) {
+        if (anchor === 'middle') {
+          outY = outY < cy ? cy - rSafe - 15 : cy + rSafe + 12;
+        } else {
+          const minDx = Math.sqrt(rSafe * rSafe - closestDy * closestDy);
+          outX = anchor === 'end'
+            ? Math.min(outX, cx - minDx)
+            : Math.max(outX, cx + minDx);
+        }
+      }
+      return { x: outX, y: outY };
+    };
+
+    const arcClearedSlices = rawSlices.map((s) => {
+      const cleared = clearArc(s.labelX, s.labelY, s.textAnchor);
+      return { ...s, labelX: cleared.x, labelY: cleared.y };
+    });
+
     const toCollisionItem = (s) => ({
       idx: s.idx,
       x: s.labelX,
@@ -203,29 +226,21 @@ const SingleDonut = ({
       anchor: s.textAnchor,
       width: s.labelWidth,
     });
-    const leftLabels = resolveLabelCollisions(rawSlices.filter((s) => s.side === 'left').map(toCollisionItem));
-    const rightLabels = resolveLabelCollisions(rawSlices.filter((s) => s.side === 'right').map(toCollisionItem));
+    const leftLabels = resolveLabelCollisions(arcClearedSlices.filter((s) => s.side === 'left').map(toCollisionItem));
+    const rightLabels = resolveLabelCollisions(arcClearedSlices.filter((s) => s.side === 'right').map(toCollisionItem));
     const yMap = new Map([...leftLabels, ...rightLabels].map((item) => [item.idx, item.y]));
 
-    const rSafe = rOut + 6;
-    const finalSlices = rawSlices.map((s) => {
-      let newY = yMap.get(s.idx) ?? s.labelY;
+    const finalSlices = arcClearedSlices.map((s) => {
+      const newY = yMap.get(s.idx) ?? s.labelY;
       let newX = s.labelX;
       let newAnchor = s.textAnchor;
-      if (newY !== s.labelY && Math.abs(newX - cx) > 18) {
-        newAnchor = s.side === 'left' ? 'end' : 'start';
-      }
-      // Ensure the label's closest vertical edge (bottom for top half, top for bottom half) clears the outer arc
-      const closestDy = newY < cy ? (newY + 15) - cy : (newY - 12) - cy;
-      if (Math.abs(closestDy) < rSafe) {
-        if (newAnchor === 'middle') {
-          newY = newY < cy ? cy - rSafe - 15 : cy + rSafe + 12;
-        } else {
-          const minDx = Math.sqrt(rSafe * rSafe - closestDy * closestDy);
-          newX = newAnchor === 'end'
-            ? Math.min(newX, cx - minDx)
-            : Math.max(newX, cx + minDx);
+      if (newY !== s.labelY) {
+        if (Math.abs(newX - cx) > 18) {
+          newAnchor = s.side === 'left' ? 'end' : 'start';
         }
+        const cleared = clearArc(newX, newY, newAnchor);
+        newX = cleared.x;
+        return { ...s, labelX: newX, labelY: cleared.y, textAnchor: newAnchor };
       }
       return {
         ...s,
