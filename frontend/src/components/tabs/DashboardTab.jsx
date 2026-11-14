@@ -125,15 +125,16 @@ const formatWeekRangeLabel = (fromVal, toVal) => {
   return null;
 };
 
-const TrendBadge = React.memo(({ values }) => {
+const TrendBadge = React.memo(({ values, invertColor = false }) => {
   if (!values || values.length < 2) return null;
   const first = values[0];
   const last = values[values.length - 1];
   if (first === 0) return null;
   const pct = ((last - first) / first) * 100;
   const pos = pct >= 0;
+  const isGood = invertColor ? !pos : pos;
   return (
-    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: pos ? '#10b981' : '#f43f5e', lineHeight: 1.1 }}>
+    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isGood ? '#10b981' : '#f43f5e', lineHeight: 1.1 }}>
       {pos ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
     </span>
   );
@@ -1194,7 +1195,7 @@ const DashboardTab = ({
                                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-secondary)', flexShrink: 0 }} />
                                   <span className="metric-value" style={{ fontSize: isMobile ? '0.95rem' : '1.1rem', opacity: 0.85 }}>{valB}</span>
                                   {d && (
-                                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 600, color: d.pos ? '#10b981' : '#f43f5e' }}>
+                                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 600, color: (cls === 'fatigue' ? !d.pos : d.pos) ? '#10b981' : '#f43f5e' }}>
                                       {d.pos ? '▲' : '▼'} {Math.abs(d.val).toFixed(2)}%
                                     </span>
                                   )}
@@ -1231,7 +1232,7 @@ const DashboardTab = ({
                           <div key={cls} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <span className="metric-label">{label}</span>
                             <span className="metric-value">{formattedVal}</span>
-                            <TrendBadge values={vals} />
+                            <TrendBadge values={vals} invertColor={cls === 'fatigue'} />
                             <MetricSparkline values={vals} color={color} gradId={`spark-${cls}`} />
                           </div>
                         );
