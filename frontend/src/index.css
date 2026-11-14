@@ -859,10 +859,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   margin: 0;
   line-height: 1.3;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .ex-override-badge {
@@ -2258,11 +2255,15 @@ input::-webkit-list-button {
   .exercise-db-grid {
     gap: 8px !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    align-items: stretch !important;
+    align-items: start !important;
   }
   .exercise-db-card {
     padding: 10px 12px !important;
     gap: 6px !important;
+  }
+  .ex-card-title {
+    font-size: 0.84rem !important;
+    line-height: 1.25 !important;
   }
   .ex-card-muscle-badges {
     padding-top: 6px !important;
