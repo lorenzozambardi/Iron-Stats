@@ -2324,7 +2324,7 @@ input::-webkit-list-button {
   border-radius: var(--button-radius);
   padding: 8px 14px;
   cursor: pointer;
-  color: var(--text-muted);
+  color: #ffffff;
   font-family: var(--font-sans);
   font-size: 0.8rem;
   font-weight: 400;
@@ -2343,7 +2343,7 @@ input::-webkit-list-button {
   .storage-toggle-btn:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: var(--border-color-hover);
-    color: var(--text-secondary);
+    color: #ffffff;
   }
 }
 
