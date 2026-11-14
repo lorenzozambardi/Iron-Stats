@@ -52,12 +52,36 @@ export const ExerciseModal = ({
 
   const isInvalid = muscleSum !== 100;
   const disabledStyle = { opacity: isInvalid ? 0.6 : 1, cursor: isInvalid ? 'not-allowed' : 'pointer' };
+  const fieldInputStyle = {
+    width: '100%',
+    padding: '8px 12px',
+    fontSize: '0.88rem',
+    background: 'var(--bg-primary)',
+    border: '1px solid var(--border-color)',
+    color: 'var(--text-primary)',
+    borderRadius: '10px',
+    outline: 'none',
+  };
+  const fieldLabelStyle = {
+    display: 'block',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    marginBottom: '5px',
+    letterSpacing: '0.02em',
+  };
+  const numericFields = [
+    { key: 'fatigue', label: 'Fatigue (0.0 – 10.0)', min: '0', max: '10', step: '0.1' },
+    { key: 'load_coeff', label: 'Load Coefficient', min: '0', max: '2', step: '0.01' },
+    { key: 'load_multiplier', label: 'Load Multiplier', min: '0.1', max: '10', step: '0.1' },
+    { key: 'load_offset', label: 'Load Offset (kg)', min: '-100', max: '100', step: '0.5' },
+  ];
 
   return (
     <div className="modal-overlay" style={{ background: 'var(--bg-primary)', backdropFilter: 'none' }} onClick={() => setShowExerciseModal(false)}>
-      <div className="modal-card" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', borderRadius: 0, border: 'none', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingRight: '20px' }}>
-          <h3 className="modal-title" style={{ borderBottom: 'none' }}>{editingExercise ? 'Edit Exercise' : 'Add Exercise'}</h3>
+      <div className="modal-card" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', borderRadius: 0, border: 'none', background: 'var(--bg-primary)', backdropFilter: 'none', boxShadow: 'none', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', padding: isMobile ? '12px 14px' : '16px 20px', background: 'var(--bg-primary)' }}>
+          <h3 className="modal-title" style={{ borderBottom: 'none', padding: 0, margin: 0 }}>{editingExercise ? 'Edit Exercise' : 'Add Exercise'}</h3>
           {editingExercise && (
             <button
               className="btn btn-danger"
@@ -70,88 +94,102 @@ export const ExerciseModal = ({
         </div>
         <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: isMobile ? '10px 8px 20px 8px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '14px' }}>
           
-          <div>
-            <label className="modal-label">Exercise Name</label>
-            <input
-              type="text"
-              className="modal-input"
-              placeholder="e.g. Incline Bench Press"
-              value={exerciseForm.name}
-              onChange={(e) => {
-                setExerciseForm({ ...exerciseForm, name: e.target.value });
-                setExerciseError('');
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--card-radius)',
+            padding: isMobile ? '12px' : '14px 16px',
+            boxShadow: 'var(--card-shadow)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}>
+            <div>
+              <label style={fieldLabelStyle}>Exercise Name</label>
+              <input
+                type="text"
+                className="modal-input"
+                style={fieldInputStyle}
+                placeholder="e.g. Incline Bench Press"
+                value={exerciseForm.name}
+                onChange={(e) => {
+                  setExerciseForm({ ...exerciseForm, name: e.target.value });
+                  setExerciseError('');
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {numericFields.map(({ key, label, min, max, step }) => (
+                <div key={key}>
+                  <label style={fieldLabelStyle}>{label}</label>
+                  <input
+                    type="number"
+                    className="modal-input"
+                    style={fieldInputStyle}
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={exerciseForm[key]}
+                    onChange={(e) => setExerciseForm({ ...exerciseForm, [key]: e.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div
+              role="switch"
+              aria-checked={exerciseForm.is_isolation}
+              tabIndex={0}
+              onClick={() => setExerciseForm({ ...exerciseForm, is_isolation: !exerciseForm.is_isolation })}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
+                  setExerciseForm({ ...exerciseForm, is_isolation: !exerciseForm.is_isolation });
+                }
               }}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label className="modal-label">Fatigue (0.0 - 10.0)</label>
-              <input
-                type="number"
-                className="modal-input"
-                min="0"
-                max="10"
-                step="0.1"
-                value={exerciseForm.fatigue}
-                onChange={(e) => setExerciseForm({ ...exerciseForm, fatigue: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="modal-label">Load Coefficient</label>
-              <input
-                type="number"
-                className="modal-input"
-                min="0"
-                max="2"
-                step="0.01"
-                value={exerciseForm.load_coeff}
-                onChange={(e) => setExerciseForm({ ...exerciseForm, load_coeff: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label className="modal-label">Load Multiplier</label>
-              <input
-                type="number"
-                className="modal-input"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value={exerciseForm.load_multiplier}
-                onChange={(e) => setExerciseForm({ ...exerciseForm, load_multiplier: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="modal-label">Load Offset (kg)</label>
-              <input
-                type="number"
-                className="modal-input"
-                min="-100"
-                max="100"
-                step="0.5"
-                value={exerciseForm.load_offset}
-                onChange={(e) => setExerciseForm({ ...exerciseForm, load_offset: e.target.value })}
-              />
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '10px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              <span style={{ fontSize: '0.84rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                Isolation Exercise
+              </span>
+              <span
+                style={{
+                  position: 'relative',
+                  width: '38px',
+                  height: '22px',
+                  borderRadius: '999px',
+                  background: exerciseForm.is_isolation ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.14)',
+                  transition: 'background 0.2s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '3px',
+                    left: exerciseForm.is_isolation ? '19px' : '3px',
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    background: '#f8fafc',
+                    transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
+                  }}
+                />
+              </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0' }}>
-            <input
-              type="checkbox"
-              id="is-isolation-checkbox"
-              checked={exerciseForm.is_isolation}
-              onChange={(e) => setExerciseForm({ ...exerciseForm, is_isolation: e.target.checked })}
-              style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-            />
-            <label htmlFor="is-isolation-checkbox" className="modal-label" style={{ margin: 0, cursor: 'pointer', fontSize: '0.85rem' }}>
-              Isolation Exercise
-            </label>
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: isMobile ? '10px' : '14px', marginTop: '4px' }}>
+          <div>
             {exerciseForm.muscles.length > 0 && (
               <div style={{
                 width: '100%',
