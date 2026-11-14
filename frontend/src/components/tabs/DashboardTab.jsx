@@ -242,7 +242,7 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
         border: '1px solid var(--border-color)',
         background: 'var(--bg-secondary)',
         boxShadow: 'var(--card-shadow)',
-        color: 'var(--text-secondary)',
+        color: '#ffffff',
         fontSize: '0.62rem',
         fontWeight: 500,
         letterSpacing: '0.03em',
