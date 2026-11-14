@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import { useMemo, useCallback, useRef } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
@@ -106,6 +106,19 @@ const foldGutterExtension = foldGutter({
   }
 });
 
+const BASIC_SETUP = {
+  lineNumbers: false,
+  foldGutter: false,
+  highlightActiveLineGutter: false,
+  highlightActiveLine: true,
+  highlightSelectionMatches: false,
+  searchKeymap: false,
+  history: true,
+  bracketMatching: false,
+  closeBrackets: false,
+  autocompletion: false
+};
+
 export default function FoldableEditor({
   value,
   onChange,
@@ -117,6 +130,13 @@ export default function FoldableEditor({
 
   const onCursorLineChangeRef = useRef(onCursorLineChange);
   onCursorLineChangeRef.current = onCursorLineChange;
+
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const editorViewRef = useRef(null);
+  const lastEmittedValueRef = useRef(value);
+  const [initialValue] = useState(value);
 
   const exerciseCompletion = useMemo(() => {
     return autocompletion({
@@ -181,29 +201,41 @@ export default function FoldableEditor({
   ], [exerciseCompletion]);
 
   const handleChange = useCallback((val) => {
-    onChange(val);
-  }, [onChange]);
+    lastEmittedValueRef.current = val;
+    if (onChangeRef.current) {
+      onChangeRef.current(val);
+    }
+  }, []);
+
+  const handleCreateEditor = useCallback((view) => {
+    editorViewRef.current = view;
+  }, []);
+
+  // Only sync external value changes (program switch, undo/redo, modal edits) into CodeMirror.
+  // Never echo back the user's own keystrokes, which prevents cursor resets during fast typing / IME.
+  useEffect(() => {
+    if (value === lastEmittedValueRef.current) return;
+    lastEmittedValueRef.current = value;
+    const view = editorViewRef.current;
+    if (!view) return;
+    const currentDoc = view.state.doc.toString();
+    if (currentDoc !== value) {
+      view.dispatch({
+        changes: { from: 0, to: currentDoc.length, insert: value }
+      });
+    }
+  }, [value]);
 
   return (
     <div className="foldable-editor-root">
       <CodeMirror
-        value={value}
+        value={initialValue}
         height="100%"
         theme="none"
         extensions={extensions}
         onChange={handleChange}
-        basicSetup={{
-          lineNumbers: false,
-          foldGutter: false,
-          highlightActiveLineGutter: false,
-          highlightActiveLine: true,
-          highlightSelectionMatches: false,
-          searchKeymap: false,
-          history: true,
-          bracketMatching: false,
-          closeBrackets: false,
-          autocompletion: false
-        }}
+        onCreateEditor={handleCreateEditor}
+        basicSetup={BASIC_SETUP}
       />
     </div>
   );

@@ -158,6 +158,11 @@ export default function App() {
   const isUndoRedoAction = useRef(false);
   const textHistoryTimeoutRef = useRef(null);
 
+  const historyIndexRef = useRef(0);
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
+
   useEffect(() => {
      if (isUndoRedoAction.current) {
         isUndoRedoAction.current = false;
@@ -166,19 +171,22 @@ export default function App() {
      
      if (textHistoryTimeoutRef.current) clearTimeout(textHistoryTimeoutRef.current);
      textHistoryTimeoutRef.current = setTimeout(() => {
-         if (historyIndex < textHistoryRef.current.length - 1) {
-            textHistoryRef.current = textHistoryRef.current.slice(0, historyIndex + 1);
+         const currentIdx = historyIndexRef.current;
+         if (currentIdx < textHistoryRef.current.length - 1) {
+            textHistoryRef.current = textHistoryRef.current.slice(0, currentIdx + 1);
          }
          if (textHistoryRef.current[textHistoryRef.current.length - 1] !== logbookText) {
             textHistoryRef.current.push(logbookText);
             if (textHistoryRef.current.length > 50) {
                textHistoryRef.current.shift();
             }
-            setHistoryIndex(textHistoryRef.current.length - 1);
+            const nextIdx = textHistoryRef.current.length - 1;
+            historyIndexRef.current = nextIdx;
+            setHistoryIndex(nextIdx);
          }
          setHistoryLength(textHistoryRef.current.length);
      }, 500);
-  }, [logbookText, historyIndex]);
+  }, [logbookText]);
 
   const handleUndo = useCallback(() => {
      if (historyIndex > 0) {
@@ -1367,7 +1375,6 @@ export default function App() {
                         value={logbookText}
                         onChange={(newText) => {
                           setLogbookText(newText);
-                          setDebouncedLogbookText(newText);
                           setSyncStatus('syncing');
                           if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                           saveTimeoutRef.current = setTimeout(() => {
