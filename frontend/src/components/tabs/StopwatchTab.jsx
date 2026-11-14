@@ -11,6 +11,12 @@ const STORAGE_KEYS = {
   ACCUMULATED: 'iron_stats_stopwatch_accumulated'
 };
 
+const SESSION_STORAGE_KEYS = {
+  RUNNING: 'iron_stats_session_running',
+  START_TIME: 'iron_stats_session_start_time',
+  ACCUMULATED: 'iron_stats_session_accumulated'
+};
+
 const formatTime = (ms) => {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
@@ -18,22 +24,44 @@ const formatTime = (ms) => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
 };
 
+const formatSessionTime = (ms) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
+
 const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [sessionTime, setSessionTime] = useState(0);
+  const [isSessionRunning, setIsSessionRunning] = useState(false);
 
   const containerRef = useRef(null);
   const timeDisplayRef = useRef(null);
+  const sessionDisplayRef = useRef(null);
   const isVisibleRef = useRef(false);
   const startTimeRef = useRef(0);
   const accumulatedRef = useRef(0);
   const isRunningRef = useRef(false);
   const animFrameRef = useRef(null);
 
+  const sessionStartTimeRef = useRef(0);
+  const sessionAccumulatedRef = useRef(0);
+  const isSessionRunningRef = useRef(false);
+  const sessionIntervalRef = useRef(null);
+
   // Directly update DOM element text without causing React component re-renders
   const updateDisplay = useCallback((ms) => {
     if (timeDisplayRef.current) {
       timeDisplayRef.current.textContent = formatTime(ms);
+    }
+  }, []);
+
+  const updateSessionDisplay = useCallback((ms) => {
+    if (sessionDisplayRef.current) {
+      sessionDisplayRef.current.textContent = formatSessionTime(ms);
     }
   }, []);
 
@@ -44,6 +72,12 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     localStorage.setItem(STORAGE_KEYS.RUNNING, running ? 'true' : 'false');
   };
 
+  const setSessionRunningState = (running) => {
+    isSessionRunningRef.current = running;
+    setIsSessionRunning(running);
+    localStorage.setItem(SESSION_STORAGE_KEYS.RUNNING, running ? 'true' : 'false');
+  };
+
   const calculateElapsed = useCallback(() => {
     if (isRunningRef.current && startTimeRef.current > 0) {
       return accumulatedRef.current + Math.max(0, Date.now() - startTimeRef.current);
@@ -51,10 +85,24 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     return accumulatedRef.current;
   }, []);
 
+  const calculateSessionElapsed = useCallback(() => {
+    if (isSessionRunningRef.current && sessionStartTimeRef.current > 0) {
+      return sessionAccumulatedRef.current + Math.max(0, Date.now() - sessionStartTimeRef.current);
+    }
+    return sessionAccumulatedRef.current;
+  }, []);
+
   const stopLoop = useCallback(() => {
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
+    }
+  }, []);
+
+  const stopSessionLoop = useCallback(() => {
+    if (sessionIntervalRef.current) {
+      clearInterval(sessionIntervalRef.current);
+      sessionIntervalRef.current = null;
     }
   }, []);
 
@@ -75,6 +123,19 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     animFrameRef.current = requestAnimationFrame(tick);
   }, [calculateElapsed, isMobile, activeTab, stopLoop, updateDisplay]);
 
+  const startSessionLoop = useCallback(() => {
+    stopSessionLoop();
+    updateSessionDisplay(calculateSessionElapsed());
+    sessionIntervalRef.current = setInterval(() => {
+      const isVisible = isMobile ? isVisibleRef.current : (activeTab === 'stopwatch');
+      if (isSessionRunningRef.current && isVisible) {
+        updateSessionDisplay(calculateSessionElapsed());
+      } else {
+        stopSessionLoop();
+      }
+    }, 250);
+  }, [calculateSessionElapsed, isMobile, activeTab, stopSessionLoop, updateSessionDisplay]);
+
   // Option A: IntersectionObserver on container element to detect viewport entry instantly during swipe
   useEffect(() => {
     const el = containerRef.current;
@@ -92,8 +153,15 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
           if (isRunningRef.current) {
             startLoop();
           }
+
+          const currentSession = calculateSessionElapsed();
+          updateSessionDisplay(currentSession);
+          if (isSessionRunningRef.current) {
+            startSessionLoop();
+          }
         } else {
           stopLoop();
+          stopSessionLoop();
         }
       },
       { threshold: [0, 0.01] }
@@ -104,7 +172,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     return () => {
       observer.disconnect();
     };
-  }, [calculateElapsed, startLoop, stopLoop, updateDisplay]);
+  }, [calculateElapsed, calculateSessionElapsed, startLoop, startSessionLoop, stopLoop, stopSessionLoop, updateDisplay, updateSessionDisplay]);
 
   // Handle desktop tab activation
   useEffect(() => {
@@ -115,15 +183,43 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         if (isRunningRef.current) {
           startLoop();
         }
+
+        const currentSession = calculateSessionElapsed();
+        updateSessionDisplay(currentSession);
+        if (isSessionRunningRef.current) {
+          startSessionLoop();
+        }
       } else {
         stopLoop();
+        stopSessionLoop();
       }
     }
-  }, [activeTab, isMobile, calculateElapsed, startLoop, stopLoop, updateDisplay]);
+  }, [activeTab, isMobile, calculateElapsed, calculateSessionElapsed, startLoop, startSessionLoop, stopLoop, stopSessionLoop, updateDisplay, updateSessionDisplay]);
 
   // Initial load: sync with native plugin or localStorage
   useEffect(() => {
     const isNative = Capacitor.isNativePlatform();
+
+    // Always restore session timer from localStorage
+    const storedSessionRunning = localStorage.getItem(SESSION_STORAGE_KEYS.RUNNING) === 'true';
+    const storedSessionStart = parseInt(localStorage.getItem(SESSION_STORAGE_KEYS.START_TIME) || '0', 10);
+    const storedSessionAccumulated = parseInt(localStorage.getItem(SESSION_STORAGE_KEYS.ACCUMULATED) || '0', 10);
+
+    sessionAccumulatedRef.current = storedSessionAccumulated;
+    sessionStartTimeRef.current = storedSessionStart;
+    setSessionRunningState(storedSessionRunning);
+
+    if (storedSessionRunning && storedSessionStart > 0) {
+      const curSession = storedSessionAccumulated + Math.max(0, Date.now() - storedSessionStart);
+      setSessionTime(curSession);
+      updateSessionDisplay(curSession);
+      if (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch')) {
+        startSessionLoop();
+      }
+    } else {
+      setSessionTime(storedSessionAccumulated);
+      updateSessionDisplay(storedSessionAccumulated);
+    }
 
     if (isNative) {
       // Request notification permission on Android 13+
@@ -220,11 +316,28 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         updateDisplay(storedAccumulated);
       }
     }
-  }, [activeTab, isMobile, startLoop, stopLoop, updateDisplay]);
+  }, [activeTab, isMobile, startLoop, startSessionLoop, stopLoop, updateDisplay, updateSessionDisplay]);
+
+  // Cleanup intervals/frames on unmount
+  useEffect(() => {
+    return () => {
+      stopLoop();
+      stopSessionLoop();
+    };
+  }, [stopLoop, stopSessionLoop]);
 
   // When app returns to foreground / visibility change, resync display immediately
   useEffect(() => {
     const resync = () => {
+      const isVisible = isMobile ? isVisibleRef.current : (activeTab === 'stopwatch');
+
+      const s = calculateSessionElapsed();
+      setSessionTime(s);
+      updateSessionDisplay(s);
+      if (isSessionRunningRef.current && isVisible) {
+        startSessionLoop();
+      }
+
       const isNative = Capacitor.isNativePlatform();
       if (isNative) {
         Stopwatch.getState().then((state) => {
@@ -236,7 +349,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
             const t = state.time || 0;
             setTime(t);
             updateDisplay(t);
-            if (running && (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch'))) {
+            if (running && isVisible) {
               startLoop();
             }
           }
@@ -275,7 +388,45 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         appStateHandle.remove();
       }
     };
-  }, [activeTab, calculateElapsed, isMobile, startLoop, updateDisplay]);
+  }, [activeTab, calculateElapsed, calculateSessionElapsed, isMobile, startLoop, startSessionLoop, updateDisplay, updateSessionDisplay]);
+
+  const startSessionTimer = (now = Date.now()) => {
+    sessionStartTimeRef.current = now;
+    setSessionRunningState(true);
+    updateSessionDisplay(calculateSessionElapsed());
+    startSessionLoop();
+    localStorage.setItem(SESSION_STORAGE_KEYS.START_TIME, now.toString());
+  };
+
+  const handleSessionStartStop = () => {
+    if (isSessionRunning) {
+      const now = Date.now();
+      const currentElapsed = sessionAccumulatedRef.current + (sessionStartTimeRef.current > 0 ? (now - sessionStartTimeRef.current) : 0);
+      sessionAccumulatedRef.current = currentElapsed;
+      sessionStartTimeRef.current = 0;
+      setSessionRunningState(false);
+      stopSessionLoop();
+      setSessionTime(currentElapsed);
+      updateSessionDisplay(currentElapsed);
+
+      localStorage.setItem(SESSION_STORAGE_KEYS.ACCUMULATED, currentElapsed.toString());
+      localStorage.setItem(SESSION_STORAGE_KEYS.START_TIME, '0');
+    } else {
+      startSessionTimer();
+    }
+  };
+
+  const handleSessionReset = () => {
+    sessionAccumulatedRef.current = 0;
+    sessionStartTimeRef.current = 0;
+    setSessionRunningState(false);
+    stopSessionLoop();
+    setSessionTime(0);
+    updateSessionDisplay(0);
+
+    localStorage.setItem(SESSION_STORAGE_KEYS.ACCUMULATED, '0');
+    localStorage.setItem(SESSION_STORAGE_KEYS.START_TIME, '0');
+  };
 
   const handleStartStop = async () => {
     const isNative = Capacitor.isNativePlatform();
@@ -309,6 +460,11 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       startLoop();
 
       localStorage.setItem(STORAGE_KEYS.START_TIME, now.toString());
+
+      // Auto-start session timer on first rest start if not yet started
+      if (!isSessionRunningRef.current && sessionAccumulatedRef.current === 0) {
+        startSessionTimer(now);
+      }
 
       if (isNative) {
         try {
@@ -349,8 +505,80 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}
     >
       {(isMobile || activeTab === 'stopwatch') && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', width: '100%', maxWidth: '360px', padding: '20px' }}>
-          
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px', width: '100%', maxWidth: '360px', padding: '20px' }}>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '12px 16px',
+              borderRadius: '16px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-color)'
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '0.7rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.55)' }}>
+                Session
+              </span>
+              <span
+                ref={sessionDisplayRef}
+                style={{
+                  fontSize: '1.35rem',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                  color: '#fff',
+                  fontVariantNumeric: 'tabular-nums',
+                  fontWeight: 500
+                }}
+              >
+                {formatSessionTime(sessionTime)}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                className="btn"
+                onClick={handleSessionStartStop}
+                aria-label={isSessionRunning ? 'Pause session timer' : 'Start session timer'}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '99px',
+                  padding: 0,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  background: isSessionRunning ? 'rgba(255, 255, 255, 0.14)' : 'var(--accent-color, #4f46e5)',
+                  border: '1px solid var(--border-color)',
+                  color: '#fff'
+                }}
+              >
+                {isSessionRunning ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+              </button>
+              <button
+                className="btn"
+                onClick={handleSessionReset}
+                aria-label="Reset session timer"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '99px',
+                  padding: 0,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--border-color)',
+                  color: '#fff'
+                }}
+              >
+                <RotateCcw size={16} />
+              </button>
+            </div>
+          </div>
+
           <div
             ref={timeDisplayRef}
             style={{
