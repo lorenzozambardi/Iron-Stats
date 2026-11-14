@@ -91,7 +91,7 @@ const describeRoundedArc = (cx, cy, rIn, rOut, startAngle, endAngle, cornerRadiu
   ].join(' ');
 };
 
-const nudgeVerticalCollisions = (items, minGap = 22) => {
+const nudgeVerticalCollisions = (items, minGap = 30) => {
   const sorted = [...items].sort((a, b) => a.y - b.y);
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i].y - sorted[i - 1].y < minGap) {
@@ -101,15 +101,21 @@ const nudgeVerticalCollisions = (items, minGap = 22) => {
   return sorted;
 };
 
-const MuscleDonutChart = ({
+const SingleDonut = ({
   data,
-  compareData,
-  currentProgram,
-  compareProgram,
-  metric,
+  colorMap,
+  metricUnitLabel,
   isMobile,
+  compact,
+  headerLabel,
+  dotColor,
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  const cx = 230;
+  const cy = 175;
+  const rIn = 55;
+  const rOut = 103;
 
   const { slices, total } = useMemo(() => {
     const valid = (data || []).filter((d) => d.value > 0);
@@ -118,15 +124,11 @@ const MuscleDonutChart = ({
       return { slices: [], total: 0 };
     }
 
-    const cx = 230;
-    const cy = 165;
-    const rIn = 58;
-    const rOut = 108;
     const padAngle = valid.length > 1 ? 0.055 : 0;
     const totalPad = padAngle * valid.length;
     const availableAngle = Math.PI * 2 - totalPad;
 
-    let currentAngle = -Math.PI / 2; // Start at 12 o'clock
+    let currentAngle = -Math.PI / 2;
     const rawSlices = valid.map((item, idx) => {
       const share = item.value / sum;
       const sweep = Math.max(0.02, share * availableAngle);
@@ -135,27 +137,24 @@ const MuscleDonutChart = ({
       const midAngle = (startAngle + endAngle) / 2;
       currentAngle = endAngle + padAngle;
 
-      const color = SLICE_COLORS[idx % SLICE_COLORS.length];
+      const color = colorMap.get(item.name) || SLICE_COLORS[idx % SLICE_COLORS.length];
       const pct = share * 100;
       const pctText = pct < 1 ? '<1%' : `${Math.round(pct)}%`;
-      const fitsInside = sweep >= 0.30; // ~17 deg
+      const fitsInside = sweep >= 0.30;
 
       const rMid = (rIn + rOut) / 2;
       const innerPos = polarToCartesian(cx, cy, rMid, midAngle);
-      const outerPos = polarToCartesian(cx, cy, rOut + 18, midAngle);
+      const outerPos = polarToCartesian(cx, cy, rOut + 17, midAngle);
       const cos = Math.cos(midAngle);
 
       let textAnchor = 'start';
       if (cos < -0.22) textAnchor = 'end';
       else if (Math.abs(cos) <= 0.22) textAnchor = 'middle';
 
-      const compareEntry = compareData ? compareData.find((c) => c.name === item.name) : null;
-
       return {
         idx,
         name: item.name,
         value: item.value,
-        compareValue: compareEntry ? compareEntry.value : null,
         pct,
         pctText,
         color,
@@ -184,33 +183,47 @@ const MuscleDonutChart = ({
     }));
 
     return { slices: finalSlices, total: sum };
-  }, [data, compareData]);
+  }, [data, colorMap]);
 
-  const metricUnitLabel = metric === 'sets' ? 'VOLUME' : metric === 'effective' ? 'EFF. REPS' : 'REPS';
   const activeSlice = hoveredIdx !== null ? slices[hoveredIdx] : null;
 
   if (slices.length === 0) {
     return (
-      <div style={{ display: 'flex', height: 260, alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        No muscle data available for the current selection.
+      <div style={{ display: 'flex', height: 220, alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', flex: 1 }}>
+        No muscle data available.
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 0, width: '100%' }}>
+      {headerLabel && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            marginBottom: '2px',
+          }}
+        >
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: dotColor }} />
+          <span>{headerLabel}</span>
+        </div>
+      )}
       <svg
-        viewBox="0 0 460 330"
+        viewBox="0 0 460 350"
         style={{
           width: '100%',
-          maxWidth: isMobile ? '360px' : '460px',
+          maxWidth: compact ? (isMobile ? '340px' : '380px') : (isMobile ? '360px' : '460px'),
           height: 'auto',
           overflow: 'visible',
           userSelect: 'none',
         }}
         onMouseLeave={() => setHoveredIdx(null)}
       >
-        {/* Donut Slices */}
         <g>
           {slices.map((s) => {
             const isHovered = hoveredIdx === s.idx;
@@ -222,7 +235,7 @@ const MuscleDonutChart = ({
                   cursor: 'pointer',
                   opacity: isDimmed ? 0.42 : 1,
                   transform: isHovered ? 'scale(1.03)' : 'scale(1)',
-                  transformOrigin: '230px 165px',
+                  transformOrigin: `${cx}px ${cy}px`,
                   transition: 'opacity 0.18s ease, transform 0.18s ease',
                 }}
                 onMouseEnter={() => setHoveredIdx(s.idx)}
@@ -254,11 +267,12 @@ const MuscleDonutChart = ({
           })}
         </g>
 
-        {/* Outside Category Labels */}
+        {/* Outside Category + Quantity Labels */}
         <g style={{ pointerEvents: 'none' }}>
           {slices.map((s) => {
             const isHovered = hoveredIdx === s.idx;
             const isDimmed = hoveredIdx !== null && !isHovered;
+            const formattedVal = s.value.toLocaleString(undefined, { maximumFractionDigits: 1 });
             return (
               <g
                 key={`label-${s.name}`}
@@ -269,7 +283,7 @@ const MuscleDonutChart = ({
               >
                 <text
                   x={s.labelX}
-                  y={s.labelY}
+                  y={s.labelY - 6}
                   textAnchor={s.textAnchor}
                   dominantBaseline="central"
                   fill={s.color}
@@ -278,19 +292,17 @@ const MuscleDonutChart = ({
                 >
                   {s.name}
                 </text>
-                {!s.fitsInside && (
-                  <text
-                    x={s.labelX}
-                    y={s.labelY + 14}
-                    textAnchor={s.textAnchor}
-                    dominantBaseline="central"
-                    fill="var(--text-secondary)"
-                    fontSize="11"
-                    fontWeight="600"
-                  >
-                    {s.pctText}
-                  </text>
-                )}
+                <text
+                  x={s.labelX}
+                  y={s.labelY + 9}
+                  textAnchor={s.textAnchor}
+                  dominantBaseline="central"
+                  fill="var(--text-secondary)"
+                  fontSize="11"
+                  fontWeight="600"
+                >
+                  {s.fitsInside ? formattedVal : `${formattedVal} · ${s.pctText}`}
+                </text>
               </g>
             );
           })}
@@ -304,8 +316,8 @@ const MuscleDonutChart = ({
           {activeSlice ? (
             <>
               <text
-                x={230}
-                y={146}
+                x={cx}
+                y={cy - 18}
                 textAnchor="middle"
                 fill={activeSlice.color}
                 fontSize="11.5"
@@ -314,8 +326,8 @@ const MuscleDonutChart = ({
                 {activeSlice.name}
               </text>
               <text
-                x={230}
-                y={168}
+                x={cx}
+                y={cy + 3}
                 textAnchor="middle"
                 fill="var(--text-primary)"
                 fontSize="20"
@@ -325,23 +337,21 @@ const MuscleDonutChart = ({
                 {activeSlice.value.toLocaleString(undefined, { maximumFractionDigits: 1 })}
               </text>
               <text
-                x={230}
-                y={186}
+                x={cx}
+                y={cy + 21}
                 textAnchor="middle"
                 fill="var(--text-muted)"
                 fontSize="10"
                 fontWeight="600"
               >
-                {activeSlice.compareValue !== null
-                  ? `vs ${activeSlice.compareValue.toLocaleString(undefined, { maximumFractionDigits: 1 })}`
-                  : `${activeSlice.pct.toFixed(1)}% · ${metricUnitLabel}`}
+                {`${activeSlice.pct.toFixed(1)}% · ${metricUnitLabel}`}
               </text>
             </>
           ) : (
             <>
               <text
-                x={230}
-                y={159}
+                x={cx}
+                y={cy - 5}
                 textAnchor="middle"
                 fill="var(--text-primary)"
                 fontSize="20"
@@ -351,8 +361,8 @@ const MuscleDonutChart = ({
                 {total.toLocaleString(undefined, { maximumFractionDigits: 1 })}
               </text>
               <text
-                x={230}
-                y={179}
+                x={cx}
+                y={cy + 14}
                 textAnchor="middle"
                 fill="var(--text-muted)"
                 fontSize="10"
@@ -365,40 +375,82 @@ const MuscleDonutChart = ({
           )}
         </g>
       </svg>
+    </div>
+  );
+};
 
-      {/* Compact Compare Legend when compareMode is active */}
-      {compareData && compareData.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: '8px 14px',
-            marginTop: '4px',
-            paddingTop: '8px',
-            borderTop: '1px solid var(--border-color)',
-            width: '100%',
-            fontSize: '0.72rem',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          {slices.map((s) => (
-            <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.color }} />
-              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{s.name}:</span>
-              <span>{s.value}</span>
-              {s.compareValue !== null && (
-                <span style={{ color: 'var(--accent-secondary)' }}>
-                  vs {s.compareValue}
-                </span>
-              )}
-            </div>
-          ))}
-          <div style={{ width: '100%', textAlign: 'center', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-            Ring: {currentProgram} · Compare: {compareProgram}
-          </div>
-        </div>
-      )}
+const MuscleDonutChart = ({
+  data,
+  compareData,
+  currentProgram,
+  compareProgram,
+  metric,
+  isMobile,
+}) => {
+  const isComparing = Boolean(compareData && compareData.length > 0);
+
+  const colorMap = useMemo(() => {
+    const map = new Map();
+    let idx = 0;
+    (data || []).forEach((d) => {
+      if (!map.has(d.name)) {
+        map.set(d.name, SLICE_COLORS[idx % SLICE_COLORS.length]);
+        idx++;
+      }
+    });
+    (compareData || []).forEach((d) => {
+      if (!map.has(d.name)) {
+        map.set(d.name, SLICE_COLORS[idx % SLICE_COLORS.length]);
+        idx++;
+      }
+    });
+    return map;
+  }, [data, compareData]);
+
+  const metricUnitLabel = metric === 'sets' ? 'VOLUME' : metric === 'effective' ? 'EFF. REPS' : 'REPS';
+
+  if (!isComparing) {
+    return (
+      <SingleDonut
+        data={data}
+        colorMap={colorMap}
+        metricUnitLabel={metricUnitLabel}
+        isMobile={isMobile}
+      />
+    );
+  }
+
+  const labelA = currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram;
+  const labelB = currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram;
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        gap: isMobile ? '16px' : '12px',
+        width: '100%',
+        alignItems: 'start',
+      }}
+    >
+      <SingleDonut
+        data={data}
+        colorMap={colorMap}
+        metricUnitLabel={metricUnitLabel}
+        isMobile={isMobile}
+        compact
+        headerLabel={labelA}
+        dotColor="var(--accent-primary)"
+      />
+      <SingleDonut
+        data={compareData}
+        colorMap={colorMap}
+        metricUnitLabel={metricUnitLabel}
+        isMobile={isMobile}
+        compact
+        headerLabel={labelB}
+        dotColor="var(--accent-secondary)"
+      />
     </div>
   );
 };
