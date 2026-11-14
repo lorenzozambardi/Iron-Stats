@@ -9,6 +9,11 @@ import { LockWheelPicker, DualWeekSlider } from '../FilterControls';
 const CURVE_RESOLUTION = 50;
 const normalizedCurveCache = new Map();
 const TENSION_SERIES_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
+const MUSCLE_METRIC_OPTIONS = [
+  { value: 'effective', label: 'Effective Reps' },
+  { value: 'volume', label: 'Reps' },
+  { value: 'sets', label: 'Volume' },
+];
 
 /** Pointer-draggable ROM scrubber styled to match DualWeekSlider. */
 const TensionRomSlider = ({ value, onChange }) => {
@@ -1251,16 +1256,13 @@ const DashboardTab = ({
                             ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Volume` : `${dashMuscleMacro} Sub-group Reps`)
                             : (muscleMetric === 'sets' ? 'Muscle Group Volume' : 'Muscle Group Reps')}
                         </span>
-                        <select
-                          className="select-control select-small"
-                          value={muscleMetric}
-                          onChange={(e) => setMuscleMetric(e.target.value)}
-                        >
-                          <option value="effective">Effective Reps</option>
-                          <option value="volume">Reps</option>
-                          <option value="sets">Volume</option>
-                        </select>
                       </div>
+                      <LockWheelPicker
+                        options={MUSCLE_METRIC_OPTIONS}
+                        value={muscleMetric}
+                        onChange={setMuscleMetric}
+                        itemWidth={96}
+                      />
                       <MuscleDonutChart
                         data={displayMuscleData}
                         compareData={compareMode ? displayCompareMuscleData : null}
