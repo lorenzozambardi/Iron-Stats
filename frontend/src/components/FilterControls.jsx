@@ -212,7 +212,7 @@ export const DualWeekSlider = ({
 }) => {
   const trackRef = useRef(null);
   const [draggingThumb, setDraggingThumb] = useState(null);
-  const dragStateRef = useRef({ thumb: null, fromIdx: 0, toIdx: 0 });
+  const dragStateRef = useRef({ thumb: null, fromIdx: 0, toIdx: 0, pendingOverlap: false, startX: 0 });
 
   const maxIdx = Math.max(0, weeks.length - 1);
   const resolvedFrom = fromVal === 'all' ? 0 : Math.max(0, weeks.indexOf(parseInt(fromVal, 10)));
@@ -244,11 +244,19 @@ export const DualWeekSlider = ({
     const clickIdx = idxFromClientX(e.clientX);
 
     let activeThumb = thumbAttr;
+    let pendingOverlap = false;
     if (fromIdx === toIdx) {
-      if (toIdx === maxIdx) activeThumb = 'from';
-      else if (fromIdx === 0) activeThumb = 'to';
-    }
-    if (!activeThumb) {
+      if (toIdx === maxIdx) {
+        activeThumb = 'from';
+      } else if (fromIdx === 0) {
+        activeThumb = 'to';
+      } else if (thumbAttr || clickIdx === fromIdx) {
+        pendingOverlap = true;
+        activeThumb = 'to';
+      } else {
+        activeThumb = clickIdx < fromIdx ? 'from' : 'to';
+      }
+    } else if (!activeThumb) {
       const distFrom = Math.abs(clickIdx - fromIdx);
       const distTo = Math.abs(clickIdx - toIdx);
       if (distFrom === distTo) {
@@ -258,7 +266,7 @@ export const DualWeekSlider = ({
       }
     }
 
-    dragStateRef.current = { thumb: activeThumb, fromIdx, toIdx };
+    dragStateRef.current = { thumb: activeThumb, fromIdx, toIdx, pendingOverlap, startX: e.clientX };
     setDraggingThumb(activeThumb);
 
     if (!thumbAttr) {
@@ -277,6 +285,13 @@ export const DualWeekSlider = ({
   const handlePointerMove = (e) => {
     const st = dragStateRef.current;
     if (!st.thumb) return;
+    if (st.pendingOverlap) {
+      const dx = e.clientX - st.startX;
+      if (Math.abs(dx) < 2) return;
+      st.thumb = dx < 0 ? 'from' : 'to';
+      st.pendingOverlap = false;
+      setDraggingThumb(st.thumb);
+    }
     const idx = idxFromClientX(e.clientX);
     if (st.thumb === 'from') {
       const nextF = Math.min(idx, st.toIdx);
