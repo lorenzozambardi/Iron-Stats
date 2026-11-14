@@ -507,18 +507,15 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       {(isMobile || activeTab === 'stopwatch') && (
         <>
           <div
+            className="mobile-editor-pill-nav"
             style={{
               position: 'absolute',
-              top: '16px',
-              right: '16px',
-              display: 'flex',
-              alignItems: 'center',
+              top: '18px',
+              right: '12px',
+              margin: 0,
+              height: '46px',
               gap: '10px',
-              padding: '4px 4px 4px 14px',
-              borderRadius: '99px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid var(--border-color)',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
+              padding: '4px 4px 4px 14px'
             }}
           >
             <span style={{ fontSize: '0.8rem', lineHeight: 1, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)' }}>
