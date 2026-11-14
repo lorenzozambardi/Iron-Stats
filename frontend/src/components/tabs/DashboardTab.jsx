@@ -270,22 +270,31 @@ const MetricBarSparkline = React.memo(({ values, compareValues, color, compareCo
   if (!hasA && !hasB) return null;
 
   const len = Math.max(hasA ? values.length : 0, hasB ? compareValues.length : 0);
-  const maxVal = Math.max(...(hasA ? values : [0]), ...(hasB ? compareValues : [0]), 1);
+  const allVals = [...(hasA ? values : []), ...(hasB ? compareValues : [])];
+  const minVal = Math.min(...allVals);
+  const maxVal = Math.max(...allVals);
+  const range = maxVal - minVal;
+
+  const barHeight = (v) => {
+    if (v <= 0) return 0;
+    if (range <= 0) return 28;
+    return 14 + ((v - minVal) / range) * 40;
+  };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: len > 10 ? '2px' : '3px', width: '100%', height: '58px', marginTop: '4px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: len > 10 ? '4px' : '5px', width: '100%', height: '58px', marginTop: '4px' }}>
       {Array.from({ length: len }, (_, i) => {
         const vA = hasA && i < values.length ? values[i] : 0;
         const vB = hasB && i < compareValues.length ? compareValues[i] : 0;
-        const hA = Math.max(vA > 0 ? 4 : 0, (vA / maxVal) * 54);
-        const hB = Math.max(vB > 0 ? 4 : 0, (vB / maxVal) * 54);
+        const hA = barHeight(vA);
+        const hB = barHeight(vB);
         return (
-          <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', gap: '1px' }}>
+          <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '2px' }}>
             {hasA && (
-              <div style={{ flex: 1, height: `${hA}px`, background: color, borderRadius: '2px 2px 0 0', opacity: 0.9 }} />
+              <div style={{ flex: 1, maxWidth: '8px', height: `${hA}px`, background: color, borderRadius: '3px 3px 1px 1px', opacity: 0.85 }} />
             )}
             {hasB && (
-              <div style={{ flex: 1, height: `${hB}px`, background: compareColor, borderRadius: '2px 2px 0 0', opacity: 0.75 }} />
+              <div style={{ flex: 1, maxWidth: '8px', height: `${hB}px`, background: compareColor, borderRadius: '3px 3px 1px 1px', opacity: 0.72 }} />
             )}
           </div>
         );
