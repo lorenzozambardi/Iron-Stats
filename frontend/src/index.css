@@ -824,9 +824,9 @@ h1, h2, h3, h4, h5, h6 {
 .exercise-db-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: var(--card-radius);
+  border-radius: var(--button-radius);
   box-shadow: var(--card-shadow);
-  padding: 16px 20px;
+  padding: 16px 22px;
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
   display: flex;
   flex-direction: column;
@@ -2258,7 +2258,7 @@ input::-webkit-list-button {
     align-items: start !important;
   }
   .exercise-db-card {
-    padding: 10px 12px !important;
+    padding: 10px 16px !important;
     gap: 6px !important;
   }
   .ex-card-title {
