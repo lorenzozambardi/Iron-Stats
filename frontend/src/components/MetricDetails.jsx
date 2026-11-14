@@ -516,7 +516,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
       background: 'var(--bg-primary)',
       zIndex: 10000,
       overflowY: 'auto',
-      padding: '24px 16px 80px 16px',
+      padding: '80px 16px 80px 16px',
       opacity: visible ? 1 : 0,
       transform: visible ? 'translateY(0)' : 'translateY(16px)',
       transition: 'opacity 0.2s ease, transform 0.2s ease',
