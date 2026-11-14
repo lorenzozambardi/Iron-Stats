@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { MUSCLES } from '../parser';
 
@@ -92,6 +92,122 @@ function serializeStructureToText(sessions) {
     return [sStr, ...exStrs].join('\n\n');
   }).join('\n\n');
 }
+
+function parseSetDisplayValues(stVal) {
+  let rpeVal = '';
+  let mainStr = stVal || '';
+  const atIdx = mainStr.indexOf('@');
+  if (atIdx !== -1) {
+    rpeVal = mainStr.substring(atIdx + 1).trim();
+    mainStr = mainStr.substring(0, atIdx).trim();
+  }
+  const parts = mainStr.split('..');
+  const loadVal = parts[0] || '';
+  const repsVal = parts.slice(1).join('..') || '';
+  return { loadVal, repsVal, rpeVal };
+}
+
+const dashboardCardStyle = {
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: 'var(--card-radius)',
+  boxShadow: 'var(--card-shadow)',
+};
+
+const bareInputStyle = {
+  background: 'transparent',
+  border: 'none',
+  outline: 'none',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+};
+
+const iconButtonStyle = (size) => ({
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  width: `${size}px`,
+  height: `${size}px`,
+  borderRadius: '6px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+  padding: 0,
+});
+
+const metaCellStyle = {
+  height: '32px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '5px',
+  background: 'var(--bg-primary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: '8px',
+  padding: '0 8px',
+  minWidth: 0,
+  boxSizing: 'border-box',
+};
+
+const metaLabelStyle = {
+  fontSize: '0.6rem',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  color: 'var(--text-muted)',
+  flexShrink: 0,
+};
+
+const metaInputStyle = {
+  ...bareInputStyle,
+  fontFamily: 'var(--font-sans)',
+  fontSize: '0.78rem',
+  fontWeight: 500,
+  color: 'var(--text-primary)',
+  width: '100%',
+  minWidth: 0,
+};
+
+const setWellStyle = {
+  height: '30px',
+  display: 'flex',
+  alignItems: 'center',
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: '7px',
+  padding: '0 7px',
+  minWidth: 0,
+  boxSizing: 'border-box',
+};
+
+const setInputStyle = {
+  ...bareInputStyle,
+  fontFamily: 'var(--font-sans)',
+  fontVariantNumeric: 'tabular-nums',
+  fontSize: '0.8rem',
+  fontWeight: 600,
+  color: 'var(--text-primary)',
+  width: '100%',
+  minWidth: 0,
+};
+
+const sessionPillBtnStyle = {
+  ...dashboardCardStyle,
+  height: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  color: 'var(--text-secondary)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: '0.74rem',
+  fontWeight: 600,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+};
 
 export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) {
   const [sessions, setSessions] = useState(() => parseLogbookToStructure(logbookText));
@@ -322,7 +438,20 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
   };
 
   return (
-    <div className="easy-editor-container" style={{ background: 'var(--bg-primary)', height: '100%', overflowY: 'auto', padding: '84px 10px 24px 10px', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
+    <div
+      className="easy-editor-container"
+      style={{
+        background: 'var(--bg-primary)',
+        height: '100%',
+        overflowY: 'auto',
+        padding: '80px 8px 110px 8px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '18px',
+        boxSizing: 'border-box',
+        fontFamily: 'var(--font-sans)',
+      }}
+    >
       <datalist id="easy-exercises-db-list">
         {exercisesDb.map(ex => (
           <option key={ex.name} value={ex.name} />
@@ -341,277 +470,409 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
       </datalist>
 
       {sessions.length === 0 && (
-        <div style={{ padding: '30px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>No sessions found in logbook.</p>
-          <button 
+        <div
+          style={{
+            ...dashboardCardStyle,
+            padding: '28px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+            No sessions found in logbook.
+          </p>
+          <button
+            type="button"
             onClick={addSession}
-            style={{ background: 'var(--accent-primary)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              background: 'var(--accent-primary)',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '999px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
           >
-            <Plus size={16}/> Create First Session (# 1)
+            <Plus size={16} /> Create First Session (# 1)
           </button>
         </div>
       )}
 
       {sessions.map((sess, sIdx) => (
-        <React.Fragment key={sIdx}>
-          <div className="preview-session-group" style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(255, 255, 255, 0.015)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--accent-primary)', borderRadius: '14px', padding: '14px 10px' }}>
-            
-            {/* Session Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '4px 0' }}>
-              <input 
+        <div
+          key={sIdx}
+          className="easy-session-group"
+          style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+        >
+          {/* Session Header Bar */}
+          <div
+            style={{
+              ...dashboardCardStyle,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  color: 'var(--accent-primary)',
+                  background: 'var(--accent-primary-subtle)',
+                  border: '1px solid var(--accent-primary-glow)',
+                  padding: '3px 8px',
+                  borderRadius: '999px',
+                  flexShrink: 0,
+                }}
+              >
+                SESSION
+              </span>
+              <input
                 value={(sess.title || '').replace(/^#\s*/, '')}
                 onChange={(e) => {
                   const val = e.target.value;
                   const formatted = val.trim() ? (val.startsWith('#') ? val : `# ${val}`) : '# ';
                   updateSessionTitle(sIdx, formatted);
                 }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'var(--font-display)', outline: 'none', width: '100%', appearance: 'none', WebkitAppearance: 'none' }}
+                style={{
+                  ...bareInputStyle,
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  minWidth: 0,
+                  flex: 1,
+                }}
                 placeholder="1"
               />
-              <button 
-                onClick={() => deleteSession(sIdx)}
-                title="Delete Session"
-                style={{ background: 'transparent', border: 'none', color: 'rgba(239, 68, 68, 0.7)', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-muted)',
+                  fontWeight: 500,
+                  flexShrink: 0,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
               >
-                <Trash2 size={16} />
-              </button>
+                {sess.exercises.length} {sess.exercises.length === 1 ? 'ex' : 'exs'}
+              </span>
             </div>
 
-            {/* Exercises List */}
-            <div className="preview-exercises-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {sess.exercises.length === 0 && (
-                <button 
-                  onClick={() => insertExerciseAtIndex(sIdx, 0)}
-                  style={{ alignSelf: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginTop: '6px' }}
-                  title="Add Exercise"
-                >
-                  <Plus size={18}/>
-                </button>
-              )}
+            <button
+              type="button"
+              onClick={() => deleteSession(sIdx)}
+              title="Delete Session"
+              style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
 
-              {sess.exercises.map((ex, eIdx) => {
-                const muscle = getMuscleForExercise(ex.name);
-                return (
-                  <React.Fragment key={eIdx}>
-                    <div className="preview-exercise-card" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      
-                      {/* Exercise Header & Info */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {/* Row 1: Exercise Title & Delete Button */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                          <input 
-                            value={ex.name}
-                            onChange={(e) => updateExercise(sIdx, eIdx, { name: e.target.value })}
-                            list="easy-exercises-db-list"
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: '700', outline: 'none', width: '100%', appearance: 'none', WebkitAppearance: 'none' }}
-                            placeholder="Exercise Name"
-                          />
-                          <button onClick={() => deleteExercise(sIdx, eIdx)} style={{ background: 'transparent', border: 'none', color: 'rgba(239, 68, 68, 0.7)', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Delete Exercise">
-                            <Trash2 size={16}/>
-                          </button>
-                        </div>
+          {/* Exercise Cards */}
+          {sess.exercises.map((ex, eIdx) => {
+            const muscle = getMuscleForExercise(ex.name);
+            const metaFields = [
+              { key: 'rest', label: 'REST', value: ex.rest, placeholder: "2'" },
+              { key: 'tempo', label: 'TEMPO', value: ex.tempo || '', placeholder: '1-0-2-0' },
+              { key: 'note', label: 'NOTE', value: ex.note || '', placeholder: 'Notes...' },
+            ];
 
-                        {/* Row 2: Muscle Badge directly under Title */}
-                        {muscle && (
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <span className="badge muscle" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '5px 12px', fontSize: '0.75rem', borderRadius: '100px', lineHeight: 1 }}>
-                              {muscle}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Row 3: Rest & Tempo Pill Boxes (Row 1) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', marginTop: '4px', boxSizing: 'border-box' }}>
-                          {/* Rest Pill Box */}
-                          <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', boxSizing: 'border-box' }}>
-                            <span style={{ fontSize: '0.85rem', color: '#ffffff', fontWeight: '600', flexShrink: 0 }}>Rest:</span>
-                            <input 
-                              value={ex.rest}
-                              onChange={(e) => updateExercise(sIdx, eIdx, { rest: e.target.value })}
-                              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.92rem', width: '100%', outline: 'none', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none' }}
-                              placeholder="2'"
-                            />
-                          </div>
-
-                          {/* Tempo Pill Box */}
-                          <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', boxSizing: 'border-box' }}>
-                            <span style={{ fontSize: '0.85rem', color: '#ffffff', fontWeight: '600', flexShrink: 0 }}>Tempo:</span>
-                            <input 
-                              value={ex.tempo || ''}
-                              onChange={(e) => updateExercise(sIdx, eIdx, { tempo: e.target.value })}
-                              placeholder="1-0-2-0"
-                              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.92rem', width: '100%', outline: 'none', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none' }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Row 4: Notes Pill Box (Full Width Row 2) */}
-                        <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', width: '100%', boxSizing: 'border-box' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#ffffff', fontWeight: '600', flexShrink: 0 }}>Notes:</span>
-                          <input 
-                            value={ex.note || ''}
-                            onChange={(e) => updateExercise(sIdx, eIdx, { note: e.target.value })}
-                            placeholder='e.g. 1" pause, last half reps'
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.92rem', width: '100%', outline: 'none', appearance: 'none', WebkitAppearance: 'none' }}
-                          />
-                        </div>
+            return (
+              <div
+                key={eIdx}
+                className="easy-exercise-card"
+                style={{
+                  ...dashboardCardStyle,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                {/* Header Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {muscle && (
+                      <div
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          color: 'var(--accent-primary)',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        {muscle}
                       </div>
+                    )}
+                    <input
+                      value={ex.name}
+                      onChange={(e) => updateExercise(sIdx, eIdx, { name: e.target.value })}
+                      list="easy-exercises-db-list"
+                      placeholder="Exercise Name"
+                      style={{
+                        ...bareInputStyle,
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.02rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        width: '100%',
+                      }}
+                    />
+                  </div>
 
-                      {/* Weeks List */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {ex.weeks.map((wk, wIdx) => (
-                          <div key={wIdx} style={{ background: 'rgba(0,0,0,0.18)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              
-                              {/* Week Header */}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent-secondary, #06b6d4)', fontFamily: 'var(--font-mono)' }}>
-                                  Week {wIdx + 1}
-                                </span>
-                                <button 
-                                  onClick={() => deleteWeek(sIdx, eIdx, wIdx)}
-                                  style={{ background: 'transparent', border: 'none', color: 'rgba(239, 68, 68, 0.7)', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                                  title="Delete Week"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => insertExerciseAtIndex(sIdx, eIdx + 1)}
+                      title="Insert Exercise Below"
+                      style={{ ...iconButtonStyle(28), color: 'var(--text-muted)' }}
+                    >
+                      <Plus size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteExercise(sIdx, eIdx)}
+                      title="Delete Exercise"
+                      style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
 
-                              {/* Sets List for this Week */}
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                                {wk.sets.map((stVal, stIdx) => {
-                                  let rpeVal = '';
-                                  let mainStr = stVal || '';
-                                  const atIdx = mainStr.indexOf('@');
-                                  if (atIdx !== -1) {
-                                    rpeVal = mainStr.substring(atIdx + 1).trim();
-                                    mainStr = mainStr.substring(0, atIdx).trim();
-                                  }
-                                  const parts = mainStr.split('..');
-                                  const loadVal = parts[0] || '';
-                                  const repsVal = parts.slice(1).join('..') || '';
+                {/* Compact Single-Row Metadata Strip (Rest, Tempo, Notes) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '82px 104px minmax(0, 1fr)', gap: '6px' }}>
+                  {metaFields.map(({ key, label, value, placeholder }) => (
+                    <div key={key} style={metaCellStyle}>
+                      <span style={metaLabelStyle}>{label}</span>
+                      <input
+                        value={value}
+                        onChange={(e) => updateExercise(sIdx, eIdx, { [key]: e.target.value })}
+                        placeholder={placeholder}
+                        style={metaInputStyle}
+                      />
+                    </div>
+                  ))}
+                </div>
 
-                                  return (
-                                    <div key={stIdx} style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.22)', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                                    {/* Line 1: Set Title & Trash Button */}
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                      <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
-                                        Set {stIdx + 1}
-                                      </span>
-                                      <button 
-                                        onClick={() => deleteSetFromWeek(sIdx, eIdx, wIdx, stIdx)}
-                                        style={{ background: 'transparent', border: 'none', color: 'rgba(239, 68, 68, 0.7)', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                                        title="Delete Set"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </div>
-
-                                    {/* Line 2 (Grid): 3 Large Input Pill Boxes (Load, Reps, RPE) */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-                                      {/* Weight Box */}
-                                      <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', boxSizing: 'border-box' }}>
-                                        <input 
-                                          value={loadVal}
-                                          onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, e.target.value, repsVal, rpeVal)}
-                                          style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem', fontWeight: 'bold', outline: 'none', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none' }}
-                                          placeholder="0"
-                                        />
-                                        <span style={{ fontSize: '0.75rem', color: '#ffffff', fontWeight: '600' }}>kg</span>
-                                      </div>
-
-                                      {/* Reps Box */}
-                                      <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', boxSizing: 'border-box' }}>
-                                        <input 
-                                          value={repsVal}
-                                          onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, e.target.value, rpeVal)}
-                                          style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem', fontWeight: 'bold', outline: 'none', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none' }}
-                                          placeholder="reps"
-                                        />
-                                      </div>
-
-                                      {/* RPE Box */}
-                                      <div style={{ height: '42px', minHeight: '42px', maxHeight: '42px', display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0 14px', boxSizing: 'border-box' }}>
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--accent-secondary, #06b6d4)', fontWeight: 'bold' }}>@</span>
-                                        <input 
-                                          value={rpeVal}
-                                          onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, repsVal, e.target.value)}
-                                          list="rpe-suggestions-list"
-                                          style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem', fontWeight: 'bold', outline: 'none', textAlign: 'center', appearance: 'none', WebkitAppearance: 'none' }}
-                                          placeholder="RPE"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                  );
-                                })}
-
-                                </div>
-
-                                {/* Add Set Pill Button */}
-                                <button 
-                                  onClick={() => addSetToWeek(sIdx, eIdx, wIdx)}
-                                  style={{ alignSelf: 'center', height: '42px', minHeight: '42px', maxHeight: '42px', lineHeight: '1', padding: '0 18px', borderRadius: '100px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '6px', whiteSpace: 'nowrap', boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                                  title="Add Set"
-                                >
-                                  <Plus size={15} /> Add Set
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Add Week Pill Button */}
-                          <button 
-                            onClick={() => addWeek(sIdx, eIdx)}
-                            style={{ alignSelf: 'center', height: '42px', minHeight: '42px', maxHeight: '42px', lineHeight: '1', padding: '0 18px', borderRadius: '100px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '6px', whiteSpace: 'nowrap', boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                            title="Add Week"
-                          >
-                            <Plus size={15}/> Add Week
-                          </button>
-                        </div>
-
-                      {/* Add Exercise Pill Divider */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '12px 0', position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '10px', right: '10px', height: '1px', background: 'var(--border-color)', opacity: 0.2, zIndex: 0 }} />
-                        <button 
-                          onClick={() => insertExerciseAtIndex(sIdx, eIdx + 1)}
-                          style={{ position: 'relative', zIndex: 1, height: '42px', minHeight: '42px', maxHeight: '42px', lineHeight: '1', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '100px', padding: '0 18px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', whiteSpace: 'nowrap', boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                          title="Insert Exercise"
+                {/* Weeks & Sets */}
+                {ex.weeks.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {ex.weeks.map((wk, wIdx) => (
+                      <div
+                        key={wIdx}
+                        style={{
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '12px',
+                          padding: '10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
+                        }}
+                      >
+                        {/* Week Header */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            paddingBottom: '6px',
+                          }}
                         >
-                          <Plus size={15} /> Add Exercise
-                        </button>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              color: 'var(--accent-secondary)',
+                            }}
+                          >
+                            WEEK {wIdx + 1}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => addSetToWeek(sIdx, eIdx, wIdx)}
+                              title="Add Set"
+                              style={{
+                                height: '22px',
+                                padding: '0 8px',
+                                borderRadius: '999px',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                color: 'var(--text-primary)',
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                appearance: 'none',
+                                WebkitAppearance: 'none',
+                              }}
+                            >
+                              <Plus size={11} /> Set
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteWeek(sIdx, eIdx, wIdx)}
+                              title="Delete Week"
+                              style={{ ...iconButtonStyle(22), color: 'rgba(239, 68, 68, 0.7)' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Set Rows */}
+                        {wk.sets.map((stVal, stIdx) => {
+                          const { loadVal, repsVal, rpeVal } = parseSetDisplayValues(stVal);
+
+                          return (
+                            <div
+                              key={stIdx}
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '20px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.85fr) 22px',
+                                gap: '6px',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  color: 'var(--text-muted)',
+                                  fontVariantNumeric: 'tabular-nums',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                {stIdx + 1}
+                              </span>
+
+                              <div style={setWellStyle}>
+                                <input
+                                  value={loadVal}
+                                  onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, e.target.value, repsVal, rpeVal)}
+                                  placeholder="0"
+                                  style={{ ...setInputStyle, textAlign: 'right' }}
+                                />
+                                <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginLeft: '3px', flexShrink: 0 }}>
+                                  kg
+                                </span>
+                              </div>
+
+                              <div style={setWellStyle}>
+                                <input
+                                  value={repsVal}
+                                  onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, e.target.value, rpeVal)}
+                                  placeholder="reps"
+                                  style={{ ...setInputStyle, textAlign: 'center' }}
+                                />
+                              </div>
+
+                              <div style={{ ...setWellStyle, padding: '0 6px' }}>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--accent-secondary)', fontWeight: 700, flexShrink: 0 }}>
+                                  @
+                                </span>
+                                <input
+                                  value={rpeVal}
+                                  onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, repsVal, e.target.value)}
+                                  list="rpe-suggestions-list"
+                                  placeholder="RPE"
+                                  style={{ ...setInputStyle, textAlign: 'center' }}
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteSetFromWeek(sIdx, eIdx, wIdx, stIdx)}
+                                title="Delete Set"
+                                style={{ ...iconButtonStyle(22), color: 'var(--text-muted)' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </React.Fragment>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
+                )}
 
-              {/* Add Exercise Pill Button (if session has no exercises) */}
-              {sess.exercises.length === 0 && (
-                <button 
-                  onClick={() => insertExerciseAtIndex(sIdx, 0)}
-                  style={{ alignSelf: 'center', height: '42px', minHeight: '42px', maxHeight: '42px', lineHeight: '1', padding: '0 18px', borderRadius: '100px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '6px', whiteSpace: 'nowrap', boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                  title="Add Exercise"
+                {/* Exercise Footer: + Add Week */}
+                <button
+                  type="button"
+                  onClick={() => addWeek(sIdx, eIdx)}
+                  title="Add Week"
+                  style={{
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    alignSelf: 'flex-start',
+                    padding: '0 10px',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                  }}
                 >
-                  <Plus size={15}/> Add Exercise
+                  <Plus size={13} /> Add Week
                 </button>
-              )}
+              </div>
+            );
+          })}
 
-            </div>
-
-            {/* Intermediate Insert Session Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '14px 0', position: 'relative' }}>
-              <div style={{ position: 'absolute', left: '0', right: '0', height: '1px', background: 'var(--border-color)', opacity: 0.2, zIndex: 0 }} />
-              <button 
-                onClick={() => insertSessionAtIndex(sIdx + 1)}
-                style={{ position: 'relative', zIndex: 1, height: '42px', minHeight: '42px', maxHeight: '42px', lineHeight: '1', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '100px', padding: '0 18px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', whiteSpace: 'nowrap', boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                title="Insert Session"
-              >
-                <Plus size={15} /> Add Session
-              </button>
-            </div>
-          </React.Fragment>
-        ))}
-
+          {/* Session Footer: + Exercise / + Session */}
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', paddingTop: '2px' }}>
+            <button
+              type="button"
+              onClick={() => insertExerciseAtIndex(sIdx, sess.exercises.length)}
+              title="Add Exercise"
+              style={sessionPillBtnStyle}
+            >
+              <Plus size={13} /> Exercise
+            </button>
+            <button
+              type="button"
+              onClick={() => insertSessionAtIndex(sIdx + 1)}
+              title="Add Session"
+              style={sessionPillBtnStyle}
+            >
+              <Plus size={13} /> Session
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
