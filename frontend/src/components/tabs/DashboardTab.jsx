@@ -220,6 +220,40 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   );
 });
 
+const CardModeToggle = React.memo(({ mode, onSelect }) => (
+  <div
+    onClick={(e) => e.stopPropagation()}
+    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+  >
+    {[['total', 'Total'], ['effective', 'Eff.']].map(([m, lbl], i) => {
+      const active = mode === m;
+      return (
+        <React.Fragment key={m}>
+          {i > 0 && <span style={{ fontSize: '0.62rem', color: 'rgba(255, 255, 255, 0.18)', userSelect: 'none' }}>/</span>}
+          <button
+            type="button"
+            onClick={() => onSelect(m)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: '2px 1px',
+              fontSize: '0.66rem',
+              fontWeight: active ? 700 : 500,
+              color: active ? '#ffffff' : 'var(--text-muted)',
+              opacity: active ? 1 : 0.6,
+              cursor: 'pointer',
+              lineHeight: 1,
+              transition: 'color 0.15s ease, opacity 0.15s ease',
+            }}
+          >
+            {lbl}
+          </button>
+        </React.Fragment>
+      );
+    })}
+  </div>
+));
+
 const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
   const hasA = values && values.length >= 1;
   const hasB = compareValues && compareValues.length >= 1;
@@ -1264,44 +1298,10 @@ const DashboardTab = ({
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                                 <span className="metric-label">{label}</span>
                                 {hasToggle && (
-                                  <div
-                                    onClick={(e) => e.stopPropagation()}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      background: 'rgba(255, 255, 255, 0.05)',
-                                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                                      borderRadius: '999px',
-                                      padding: '2px',
-                                      gap: '2px',
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    {[['total', 'Total'], ['effective', 'Eff.']].map(([m, lbl]) => {
-                                      const active = mode === m;
-                                      return (
-                                        <button
-                                          key={m}
-                                          type="button"
-                                          onClick={() => setCardModes(prev => ({ ...prev, [card.id]: m }))}
-                                          style={{
-                                            border: 'none',
-                                            background: active ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-                                            color: active ? '#ffffff' : 'var(--text-muted)',
-                                            fontSize: '0.62rem',
-                                            fontWeight: active ? 700 : 500,
-                                            padding: '2px 6px',
-                                            borderRadius: '999px',
-                                            cursor: 'pointer',
-                                            lineHeight: 1.2,
-                                            transition: 'background 0.15s ease, color 0.15s ease',
-                                          }}
-                                        >
-                                          {lbl}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
+                                  <CardModeToggle
+                                    mode={mode}
+                                    onSelect={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                                  />
                                 )}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -1394,44 +1394,10 @@ const DashboardTab = ({
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                               <span className="metric-label">{label}</span>
                               {hasToggle && (
-                                <div
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                                    borderRadius: '999px',
-                                    padding: '2px',
-                                    gap: '2px',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {[['total', 'Total'], ['effective', 'Eff.']].map(([m, lbl]) => {
-                                    const active = mode === m;
-                                    return (
-                                      <button
-                                        key={m}
-                                        type="button"
-                                        onClick={() => setCardModes(prev => ({ ...prev, [card.id]: m }))}
-                                        style={{
-                                          border: 'none',
-                                          background: active ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-                                          color: active ? '#ffffff' : 'var(--text-muted)',
-                                          fontSize: '0.62rem',
-                                          fontWeight: active ? 700 : 500,
-                                          padding: '2px 6px',
-                                          borderRadius: '999px',
-                                          cursor: 'pointer',
-                                          lineHeight: 1.2,
-                                          transition: 'background 0.15s ease, color 0.15s ease',
-                                        }}
-                                      >
-                                        {lbl}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
+                                <CardModeToggle
+                                  mode={mode}
+                                  onSelect={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                                />
                               )}
                             </div>
                             <span className="metric-value">{formattedVal}</span>
