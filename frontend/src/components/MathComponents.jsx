@@ -30,19 +30,18 @@ const Latex = ({ math, block = false }) => {
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-const MathBlock = ({ children, color }) => (
+const MathBlock = ({ children }) => (
   <div
     style={{
-      background: 'rgba(255, 255, 255, 0.025)',
+      background: 'var(--bg-primary)',
       border: '1px solid var(--border-color)',
-      borderLeft: `3px solid ${color}`,
-      padding: '12px 14px',
-      borderRadius: '10px',
-      margin: '8px 0 12px 0',
-      color: '#f8fafc',
+      padding: '14px 16px',
+      borderRadius: '12px',
+      color: 'var(--text-primary)',
       display: 'flex',
       flexDirection: 'column',
       gap: '10px',
+      overflowX: 'auto',
     }}
   >
     {children}

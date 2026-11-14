@@ -1,6 +1,33 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Latex, MathBlock } from './MathComponents';
 
+const dashboardCardStyle = {
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: 'var(--card-radius)',
+  boxShadow: 'var(--card-shadow)',
+  padding: '18px 20px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+};
+
+const sectionLabelStyle = {
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color: 'var(--text-muted)',
+  margin: 0,
+};
+
+const proseStyle = {
+  color: 'var(--text-secondary)',
+  fontSize: '0.88rem',
+  lineHeight: 1.6,
+  margin: 0,
+};
+
 const TensionProfileExplainer = () => {
   const [tVal, setTVal] = useState(0.5);
 
@@ -12,186 +39,210 @@ const TensionProfileExplainer = () => {
   // Generate curve points
   const points = useMemo(() => {
     const pts = [];
-    for(let i=0; i<=50; i++) {
+    for (let i = 0; i <= 50; i++) {
       const t = i / 50;
-      const x = Math.pow(1-t, 3)*P0.x + 3*Math.pow(1-t, 2)*t*P1.x + 3*(1-t)*Math.pow(t, 2)*P2.x + Math.pow(t, 3)*P3.x;
-      const y = Math.pow(1-t, 3)*P0.y + 3*Math.pow(1-t, 2)*t*P1.y + 3*(1-t)*Math.pow(t, 2)*P2.y + Math.pow(t, 3)*P3.y;
-      pts.push(`${x*100},${(1-y)*100}`);
+      const x = Math.pow(1 - t, 3) * P0.x + 3 * Math.pow(1 - t, 2) * t * P1.x + 3 * (1 - t) * Math.pow(t, 2) * P2.x + Math.pow(t, 3) * P3.x;
+      const y = Math.pow(1 - t, 3) * P0.y + 3 * Math.pow(1 - t, 2) * t * P1.y + 3 * (1 - t) * Math.pow(t, 2) * P2.y + Math.pow(t, 3) * P3.y;
+      pts.push(`${x * 100},${(1 - y) * 100}`);
     }
-    return pts.join(" ");
+    return pts.join(' ');
   }, [P0.x, P0.y, P1.x, P1.y, P2.x, P2.y, P3.x, P3.y]);
 
-  const currentX = Math.pow(1-tVal, 3)*P0.x + 3*Math.pow(1-tVal, 2)*tVal*P1.x + 3*(1-tVal)*Math.pow(tVal, 2)*P2.x + Math.pow(tVal, 3)*P3.x;
-  const currentY = Math.pow(1-tVal, 3)*P0.y + 3*Math.pow(1-tVal, 2)*tVal*P1.y + 3*(1-tVal)*Math.pow(tVal, 2)*P2.y + Math.pow(tVal, 3)*P3.y;
+  const currentX = Math.pow(1 - tVal, 3) * P0.x + 3 * Math.pow(1 - tVal, 2) * tVal * P1.x + 3 * (1 - tVal) * Math.pow(tVal, 2) * P2.x + Math.pow(tVal, 3) * P3.x;
+  const currentY = Math.pow(1 - tVal, 3) * P0.y + 3 * Math.pow(1 - tVal, 2) * tVal * P1.y + 3 * (1 - tVal) * Math.pow(tVal, 2) * P2.y + Math.pow(tVal, 3) * P3.y;
 
   return (
-    <div style={{ marginTop: '20px' }}>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <p style={proseStyle}>
         The cumulative tension profile shown in the chart above is the mathematical sum of the individual tension curves for all exercises performed for this muscle group, scaled by their respective volumes. Below is the formal derivation of how each individual exercise curve is modeled and evaluated.
       </p>
-      <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>1. Parametric Cubic Bézier Definition</h3>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        The tension curve for a given exercise is modeled mathematically as a Parametric Cubic Bézier Curve. The generic vector function <Latex math={String.raw`\mathbf{P}(t)`} /> is defined as the weighted sum of four control vectors <Latex math={String.raw`\mathbf{P}_i`} />, governed by the Bernstein basis polynomials for <Latex math={String.raw`t \in [0, 1]`} />:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\mathbf{P}(t) = \sum_{i=0}^{3} \binom{3}{i} (1-t)^{3-i} t^i \mathbf{P}_i`} />
-      </MathBlock>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Expanding the summation yields the explicit parametric equation:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\mathbf{P}(t) = (1-t)^3\mathbf{P}_0 + 3(1-t)^2t\mathbf{P}_1 + 3(1-t)t^2\mathbf{P}_2 + t^3\mathbf{P}_3`} />
-      </MathBlock>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Decomposing the vector function into its Cartesian components yields the system of equations that dictates the Range of Motion <Latex math={String.raw`x(t)`} /> and the resulting Tension <Latex math={String.raw`y(t)`} />:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`x(t) = (1-t)^3 x_0 + 3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3 x_3`} />
-        <Latex block math={String.raw`y(t) = (1-t)^3 y_0 + 3(1-t)^2 t y_1 + 3(1-t) t^2 y_2 + t^3 y_3`} />
-      </MathBlock>
 
-      <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>2. Differential Constraints (Derivatives)</h3>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        The intermediate vectors <Latex math={String.raw`\mathbf{P}_1`} /> and <Latex math={String.raw`\mathbf{P}_2`} /> serve as tangent and acceleration handles. Their position is determined by enforcing differential constraints at the boundary limits. Differentiating <Latex math={String.raw`\mathbf{P}(t)`} /> gives the first derivative (parametric tangent vector):
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\begin{aligned} \mathbf{P}'(t) &= 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) \\ &\quad + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2) \end{aligned}`} />
-      </MathBlock>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Evaluating the limits at the anchors <Latex math={String.raw`t=0`} /> and <Latex math={String.raw`t=1`} /> proves that the initial and final tangents are strictly collinear with the difference vectors:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)`} />
-        <Latex block math={String.raw`\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
-      </MathBlock>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Similarly, the second derivative evaluated at <Latex math={String.raw`t=0`} /> defines the initial parametric curvature term:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\mathbf{P}''(0) = 6(\mathbf{P}_2 - 2\mathbf{P}_1 + \mathbf{P}_0)`} />
-      </MathBlock>
+      <div style={dashboardCardStyle}>
+        <h3 style={sectionLabelStyle}>1. Parametric Cubic Bézier Definition</h3>
+        <p style={proseStyle}>
+          The tension curve for a given exercise is modeled mathematically as a Parametric Cubic Bézier Curve. The generic vector function <Latex math={String.raw`\mathbf{P}(t)`} /> is defined as the weighted sum of four control vectors <Latex math={String.raw`\mathbf{P}_i`} />, governed by the Bernstein basis polynomials for <Latex math={String.raw`t \in [0, 1]`} />:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`\mathbf{P}(t) = \sum_{i=0}^{3} \binom{3}{i} (1-t)^{3-i} t^i \mathbf{P}_i`} />
+        </MathBlock>
+        <p style={proseStyle}>
+          Expanding the summation yields the explicit parametric equation:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`\mathbf{P}(t) = (1-t)^3\mathbf{P}_0 + 3(1-t)^2t\mathbf{P}_1 + 3(1-t)t^2\mathbf{P}_2 + t^3\mathbf{P}_3`} />
+        </MathBlock>
+        <p style={proseStyle}>
+          Decomposing the vector function into its Cartesian components yields the system of equations that dictates the Range of Motion <Latex math={String.raw`x(t)`} /> and the resulting Tension <Latex math={String.raw`y(t)`} />:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`x(t) = (1-t)^3 x_0 + 3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3 x_3`} />
+          <Latex block math={String.raw`y(t) = (1-t)^3 y_0 + 3(1-t)^2 t y_1 + 3(1-t) t^2 y_2 + t^3 y_3`} />
+        </MathBlock>
+      </div>
+
+      <div style={dashboardCardStyle}>
+        <h3 style={sectionLabelStyle}>2. Differential Constraints (Derivatives)</h3>
+        <p style={proseStyle}>
+          The intermediate vectors <Latex math={String.raw`\mathbf{P}_1`} /> and <Latex math={String.raw`\mathbf{P}_2`} /> serve as tangent and acceleration handles. Their position is determined by enforcing differential constraints at the boundary limits. Differentiating <Latex math={String.raw`\mathbf{P}(t)`} /> gives the first derivative (parametric tangent vector):
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`\begin{aligned} \mathbf{P}'(t) &= 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) \\ &\quad + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2) \end{aligned}`} />
+        </MathBlock>
+        <p style={proseStyle}>
+          Evaluating the limits at the anchors <Latex math={String.raw`t=0`} /> and <Latex math={String.raw`t=1`} /> proves that the initial and final tangents are strictly collinear with the difference vectors:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)`} />
+          <Latex block math={String.raw`\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
+        </MathBlock>
+        <p style={proseStyle}>
+          Similarly, the second derivative evaluated at <Latex math={String.raw`t=0`} /> defines the initial parametric curvature term:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`\mathbf{P}''(0) = 6(\mathbf{P}_2 - 2\mathbf{P}_1 + \mathbf{P}_0)`} />
+        </MathBlock>
+      </div>
 
       {/* Interactive Graph */}
       <style>{`
         .minimal-slider {
           -webkit-appearance: none;
-          width: 80%;
-          height: 1px;
-          background: rgba(128, 128, 128, 0.4);
+          width: 100%;
+          height: 2px;
+          background: rgba(255, 255, 255, 0.14);
+          border-radius: 99px;
           outline: none;
-          margin-top: 10px;
         }
         .minimal-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 8px;
-          height: 8px;
+          width: 12px;
+          height: 12px;
           border-radius: 50%;
-          background: var(--text-primary, #fff);
+          background: var(--accent-primary, #6366f1);
+          border: 2px solid var(--text-primary, #f8fafc);
           cursor: pointer;
         }
       `}</style>
-      <div style={{ width: '100%', maxWidth: '500px', margin: '0 auto 30px auto', padding: '10px', borderBottom: '1px solid rgba(128,128,128,0.2)' }}>
-        <svg viewBox="-10 -10 120 125" style={{ width: '100%', overflow: 'visible', fontFamily: 'var(--font-mono, monospace)' }}>
-          {/* Grid */}
-          {[25, 50, 75, 100].map(val => (
-            <g key={val}>
-              <line x1="0" y1={100 - val} x2="100" y2={100 - val} stroke="rgba(128,128,128,0.15)" strokeWidth="0.5" />
-              <line x1={val} y1="0" x2={val} y2="100" stroke="rgba(128,128,128,0.15)" strokeWidth="0.5" />
-            </g>
-          ))}
+      <div style={dashboardCardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={sectionLabelStyle}>Interactive Bézier Curve</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            t = {tVal.toFixed(2)}
+          </span>
+        </div>
+        <div style={{ width: '100%', maxWidth: '460px', margin: '0 auto' }}>
+          <svg viewBox="-10 -10 120 125" style={{ width: '100%', overflow: 'visible', fontFamily: 'var(--font-mono, monospace)' }}>
+            {/* Grid */}
+            {[25, 50, 75, 100].map(val => (
+              <g key={val}>
+                <line x1="0" y1={100 - val} x2="100" y2={100 - val} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+                <line x1={val} y1="0" x2={val} y2="100" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+              </g>
+            ))}
 
-          {/* Axes */}
-          <line x1="0" y1="100" x2="102" y2="100" stroke="rgba(128,128,128,0.8)" strokeWidth="0.5" />
-          <line x1="0" y1="-2" x2="0" y2="100" stroke="rgba(128,128,128,0.8)" strokeWidth="0.5" />
-          <text x="50" y="110" fill="rgba(128,128,128,0.8)" fontSize="4" textAnchor="middle">x (ROM)</text>
-          <text x="-8" y="50" fill="rgba(128,128,128,0.8)" fontSize="4" textAnchor="middle" transform="rotate(-90, -8, 50)">y (Tension)</text>
+            {/* Axes */}
+            <line x1="0" y1="100" x2="102" y2="100" stroke="rgba(148,163,184,0.5)" strokeWidth="0.5" />
+            <line x1="0" y1="-2" x2="0" y2="100" stroke="rgba(148,163,184,0.5)" strokeWidth="0.5" />
+            <text x="50" y="110" fill="rgba(148,163,184,0.75)" fontSize="4" textAnchor="middle">x (ROM)</text>
+            <text x="-8" y="50" fill="rgba(148,163,184,0.75)" fontSize="4" textAnchor="middle" transform="rotate(-90, -8, 50)">y (Tension)</text>
 
-          {/* Tangent Lines */}
-          <line x1={P0.x*100} y1={(1-P0.y)*100} x2={P1.x*100} y2={(1-P1.y)*100} stroke="rgba(128,128,128,0.4)" strokeWidth="0.5" strokeDasharray="1,1" />
-          <line x1={P2.x*100} y1={(1-P2.y)*100} x2={P3.x*100} y2={(1-P3.y)*100} stroke="rgba(128,128,128,0.4)" strokeWidth="0.5" strokeDasharray="1,1" />
+            {/* Tangent Lines */}
+            <line x1={P0.x * 100} y1={(1 - P0.y) * 100} x2={P1.x * 100} y2={(1 - P1.y) * 100} stroke="rgba(148,163,184,0.35)" strokeWidth="0.5" strokeDasharray="1.5,1.5" />
+            <line x1={P2.x * 100} y1={(1 - P2.y) * 100} x2={P3.x * 100} y2={(1 - P3.y) * 100} stroke="rgba(148,163,184,0.35)" strokeWidth="0.5" strokeDasharray="1.5,1.5" />
 
-          {/* Main Curve */}
-          <polyline points={points} fill="none" stroke="var(--text-primary, #fff)" strokeWidth="1" />
+            {/* Main Curve */}
+            <polyline points={points} fill="none" stroke="var(--accent-primary, #6366f1)" strokeWidth="1.3" strokeLinecap="round" />
 
-          {/* Tangent Control Points */}
-          <circle cx={P1.x*100} cy={(1-P1.y)*100} r="1" fill="none" stroke="rgba(128,128,128,0.8)" strokeWidth="0.5" />
-          <text x={P1.x*100+2} y={(1-P1.y)*100+1} fill="rgba(128,128,128,0.8)" fontSize="3.5">P1</text>
-          
-          <circle cx={P2.x*100} cy={(1-P2.y)*100} r="1" fill="none" stroke="rgba(128,128,128,0.8)" strokeWidth="0.5" />
-          <text x={P2.x*100+2} y={(1-P2.y)*100+1} fill="rgba(128,128,128,0.8)" fontSize="3.5">P2</text>
+            {/* Tangent Control Points */}
+            <circle cx={P1.x * 100} cy={(1 - P1.y) * 100} r="1.1" fill="var(--bg-secondary)" stroke="rgba(148,163,184,0.8)" strokeWidth="0.5" />
+            <text x={P1.x * 100 + 2} y={(1 - P1.y) * 100 + 1} fill="rgba(148,163,184,0.85)" fontSize="3.5">P1</text>
 
-          {/* Anchor Points */}
-          <circle cx={P0.x*100} cy={(1-P0.y)*100} r="1.5" fill="var(--text-primary, #fff)" />
-          <text x={P0.x*100-2} y={(1-P0.y)*100+1} fill="var(--text-primary, #fff)" fontSize="3.5" textAnchor="end">P0</text>
+            <circle cx={P2.x * 100} cy={(1 - P2.y) * 100} r="1.1" fill="var(--bg-secondary)" stroke="rgba(148,163,184,0.8)" strokeWidth="0.5" />
+            <text x={P2.x * 100 + 2} y={(1 - P2.y) * 100 + 1} fill="rgba(148,163,184,0.85)" fontSize="3.5">P2</text>
 
-          <circle cx={P3.x*100} cy={(1-P3.y)*100} r="1.5" fill="var(--text-primary, #fff)" />
-          <text x={P3.x*100+2} y={(1-P3.y)*100+1} fill="var(--text-primary, #fff)" fontSize="3.5">P3</text>
+            {/* Anchor Points */}
+            <circle cx={P0.x * 100} cy={(1 - P0.y) * 100} r="1.5" fill="var(--text-primary, #fff)" />
+            <text x={P0.x * 100 - 2} y={(1 - P0.y) * 100 + 1} fill="var(--text-primary, #fff)" fontSize="3.5" textAnchor="end">P0</text>
 
-          {/* Moving Point */}
-          <circle cx={currentX*100} cy={(1-currentY)*100} r="2" fill="var(--bg-primary, #000)" stroke="var(--text-primary, #fff)" strokeWidth="0.5" />
-          <text x={(currentX*100)+4} y={((1-currentY)*100)-3} fill="var(--text-primary, #fff)" fontSize="3.5">t={(tVal).toFixed(2)}</text>
+            <circle cx={P3.x * 100} cy={(1 - P3.y) * 100} r="1.5" fill="var(--text-primary, #fff)" />
+            <text x={P3.x * 100 + 2} y={(1 - P3.y) * 100 + 1} fill="var(--text-primary, #fff)" fontSize="3.5">P3</text>
 
-        </svg>
-
-        <div style={{ marginTop: '10px', textAlign: 'center' }}>
+            {/* Moving Point */}
+            <circle cx={currentX * 100} cy={(1 - currentY) * 100} r="2" fill="var(--bg-secondary)" stroke="var(--text-primary, #fff)" strokeWidth="0.7" />
+            <text x={(currentX * 100) + 4} y={((1 - currentY) * 100) - 3} fill="var(--text-primary, #fff)" fontSize="3.5">t={tVal.toFixed(2)}</text>
+          </svg>
+        </div>
+        <div style={{ paddingTop: '4px', maxWidth: '460px', width: '100%', margin: '0 auto' }}>
           <input type="range" min="0" max="1" step="0.01" value={tVal} onChange={e => setTVal(parseFloat(e.target.value))} className="minimal-slider" />
         </div>
       </div>
 
-      <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>3. Analytical System Resolution (Root-Finding)</h3>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        The equations above define the tension <Latex math={String.raw`y`} /> as a function of the parameter <Latex math={String.raw`t`}/>. But in practice, we need to evaluate the tension at a specific degree of joint flexion (the Range of Motion coordinate <Latex math={String.raw`X \in [0, 1]`}/>). To find <Latex math={String.raw`Y`} /> given <Latex math={String.raw`X`} />, we must mathematically invert the system. We set our parametric equation <Latex math={String.raw`x(t)`} /> equal to our known coordinate <Latex math={String.raw`X`} />:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`x(t) - X = 0`} />
-      </MathBlock>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Expanding the <Latex math={String.raw`x(t)`} /> polynomial algebraically, this equality formulates a non-linear cubic equation in standard form:
-      </p>
-      <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\begin{aligned} (-x_0 + 3x_1 - 3x_2 + x_3)t^3 &+ (3x_0 - 6x_1 + 3x_2)t^2 \\ &+ (-3x_0 + 3x_1)t + (x_0 - X) = 0 \end{aligned}`} />
-      </MathBlock>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        This simplifies to <Latex math={String.raw`at^3 + bt^2 + ct + d = 0`} />. While one could mathematically apply Cardano's analytical method, doing so in software introduces floating-point instability and complex numbers. Instead, the backend algorithms explicitly implement a <strong>Binary Search approximation</strong> to isolate the principal real root <Latex math={String.raw`t^*`} /> strictly within the valid domain <Latex math={String.raw`[0, 1]`} />. 
-        <br/><br/>
-        Because the horizontal range <Latex math={String.raw`x(t)`} /> is monotonically increasing (the movement strictly goes forward), the algorithm guesses a midpoint (e.g., <Latex math={String.raw`t = 0.5`} />). If <Latex math={String.raw`x(0.5) < X`} />, the true root must be in the upper half <Latex math={String.raw`[0.5, 1.0]`} />. If <Latex math={String.raw`x(0.5) > X`} />, it must be in the lower half <Latex math={String.raw`[0.0, 0.5]`} />. By iteratively halving this interval, the engine rapidly converges on the exact <Latex math={String.raw`t^*`} />. Finally, we substitute this <Latex math={String.raw`t^*`} /> back into the tension polynomial to extract the formal solution <Latex math={String.raw`Y = y(t^*)`} />.
-      </p>
+      <div style={dashboardCardStyle}>
+        <h3 style={sectionLabelStyle}>3. Analytical System Resolution (Root-Finding)</h3>
+        <p style={proseStyle}>
+          The equations above define the tension <Latex math={String.raw`y`} /> as a function of the parameter <Latex math={String.raw`t`} />. But in practice, we need to evaluate the tension at a specific degree of joint flexion (the Range of Motion coordinate <Latex math={String.raw`X \in [0, 1]`} />). To find <Latex math={String.raw`Y`} /> given <Latex math={String.raw`X`} />, we must mathematically invert the system. We set our parametric equation <Latex math={String.raw`x(t)`} /> equal to our known coordinate <Latex math={String.raw`X`} />:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`x(t) - X = 0`} />
+        </MathBlock>
+        <p style={proseStyle}>
+          Expanding the <Latex math={String.raw`x(t)`} /> polynomial algebraically, this equality formulates a non-linear cubic equation in standard form:
+        </p>
+        <MathBlock>
+          <Latex block math={String.raw`\begin{aligned} (-x_0 + 3x_1 - 3x_2 + x_3)t^3 &+ (3x_0 - 6x_1 + 3x_2)t^2 \\ &+ (-3x_0 + 3x_1)t + (x_0 - X) = 0 \end{aligned}`} />
+        </MathBlock>
+        <p style={proseStyle}>
+          This simplifies to <Latex math={String.raw`at^3 + bt^2 + ct + d = 0`} />. While one could mathematically apply Cardano&apos;s analytical method, doing so in software introduces floating-point instability and complex numbers. Instead, the backend algorithms explicitly implement a <strong>Binary Search approximation</strong> to isolate the principal real root <Latex math={String.raw`t^*`} /> strictly within the valid domain <Latex math={String.raw`[0, 1]`} />.
+        </p>
+        <p style={proseStyle}>
+          Because the horizontal range <Latex math={String.raw`x(t)`} /> is monotonically increasing (the movement strictly goes forward), the algorithm guesses a midpoint (e.g., <Latex math={String.raw`t = 0.5`} />). If <Latex math={String.raw`x(0.5) < X`} />, the true root must be in the upper half <Latex math={String.raw`[0.5, 1.0]`} />. If <Latex math={String.raw`x(0.5) > X`} />, it must be in the lower half <Latex math={String.raw`[0.0, 0.5]`} />. By iteratively halving this interval, the engine rapidly converges on the exact <Latex math={String.raw`t^*`} />. Finally, we substitute this <Latex math={String.raw`t^*`} /> back into the tension polynomial to extract the formal solution <Latex math={String.raw`Y = y(t^*)`} />.
+        </p>
+      </div>
 
-      <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>4. Formal Exercise Modeling</h3>
-      <div style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
-        Let's apply this algorithm to mathematically model the tension of a Barbell Bicep Curl within the normalized control domain <Latex math={String.raw`[0, 1]^2`} />. We want zero tension at the extremes and symmetric curvature peaking at the middle of the ROM.
-        <br/><br/>
-        <strong>Step 1: Choosing the 4 Control Points</strong><br/>
-        We lock the boundary anchors at zero tension: <Latex math={String.raw`\mathbf{P}_0 = (0, 0)`} /> and <Latex math={String.raw`\mathbf{P}_3 = (1, 0)`} />.<br/>
-        To ensure a constant horizontal progression within <Latex math={String.raw`[0, 1]^2`} />, we set <Latex math={String.raw`x_1 = 1/3, x_2 = 2/3`} /> and maximal control height <Latex math={String.raw`y_1 = y_2 = 1`} />. 
-        <MathBlock color="var(--accent-primary)">
+      <div style={dashboardCardStyle}>
+        <h3 style={sectionLabelStyle}>4. Formal Exercise Modeling</h3>
+        <p style={proseStyle}>
+          Let&apos;s apply this algorithm to mathematically model the tension of a Barbell Bicep Curl within the normalized control domain <Latex math={String.raw`[0, 1]^2`} />. We want zero tension at the extremes and symmetric curvature peaking at the middle of the ROM.
+        </p>
+        <p style={proseStyle}>
+          <strong style={{ color: 'var(--text-primary)' }}>Step 1: Choosing the 4 Control Points</strong><br />
+          We lock the boundary anchors at zero tension: <Latex math={String.raw`\mathbf{P}_0 = (0, 0)`} /> and <Latex math={String.raw`\mathbf{P}_3 = (1, 0)`} />. To ensure a constant horizontal progression within <Latex math={String.raw`[0, 1]^2`} />, we set <Latex math={String.raw`x_1 = 1/3, x_2 = 2/3`} /> and maximal control height <Latex math={String.raw`y_1 = y_2 = 1`} />.
+        </p>
+        <MathBlock>
           <Latex block math={String.raw`\begin{aligned} \mathbf{P}_0(0, 0), &\quad \mathbf{P}_1(1/3, 1) \\ \mathbf{P}_2(2/3, 1), &\quad \mathbf{P}_3(1, 0) \end{aligned}`} />
         </MathBlock>
-
-        <strong>Step 2: Formulating x(t) and y(t)</strong><br/>
-        Substituting these points into the generic Bernstein polynomials yields two remarkably clean parametric equations:
-        <MathBlock color="var(--accent-primary)">
+        <p style={proseStyle}>
+          <strong style={{ color: 'var(--text-primary)' }}>Step 2: Formulating x(t) and y(t)</strong><br />
+          Substituting these points into the generic Bernstein polynomials yields two remarkably clean parametric equations:
+        </p>
+        <MathBlock>
           <Latex block math={String.raw`x(t) = t \left[ (1-t)^2 + 2(1-t)t + t^2 \right] = t`} />
           <Latex block math={String.raw`y(t) = 3t(1-t) \left[ (1-t) + t \right] = 3t(1-t)`} />
         </MathBlock>
-        Notice how the horizontal equation elegantly collapses into a linear mapping <Latex math={String.raw`x(t) = t`} />, proving that our parameter perfectly traces the ROM.
-        <br/><br/>
-
-        <strong>Step 3: Extracting t from x(t)</strong><br/>
-        Suppose the user's joint is exactly halfway through the movement (<Latex math={String.raw`X = 0.5`} />). We must find the hidden <Latex math={String.raw`t`} /> using the root-finding logic:
-        <MathBlock color="var(--accent-primary)">
+        <p style={proseStyle}>
+          Notice how the horizontal equation elegantly collapses into a linear mapping <Latex math={String.raw`x(t) = t`} />, proving that our parameter perfectly traces the ROM.
+        </p>
+        <p style={proseStyle}>
+          <strong style={{ color: 'var(--text-primary)' }}>Step 3: Extracting t from x(t)</strong><br />
+          Suppose the user&apos;s joint is exactly halfway through the movement (<Latex math={String.raw`X = 0.5`} />). We must find the hidden <Latex math={String.raw`t`} /> using the root-finding logic:
+        </p>
+        <MathBlock>
           <Latex block math={String.raw`x(t) - X = 0 \implies t - 0.5 = 0`} />
         </MathBlock>
-        The Binary Search engine evaluates this and instantly converges on <Latex math={String.raw`t = 0.5`} />.
-        <br/><br/>
-
-        <strong>Step 4: Calculating y(t)</strong><br/>
-        Finally, we plug our discovered <Latex math={String.raw`t = 0.5`} /> into the tension polynomial to find the raw curve height at that joint angle:
-        <MathBlock color="var(--accent-primary)">
+        <p style={proseStyle}>
+          The Binary Search engine evaluates this and instantly converges on <Latex math={String.raw`t = 0.5`} />.
+        </p>
+        <p style={proseStyle}>
+          <strong style={{ color: 'var(--text-primary)' }}>Step 4: Calculating y(t)</strong><br />
+          Finally, we plug our discovered <Latex math={String.raw`t = 0.5`} /> into the tension polynomial to find the raw curve height at that joint angle:
+        </p>
+        <MathBlock>
           <Latex block math={String.raw`Y = y(0.5) = 3(0.5)(1 - 0.5) = 3(0.25) = 0.75`} />
         </MathBlock>
-        After UI peak normalization (<Latex math={String.raw`y(t)/\max y = 0.75/0.75 = 1.0`} />) or solver GL3 area normalization (<Latex math={String.raw`M_{e,m}/I_{\mathrm{GL3}}`} />), the midpoint achieves its peak tension while keeping every control point inside <Latex math={String.raw`[0, 1]^2`} />!
+        <p style={proseStyle}>
+          After UI peak normalization (<Latex math={String.raw`y(t)/\max y = 0.75/0.75 = 1.0`} />) or solver GL3 area normalization (<Latex math={String.raw`M_{e,m}/I_{\mathrm{GL3}}`} />), the midpoint achieves its peak tension while keeping every control point inside <Latex math={String.raw`[0, 1]^2`} />!
+        </p>
       </div>
     </div>
   );
@@ -465,55 +516,89 @@ export default function MetricDetailsPage({ metric, onBack }) {
       background: 'var(--bg-primary)',
       zIndex: 10000,
       overflowY: 'auto',
-      padding: '80px 20px 100px 20px',
+      padding: '24px 16px 80px 16px',
       opacity: visible ? 1 : 0,
-      transform: visible ? 'translateY(0)' : 'translateY(20px)',
+      transform: visible ? 'translateY(0)' : 'translateY(16px)',
       transition: 'opacity 0.2s ease, transform 0.2s ease',
     }}>
-      {/* Close Button — exact copy of settings popup mobile-close-btn */}
-      <button
-        onClick={handleClose}
-        style={{
-          position: 'absolute',
-          top: '20px',
-          right: '20px',
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--text-primary)',
-          fontSize: '2rem',
-          cursor: 'pointer',
-          lineHeight: 1,
-        }}
-      >×</button>
+      <div style={{
+        maxWidth: '760px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px',
+      }}>
+        {/* Header Card */}
+        <div style={dashboardCardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: data.color,
+            }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: data.color, flexShrink: 0 }} />
+              Math Details
+            </span>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)',
+                fontSize: '1.15rem',
+                lineHeight: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
 
-      {/* Main card */}
-      <div className="glass-card" style={{ borderLeft: `4px solid ${data.color}`, padding: '24px', borderRadius: '16px', position: 'relative' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <span className="badge" style={{ backgroundColor: `${data.color}15`, color: data.color, fontWeight: '600', textTransform: 'uppercase', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '4px', border: `1px solid ${data.color}30` }}>
-            Math Calculation details
-          </span>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: '700', margin: '12px 0 4px 0', color: 'var(--text-primary)' }}>
-            {data.title}
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-            {data.subtitle}
-          </p>
+          <div>
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.6rem',
+              fontWeight: 700,
+              margin: '0 0 4px 0',
+              color: 'var(--text-primary)',
+              lineHeight: 1.2,
+            }}>
+              {data.title}
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: 0 }}>
+              {data.subtitle}
+            </p>
+          </div>
+
+          {!data.customRender && (
+            <p style={proseStyle}>
+              {data.description}
+            </p>
+          )}
         </div>
 
         {data.customRender ? (
           data.customRender
         ) : (
           <>
-            <p style={{ lineHeight: '1.6', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px' }}>
-              {data.description}
-            </p>
-
-            {/* Formulas Block */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '10px', color: data.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Mathematical Formula
-              </h3>
-              <MathBlock color={data.color}>
+            {/* Formula Card */}
+            <div style={dashboardCardStyle}>
+              <h3 style={sectionLabelStyle}>Formula</h3>
+              <MathBlock>
                 {data.formulas.map((f, idx) => (
                   <div
                     key={idx}
@@ -525,41 +610,48 @@ export default function MetricDetailsPage({ metric, onBack }) {
               </MathBlock>
             </div>
 
-            {/* Variables Table */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '10px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Variables Breakdown
-              </h3>
-              <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
-                      <th style={{ textAlign: 'left', padding: '8px 12px', width: '25%', color: 'var(--text-muted)', fontWeight: '600' }}>Symbol</th>
-                      <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--text-muted)', fontWeight: '600' }}>Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.variables.map((v, idx) => (
-                      <tr key={idx} style={{ borderBottom: idx === data.variables.length - 1 ? 'none' : '1px solid var(--border-color)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                        <td style={{ padding: '10px 12px', fontWeight: '600', color: data.color }}>
-                          <Latex math={v.symbol} />
-                        </td>
-                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                          {v.desc}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Variables Card */}
+            <div style={dashboardCardStyle}>
+              <h3 style={sectionLabelStyle}>Variables</h3>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {data.variables.map((v, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(90px, 24%) 1fr',
+                      gap: '12px',
+                      alignItems: 'baseline',
+                      padding: '10px 0',
+                      borderTop: idx > 0 ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+                      fontSize: '0.84rem',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, color: data.color, overflowX: 'auto' }}>
+                      <Latex math={v.symbol} />
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      {v.desc}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Practical Example */}
-            <div>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '10px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Step-by-Step Example
-              </h3>
-              <div style={{ padding: '14px 16px', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.82rem', lineHeight: '1.5', color: 'var(--text-secondary)', whiteSpace: 'pre-line', fontFamily: 'var(--font-mono)' }}>
+            {/* Example Card */}
+            <div style={dashboardCardStyle}>
+              <h3 style={sectionLabelStyle}>Example</h3>
+              <div style={{
+                padding: '14px 16px',
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                fontSize: '0.82rem',
+                lineHeight: 1.6,
+                color: 'var(--text-secondary)',
+                whiteSpace: 'pre-line',
+                fontFamily: 'var(--font-mono)',
+              }}>
                 {data.example}
               </div>
             </div>
