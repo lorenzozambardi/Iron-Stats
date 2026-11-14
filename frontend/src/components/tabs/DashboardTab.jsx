@@ -265,8 +265,8 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
 });
 
 const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
-  const hasA = values && values.length >= 1;
   const hasB = compareValues && compareValues.length >= 1;
+  const hasA = values && (hasB ? values.length >= 1 : values.length >= 2);
   if (!hasA && !hasB) return null;
 
   const len = Math.max(hasA ? values.length : 0, hasB ? compareValues.length : 0);
