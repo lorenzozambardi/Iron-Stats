@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MUSCLES } from '../parser';
 import { formatRestTime, groupSets } from './helpers';
 
-function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode, diagnostics = [] }) {
+const LogbookPreview = React.memo(function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode, diagnostics = [] }) {
   const scrollAnimRef = useRef(null);
   const [expandedExerciseName, setExpandedExerciseName] = useState(null);
 
@@ -261,7 +261,6 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
       )})}
     </div>
   );
-}
+});
 
-
-export default React.memo(LogbookPreview);
+export default LogbookPreview;

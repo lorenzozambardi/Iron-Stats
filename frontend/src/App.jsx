@@ -585,6 +585,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState('saved'); // 'saved', 'syncing', 'error'
   const [syncError, setSyncError] = useState('');
   const saveTimeoutRef = useRef(null); // useRef instead of useState to avoid re-render on debounce
+  const typingSyncTimeoutRef = useRef(null);
 
   useEffect(() => {
     let backListener;
@@ -673,8 +674,8 @@ export default function App() {
 
   const hasFormattingIssues = useMemo(() => {
     if (activeTab !== 'editor') return false;
-    return needsFormatting(logbookText);
-  }, [activeTab, logbookText]);
+    return needsFormatting(debouncedLogbookText);
+  }, [activeTab, debouncedLogbookText]);
 
   const lintCounts = useMemo(() => {
     let errors = 0, warnings = 0, infos = 0;
@@ -1120,8 +1121,10 @@ export default function App() {
   };
 
   const handleFormatLogbook = () => {
-    const formatted = formatLogbook(logbookText);
-    if (formatted !== logbookText) {
+    const currentText = logbookTextRef.current;
+    const formatted = formatLogbook(currentText);
+    if (formatted !== currentText) {
+      logbookTextRef.current = formatted;
       setLogbookText(formatted);
       setDebouncedLogbookText(formatted);
       setSyncStatus('syncing');
@@ -1484,7 +1487,7 @@ export default function App() {
                   </span>
                   {showLintPanel ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
-                <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookText)}>
+                <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookTextRef.current)}>
                   <Save size={14} /> Save Now
                 </button>
               </div>
@@ -1550,16 +1553,14 @@ export default function App() {
                           <span className="lint-item-msg">{d.message}</span>
                           <span className={`lint-item-cat cat-${d.category}`}>{d.category}</span>
                         </button>
-                        {d.category === 'anomaly' && (
-                          <button
-                            type="button"
-                            className="lint-bypass-btn"
-                            onClick={() => handleDismissDiagnostic(d)}
-                            title="Mark anomaly as intentional (bypass)"
-                          >
-                            <Check size={12} /> OK
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="lint-bypass-btn"
+                          onClick={() => handleDismissDiagnostic(d)}
+                          title="Mark as OK (bypass)"
+                        >
+                          <Check size={12} /> OK
+                        </button>
                       </div>
                     ))
                   )}
@@ -1588,8 +1589,13 @@ export default function App() {
                         ref={foldableEditorRef}
                         value={logbookText}
                         onChange={(newText) => {
-                          setLogbookText(newText);
-                          setSyncStatus('syncing');
+                          logbookTextRef.current = newText;
+                          setSyncStatus(prev => (prev === 'syncing' ? prev : 'syncing'));
+                          if (typingSyncTimeoutRef.current) clearTimeout(typingSyncTimeoutRef.current);
+                          typingSyncTimeoutRef.current = setTimeout(() => {
+                            setLogbookText(newText);
+                            setDebouncedLogbookText(newText);
+                          }, 300);
                           if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                           saveTimeoutRef.current = setTimeout(() => {
                             saveLogbookContent(newText, currentProgram);

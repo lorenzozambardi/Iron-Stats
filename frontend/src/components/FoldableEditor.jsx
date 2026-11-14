@@ -293,7 +293,7 @@ const FoldableEditor = forwardRef(function FoldableEditor({
             }
           });
         }
-        if (d.category === 'anomaly' && onDismissDiagnosticRef.current) {
+        if (onDismissDiagnosticRef.current) {
           actions.push({
             name: 'Mark as OK',
             apply() {
