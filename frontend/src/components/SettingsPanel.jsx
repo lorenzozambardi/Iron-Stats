@@ -181,28 +181,29 @@ export const SettingsPanel = ({
               const isCustom = cfg.dirType === 'custom' && cfg.safUri;
               return (
                 <div className={`storage-panel settings-storage-drawer${isStorageClosing ? ' closing' : ''}`}>
-                  <div className="storage-current-row">
-                    <span className="storage-section-label">Current Folder</span>
-                    <div className={`storage-status-path${isCustom ? ' custom' : ''}`}>
-                      {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
+                  <div className="settings-storage-current">
+                    <div className="settings-storage-current-info">
+                      <span className="settings-storage-sublabel">Current</span>
+                      <span className={`settings-storage-path${isCustom ? ' custom' : ''}`}>
+                        {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
+                      </span>
                     </div>
-                  </div>
-
-                  <div className="storage-actions-row">
-                    <button type="button" className="storage-primary-btn" onClick={handlePickFolder}>
-                      <FolderOpen size={15} />
-                      <span>Pick Any Folder</span>
-                    </button>
-                    {isCustom && (
-                      <button
-                        type="button"
-                        className="storage-reset-btn"
-                        onClick={handleResetStorage}
-                        title="Reset to Default"
-                      >
-                        <RotateCcw size={14} />
+                    <div className="settings-storage-current-actions">
+                      <button type="button" className="settings-storage-pill-primary" onClick={handlePickFolder}>
+                        <FolderOpen size={13} />
+                        <span>Pick Folder</span>
                       </button>
-                    )}
+                      {isCustom && (
+                        <button
+                          type="button"
+                          className="settings-icon-btn"
+                          onClick={handleResetStorage}
+                          title="Reset to Default"
+                        >
+                          <RotateCcw size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {storagePickError && (
@@ -212,41 +213,45 @@ export const SettingsPanel = ({
                     </div>
                   )}
 
-                  <div className="storage-fallback-section">
-                    <span className="storage-section-label">Standard Location</span>
+                  <div className="settings-storage-standard">
+                    <span className="settings-storage-sublabel">Standard Location</span>
 
-                    <div className="storage-form-group">
+                    <div className="settings-storage-row">
+                      <span className="settings-row-label">Location</span>
                       <select
-                        className="storage-select"
+                        className="settings-program-select settings-storage-select"
                         value={pendingDirType === 'custom' ? 'documents' : pendingDirType}
                         onChange={e => setPendingDirType(e.target.value)}
                         aria-label="Location Type"
                       >
-                        <option value="documents">Public Documents (PC sync)</option>
-                        <option value="data">Private App Storage</option>
+                        <option value="documents">Public Documents</option>
+                        <option value="data">Private Storage</option>
                       </select>
                     </div>
 
-                    <div className="storage-form-group">
+                    <div className="settings-storage-row">
+                      <span className="settings-row-label">Subfolder</span>
                       <input
                         type="text"
-                        className="storage-input"
+                        className="settings-storage-input"
                         value={pendingSubfolder}
                         onChange={e => setPendingSubfolder(e.target.value)}
-                        placeholder="Subfolder name (e.g. Iron Stats)"
+                        placeholder="Iron Stats"
                         aria-label="Subfolder Name"
                       />
-                      <div className="storage-path-preview">
-                        {pendingDirType === 'data'
-                          ? `App private storage/${pendingSubfolder || '(root)'}`
-                          : `Documents/${pendingSubfolder || '(root)'}`}
-                      </div>
                     </div>
 
-                    <button type="button" className="storage-apply-btn" onClick={applyStorageConfig}>
-                      <RefreshCw size={13} />
-                      <span>Apply &amp; Refresh</span>
-                    </button>
+                    <div className="settings-storage-footer">
+                      <span className="settings-storage-preview">
+                        {pendingDirType === 'data'
+                          ? `Private/${pendingSubfolder || '(root)'}`
+                          : `Documents/${pendingSubfolder || '(root)'}`}
+                      </span>
+                      <button type="button" className="settings-storage-pill-apply" onClick={applyStorageConfig}>
+                        <RefreshCw size={12} />
+                        <span>Apply</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

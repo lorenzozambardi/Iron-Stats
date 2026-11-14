@@ -3371,7 +3371,145 @@ input::-webkit-list-button {
   border-right: none !important;
   border-bottom: none !important;
   margin-top: 0 !important;
-  background: rgba(0, 0, 0, 0.2) !important;
+  padding: 12px 16px 14px !important;
+  background: rgba(0, 0, 0, 0.22) !important;
+  gap: 12px !important;
+}
+
+.settings-storage-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-storage-current-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-storage-sublabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings-storage-path {
+  font-size: 0.8rem;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-storage-path.custom {
+  color: var(--accent-primary);
+}
+
+.settings-storage-current-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.settings-storage-pill-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent-primary);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.settings-storage-pill-primary:hover {
+  opacity: 0.9;
+}
+
+.settings-storage-standard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-storage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-storage-select {
+  max-width: 170px;
+}
+
+.settings-storage-input {
+  width: 145px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  text-align: right;
+  outline: none;
+}
+
+.settings-storage-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.settings-storage-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.settings-storage-preview {
+  font-size: 0.73rem;
+  font-family: var(--font-mono, monospace);
+  color: rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-storage-pill-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.settings-storage-pill-apply:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Segmented Control */
