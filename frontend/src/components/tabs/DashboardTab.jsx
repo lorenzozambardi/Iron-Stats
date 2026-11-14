@@ -661,7 +661,8 @@ const DashboardTab = ({
                     marginBottom: isFilterPanelOpen ? (isMobile ? '8px' : '16px') : '0px',
                     overflow: 'hidden',
                     borderRadius: 'var(--card-radius)',
-                    transition: 'height 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease, margin-bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    willChange: 'height, opacity',
+                    transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
                     pointerEvents: isFilterPanelOpen ? 'auto' : 'none',
                   }}>
                   <div ref={filterContentRef} style={{
