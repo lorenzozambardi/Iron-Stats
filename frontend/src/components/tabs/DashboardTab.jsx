@@ -234,69 +234,31 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '4px',
-        border: 'none',
-        background: 'transparent',
-        padding: '8px 4px 8px 12px',
-        margin: '-8px -4px -8px 0',
+        gap: '5px',
+        padding: '4px 8px',
+        minHeight: '24px',
+        margin: '-3px -4px -3px 0',
+        borderRadius: '8px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        background: 'rgba(255, 255, 255, 0.05)',
+        color: '#e2e8f0',
+        fontSize: '0.65rem',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
+        lineHeight: 1,
         cursor: 'pointer',
         flexShrink: 0,
+        transition: 'background 0.15s ease, border-color 0.15s ease',
       }}
     >
-      {['total', 'effective'].map((m) => (
-        <span
-          key={m}
-          style={{
-            width: '5px',
-            height: '5px',
-            borderRadius: '50%',
-            background: mode === m ? '#ffffff' : 'rgba(255, 255, 255, 0.22)',
-            transition: 'background 0.15s ease',
-          }}
-        />
-      ))}
+      <span>{mode === 'total' ? 'Total' : 'Eff.'}</span>
+      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+        <path d="M11 2l3 3-3 3" />
+        <path d="M14 5H3" />
+        <path d="M5 14l-3-3 3-3" />
+        <path d="M2 11h11" />
+      </svg>
     </button>
-  );
-});
-
-const StatSummaryCard = React.memo(({ cls, hasToggle, onToggleMode, onOpenDetail, children }) => {
-  const swipeRef = useRef({ active: false, startX: 0, startY: 0, swiped: false });
-
-  const handlePointerDown = (e) => {
-    if (!hasToggle) return;
-    swipeRef.current = { active: true, startX: e.clientX, startY: e.clientY, swiped: false };
-  };
-
-  const handlePointerUp = (e) => {
-    if (!swipeRef.current.active) return;
-    const dx = e.clientX - swipeRef.current.startX;
-    const dy = e.clientY - swipeRef.current.startY;
-    swipeRef.current.active = false;
-    if (Math.abs(dx) >= 28 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      swipeRef.current.swiped = true;
-      onToggleMode(dx < 0 ? 'effective' : 'total');
-    }
-  };
-
-  const handleClick = () => {
-    if (swipeRef.current.swiped) {
-      swipeRef.current.swiped = false;
-      return;
-    }
-    onOpenDetail();
-  };
-
-  return (
-    <div
-      className={`metric-summary-card ${cls}`}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={() => { swipeRef.current.active = false; }}
-      onClick={handleClick}
-      style={hasToggle ? { touchAction: 'pan-y' } : undefined}
-    >
-      {children}
-    </div>
   );
 });
 
@@ -1340,13 +1302,7 @@ const DashboardTab = ({
                           const valsA = sparkSeriesA[metricKey];
                           const valsB = sparkSeriesB[metricKey];
                           return (
-                            <StatSummaryCard
-                              key={card.id}
-                              cls={cls}
-                              hasToggle={hasToggle}
-                              onToggleMode={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
-                              onOpenDetail={() => setSelectedMetricDetail(cls)}
-                            >
+                            <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                                 <span className="metric-label">{label}</span>
                                 {hasToggle && (
@@ -1387,7 +1343,7 @@ const DashboardTab = ({
                                   gradId={`spark-cmp-${card.id}`}
                                 />
                               )}
-                            </StatSummaryCard>
+                            </div>
                           );
                         })}
                       </div>
@@ -1442,13 +1398,7 @@ const DashboardTab = ({
                         const [label, cls, metricKey, color, formattedVal] = card.variants[mode];
                         const vals = sparkSeriesA[metricKey];
                         return (
-                          <StatSummaryCard
-                            key={card.id}
-                            cls={cls}
-                            hasToggle={hasToggle}
-                            onToggleMode={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
-                            onOpenDetail={() => setSelectedMetricDetail(cls)}
-                          >
+                          <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                               <span className="metric-label">{label}</span>
                               {hasToggle && (
@@ -1465,7 +1415,7 @@ const DashboardTab = ({
                             ) : (
                               <MetricSparkline values={vals} color={color} gradId={`spark-${card.id}`} />
                             )}
-                          </StatSummaryCard>
+                          </div>
                         );
                       })}
                     </div>
