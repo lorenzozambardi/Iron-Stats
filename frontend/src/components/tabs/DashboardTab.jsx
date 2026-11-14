@@ -12,8 +12,8 @@ const MetricSparkline = ({ values, color, gradId }) => {
   if (!values || values.length < 2) return null;
 
   const w = 120;
-  const h = 24;
-  const padY = 3;
+  const h = 42;
+  const padY = 4;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
@@ -26,14 +26,21 @@ const MetricSparkline = ({ values, color, gradId }) => {
     return [x, y];
   });
 
-  const linePath = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  // Smooth cubic Bezier curve through points (clamped to avoid overshoot)
+  let linePath = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const cx = (x0 + x1) / 2;
+    linePath += ` C${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
   const areaPath = `${linePath} L${w},${h} L0,${h} Z`;
 
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
-      style={{ width: '100%', height: '24px', display: 'block', marginTop: '2px', overflow: 'visible' }}
+      style={{ width: '100%', height: '42px', display: 'block', marginTop: '4px', overflow: 'visible' }}
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
