@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const SLICE_COLORS = [
   '#6366f1', // Indigo (accent-primary)
@@ -475,4 +475,4 @@ const MuscleDonutChart = ({
   );
 };
 
-export default MuscleDonutChart;
+export default React.memo(MuscleDonutChart);

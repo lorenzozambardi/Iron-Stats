@@ -125,7 +125,7 @@ const formatWeekRangeLabel = (fromVal, toVal) => {
   return null;
 };
 
-const TrendBadge = ({ values }) => {
+const TrendBadge = React.memo(({ values }) => {
   if (!values || values.length < 2) return null;
   const first = values[0];
   const last = values[values.length - 1];
@@ -137,7 +137,7 @@ const TrendBadge = ({ values }) => {
       {pos ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
     </span>
   );
-};
+});
 
 const buildSparklinePath = (vals, w, h, padY, min, range) => {
   const pts = vals.map((v, i) => {
@@ -157,7 +157,7 @@ const buildSparklinePath = (vals, w, h, padY, min, range) => {
   return linePath;
 };
 
-const MetricSparkline = ({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId }) => {
+const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId }) => {
   const hasA = values && values.length >= 2;
   const hasB = compareValues && compareValues.length >= 2;
   if (!hasA && !hasB) return null;
@@ -212,7 +212,195 @@ const MetricSparkline = ({ values, compareValues, color, compareColor = 'var(--a
       )}
     </svg>
   );
+});
+
+const computeMuscleDistribution = (dataSource, activeWeeksArr, targetMacro, targetSub, muscleMetric, weekOverride) => {
+  if (!dataSource || dataSource.length === 0) return [];
+  const distributions = {};
+  const hasWeekOverride = weekOverride !== undefined && weekOverride !== 'all';
+  const targetWeekNum = hasWeekOverride ? parseInt(weekOverride, 10) : null;
+  const allowedWeeks = hasWeekOverride ? null : new Set(activeWeeksArr);
+
+  dataSource.forEach(wEx => {
+    const ex = wEx.exercise_obj;
+    if (!ex) return;
+    wEx.weeks.forEach(wData => {
+      if (hasWeekOverride ? wData.week_num !== targetWeekNum : !allowedWeeks.has(wData.week_num)) return;
+      wData.sets.forEach(s => {
+        Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
+          if (targetMacro !== 'all' && MUSCLES[subMuscle] !== targetMacro) return;
+          if (targetSub !== 'all' && subMuscle !== targetSub) return;
+          const macro = MUSCLES[subMuscle] || 'Other';
+          let metricValue = 0;
+          if (muscleMetric === 'effective') {
+            metricValue = s.effectiveReps || 0;
+          } else if (muscleMetric === 'volume') {
+            metricValue = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
+          } else if (muscleMetric === 'sets') {
+            metricValue = 1.0;
+          }
+          const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
+          const vol = metricValue * distrVal;
+          if (!distributions[macro]) distributions[macro] = { total: 0, subMuscles: {} };
+          distributions[macro].total += vol;
+          if (!distributions[macro].subMuscles[subMuscle]) distributions[macro].subMuscles[subMuscle] = 0;
+          distributions[macro].subMuscles[subMuscle] += vol;
+        });
+      });
+    });
+  });
+
+  return Object.entries(distributions).map(([macro, data]) => ({
+    name: macro,
+    value: parseFloat(data.total.toFixed(1)),
+    subMuscles: Object.entries(data.subMuscles).map(([sub, val]) => ({
+      name: sub,
+      value: parseFloat(val.toFixed(1))
+    })).sort((a, b) => b.value - a.value)
+  })).sort((a, b) => b.value - a.value);
 };
+
+/** Isolated Tension Profiles card so ROM scrubbing never re-renders the rest of the dashboard. */
+const TensionProfilesCard = React.memo(({ isMobile, cumulativeCurveData, displayMuscleData, onOpenDetails }) => {
+  const [tensionSliderPos, setTensionSliderPos] = useState(50);
+  const topMuscles = useMemo(() => displayMuscleData.slice(0, 6), [displayMuscleData]);
+
+  return (
+    <div className="chart-container" style={{ gridColumn: '1 / -1' }}>
+      <div
+        className="chart-header"
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+        onClick={onOpenDetails}
+      >
+        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
+          Tension Profiles
+        </span>
+        {isMobile && cumulativeCurveData.length > 0 && (
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+            ROM <strong style={{ color: '#fff', fontWeight: 600 }}>{tensionSliderPos}%</strong>
+          </span>
+        )}
+      </div>
+      <div style={{ height: isMobile ? '205px' : '290px', width: '100%', marginTop: '8px' }}>
+        {cumulativeCurveData.length > 0 ? (
+          <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
+            <LineChart
+              data={cumulativeCurveData}
+              margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+              style={isMobile ? { pointerEvents: 'none' } : undefined}
+            >
+              <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis
+                dataKey="rom"
+                type="number"
+                domain={[0, 1]}
+                ticks={[0, 0.25, 0.5, 0.75, 1]}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                tickFormatter={(val) => `${Math.round(val * 100)}%`}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                width={42}
+              />
+              {!isMobile && (
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--bg-glass-active)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                  }}
+                  labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
+                  formatter={(val) => parseFloat(val).toFixed(1)}
+                />
+              )}
+              {isMobile && (
+                <ReferenceLine
+                  x={tensionSliderPos / 100}
+                  stroke="rgba(255,255,255,0.35)"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                />
+              )}
+              {topMuscles.map((m, idx) => (
+                <Line
+                  key={m.name}
+                  type="monotone"
+                  dataKey={m.name}
+                  name={m.name}
+                  stroke={TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length]}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0 }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            No data available for the current selection.
+          </div>
+        )}
+      </div>
+      {cumulativeCurveData.length > 0 && (
+        isMobile ? (
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px 18px' }}>
+              {topMuscles.map((m, idx) => {
+                const color = TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length];
+                const resolution = cumulativeCurveData.length - 1;
+                const closestIdx = Math.round((tensionSliderPos / 100) * resolution);
+                const closestPt = cumulativeCurveData[Math.min(closestIdx, resolution)];
+                const val = closestPt ? (closestPt[m.name] ?? 0) : 0;
+                return (
+                  <div
+                    key={m.name}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      minWidth: 0,
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.name}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: '0.76rem', color: '#ffffff', fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                      {val.toFixed(1)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <TensionRomSlider value={tensionSliderPos} onChange={setTensionSliderPos} />
+          </div>
+        ) : (
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'center' }}>
+            {topMuscles.map((m, idx) => (
+              <span key={m.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length] }} />
+                {m.name}
+              </span>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+});
 
 const getNormalizedCurve = (distr) => {
   const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
@@ -278,7 +466,10 @@ const DashboardTab = ({
   useEffect(() => {
     const el = filterContentRef.current;
     if (!el) return;
-    const update = () => setFilterHeight(Math.ceil(el.getBoundingClientRect().height));
+    const update = () => {
+      const next = Math.ceil(el.getBoundingClientRect().height);
+      setFilterHeight(prev => (prev === next ? prev : next));
+    };
     update();
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(update);
@@ -286,7 +477,6 @@ const DashboardTab = ({
       return () => ro.disconnect();
     }
   }, []);
-  const [tensionSliderPos, setTensionSliderPos] = useState(50); // 0-100 ROM % for mobile scrubber
 
 
   // Calculated Metrics — memoized to avoid recomputing on every render
@@ -457,76 +647,32 @@ const DashboardTab = ({
     [allCompareWeeksMetrics, deferredCmpWeekFrom, deferredCmpWeekTo]
   );
 
-  // Calculate Muscle distribution breakdown — respects all filters
-  const calculateMuscleDistribution = useCallback((dataSource, weekOverride, activeWeeksOverride, weekDivisor = 1) => {
-    const distributions = {};
-    const src = dataSource;
-    if (!src) return [];
-    const hasWeekOverride = weekOverride !== undefined && weekOverride !== 'all';
-    const allowedWeeks = new Set(activeWeeksOverride !== undefined ? activeWeeksOverride : activeWeeksList);
-    src.forEach(wEx => {
-      const ex = wEx.exercise_obj;
-      if (!ex) return;
-      wEx.weeks.forEach(wData => {
-        if (hasWeekOverride && wData.week_num !== parseInt(weekOverride, 10)) return;
-        if (!hasWeekOverride && !allowedWeeks.has(wData.week_num)) return;
-        wData.sets.forEach(s => {
-          Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
-            // Muscle group filter
-            if (deferredMacro !== 'all' && MUSCLES[subMuscle] !== deferredMacro) return;
-            if (deferredSubgroup !== 'all' && subMuscle !== deferredSubgroup) return;
-            const macro = MUSCLES[subMuscle] || 'Other';
-            let metricValue = 0;
-            if (muscleMetric === 'effective') {
-              metricValue = s.effectiveReps || 0;
-            } else if (muscleMetric === 'volume') {
-              metricValue = s.totalReps !== undefined ? s.totalReps : (s.base_reps + (s.assisted_reps || 0) * 0.5 + (s.partial_reps || 0) * 0.33);
-            } else if (muscleMetric === 'sets') {
-              metricValue = 1.0;
-            }
-            const distrVal = typeof distr === 'number' ? distr : (distr?.magnitude || 0);
-            const vol = metricValue * distrVal;
-            if (!distributions[macro]) distributions[macro] = { total: 0, subMuscles: {} };
-            distributions[macro].total += vol;
-            if (!distributions[macro].subMuscles[subMuscle]) distributions[macro].subMuscles[subMuscle] = 0;
-            distributions[macro].subMuscles[subMuscle] += vol;
-          });
-        });
-      });
-    });
-    const div = Math.max(1, weekDivisor);
-    return Object.entries(distributions).map(([macro, data]) => ({
-      name: macro,
-      value: parseFloat((data.total / div).toFixed(1)),
-      subMuscles: Object.entries(data.subMuscles).map(([sub, val]) => ({
-        name: sub,
-        value: parseFloat((val / div).toFixed(1))
-      })).sort((a,b) => b.value - a.value)
-    })).sort((a,b) => b.value - a.value);
-  }, [activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric]);
-
   const lastFullWeekA = activeWeeksList.length > 0 ? activeWeeksList[activeWeeksList.length - 1] : null;
   const lastFullWeekB = compareActiveWeeksList.length > 0 ? compareActiveWeeksList[compareActiveWeeksList.length - 1] : null;
 
   const muscleData = useMemo(
-    () => calculateMuscleDistribution(
+    () => computeMuscleDistribution(
       dashFilteredData,
-      compareMode && lastFullWeekA !== null ? lastFullWeekA : undefined,
-      undefined,
-      1
+      activeWeeksList,
+      deferredMacro,
+      deferredSubgroup,
+      muscleMetric,
+      compareMode && lastFullWeekA !== null ? lastFullWeekA : undefined
     ),
-    [dashFilteredData, calculateMuscleDistribution, compareMode, lastFullWeekA]
+    [dashFilteredData, activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric, compareMode, lastFullWeekA]
   );
   const compareMuscleData = useMemo(
     () => compareMode
-      ? calculateMuscleDistribution(
+      ? computeMuscleDistribution(
           cmpFilteredData,
-          lastFullWeekB !== null ? lastFullWeekB : 'all',
           compareActiveWeeksList,
-          1
+          deferredMacro,
+          deferredSubgroup,
+          muscleMetric,
+          lastFullWeekB !== null ? lastFullWeekB : 'all'
         )
       : [],
-    [compareMode, cmpFilteredData, compareActiveWeeksList, calculateMuscleDistribution, lastFullWeekB]
+    [compareMode, cmpFilteredData, compareActiveWeeksList, deferredMacro, deferredSubgroup, muscleMetric, lastFullWeekB]
   );
 
   const displayMuscleData = useMemo(() => {
@@ -558,54 +704,55 @@ const DashboardTab = ({
 
     const topMusclesSet = new Set(topMuscles);
     const allowedWeeks = new Set(activeWeeksList);
+    const isMacroView = deferredMacro === 'all';
+    const partialCutoffIdx = Math.floor(resolution * 0.3333);
 
     dashFilteredData.forEach(wEx => {
       const ex = wEx.exercise_obj;
       if (!ex) return;
 
+      // Accumulate base & partial totals across all allowed weeks/sets once per exercise
+      let sumBase = 0;
+      let sumPartial = 0;
       wEx.weeks.forEach(wData => {
         if (!allowedWeeks.has(wData.week_num)) return;
-        
         wData.sets.forEach(s => {
-          Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
-            const macro = MUSCLES[subMuscle] || 'Other';
-            const isMacroView = deferredMacro === 'all';
-            const targetMuscle = isMacroView ? macro : subMuscle;
-            
-            if (topMusclesSet.has(targetMuscle)) {
-              let baseMetricValue = 0;
-              let partialMetricValue = 0;
-              
-              if (muscleMetric === 'effective') {
-                const rpe = s.rpe !== undefined ? s.rpe : 9.0;
-                const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
-                baseMetricValue = effBase + (s.assisted_reps || 0) * 0.5;
-                partialMetricValue = (s.partial_reps || 0) * 0.33;
-              } else if (muscleMetric === 'volume') {
-                baseMetricValue = (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
-                partialMetricValue = (s.partial_reps || 0) * 0.33;
-              } else if (muscleMetric === 'sets') {
-                baseMetricValue = 1.0;
-                partialMetricValue = 0;
-              }
-              
-              const cacheKey = typeof distr === 'object'
-                ? `${ex.name}_${subMuscle}_${distr.x0}_${distr.y0}_${distr.x1}_${distr.y1}_${distr.x2}_${distr.y2}_${distr.x3}_${distr.y3}_${distr.magnitude}`
-                : `${ex.name}_${subMuscle}_${distr}`;
-              let normCurve = normalizedCurveCache.get(cacheKey);
-              if (!normCurve) {
-                normCurve = getNormalizedCurve(distr);
-                normalizedCurveCache.set(cacheKey, normCurve);
-              }
-              
-              for (let i = 0; i <= resolution; i++) {
-                const x = i / resolution;
-                const activeMetricValue = x <= 0.3333 ? (baseMetricValue + partialMetricValue) : baseMetricValue;
-                data[i][targetMuscle] += normCurve[i] * activeMetricValue;
-              }
-            }
-          });
+          if (muscleMetric === 'effective') {
+            const rpe = s.rpe !== undefined ? s.rpe : 9.0;
+            const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
+            sumBase += effBase + (s.assisted_reps || 0) * 0.5;
+            sumPartial += (s.partial_reps || 0) * 0.33;
+          } else if (muscleMetric === 'volume') {
+            sumBase += (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
+            sumPartial += (s.partial_reps || 0) * 0.33;
+          } else if (muscleMetric === 'sets') {
+            sumBase += 1.0;
+          }
         });
+      });
+
+      if (sumBase === 0 && sumPartial === 0) return;
+
+      Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
+        const targetMuscle = isMacroView ? (MUSCLES[subMuscle] || 'Other') : subMuscle;
+        if (!topMusclesSet.has(targetMuscle)) return;
+
+        const cacheKey = typeof distr === 'object'
+          ? `${ex.name}_${subMuscle}_${distr.x0}_${distr.y0}_${distr.x1}_${distr.y1}_${distr.x2}_${distr.y2}_${distr.x3}_${distr.y3}_${distr.magnitude}`
+          : `${ex.name}_${subMuscle}_${distr}`;
+        let normCurve = normalizedCurveCache.get(cacheKey);
+        if (!normCurve) {
+          normCurve = getNormalizedCurve(distr);
+          normalizedCurveCache.set(cacheKey, normCurve);
+        }
+
+        const totalWithPartial = sumBase + sumPartial;
+        for (let i = 0; i <= partialCutoffIdx; i++) {
+          data[i][targetMuscle] += normCurve[i] * totalWithPartial;
+        }
+        for (let i = partialCutoffIdx + 1; i <= resolution; i++) {
+          data[i][targetMuscle] += normCurve[i] * sumBase;
+        }
       });
     });
 
@@ -661,6 +808,25 @@ const DashboardTab = ({
     totalEffectiveReps, totalTut, totalEffectiveTut, totalSets } = mainTotals;
   const { compareTotalVolume, compareTotalTonnage, compareTotalEffectiveTonnage, compareTotalWeightedTonnage, compareTotalEffectiveWeightedTonnage, compareTotalFatigue,
     compareTotalEffReps, compareTotalTut, compareTotalEffectiveTut, compareTotalSets } = compareTotals;
+
+  const sparkSeriesA = useMemo(() => {
+    const keys = ['Volume', 'EffectiveRepsCustom', 'Tonnage', 'EffectiveTonnage', 'WeightedTonnage', 'EffectiveWeightedTonnage', 'Tut', 'EffectiveTut', 'Sets', 'Fatigue'];
+    const map = {};
+    keys.forEach(k => { map[k] = metricsByWeek.map(m => m[k] || 0); });
+    return map;
+  }, [metricsByWeek]);
+
+  const sparkSeriesB = useMemo(() => {
+    if (!compareMode) return {};
+    const keys = ['Volume', 'EffectiveRepsCustom', 'Tonnage', 'EffectiveTonnage', 'WeightedTonnage', 'EffectiveWeightedTonnage', 'Tut', 'EffectiveTut', 'Sets', 'Fatigue'];
+    const map = {};
+    keys.forEach(k => { map[k] = compareMetricsByWeek.map(m => m[`${k}_B`] || 0); });
+    return map;
+  }, [compareMode, compareMetricsByWeek]);
+
+  const handleOpenTensionDetails = useCallback(() => {
+    setSelectedMetricDetail('tension-profiles');
+  }, [setSelectedMetricDetail]);
 
   // Helper: delta label for compare mode
   const delta = (a, b) => {
@@ -1014,8 +1180,8 @@ const DashboardTab = ({
                           ['Volume', 'sets', 'Sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
                           ['Accumulated Fatigue', 'fatigue', 'Fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
                         ].map(([label, cls, metricKey, valA, valB, d]) => {
-                          const valsA = metricsByWeek.map(m => m[metricKey] || 0);
-                          const valsB = compareMetricsByWeek.map(m => m[`${metricKey}_B`] || 0);
+                          const valsA = sparkSeriesA[metricKey];
+                          const valsB = sparkSeriesB[metricKey];
                           return (
                             <div key={cls} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
                               <span className="metric-label">{label}</span>
@@ -1060,7 +1226,7 @@ const DashboardTab = ({
                         ['Volume', 'sets', 'Sets', 'var(--color-sets)', `${totalSets.toLocaleString()} sets`],
                         ['Accumulated Fatigue', 'fatigue', 'Fatigue', 'var(--color-fatigue)', `${totalFatigue.toLocaleString()}`],
                       ].map(([label, cls, metricKey, color, formattedVal]) => {
-                        const vals = metricsByWeek.map(m => m[metricKey] || 0);
+                        const vals = sparkSeriesA[metricKey];
                         return (
                           <div key={cls} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <span className="metric-label">{label}</span>
@@ -1107,139 +1273,12 @@ const DashboardTab = ({
                     </div>
 
                     {/* Cumulative Tension Curves Chart */}
-                    <div className="chart-container" style={{ gridColumn: '1 / -1' }}>
-                      <div
-                        className="chart-header"
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                        onClick={() => { setSelectedMetricDetail('tension-profiles'); }}
-                      >
-                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
-                          Tension Profiles
-                        </span>
-                        {isMobile && cumulativeCurveData.length > 0 && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                            ROM <strong style={{ color: '#fff', fontWeight: 600 }}>{tensionSliderPos}%</strong>
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ height: isMobile ? '205px' : '290px', width: '100%', marginTop: '8px' }}>
-                        {cumulativeCurveData.length > 0 ? (
-                          <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
-                            <LineChart
-                              data={cumulativeCurveData}
-                              margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
-                              style={isMobile ? { pointerEvents: 'none' } : undefined}
-                            >
-                              <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                              <XAxis
-                                dataKey="rom"
-                                type="number"
-                                domain={[0, 1]}
-                                ticks={[0, 0.25, 0.5, 0.75, 1]}
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                                tickFormatter={(val) => `${Math.round(val * 100)}%`}
-                              />
-                              <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                                width={42}
-                              />
-                              {!isMobile && (
-                                <Tooltip
-                                  contentStyle={{
-                                    backgroundColor: 'var(--bg-glass-active)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: '8px',
-                                    color: 'var(--text-primary)',
-                                    backdropFilter: 'blur(16px)',
-                                    WebkitBackdropFilter: 'blur(16px)',
-                                  }}
-                                  labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
-                                  formatter={(val) => parseFloat(val).toFixed(1)}
-                                />
-                              )}
-                              {isMobile && (
-                                <ReferenceLine
-                                  x={tensionSliderPos / 100}
-                                  stroke="rgba(255,255,255,0.35)"
-                                  strokeWidth={1.5}
-                                  strokeDasharray="3 3"
-                                />
-                              )}
-                              {displayMuscleData.slice(0, 6).map((m, idx) => (
-                                <Line
-                                  key={m.name}
-                                  type="monotone"
-                                  dataKey={m.name}
-                                  name={m.name}
-                                  stroke={TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length]}
-                                  strokeWidth={2}
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  dot={false}
-                                  activeDot={{ r: 4, strokeWidth: 0 }}
-                                  isAnimationActive={false}
-                                />
-                              ))}
-                            </LineChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            No data available for the current selection.
-                          </div>
-                        )}
-                      </div>
-                      {cumulativeCurveData.length > 0 && (
-                        isMobile ? (
-                          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px 18px' }}>
-                              {displayMuscleData.slice(0, 6).map((m, idx) => {
-                                const color = TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length];
-                                const resolution = cumulativeCurveData.length - 1;
-                                const closestIdx = Math.round((tensionSliderPos / 100) * resolution);
-                                const closestPt = cumulativeCurveData[Math.min(closestIdx, resolution)];
-                                const val = closestPt ? (closestPt[m.name] ?? 0) : 0;
-                                return (
-                                  <div
-                                    key={m.name}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      gap: '8px',
-                                      minWidth: 0,
-                                    }}
-                                  >
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-                                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {m.name}
-                                      </span>
-                                    </span>
-                                    <span style={{ fontSize: '0.76rem', color: '#ffffff', fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                                      {val.toFixed(1)}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            <TensionRomSlider value={tensionSliderPos} onChange={setTensionSliderPos} />
-                          </div>
-                        ) : (
-                          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'center' }}>
-                            {displayMuscleData.slice(0, 6).map((m, idx) => (
-                              <span key={m.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length] }} />
-                                {m.name}
-                              </span>
-                            ))}
-                          </div>
-                        )
-                      )}
-                    </div>
+                    <TensionProfilesCard
+                      isMobile={isMobile}
+                      cumulativeCurveData={cumulativeCurveData}
+                      displayMuscleData={displayMuscleData}
+                      onOpenDetails={handleOpenTensionDetails}
+                    />
 
                   </div>
 

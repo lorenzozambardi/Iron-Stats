@@ -614,6 +614,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 8px;
   position: relative;
   overflow: visible;
+  contain: layout style;
   transition: transform var(--transition-fast);
 }
 
@@ -683,6 +684,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  contain: layout style;
 }
 
 .chart-header {
@@ -1471,6 +1473,7 @@ input::-webkit-list-button {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  contain: layout style;
 }
 
 .modal-label {
