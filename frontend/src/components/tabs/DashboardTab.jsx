@@ -841,16 +841,38 @@ const DashboardTab = ({
                   })()}
 
                   {/* Active filter pills */}
-                  {hasAnyFilter && (
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>Filters:</span>
-                      {dashFilterSession !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · S{dashFilterSession}</span>}
-                      {dashWeekRangeLabel && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{currentProgram} · {dashWeekRangeLabel}</span>}
-                      {cmpFilterSession !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · S{cmpFilterSession}</span>}
-                      {cmpWeekRangeLabel && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{compareProgram} · {cmpWeekRangeLabel}</span>}
-                      {dashMuscleMacro !== 'all' && <span style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent-primary)', borderRadius: '100px', padding: '2px 10px', color: 'var(--accent-primary)' }}>{dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro}</span>}
-                    </div>
-                  )}
+                  {hasAnyFilter && (() => {
+                    const pillStyle = {
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '99px',
+                      padding: '3px 10px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      cursor: 'pointer'
+                    };
+                    const pills = [];
+                    if (dashFilterSession !== 'all') pills.push({ key: 'ds', label: compareMode ? `${currentProgram} · S${dashFilterSession}` : `S${dashFilterSession}`, onClear: () => { setDashFilterSession('all'); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); } });
+                    if (dashWeekRangeLabel) pills.push({ key: 'dw', label: compareMode ? `${currentProgram} · ${dashWeekRangeLabel}` : dashWeekRangeLabel, onClear: () => { setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); } });
+                    if (cmpFilterSession !== 'all') pills.push({ key: 'cs', label: `${compareProgram} · S${cmpFilterSession}`, onClear: () => { setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); } });
+                    if (cmpWeekRangeLabel) pills.push({ key: 'cw', label: `${compareProgram} · ${cmpWeekRangeLabel}`, onClear: () => { setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); } });
+                    if (dashMuscleMacro !== 'all') pills.push({ key: 'm', label: dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro, onClear: () => { setDashMuscleMacro('all'); setDashMuscleSubgroup('all'); } });
+                    return (
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginBottom: isMobile ? '8px' : '12px' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Filters</span>
+                        {pills.map(p => (
+                          <button key={p.key} type="button" onClick={p.onClear} style={pillStyle} title="Clear filter">
+                            <span>{p.label}</span>
+                            <span style={{ opacity: 0.55, fontSize: '0.75rem', lineHeight: 1 }}>×</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {/* ── Summary Cards ── */}
                   {compareMode && compareProgram && !compareLoading ? (
