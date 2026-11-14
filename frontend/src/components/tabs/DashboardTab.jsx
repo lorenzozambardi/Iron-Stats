@@ -514,10 +514,10 @@ const DashboardTab = ({
 }) => {
   const [muscleMetric, setMuscleMetric] = useState('sets');
   const [cardModes, setCardModes] = useState({
-    reps: 'total',
-    tonnage: 'total',
-    weightedTonnage: 'total',
-    tut: 'total',
+    reps: 'effective',
+    tonnage: 'effective',
+    weightedTonnage: 'effective',
+    tut: 'effective',
   });
 
   // Dashboard filter state
