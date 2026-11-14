@@ -11,8 +11,8 @@ const normalizedCurveCache = new Map();
 const TENSION_SERIES_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
 const MUSCLE_METRIC_OPTIONS = [
   { value: 'effective', label: 'Eff. Reps' },
-  { value: 'volume', label: 'Reps' },
   { value: 'sets', label: 'Volume' },
+  { value: 'volume', label: 'Reps' },
 ];
 
 /** Pointer-draggable ROM scrubber styled to match DualWeekSlider. */
@@ -438,7 +438,7 @@ const DashboardTab = ({
   selectedMetricDetail,
   setSelectedMetricDetail
 }) => {
-  const [muscleMetric, setMuscleMetric] = useState('effective');
+  const [muscleMetric, setMuscleMetric] = useState('sets');
 
   // Dashboard filter state
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
@@ -1260,9 +1260,9 @@ const DashboardTab = ({
                           options={MUSCLE_METRIC_OPTIONS}
                           value={muscleMetric}
                           onChange={setMuscleMetric}
-                          itemWidth={66}
+                          itemWidth={58}
                           circular={false}
-                          style={{ width: isMobile ? '170px' : '200px', flexShrink: 0 }}
+                          style={{ width: isMobile ? '160px' : '185px', flexShrink: 0 }}
                         />
                       </div>
                       <MuscleDonutChart
