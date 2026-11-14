@@ -1,43 +1,56 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { fuzzyScore } from '../helpers';
+import { fuzzyScoreLower } from '../helpers';
 
 const DatabaseTab = React.memo(({ 
   isMobile, 
-  activeTab, 
+  isActive, 
   activeExercises, 
   handleOpenAddExercise, 
   handleOpenEditExercise, 
-  debouncedLogbookText, 
-  currentProgram,
-  exerciseSearch,
-  setExerciseSearch
+  overrideLinesText, 
+  currentProgram
 }) => {
+  const [exerciseSearch, setExerciseSearch] = useState('');
+
+  // Precompute lowercase names & muscle keys when activeExercises changes
+  const searchIndex = useMemo(() => {
+    return activeExercises.map(ex => ({
+      ex,
+      lowerName: ex.name.toLowerCase(),
+      lowerMuscles: Object.keys(ex.muscles_distr).map(m => m.toLowerCase())
+    }));
+  }, [activeExercises]);
 
   // Filters for exercise DB (fuzzy, always returns best matches)
   const filteredExercises = useMemo(() => {
-    if (!exerciseSearch.trim()) return activeExercises;
-    const lowerSearch = exerciseSearch.toLowerCase();
-    return activeExercises
-      .map(ex => {
-        let maxMuscleMatch = 0;
-        Object.keys(ex.muscles_distr).forEach(m => {
-          maxMuscleMatch = Math.max(maxMuscleMatch, fuzzyScore(lowerSearch, m));
-        });
-        const nameMatch = fuzzyScore(lowerSearch, ex.name);
-        return { ex, score: Math.max(nameMatch, maxMuscleMatch) };
-      })
-      .filter(x => x.score > 0.3)
-      .sort((a, b) => b.score - a.score)
-      .map(x => x.ex);
-  }, [exerciseSearch, activeExercises]);
+    const trimmed = exerciseSearch.trim();
+    if (!trimmed) return activeExercises;
+    const lowerSearch = trimmed.toLowerCase();
+    const matches = [];
+    for (let i = 0; i < searchIndex.length; i++) {
+      const item = searchIndex[i];
+      let bestScore = fuzzyScoreLower(lowerSearch, item.lowerName);
+      for (let j = 0; j < item.lowerMuscles.length; j++) {
+        const mScore = fuzzyScoreLower(lowerSearch, item.lowerMuscles[j]);
+        if (mScore > bestScore) bestScore = mScore;
+      }
+      if (bestScore > 0.3) {
+        matches.push({ ex: item.ex, score: bestScore });
+      }
+    }
+    matches.sort((a, b) => b.score - a.score);
+    return matches.map(m => m.ex);
+  }, [exerciseSearch, activeExercises, searchIndex]);
 
   const overriddenExercisesSet = useMemo(() => {
     const overrides = new Set();
-    const lines = debouncedLogbookText.split('\n');
+    if (!overrideLinesText) return overrides;
+    const lines = overrideLinesText.split('\n');
     for (const line of lines) {
-      if (line.toLowerCase().startsWith('override: ')) {
-        const parts = line.split('|');
+      const trimmed = line.trim();
+      if (trimmed.toLowerCase().startsWith('override: ')) {
+        const parts = trimmed.split('|');
         if (parts.length >= 2) {
           const exName = parts[0].substring(10).trim().toLowerCase();
           overrides.add(exName);
@@ -45,10 +58,10 @@ const DatabaseTab = React.memo(({
       }
     }
     return overrides;
-  }, [debouncedLogbookText]);
+  }, [overrideLinesText]);
 
   return (
-    <div className={`swipe-view ${activeTab === 'db' ? 'active-desktop' : ''}`} id="view-db">
+    <div className={`swipe-view ${isActive ? 'active-desktop' : ''}`} id="view-db">
       {/* Mobile Database Controls (floating inside the swipe view) */}
       {isMobile && (
         <div id="mobile-header-db-controls" style={{ 
@@ -82,7 +95,7 @@ const DatabaseTab = React.memo(({
         </div>
       )}
 
-      {(isMobile || activeTab === 'db') && (
+      {(isMobile || isActive) && (
         <div className="db-tab-workspace">
           {!isMobile && (
             <div className="db-toolbar">

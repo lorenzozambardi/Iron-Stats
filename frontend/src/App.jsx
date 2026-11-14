@@ -15,20 +15,12 @@ import {
   Undo2,
   Redo2,
   Settings,
-  Timer,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Wand2,
-  Check
+  Timer
 } from 'lucide-react';
 import {
   parseLogbook,
   getExercisesWithOverrides
 } from './parser';
-import { lintLogbook, formatLogbook, needsFormatting } from './linter';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 import { App as CapacitorApp } from '@capacitor/app';
 
@@ -39,6 +31,7 @@ import DashboardTab from './components/tabs/DashboardTab';
 import StopwatchTab from './components/tabs/StopwatchTab';
 import EasyEditor from './components/EasyEditor';
 import FoldableEditor from './components/FoldableEditor';
+import { formatLogbookSpaces } from './formatLogbook';
 import { SettingsPanel } from './components/SettingsPanel';
 const ExerciseModal = lazy(() => import('./components/ExerciseModal').then(m => ({ default: m.ExerciseModal })));
 
@@ -88,17 +81,13 @@ const SEC_PALETTES = [
   { id: 'black', color: '#000000', glass: 'rgba(0, 0, 0, 0.6)', glassActive: 'rgba(0, 0, 0, 0.85)', label: 'Pure Black' },
   { id: 'darkest', color: '#090909', glass: 'rgba(9, 9, 9, 0.6)', glassActive: 'rgba(9, 9, 9, 0.85)', label: 'Darkest' },
   { id: 'dark', color: '#181818', glass: 'rgba(24, 24, 24, 0.6)', glassActive: 'rgba(24, 24, 24, 0.85)', label: 'Dark' },
-  { id: 'zinc', color: '#272727', glass: 'rgba(39, 39, 39, 0.6)', glassActive: 'rgba(39, 39, 39, 0.85)', label: 'Zinc' },
-  { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' }
+  { id: 'slate', color: '#1e1e1e', glass: 'rgba(30, 30, 30, 0.6)', glassActive: 'rgba(30, 30, 30, 0.85)', label: 'Slate' },
+  { id: 'zinc', color: '#272727', glass: 'rgba(39, 39, 39, 0.6)', glassActive: 'rgba(39, 39, 39, 0.85)', label: 'Zinc' }
 ];
 
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
-  const logbookTextRef = useRef('');
-  useEffect(() => {
-    logbookTextRef.current = logbookText;
-  }, [logbookText]);
   const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
   const [exercisesDb, setExercisesDb] = useState([]);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
@@ -106,13 +95,9 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [showDesktopSettings, setShowDesktopSettings] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState('');
   const [muscleSearch, setMuscleSearch] = useState('');
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const [editorType, setEditorType] = useState(() => localStorage.getItem('editor-type') || 'manual');
-  const [showLintPanel, setShowLintPanel] = useState(false);
-  const [lintFilter, setLintFilter] = useState('all');
-  const foldableEditorRef = useRef(null);
 
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
@@ -273,7 +258,7 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedLogbookText(logbookText);
-    }, 250);
+    }, 500);
     return () => clearTimeout(timer);
   }, [logbookText]);
 
@@ -437,20 +422,11 @@ export default function App() {
   }, []);
 
 
-  // Storage folder settings (mobile)
-  const [showStorageSettings, setShowStorageSettings] = useState(false);
-  const [isStorageClosing, setIsStorageClosing] = useState(false);
+  // Ref to control SettingsPanel's local storage drawer without re-rendering App
+  const storageDrawerRef = useRef({ isOpen: false, close: null });
 
-  const toggleStorageSettings = () => {
-    if (showStorageSettings) {
-      setIsStorageClosing(true);
-      setTimeout(() => {
-        setShowStorageSettings(false);
-        setIsStorageClosing(false);
-      }, 250);
-    } else {
-      setShowStorageSettings(true);
-    }
+  const resetStorageDrawer = () => {
+    storageDrawerRef.current.close?.();
   };
   const initCfg = getStorageConfig();
   const [pendingDirType, setPendingDirType] = useState(initCfg.dirType);
@@ -509,45 +485,20 @@ export default function App() {
     };
   }, [activeTab, updateNavbarHighlight]);
 
+  const overrideLinesText = useMemo(() => {
+    if (!debouncedLogbookText || !debouncedLogbookText.toLowerCase().includes('override:')) return '';
+    return debouncedLogbookText
+      .split('\n')
+      .filter(l => l.trim().toLowerCase().startsWith('override:'))
+      .join('\n');
+  }, [debouncedLogbookText]);
+
   const activeExercises = useMemo(() => {
-    return getExercisesWithOverrides(debouncedLogbookText, exercisesDb);
-  }, [debouncedLogbookText, exercisesDb]);
+    return getExercisesWithOverrides(overrideLinesText, exercisesDb);
+  }, [overrideLinesText, exercisesDb]);
 
   // Programs State
   const [currentProgram, setCurrentProgram] = useState(() => localStorage.getItem('lastSelectedProgram') || 'S1M3');
-  const [dismissedByProgram, setDismissedByProgram] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('iron-stats-dismissed-map') || '{}');
-    } catch {
-      return {};
-    }
-  });
-
-  const dismissedFingerprints = useMemo(() => {
-    const list = dismissedByProgram[currentProgram];
-    return Array.isArray(list) ? list : [];
-  }, [dismissedByProgram, currentProgram]);
-
-  const handleDismissDiagnostic = useCallback((diag) => {
-    if (!diag?.fingerprint) return;
-    setDismissedByProgram(prev => {
-      const current = Array.isArray(prev[currentProgram]) ? prev[currentProgram] : [];
-      if (current.includes(diag.fingerprint)) return prev;
-      const next = { ...prev, [currentProgram]: [...current, diag.fingerprint] };
-      localStorage.setItem('iron-stats-dismissed-map', JSON.stringify(next));
-      return next;
-    });
-  }, [currentProgram]);
-
-  const handleClearDismissed = useCallback(() => {
-    setDismissedByProgram(prev => {
-      if (!prev[currentProgram]) return prev;
-      const next = { ...prev };
-      delete next[currentProgram];
-      localStorage.setItem('iron-stats-dismissed-map', JSON.stringify(next));
-      return next;
-    });
-  }, [currentProgram]);
   const [programs, setPrograms] = useState(['S1M3']);
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
@@ -585,7 +536,6 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState('saved'); // 'saved', 'syncing', 'error'
   const [syncError, setSyncError] = useState('');
   const saveTimeoutRef = useRef(null); // useRef instead of useState to avoid re-render on debounce
-  const typingSyncTimeoutRef = useRef(null);
 
   useEffect(() => {
     let backListener;
@@ -593,8 +543,11 @@ export default function App() {
       if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
       else if (showNewProgramModal) setShowNewProgramModal(false);
       else if (showExerciseModal) setShowExerciseModal(false);
-      else if (showMobileSettings) setShowMobileSettings(false);
-      else if (showStorageSettings) setShowStorageSettings(false);
+      else if (storageDrawerRef.current.isOpen) resetStorageDrawer();
+      else if (showMobileSettings) {
+        setShowMobileSettings(false);
+        resetStorageDrawer();
+      }
       else if (canGoBack) window.history.back();
       else CapacitorApp.exitApp();
     }).then(listener => {
@@ -604,7 +557,7 @@ export default function App() {
     return () => {
       if (backListener) backListener.remove();
     };
-  }, [selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings, showStorageSettings]);
+  }, [selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
 
   // Load initial data
   useEffect(() => {
@@ -658,39 +611,6 @@ export default function App() {
     }
     return [];
   }, [debouncedLogbookText, exercisesDb]);
-
-  const rawDiagnostics = useMemo(() => {
-    if (activeTab !== 'editor' || !debouncedLogbookText || exercisesDb.length === 0) return [];
-    return lintLogbook(debouncedLogbookText, exercisesDb, workoutData, activeExercises);
-  }, [activeTab, debouncedLogbookText, exercisesDb, workoutData, activeExercises]);
-
-  const dismissedSet = useMemo(() => new Set(dismissedFingerprints), [dismissedFingerprints]);
-
-  const diagnostics = useMemo(() => {
-    return rawDiagnostics.filter(d => !dismissedSet.has(d.fingerprint));
-  }, [rawDiagnostics, dismissedSet]);
-
-  const bypassedCount = rawDiagnostics.length - diagnostics.length;
-
-  const hasFormattingIssues = useMemo(() => {
-    if (activeTab !== 'editor') return false;
-    return needsFormatting(debouncedLogbookText);
-  }, [activeTab, debouncedLogbookText]);
-
-  const lintCounts = useMemo(() => {
-    let errors = 0, warnings = 0, infos = 0;
-    for (const d of diagnostics) {
-      if (d.severity === 'error') errors++;
-      else if (d.severity === 'warning') warnings++;
-      else infos++;
-    }
-    return { errors, warnings, infos, total: diagnostics.length };
-  }, [diagnostics]);
-
-  const filteredDiagnostics = useMemo(() => {
-    if (lintFilter === 'all') return diagnostics;
-    return diagnostics.filter(d => d.category === lintFilter);
-  }, [diagnostics, lintFilter]);
 
   // Cursor Tracking State for scroll sync
   const [activeCursorLine, setActiveCursorLine] = useState(null);
@@ -797,7 +717,7 @@ export default function App() {
   };
 
   // Exercise CRUD Actions
-  const handleOpenAddExercise = () => {
+  const handleOpenAddExercise = useCallback(() => {
     setEditingExercise(null);
     setEditingOriginalName('');
     setExerciseForm({
@@ -811,9 +731,9 @@ export default function App() {
     });
     setExerciseError('');
     setShowExerciseModal(true);
-  };
+  }, []);
 
-  const handleOpenEditExercise = (ex) => {
+  const handleOpenEditExercise = useCallback((ex) => {
     setEditingExercise(ex);
     setEditingOriginalName(ex.name);
     setExerciseForm({
@@ -838,7 +758,7 @@ export default function App() {
     });
     setExerciseError('');
     setShowExerciseModal(true);
-  };
+  }, []);
 
   const buildValidatedExercise = (name) => {
     const fatigue = parseFloat(exerciseForm.fatigue);
@@ -1094,12 +1014,10 @@ export default function App() {
 
   // Handle manual / debounced auto-saving to [program].md
   const saveLogbookContent = (newText, progName = currentProgram) => {
-    const formattedText = formatLogbook(newText);
-    if (formattedText !== newText && logbookTextRef.current === newText) {
+    const formattedText = formatLogbookSpaces(newText);
+    if (formattedText !== newText && progName === currentProgram) {
       setLogbookText(formattedText);
-      setDebouncedLogbookText(formattedText);
     }
-
     setSyncStatus('syncing');
     fetch(`/api/logbook?program=${progName}`, {
       method: 'POST',
@@ -1120,26 +1038,11 @@ export default function App() {
       });
   };
 
-  const handleFormatLogbook = () => {
-    const currentText = logbookTextRef.current;
-    const formatted = formatLogbook(currentText);
-    if (formatted !== currentText) {
-      logbookTextRef.current = formatted;
-      setLogbookText(formatted);
-      setDebouncedLogbookText(formatted);
-      setSyncStatus('syncing');
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = setTimeout(() => {
-        saveLogbookContent(formatted, currentProgram);
-      }, 1500);
-    }
-  };
-
   return (
     <div className="app-container">
       {/* Header */}
       <header className="app-header">
-        <button className="mobile-burger-btn" style={{ pointerEvents: 'auto' }} onClick={() => setShowMobileSettings(true)}>
+        <button className="mobile-burger-btn" style={{ pointerEvents: 'auto' }} onClick={() => { resetStorageDrawer(); setShowMobileSettings(true); }}>
           <Settings size={22} color="var(--text-primary)" strokeWidth={1.5} />
         </button>
 
@@ -1149,7 +1052,7 @@ export default function App() {
 
         {/* Tab Selection */}
         <div className={`tab-nav ${showMobileSettings ? 'mobile-open' : ''}`} ref={tabNavRef}>
-          <button className="mobile-close-btn" onClick={() => setShowMobileSettings(false)}>×</button>
+          <button className="mobile-close-btn" onClick={() => { setShowMobileSettings(false); resetStorageDrawer(); }}>×</button>
           <div 
             className="tab-nav-highlight" 
             style={{
@@ -1229,9 +1132,7 @@ export default function App() {
                 programs={programs}
                 setShowNewProgramModal={setShowNewProgramModal}
                 syncStatus={syncStatus}
-                showStorageSettings={showStorageSettings}
-                toggleStorageSettings={toggleStorageSettings}
-                isStorageClosing={isStorageClosing}
+                storageDrawerRef={storageDrawerRef}
                 getStorageConfig={getStorageConfig}
                 handlePickFolder={handlePickFolder}
                 storagePickError={storagePickError}
@@ -1283,7 +1184,10 @@ export default function App() {
 
           <button 
             className="tab-btn settings-desktop-btn" 
-            onClick={() => setShowDesktopSettings(!showDesktopSettings)}
+            onClick={() => {
+              setShowDesktopSettings(!showDesktopSettings);
+              resetStorageDrawer();
+            }}
             title="Settings"
             style={{ marginLeft: '8px', padding: '6px', background: showDesktopSettings ? 'rgba(255, 255, 255, 0.03)' : '' }}
           >
@@ -1296,8 +1200,7 @@ export default function App() {
               top: '100%',
               right: 0,
               marginTop: '12px',
-              background: 'var(--bg-glass)',
-              backdropFilter: 'blur(20px)',
+              background: 'var(--bg-secondary, #121212)',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--card-radius)',
               padding: '20px',
@@ -1326,9 +1229,7 @@ export default function App() {
                 setSecPalette={setSecPalette}
                 SEC_PALETTES={SEC_PALETTES}
                 showProgramSelector={false}
-                showStorageSettings={showStorageSettings}
-                toggleStorageSettings={toggleStorageSettings}
-                isStorageClosing={isStorageClosing}
+                storageDrawerRef={storageDrawerRef}
                 getStorageConfig={getStorageConfig}
                 handlePickFolder={handlePickFolder}
                 storagePickError={storagePickError}
@@ -1451,122 +1352,11 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="editor-actions">
-                {editorType !== 'easy' && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleFormatLogbook}
-                    disabled={!hasFormattingIssues}
-                    style={{ opacity: hasFormattingIssues ? 1 : 0.45 }}
-                    title="Uniform spacing across all lines"
-                  >
-                    <Wand2 size={14} /> Format
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`lint-status-pill ${lintCounts.errors > 0 ? 'has-errors' : lintCounts.warnings > 0 ? 'has-warnings' : 'is-clean'} ${showLintPanel ? 'open' : ''}`}
-                  onClick={() => setShowLintPanel(prev => !prev)}
-                  title="Toggle Linter & Anomaly Checker"
-                >
-                  {lintCounts.errors > 0 ? (
-                    <AlertCircle size={14} />
-                  ) : lintCounts.warnings > 0 ? (
-                    <AlertTriangle size={14} />
-                  ) : (
-                    <CheckCircle2 size={14} />
-                  )}
-                  <span>
-                    {lintCounts.total === 0
-                      ? 'No issues'
-                      : [
-                          lintCounts.errors > 0 ? `${lintCounts.errors} err` : null,
-                          lintCounts.warnings > 0 ? `${lintCounts.warnings} warn` : null,
-                          lintCounts.infos > 0 ? `${lintCounts.infos} info` : null
-                        ].filter(Boolean).join(' · ')}
-                  </span>
-                  {showLintPanel ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                </button>
-                <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookTextRef.current)}>
+                <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookText)}>
                   <Save size={14} /> Save Now
                 </button>
               </div>
             </div>
-
-            {showLintPanel && (
-              <div className="lint-drawer">
-                <div className="lint-drawer-header">
-                  <div className="lint-filter-tabs">
-                    <button
-                      type="button"
-                      className={`lint-filter-btn ${lintFilter === 'all' ? 'active' : ''}`}
-                      onClick={() => setLintFilter('all')}
-                    >
-                      All ({diagnostics.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`lint-filter-btn ${lintFilter === 'syntax' ? 'active' : ''}`}
-                      onClick={() => setLintFilter('syntax')}
-                    >
-                      Syntax ({diagnostics.filter(d => d.category === 'syntax').length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`lint-filter-btn ${lintFilter === 'anomaly' ? 'active' : ''}`}
-                      onClick={() => setLintFilter('anomaly')}
-                    >
-                      Anomalies ({diagnostics.filter(d => d.category === 'anomaly').length})
-                    </button>
-                  </div>
-                  {bypassedCount > 0 && (
-                    <button
-                      type="button"
-                      className="lint-restore-btn"
-                      onClick={handleClearDismissed}
-                      title="Restore bypassed anomalies"
-                    >
-                      Restore {bypassedCount} bypassed
-                    </button>
-                  )}
-                </div>
-                <div className="lint-drawer-list">
-                  {filteredDiagnostics.length === 0 ? (
-                    <div className="lint-empty-state">No issues in this category.</div>
-                  ) : (
-                    filteredDiagnostics.map((d, idx) => (
-                      <div key={`${d.id}-${d.lineIndex}-${idx}`} className={`lint-item severity-${d.severity}`}>
-                        <button
-                          type="button"
-                          className="lint-item-main"
-                          onClick={() => {
-                            if (editorMode === 'preview') setEditorMode('split');
-                            setTimeout(() => {
-                              foldableEditorRef.current?.scrollToLine(d.lineIndex);
-                            }, 0);
-                          }}
-                        >
-                          <span className="lint-item-icon">
-                            {d.severity === 'error' ? <AlertCircle size={13} /> : d.severity === 'warning' ? <AlertTriangle size={13} /> : <Info size={13} />}
-                          </span>
-                          <span className="lint-item-line">L{d.lineIndex + 1}</span>
-                          <span className="lint-item-msg">{d.message}</span>
-                          <span className={`lint-item-cat cat-${d.category}`}>{d.category}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="lint-bypass-btn"
-                          onClick={() => handleDismissDiagnostic(d)}
-                          title="Mark as OK (bypass)"
-                        >
-                          <Check size={12} /> OK
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Split / Main Editor container */}
             <div className={`editor-split-container mode-${editorMode}`}>
@@ -1586,24 +1376,16 @@ export default function App() {
                       />
                     ) : (
                       <FoldableEditor
-                        ref={foldableEditorRef}
                         value={logbookText}
                         onChange={(newText) => {
-                          logbookTextRef.current = newText;
-                          setSyncStatus(prev => (prev === 'syncing' ? prev : 'syncing'));
-                          if (typingSyncTimeoutRef.current) clearTimeout(typingSyncTimeoutRef.current);
-                          typingSyncTimeoutRef.current = setTimeout(() => {
-                            setLogbookText(newText);
-                            setDebouncedLogbookText(newText);
-                          }, 300);
+                          setLogbookText(newText);
+                          setSyncStatus('syncing');
                           if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                           saveTimeoutRef.current = setTimeout(() => {
                             saveLogbookContent(newText, currentProgram);
                           }, 1500);
                         }}
                         exercisesDb={activeExercises}
-                        diagnostics={diagnostics}
-                        onDismissDiagnostic={handleDismissDiagnostic}
                         onCursorLineChange={!isMobile && (editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
                       />
                     )}
@@ -1620,7 +1402,6 @@ export default function App() {
                       activeExerciseStartLine={activeExerciseStartLine}
                       activeWeekLineIndex={activeWeekLineIndex}
                       editorMode={editorMode}
-                      diagnostics={diagnostics}
                     />
                   </div>
                 </div>
@@ -1646,14 +1427,12 @@ export default function App() {
         {/* TAB CONTENT: EXERCISE DATABASE */}
         <DatabaseTab
           isMobile={isMobile}
-          activeTab={activeTab}
+          isActive={activeTab === 'db'}
           activeExercises={activeExercises}
           handleOpenAddExercise={handleOpenAddExercise}
           handleOpenEditExercise={handleOpenEditExercise}
-          debouncedLogbookText={debouncedLogbookText}
+          overrideLinesText={overrideLinesText}
           currentProgram={currentProgram}
-          exerciseSearch={exerciseSearch}
-          setExerciseSearch={setExerciseSearch}
         />
         {/* TAB CONTENT: GENERATOR */}
         <div className={`swipe-view ${activeTab === 'generator' ? 'active-desktop' : ''}`} id="view-generator">

@@ -833,6 +833,8 @@ h1, h2, h3, h4, h5, h6 {
   gap: 8px;
   min-width: 0;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
 }
 
 @media (hover: hover) and (pointer: fine) {

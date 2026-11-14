@@ -181,18 +181,21 @@ export const groupSets = (sets) => {
 
 // A beautiful custom rendered live preview of the parsed logbook contents
 
-export const fuzzyScore = (needle, haystack) => {
-  if (!needle) return 1;
-  const n = needle.toLowerCase();
-  const h = haystack.toLowerCase();
+export const fuzzyScoreLower = (lowerNeedle, lowerHaystack) => {
+  if (!lowerNeedle) return 1;
   let ni = 0, score = 0, lastMatch = -1;
-  for (let hi = 0; hi < h.length && ni < n.length; hi++) {
-    if (h[hi] === n[ni]) {
+  for (let hi = 0; hi < lowerHaystack.length && ni < lowerNeedle.length; hi++) {
+    if (lowerHaystack[hi] === lowerNeedle[ni]) {
       score += 10 - Math.min(hi - lastMatch - 1, 9); // bonus for consecutive
       lastMatch = hi;
       ni++;
     }
   }
-  if (ni < n.length) return -1; // not a match
+  if (ni < lowerNeedle.length) return -1; // not a match
   return score;
+};
+
+export const fuzzyScore = (needle, haystack) => {
+  if (!needle) return 1;
+  return fuzzyScoreLower(needle.toLowerCase(), haystack.toLowerCase());
 };
