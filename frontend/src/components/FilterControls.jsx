@@ -244,6 +244,10 @@ export const DualWeekSlider = ({
     const clickIdx = idxFromClientX(e.clientX);
 
     let activeThumb = thumbAttr;
+    if (fromIdx === toIdx) {
+      if (toIdx === maxIdx) activeThumb = 'from';
+      else if (fromIdx === 0) activeThumb = 'to';
+    }
     if (!activeThumb) {
       const distFrom = Math.abs(clickIdx - fromIdx);
       const distTo = Math.abs(clickIdx - toIdx);
@@ -301,6 +305,7 @@ export const DualWeekSlider = ({
   if (weeks.length === 0) return null;
 
   const isAll = fromVal === 'all' && toVal === 'all';
+  const prioritizeFrom = fromIdx === toIdx && toIdx === maxIdx;
   const leftPct = maxIdx > 0 ? (fromIdx / maxIdx) * 100 : 0;
   const rightPct = maxIdx > 0 ? (toIdx / maxIdx) * 100 : 100;
   const rangeText = weeks.length === 1
@@ -377,7 +382,7 @@ export const DualWeekSlider = ({
                 boxShadow: '0 1px 6px rgba(0,0,0,0.6)',
                 transform: 'translateX(-50%)',
                 transition: draggingThumb === 'from' ? 'none' : 'left 100ms ease, width 100ms ease, height 100ms ease',
-                zIndex: draggingThumb === 'from' ? 4 : 3,
+                zIndex: draggingThumb === 'from' ? 5 : (prioritizeFrom ? 4 : 3),
                 cursor: 'grab'
               }}
             />
@@ -397,7 +402,7 @@ export const DualWeekSlider = ({
                 boxShadow: '0 1px 6px rgba(0,0,0,0.6)',
                 transform: 'translateX(-50%)',
                 transition: draggingThumb === 'to' ? 'none' : 'left 100ms ease, width 100ms ease, height 100ms ease',
-                zIndex: draggingThumb === 'to' ? 4 : 3,
+                zIndex: draggingThumb === 'to' ? 5 : (prioritizeFrom ? 2 : 3),
                 cursor: 'grab'
               }}
             />
