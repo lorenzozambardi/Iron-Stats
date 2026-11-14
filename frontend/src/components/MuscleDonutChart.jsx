@@ -113,10 +113,10 @@ const SingleDonut = ({
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
-  const cx = 230;
-  const cy = 175;
-  const rIn = 55;
-  const rOut = 103;
+  const cx = 195;
+  const cy = 152;
+  const rIn = 58;
+  const rOut = 112;
 
   const { slices, total } = useMemo(() => {
     const valid = (data || []).filter((d) => d.value > 0);
@@ -145,7 +145,7 @@ const SingleDonut = ({
 
       const rMid = (rIn + rOut) / 2;
       const innerPos = polarToCartesian(cx, cy, rMid, midAngle);
-      const outerPos = polarToCartesian(cx, cy, rOut + 17, midAngle);
+      const outerPos = polarToCartesian(cx, cy, rOut + 15, midAngle);
       const cos = Math.cos(midAngle);
 
       let textAnchor = 'start';
@@ -215,10 +215,10 @@ const SingleDonut = ({
         </div>
       )}
       <svg
-        viewBox="0 0 460 350"
+        viewBox="0 0 390 304"
         style={{
           width: '100%',
-          maxWidth: compact ? (isMobile ? '340px' : '380px') : (isMobile ? '360px' : '460px'),
+          maxWidth: compact ? (isMobile ? '340px' : '380px') : (isMobile ? '360px' : '440px'),
           height: 'auto',
           overflow: 'visible',
           userSelect: 'none',
