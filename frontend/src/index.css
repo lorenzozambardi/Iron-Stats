@@ -270,7 +270,6 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
   transition: border-color var(--transition-normal);
 }
 
@@ -607,7 +606,6 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--card-radius);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  box-shadow: var(--nav-shadow);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -677,7 +675,6 @@ h1, h2, h3, h4, h5, h6 {
   background: rgba(255, 255, 255, 0.01);
   border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  box-shadow: var(--nav-shadow);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -753,7 +750,6 @@ h1, h2, h3, h4, h5, h6 {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  box-shadow: var(--nav-shadow);
   padding: 18px;
   transition: background-color , color , border-color , opacity , transform , box-shadow ;
   display: flex;
@@ -863,7 +859,6 @@ input::-webkit-list-button {
   background: rgba(255, 255, 255, 0.01);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  box-shadow: var(--nav-shadow);
 }
 
 .select-control {
