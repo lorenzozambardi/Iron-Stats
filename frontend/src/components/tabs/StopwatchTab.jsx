@@ -514,7 +514,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              padding: '6px 6px 6px 14px',
+              padding: '4px 4px 4px 14px',
               borderRadius: '99px',
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid var(--border-color)',
@@ -536,7 +536,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
             >
               {formatSessionTime(sessionTime)}
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               <button
                 className={isSessionRunning ? 'btn' : 'btn btn-primary'}
                 onClick={handleSessionStartStop}
