@@ -915,7 +915,7 @@ const DashboardTab = ({
                               options={sessionWheelOptions}
                               value={dashFilterSession}
                               onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                              itemWidth={64}
+                              itemWidth={38}
                             />
                             <DualWeekSlider
                               label="Weeks"
@@ -940,7 +940,7 @@ const DashboardTab = ({
                               options={cmpSessionWheelOptions}
                               value={cmpFilterSession}
                               onChange={val => { setCmpFilterSession(val); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
-                              itemWidth={64}
+                              itemWidth={38}
                             />
                             <DualWeekSlider
                               label="Weeks"
@@ -960,7 +960,7 @@ const DashboardTab = ({
                             options={macroWheelOptions}
                             value={dashMuscleMacro}
                             onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
-                            itemWidth={88}
+                            itemWidth={62}
                           />
                           {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
                             <LockWheelPicker
@@ -968,7 +968,7 @@ const DashboardTab = ({
                               options={subWheelOptions}
                               value={dashMuscleSubgroup}
                               onChange={val => setDashMuscleSubgroup(val)}
-                              itemWidth={104}
+                              itemWidth={78}
                             />
                           )}
                         </div>
@@ -981,14 +981,14 @@ const DashboardTab = ({
                           options={sessionWheelOptions}
                           value={dashFilterSession}
                           onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                          itemWidth={64}
+                          itemWidth={38}
                         />
                         <LockWheelPicker
                           label="Muscle Group"
                           options={macroWheelOptions}
                           value={dashMuscleMacro}
                           onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
-                          itemWidth={88}
+                          itemWidth={62}
                         />
                         {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
                           <LockWheelPicker
@@ -996,7 +996,7 @@ const DashboardTab = ({
                             options={subWheelOptions}
                             value={dashMuscleSubgroup}
                             onChange={val => setDashMuscleSubgroup(val)}
-                            itemWidth={104}
+                            itemWidth={78}
                           />
                         )}
                         <DualWeekSlider

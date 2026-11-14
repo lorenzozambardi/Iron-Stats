@@ -56,7 +56,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
       e.stopPropagation();
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       wheelAccum += delta;
-      if (Math.abs(wheelAccum) >= 22) {
+      if (Math.abs(wheelAccum) >= 70) {
         const dir = wheelAccum > 0 ? 1 : -1;
         wheelAccum = 0;
         commitStep(Math.round(virtualRef.current) + dir);
@@ -78,11 +78,13 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
     setIsDragging(true);
   };
 
+  const dragStepPx = Math.max(56, itemWidth * 1.35);
+
   const handlePointerMove = (e) => {
     if (!dragRef.current.active) return;
     const dx = e.clientX - dragRef.current.startX;
-    if (Math.abs(dx) > 3) dragRef.current.moved = true;
-    const nextV = dragRef.current.startVirtual - dx / itemWidth;
+    if (Math.abs(dx) > 4) dragRef.current.moved = true;
+    const nextV = dragRef.current.startVirtual - dx / dragStepPx;
     virtualRef.current = nextV;
     setVirtualIdx(nextV);
   };
@@ -103,7 +105,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
 
   const baseCenter = Math.round(virtualIdx);
   const fracOffset = virtualIdx - baseCenter;
-  const offsets = count === 1 ? [0] : [-2, -1, 0, 1, 2];
+  const offsets = count === 1 ? [0] : [-3, -2, -1, 0, 1, 2, 3];
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
