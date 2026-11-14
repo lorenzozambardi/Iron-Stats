@@ -4,6 +4,7 @@ import { Info } from 'lucide-react';
 import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 import { renderMetricTooltip } from '../Tooltips';
+import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
 
 const CURVE_RESOLUTION = 50;
@@ -1201,58 +1202,14 @@ const DashboardTab = ({
                           <option value="sets">Volume</option>
                         </select>
                       </div>
-                      <div className="muscle-list">
-                        {displayMuscleData.map((m, idx) => {
-                          const allData = compareMode && displayCompareMuscleData.length > 0
-                            ? [...displayMuscleData, ...displayCompareMuscleData]
-                            : displayMuscleData;
-                          const maxVal = Math.max(...allData.map(item => item.value), 1);
-                          const pct = (m.value / maxVal) * 100;
-                          const colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
-                          const barColor = colors[idx % colors.length];
-                          const compareEntry = compareMode ? displayCompareMuscleData.find(c => c.name === m.name) : null;
-                          const comparePct = compareEntry ? (compareEntry.value / maxVal) * 100 : 0;
-
-                          return (
-                            <div className="muscle-row" key={m.name}>
-                              <div className="muscle-row-header">
-                                <span className="muscle-row-name">{m.name}</span>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                  <span className="muscle-row-value">{m.value}</span>
-                                  {compareEntry && (
-                                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-secondary)' }}>
-                                      vs {compareEntry.value}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {/* Primary bar */}
-                              <div className="progress-bar-bg" style={{ position: 'relative', height: compareEntry ? '8px' : '6px' }}>
-                                <div
-                                  className="progress-bar-fill"
-                                  style={{ width: `${pct}%`, backgroundColor: barColor, boxShadow: `0 0 8px ${barColor}40`, height: '100%', position: 'absolute', top: 0 }}
-                                />
-                                {compareEntry && (
-                                  <div
-                                    style={{
-                                      position: 'absolute', top: 0, left: 0,
-                                      width: `${comparePct}%`, height: '100%',
-                                      background: 'var(--accent-secondary)',
-                                      opacity: 0.35, borderRadius: '100px'
-                                    }}
-                                  />
-                                )}
-                              </div>
-                              {compareEntry && (
-                                <div style={{ display: 'flex', gap: '6px', fontSize: '0.65rem', marginTop: '2px' }}>
-                                  <span style={{ color: barColor }}>● {currentProgram}</span>
-                                  <span style={{ color: 'var(--accent-secondary)' }}>● {compareProgram}</span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <MuscleDonutChart
+                        data={displayMuscleData}
+                        compareData={compareMode ? displayCompareMuscleData : null}
+                        currentProgram={currentProgram}
+                        compareProgram={compareProgram}
+                        metric={muscleMetric}
+                        isMobile={isMobile}
+                      />
                     </div>
 
                     {/* Cumulative Tension Curves Chart */}
