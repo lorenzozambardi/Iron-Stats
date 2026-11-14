@@ -5,19 +5,23 @@ const Latex = ({ math, block = false }) => {
   const html = useMemo(() => {
     try {
       return katex.renderToString(math, {
-        displayMode: false,
+        displayMode: block,
         throwOnError: false
       });
     } catch (err) {
       console.error("KaTeX rendering error:", err);
       return math;
     }
-  }, [math]);
+  }, [math, block]);
 
   if (block) {
     return (
       <div
-        className="katex-wrap-block"
+        style={{
+          fontSize: 'clamp(0.72rem, 2.6vw, 0.94rem)',
+          lineHeight: 1.5,
+          maxWidth: '100%',
+        }}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     );
@@ -28,16 +32,14 @@ const Latex = ({ math, block = false }) => {
 
 const MathBlock = ({ children, color }) => (
   <div
-    className="math-block-card"
     style={{
       background: 'rgba(255, 255, 255, 0.025)',
       border: '1px solid var(--border-color)',
       borderLeft: `3px solid ${color}`,
-      padding: '14px 16px',
+      padding: '12px 14px',
       borderRadius: '10px',
       margin: '8px 0 12px 0',
       color: '#f8fafc',
-      lineHeight: '1.7',
       display: 'flex',
       flexDirection: 'column',
       gap: '10px',

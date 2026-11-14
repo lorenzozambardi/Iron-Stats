@@ -55,13 +55,14 @@ const TensionProfileExplainer = () => {
         The intermediate vectors <Latex math={String.raw`\mathbf{P}_1`} /> and <Latex math={String.raw`\mathbf{P}_2`} /> serve as tangent and acceleration handles. Their position is determined by enforcing differential constraints at the boundary limits. Differentiating <Latex math={String.raw`\mathbf{P}(t)`} /> gives the first derivative (parametric tangent vector):
       </p>
       <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\mathbf{P}'(t) = 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2)`} />
+        <Latex block math={String.raw`\begin{aligned} \mathbf{P}'(t) &= 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) \\ &\quad + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2) \end{aligned}`} />
       </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Evaluating the limits at the anchors <Latex math={String.raw`t=0`} /> and <Latex math={String.raw`t=1`} /> proves that the initial and final tangents are strictly collinear with the difference vectors:
       </p>
       <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0) \quad \text{and} \quad \mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
+        <Latex block math={String.raw`\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0)`} />
+        <Latex block math={String.raw`\mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
       </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Similarly, the second derivative evaluated at <Latex math={String.raw`t=0`} /> defines the initial parametric curvature term:
@@ -149,7 +150,7 @@ const TensionProfileExplainer = () => {
         Expanding the <Latex math={String.raw`x(t)`} /> polynomial algebraically, this equality formulates a non-linear cubic equation in standard form:
       </p>
       <MathBlock color="var(--accent-primary)">
-        <Latex block math={String.raw`(-x_0 + 3x_1 - 3x_2 + x_3)t^3 + (3x_0 - 6x_1 + 3x_2)t^2 + (-3x_0 + 3x_1)t + (x_0 - X) = 0`} />
+        <Latex block math={String.raw`\begin{aligned} (-x_0 + 3x_1 - 3x_2 + x_3)t^3 &+ (3x_0 - 6x_1 + 3x_2)t^2 \\ &+ (-3x_0 + 3x_1)t + (x_0 - X) = 0 \end{aligned}`} />
       </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         This simplifies to <Latex math={String.raw`at^3 + bt^2 + ct + d = 0`} />. While one could mathematically apply Cardano's analytical method, doing so in software introduces floating-point instability and complex numbers. Instead, the backend algorithms explicitly implement a <strong>Binary Search approximation</strong> to isolate the principal real root <Latex math={String.raw`t^*`} /> strictly within the valid domain <Latex math={String.raw`[0, 1]`} />. 
@@ -165,7 +166,7 @@ const TensionProfileExplainer = () => {
         We lock the boundary anchors at zero tension: <Latex math={String.raw`\mathbf{P}_0 = (0, 0)`} /> and <Latex math={String.raw`\mathbf{P}_3 = (1, 0)`} />.<br/>
         To ensure a constant horizontal progression within <Latex math={String.raw`[0, 1]^2`} />, we set <Latex math={String.raw`x_1 = 1/3, x_2 = 2/3`} /> and maximal control height <Latex math={String.raw`y_1 = y_2 = 1`} />. 
         <MathBlock color="var(--accent-primary)">
-          <Latex block math={String.raw`\mathbf{P}_0(0, 0), \quad \mathbf{P}_1(1/3, 1), \quad \mathbf{P}_2(2/3, 1), \quad \mathbf{P}_3(1, 0)`} />
+          <Latex block math={String.raw`\begin{aligned} \mathbf{P}_0(0, 0), &\quad \mathbf{P}_1(1/3, 1) \\ \mathbf{P}_2(2/3, 1), &\quad \mathbf{P}_3(1, 0) \end{aligned}`} />
         </MathBlock>
 
         <strong>Step 2: Formulating x(t) and y(t)</strong><br/>
@@ -281,7 +282,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
           formulas: [
             '\\text{EffTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m',
             'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
-            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+            '\\begin{aligned} \\text{effReps}_s &= \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) \\\\ &\\quad + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s} \\end{aligned}'
           ],
           variables: [
             { symbol: '\\text{EffTonnage}', desc: 'The stimulative kilograms moved, scaled by target muscle distribution.' },
@@ -323,7 +324,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
           formulas: [
             '\\text{EffWTonnage} = \\sum_{s \\in \\text{Sets}} L_{\\text{adj}, s} \\cdot \\text{effReps}_s \\cdot D_m \\cdot C_{\\text{load}}',
             'L_{\\text{adj}, s} = L_{\\text{raw}, s} \\cdot M_{\\text{leverage}} + O_{\\text{offset}}',
-            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+            '\\begin{aligned} \\text{effReps}_s &= \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) \\\\ &\\quad + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s} \\end{aligned}'
           ],
           variables: [
             { symbol: '\\text{EffWTonnage}', desc: 'The stimulative kilograms moved, scaled by target muscle distribution and load coefficient.' },
@@ -342,7 +343,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
           description: 'Effective reps count stimulative repetitions in a set. The base reps are determined by proximity to failure (measured by RPE), where base effective reps = RPE - 4. Assisted and partial reps are also included and weighted (assisted reps at 0.5, partial reps at 0.33).',
           formulas: [
             '\\text{EffReps} = \\sum_{s \\in \\text{Sets}} \\text{effReps}_s \\cdot D_m',
-            '\\text{effReps}_s = \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s}'
+            '\\begin{aligned} \\text{effReps}_s &= \\min(R_{\\text{base}, s}, \\max(0, \\text{RPE}_s - 4.0)) \\\\ &\\quad + 0.5 \\cdot R_{\\text{assisted}, s} + 0.33 \\cdot R_{\\text{partial}, s} \\end{aligned}'
           ],
           variables: [
             { symbol: '\\text{EffReps}', desc: 'Total hypertrophy-stimulative repetitions for a target muscle group.' },
@@ -363,9 +364,10 @@ export default function MetricDetailsPage({ metric, onBack }) {
           description: 'Measures the cumulative time (in seconds) the muscle spends contracting against load, accounting for tempo-specific phases and physiological velocity slowdown under fatigue.',
           formulas: [
             '\\text{TUT} = \\sum_{s \\in \\text{Sets}} T_{\\text{set}, s} \\cdot D_m',
-            'T_{\\text{set}, s} = \\sum_{i=1}^{R_{\\text{base}, s}} T_{\\text{base}, i} + R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}',
+            '\\begin{aligned} T_{\\text{set}, s} &= \\sum_{i=1}^{R_{\\text{base}, s}} T_{\\text{base}, i} + R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} \\\\ &\\quad + R_{\\text{partial}, s} \\cdot T_{\\text{partial}} \\end{aligned}',
             'T_{\\text{base}, i} = C + \\text{slowdown}_i + P_{\\text{short}} + E + P_{\\text{long}}',
-            'T_{\\text{assist}} = C + P_{\\text{short}} + E + P_{\\text{long}} \\quad T_{\\text{partial}} = 0.5 \\cdot T_{\\text{assist}}'
+            'T_{\\text{assist}} = C + P_{\\text{short}} + E + P_{\\text{long}}',
+            'T_{\\text{partial}} = 0.5 \\cdot T_{\\text{assist}}'
           ],
           variables: [
             { symbol: '\\text{TUT}', desc: 'Total accumulated duration in seconds for target muscle.' },
@@ -385,7 +387,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
           color: 'var(--color-effective-tut)',
           description: 'Isolates and aggregates the time under tension specifically for the effective repetitions of each set. Unassisted base reps are counted continuously based on proximity to failure (RPE - 4), while all assisted and partial reps are fully included.',
           formulas: [
-            '\\text{TUT}_{\\text{eff}} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i = \\max(0, R_{\\text{base}, s} - \\lfloor N_s \\rfloor)}^{R_{\\text{base}, s} - 1} T_{\\text{base}, i} + \\{N_s\\}\\,T_{\\text{base}, \\text{frac}} + T_{\\text{extended}, s} \\right) \\cdot D_m',
+            '\\begin{aligned} \\text{TUT}_{\\text{eff}} &= \\sum_{s \\in \\text{Sets}} \\Big( \\sum_{i = \\max(0, R_{\\text{base}, s} - \\lfloor N_s \\rfloor)}^{R_{\\text{base}, s} - 1} T_{\\text{base}, i} \\\\ &\\quad + \\{N_s\\}\\,T_{\\text{base}, \\text{frac}} + T_{\\text{extended}, s} \\Big) \\cdot D_m \\end{aligned}',
             'N_s = \\min(R_{\\text{base}, s}, \\max(0.0, \\text{RPE}_s - 4.0))',
             'T_{\\text{extended}, s} = R_{\\text{assisted}, s} \\cdot T_{\\text{assist}} + R_{\\text{partial}, s} \\cdot T_{\\text{partial}}'
           ],
@@ -407,9 +409,9 @@ export default function MetricDetailsPage({ metric, onBack }) {
           description: 'An advanced model tracking accumulated fatigue per repetition. Fatigue scales exponentially with proximity to failure (RPE) and linearly with repetition duration (TUT), accounting for exercise fatigue rating and rep types.',
           formulas: [
             '\\text{Fatigue} = \\sum_{s \\in \\text{Sets}} \\left( \\sum_{i} T_i \\cdot 1.1^{R_i - 7.5} \\cdot F_e \\cdot K_i \\right) \\cdot D_m',
-            '\\text{Base Rep } i: R_i = \\max(0, 10 - \\text{rir}_i), \\; K_i = 1.0',
-            '\\text{Assisted Rep } i: R_i = 10.0 \\implies 1.1^{2.5} \\approx 1.27, \\; K_i = 0.5',
-            '\\text{Partial Rep } i: R_i = 10.0 \\implies 1.1^{2.5} \\approx 1.27, \\; K_i = 0.33, \\; T_i = 0.5\\,T_{\\text{assist}}'
+            '\\text{Base Rep } i: \\; R_i = \\max(0, 10 - \\text{rir}_i), \\; K_i = 1.0',
+            '\\begin{aligned} \\text{Assisted Rep } i: \\; R_i &= 10.0 \\implies 1.1^{2.5} \\approx 1.27, \\\\ K_i &= 0.5 \\end{aligned}',
+            '\\begin{aligned} \\text{Partial Rep } i: \\; R_i &= 10.0 \\implies 1.1^{2.5} \\approx 1.27, \\\\ K_i &= 0.33, \\; T_i = 0.5\\,T_{\\text{assist}} \\end{aligned}'
           ],
           variables: [
             { symbol: '\\text{Fatigue}', desc: 'Accumulated fatigue units for the targeted muscles.' },
