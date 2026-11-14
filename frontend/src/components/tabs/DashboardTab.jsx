@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useDeferredValue } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
-import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
 import { LockWheelPicker, DualWeekSlider, TensionRomSlider } from '../FilterControls';
 
 const CURVE_RESOLUTION = 50;
+const MAX_CURVE_CACHE_SIZE = 500;
 const normalizedCurveCache = new Map();
 const TENSION_SERIES_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
 const MUSCLE_METRIC_OPTIONS = [
@@ -63,6 +64,26 @@ const buildSparklinePath = (vals, w, h, padY, min, range) => {
   return linePath;
 };
 
+const getMinMax = (values, compareValues, hasA, hasB) => {
+  let min = Infinity;
+  let max = -Infinity;
+  if (hasA) {
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  if (hasB) {
+    for (let i = 0; i < compareValues.length; i++) {
+      const v = compareValues[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  return { min, max, range: max - min };
+};
+
 const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId }) => {
   const hasA = values && values.length >= 2;
   const hasB = compareValues && compareValues.length >= 2;
@@ -71,10 +92,7 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   const w = 120;
   const h = 60;
   const padY = 2;
-  const allVals = [...(hasA ? values : []), ...(hasB ? compareValues : [])];
-  const min = Math.min(...allVals);
-  const max = Math.max(...allVals);
-  const range = max - min;
+  const { min, range } = getMinMax(values, compareValues, hasA, hasB);
 
   const linePathA = hasA ? buildSparklinePath(values, w, h, padY, min, range) : null;
   const areaPathA = linePathA ? `${linePathA} L${w},${h} L0,${h} Z` : null;
@@ -120,14 +138,14 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   );
 });
 
-const CardModeToggle = React.memo(({ mode, onSelect }) => {
+const CardModeToggle = React.memo(({ cardId, mode, onToggle }) => {
   const nextMode = mode === 'total' ? 'effective' : 'total';
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(nextMode);
+        onToggle(cardId, nextMode);
       }}
       aria-label={`Switch to ${nextMode === 'total' ? 'Total' : 'Effective'}`}
       title={`Switch to ${nextMode === 'total' ? 'Total' : 'Effective'}`}
@@ -170,10 +188,7 @@ const MetricBarSparkline = React.memo(({ values, compareValues, color, compareCo
   if (!hasA && !hasB) return null;
 
   const len = Math.max(hasA ? values.length : 0, hasB ? compareValues.length : 0);
-  const allVals = [...(hasA ? values : []), ...(hasB ? compareValues : [])];
-  const minVal = Math.min(...allVals);
-  const maxVal = Math.max(...allVals);
-  const range = maxVal - minVal;
+  const { min: minVal, range } = getMinMax(values, compareValues, hasA, hasB);
 
   const barHeight = (v) => {
     if (v <= 0) return 0;
@@ -181,24 +196,27 @@ const MetricBarSparkline = React.memo(({ values, compareValues, color, compareCo
     return 14 + ((v - minVal) / range) * 40;
   };
 
+  const bars = [];
+  for (let i = 0; i < len; i++) {
+    const vA = hasA && i < values.length ? values[i] : 0;
+    const vB = hasB && i < compareValues.length ? compareValues[i] : 0;
+    const hA = barHeight(vA);
+    const hB = barHeight(vB);
+    bars.push(
+      <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '2px' }}>
+        {hasA && (
+          <div style={{ flex: 1, maxWidth: '8px', height: `${hA}px`, background: color, borderRadius: '3px 3px 1px 1px', opacity: 0.85 }} />
+        )}
+        {hasB && (
+          <div style={{ flex: 1, maxWidth: '8px', height: `${hB}px`, background: compareColor, borderRadius: '3px 3px 1px 1px', opacity: 0.72 }} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: len > 10 ? '4px' : '5px', width: '100%', height: '58px', marginTop: '4px' }}>
-      {Array.from({ length: len }, (_, i) => {
-        const vA = hasA && i < values.length ? values[i] : 0;
-        const vB = hasB && i < compareValues.length ? compareValues[i] : 0;
-        const hA = barHeight(vA);
-        const hB = barHeight(vB);
-        return (
-          <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '2px' }}>
-            {hasA && (
-              <div style={{ flex: 1, maxWidth: '8px', height: `${hA}px`, background: color, borderRadius: '3px 3px 1px 1px', opacity: 0.85 }} />
-            )}
-            {hasB && (
-              <div style={{ flex: 1, maxWidth: '8px', height: `${hB}px`, background: compareColor, borderRadius: '3px 3px 1px 1px', opacity: 0.72 }} />
-            )}
-          </div>
-        );
-      })}
+      {bars}
     </div>
   );
 });
@@ -249,6 +267,64 @@ const computeMuscleDistribution = (dataSource, activeWeeksArr, targetMacro, targ
   })).sort((a, b) => b.value - a.value);
 };
 
+/** Memoized Recharts line chart so mobile ROM slider scrubbing never re-renders SVG paths. */
+const TensionLineChart = React.memo(({ isMobile, cumulativeCurveData, topMuscles }) => (
+  <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
+    <LineChart
+      data={cumulativeCurveData}
+      margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+      style={isMobile ? { pointerEvents: 'none' } : undefined}
+    >
+      <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+      <XAxis
+        dataKey="rom"
+        type="number"
+        domain={[0, 1]}
+        ticks={[0, 0.25, 0.5, 0.75, 1]}
+        axisLine={false}
+        tickLine={false}
+        tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+        tickFormatter={(val) => `${Math.round(val * 100)}%`}
+      />
+      <YAxis
+        axisLine={false}
+        tickLine={false}
+        tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+        width={42}
+      />
+      {!isMobile && (
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'var(--bg-glass-active)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            color: 'var(--text-primary)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+          }}
+          labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
+          formatter={(val) => parseFloat(val).toFixed(1)}
+        />
+      )}
+      {topMuscles.map((m, idx) => (
+        <Line
+          key={m.name}
+          type="monotone"
+          dataKey={m.name}
+          name={m.name}
+          stroke={TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length]}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0 }}
+          isAnimationActive={false}
+        />
+      ))}
+    </LineChart>
+  </ResponsiveContainer>
+));
+
 /** Isolated Tension Profiles card so ROM scrubbing never re-renders the rest of the dashboard. */
 const TensionProfilesCard = React.memo(({ isMobile, cumulativeCurveData, displayMuscleData, onOpenDetails }) => {
   const [tensionSliderPos, setTensionSliderPos] = useState(50);
@@ -270,70 +346,28 @@ const TensionProfilesCard = React.memo(({ isMobile, cumulativeCurveData, display
           </span>
         )}
       </div>
-      <div style={{ height: isMobile ? '205px' : '290px', width: '100%', marginTop: '8px' }}>
+      <div style={{ position: 'relative', height: isMobile ? '205px' : '290px', width: '100%', marginTop: '8px' }}>
         {cumulativeCurveData.length > 0 ? (
-          <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
-            <LineChart
-              data={cumulativeCurveData}
-              margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
-              style={isMobile ? { pointerEvents: 'none' } : undefined}
-            >
-              <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-              <XAxis
-                dataKey="rom"
-                type="number"
-                domain={[0, 1]}
-                ticks={[0, 0.25, 0.5, 0.75, 1]}
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                tickFormatter={(val) => `${Math.round(val * 100)}%`}
+          <>
+            <TensionLineChart
+              isMobile={isMobile}
+              cumulativeCurveData={cumulativeCurveData}
+              topMuscles={topMuscles}
+            />
+            {isMobile && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  bottom: '30px',
+                  left: `calc(30px + (100% - 38px) * ${tensionSliderPos / 100})`,
+                  borderLeft: '1.5px dashed rgba(255,255,255,0.35)',
+                  pointerEvents: 'none',
+                }}
               />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                width={42}
-              />
-              {!isMobile && (
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--bg-glass-active)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    color: 'var(--text-primary)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                  }}
-                  labelFormatter={(val) => `ROM: ${Math.round(val * 100)}%`}
-                  formatter={(val) => parseFloat(val).toFixed(1)}
-                />
-              )}
-              {isMobile && (
-                <ReferenceLine
-                  x={tensionSliderPos / 100}
-                  stroke="rgba(255,255,255,0.35)"
-                  strokeWidth={1.5}
-                  strokeDasharray="3 3"
-                />
-              )}
-              {topMuscles.map((m, idx) => (
-                <Line
-                  key={m.name}
-                  type="monotone"
-                  dataKey={m.name}
-                  name={m.name}
-                  stroke={TENSION_SERIES_COLORS[idx % TENSION_SERIES_COLORS.length]}
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  dot={false}
-                  activeDot={{ r: 4, strokeWidth: 0 }}
-                  isAnimationActive={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+            )}
+          </>
         ) : (
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             No data available for the current selection.
@@ -411,6 +445,74 @@ const getNormalizedCurve = (distr) => {
   return rawY;
 };
 
+const getCachedNormalizedCurve = (cacheKey, distr) => {
+  const existing = normalizedCurveCache.get(cacheKey);
+  if (existing) {
+    // Refresh insertion order for simple LRU eviction
+    normalizedCurveCache.delete(cacheKey);
+    normalizedCurveCache.set(cacheKey, existing);
+    return existing;
+  }
+  const curve = getNormalizedCurve(distr);
+  if (normalizedCurveCache.size >= MAX_CURVE_CACHE_SIZE) {
+    const oldestKey = normalizedCurveCache.keys().next().value;
+    if (oldestKey !== undefined) normalizedCurveCache.delete(oldestKey);
+  }
+  normalizedCurveCache.set(cacheKey, curve);
+  return curve;
+};
+
+const getFullWeeksList = (weeksList, targetSession, sessionsList, workoutData) => {
+  if (targetSession !== null || sessionsList.length === 0) return weeksList;
+  const weekSessionsMap = new Map();
+  for (let i = 0; i < workoutData.length; i++) {
+    const d = workoutData[i];
+    for (let j = 0; j < d.weeks.length; j++) {
+      const w = d.weeks[j];
+      if (w.sets.length === 0) continue;
+      let sessSet = weekSessionsMap.get(w.week_num);
+      if (!sessSet) {
+        sessSet = new Set();
+        weekSessionsMap.set(w.week_num, sessSet);
+      }
+      sessSet.add(d.session);
+    }
+  }
+  const requiredCount = sessionsList.length;
+  return weeksList.filter(week => {
+    const sessSet = weekSessionsMap.get(week);
+    if (!sessSet || sessSet.size < requiredCount) return false;
+    for (let i = 0; i < requiredCount; i++) {
+      if (!sessSet.has(sessionsList[i])) return false;
+    }
+    return true;
+  });
+};
+
+const round1 = (n) => parseFloat(n.toFixed(1));
+
+const buildWeeklyMetricsRows = (filteredData, targetSession, weeksList, targetMacro, targetSub, suffix = '') => {
+  if (!weeksList || weeksList.length === 0) return [];
+  const buckets = calculateMetricsByWeek(filteredData, targetSession, weeksList, targetMacro, targetSub);
+  return weeksList.map(week => {
+    const b = buckets.get(week);
+    return {
+      weekNum: week,
+      week: `W${week}`,
+      [`Volume${suffix}`]: round1(b.volume),
+      [`Tonnage${suffix}`]: round1(b.tonnage),
+      [`EffectiveTonnage${suffix}`]: round1(b.effectiveTonnage),
+      [`WeightedTonnage${suffix}`]: round1(b.weightedTonnage),
+      [`EffectiveWeightedTonnage${suffix}`]: round1(b.effectiveWeightedTonnage),
+      [`Fatigue${suffix}`]: round1(b.fatigue),
+      [`EffectiveRepsCustom${suffix}`]: round1(b.effectiveReps),
+      [`Tut${suffix}`]: round1(b.totalTut),
+      [`EffectiveTut${suffix}`]: round1(b.effectiveTut),
+      [`Sets${suffix}`]: round1(b.sets)
+    };
+  });
+};
+
 const DashboardTab = ({
   isMobile,
   activeTab,
@@ -421,6 +523,7 @@ const DashboardTab = ({
   selectedMetricDetail,
   setSelectedMetricDetail
 }) => {
+  const isDashboardActive = isMobile || activeTab === 'dashboard';
   const [muscleMetric, setMuscleMetric] = useState('sets');
   const [cardModes, setCardModes] = useState({
     reps: 'effective',
@@ -428,6 +531,9 @@ const DashboardTab = ({
     weightedTonnage: 'effective',
     tut: 'effective',
   });
+  const handleCardModeToggle = useCallback((cardId, nextMode) => {
+    setCardModes(prev => ({ ...prev, [cardId]: nextMode }));
+  }, []);
 
   // Dashboard filter state
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
@@ -437,6 +543,7 @@ const DashboardTab = ({
   const [compareProgram, setCompareProgram] = useState('');
   const [compareWorkoutData, setCompareWorkoutData] = useState([]);
   const [compareLoading, setCompareLoading] = useState(false);
+  const compareAbortRef = useRef(null);
   // Per-program filters in compare mode
   const [cmpFilterSession, setCmpFilterSession] = useState('all');
   const [cmpFilterWeekFrom, setCmpFilterWeekFrom] = useState('all');
@@ -473,31 +580,49 @@ const DashboardTab = ({
     }
   }, []);
 
+  useEffect(() => () => {
+    if (compareAbortRef.current) compareAbortRef.current.abort();
+  }, []);
 
   // Calculated Metrics — memoized to avoid recomputing on every render
   const sessionsList = useMemo(
-    () => Array.from(new Set(workoutData.map(d => d.session))).sort((a, b) => a - b),
-    [workoutData]
+    () => (isDashboardActive ? Array.from(new Set(workoutData.map(d => d.session))).sort((a, b) => a - b) : []),
+    [isDashboardActive, workoutData]
   );
 
-  // Helper: load a comparison program and parse it
-  const loadCompareProgram = (progName) => {
-    if (!progName) { setCompareWorkoutData([]); return; }
+  // Helper: load a comparison program and parse it (aborts in-flight requests)
+  const loadCompareProgram = useCallback((progName) => {
+    if (compareAbortRef.current) {
+      compareAbortRef.current.abort();
+      compareAbortRef.current = null;
+    }
+    if (!progName) {
+      setCompareWorkoutData([]);
+      setCompareLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    compareAbortRef.current = controller;
     setCompareLoading(true);
-    fetch(`/api/logbook?program=${progName}`)
+    fetch(`/api/logbook?program=${progName}`, { signal: controller.signal })
       .then(res => res.text())
       .then(text => {
+        if (controller.signal.aborted) return;
         const parsed = parseLogbook(text, exercisesDb);
         setCompareWorkoutData(parsed);
         setCompareLoading(false);
       })
-      .catch(() => { setCompareWorkoutData([]); setCompareLoading(false); });
-  };
+      .catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        setCompareWorkoutData([]);
+        setCompareLoading(false);
+      });
+  }, [exercisesDb]);
 
   // Derived sessions lists for compare program B
   const compareSessionsList = useMemo(() =>
-    Array.from(new Set(compareWorkoutData.map(d => d.session))).sort((a, b) => a - b),
-  [compareWorkoutData]);
+    (isDashboardActive && compareMode ? Array.from(new Set(compareWorkoutData.map(d => d.session))).sort((a, b) => a - b) : []),
+  [isDashboardActive, compareMode, compareWorkoutData]);
 
   // All macro muscle groups and their sub-muscles (from MUSCLES map)
   const allMacros = useMemo(() => Array.from(new Set(Object.values(MUSCLES))).sort(), []);
@@ -508,6 +633,7 @@ const DashboardTab = ({
 
   // Derived: filtered data for the dashboard based on session/muscle selectors
   const dashFilteredData = useMemo(() => {
+    if (!isDashboardActive) return [];
     let data = workoutData;
     if (deferredSession !== 'all') {
       const sNum = parseInt(deferredSession, 10);
@@ -522,10 +648,11 @@ const DashboardTab = ({
       });
     }
     return data;
-  }, [workoutData, deferredSession, deferredMacro, deferredSubgroup]);
+  }, [isDashboardActive, workoutData, deferredSession, deferredMacro, deferredSubgroup]);
 
   // Derived: filtered data for compare program B
   const cmpFilteredData = useMemo(() => {
+    if (!isDashboardActive || !compareMode) return [];
     let data = compareWorkoutData;
     if (deferredCmpSession !== 'all') {
       const sNum = parseInt(deferredCmpSession, 10);
@@ -539,53 +666,32 @@ const DashboardTab = ({
       });
     }
     return data;
-  }, [compareWorkoutData, deferredCmpSession, deferredMacro, deferredSubgroup]);
+  }, [isDashboardActive, compareMode, compareWorkoutData, deferredCmpSession, deferredMacro, deferredSubgroup]);
 
   // Weeks available after session filter (program A)
   const dashWeeksList = useMemo(() =>
-    Array.from(new Set(dashFilteredData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b),
-  [dashFilteredData]);
+    (isDashboardActive ? Array.from(new Set(dashFilteredData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b) : []),
+  [isDashboardActive, dashFilteredData]);
 
   // Weeks available for compare program B after its session filter
   const cmpWeeksList = useMemo(() =>
-    Array.from(new Set(cmpFilteredData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b),
-  [cmpFilteredData]);
+    (isDashboardActive && compareMode ? Array.from(new Set(cmpFilteredData.flatMap(d => d.weeks.map(w => w.week_num)))).sort((a, b) => a - b) : []),
+  [isDashboardActive, compareMode, cmpFilteredData]);
 
   // Precompute complete weeks and metrics once per session/muscle change so week-slider drags are O(1)
   const allFullWeeksList = useMemo(() => {
+    if (!isDashboardActive) return [];
     const targetSession = deferredSession !== 'all' ? parseInt(deferredSession, 10) : null;
-    return dashWeeksList.filter(week => {
-      if (targetSession !== null) return true;
-      if (sessionsList.length === 0) return true;
-      return sessionsList.every(sess =>
-        workoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
-      );
-    });
-  }, [dashWeeksList, deferredSession, sessionsList, workoutData]);
+    return getFullWeeksList(dashWeeksList, targetSession, sessionsList, workoutData);
+  }, [isDashboardActive, dashWeeksList, deferredSession, sessionsList, workoutData]);
 
   const allWeeksMetrics = useMemo(() => {
+    if (!isDashboardActive) return [];
     const targetSession = deferredSession !== 'all' ? parseInt(deferredSession, 10) : null;
     const targetMacro = deferredMacro !== 'all' ? deferredMacro : null;
     const targetSub = deferredSubgroup !== 'all' ? deferredSubgroup : null;
-
-    return allFullWeeksList.map(week => {
-      const weeklyData = calculateMetrics(dashFilteredData, targetSession, week, targetMacro, targetSub);
-      return {
-        weekNum: week,
-        week: `W${week}`,
-        Volume: parseFloat(weeklyData.reduce((s, d) => s + d.volume, 0).toFixed(1)),
-        Tonnage: parseFloat(weeklyData.reduce((s, d) => s + d.tonnage, 0).toFixed(1)),
-        EffectiveTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTonnage || 0), 0).toFixed(1)),
-        WeightedTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.weightedTonnage || 0), 0).toFixed(1)),
-        EffectiveWeightedTonnage: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveWeightedTonnage || 0), 0).toFixed(1)),
-        Fatigue: parseFloat(weeklyData.reduce((s, d) => s + d.fatigue, 0).toFixed(1)),
-        EffectiveRepsCustom: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveReps || 0), 0).toFixed(1)),
-        Tut: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
-        EffectiveTut: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTut || 0), 0).toFixed(1)),
-        Sets: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
-      };
-    });
-  }, [dashFilteredData, deferredSession, allFullWeeksList, deferredMacro, deferredSubgroup]);
+    return buildWeeklyMetricsRows(dashFilteredData, targetSession, allFullWeeksList, targetMacro, targetSub);
+  }, [isDashboardActive, dashFilteredData, deferredSession, allFullWeeksList, deferredMacro, deferredSubgroup]);
 
   const activeWeeksList = useMemo(
     () => allFullWeeksList.filter(w => isWeekInRange(w, deferredWeekFrom, deferredWeekTo)),
@@ -598,39 +704,18 @@ const DashboardTab = ({
   );
 
   const allCompareFullWeeksList = useMemo(() => {
+    if (!isDashboardActive || !compareMode) return [];
     const targetSession = deferredCmpSession !== 'all' ? parseInt(deferredCmpSession, 10) : null;
-    return cmpWeeksList.filter(week => {
-      if (targetSession !== null) return true;
-      if (compareSessionsList.length === 0) return true;
-      return compareSessionsList.every(sess =>
-        compareWorkoutData.some(d => d.session === sess && d.weeks.some(w => w.week_num === week && w.sets.length > 0))
-      );
-    });
-  }, [cmpWeeksList, deferredCmpSession, compareSessionsList, compareWorkoutData]);
+    return getFullWeeksList(cmpWeeksList, targetSession, compareSessionsList, compareWorkoutData);
+  }, [isDashboardActive, compareMode, cmpWeeksList, deferredCmpSession, compareSessionsList, compareWorkoutData]);
 
   const allCompareWeeksMetrics = useMemo(() => {
+    if (!isDashboardActive || !compareMode) return [];
     const targetSession = deferredCmpSession !== 'all' ? parseInt(deferredCmpSession, 10) : null;
     const targetMacro = deferredMacro !== 'all' ? deferredMacro : null;
     const targetSub = deferredSubgroup !== 'all' ? deferredSubgroup : null;
-
-    return allCompareFullWeeksList.map(week => {
-      const weeklyData = calculateMetrics(cmpFilteredData, targetSession, week, targetMacro, targetSub);
-      return {
-        weekNum: week,
-        week: `W${week}`,
-        Volume_B: parseFloat(weeklyData.reduce((s, d) => s + d.volume, 0).toFixed(1)),
-        Tonnage_B: parseFloat(weeklyData.reduce((s, d) => s + d.tonnage, 0).toFixed(1)),
-        EffectiveTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTonnage || 0), 0).toFixed(1)),
-        WeightedTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.weightedTonnage || 0), 0).toFixed(1)),
-        EffectiveWeightedTonnage_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveWeightedTonnage || 0), 0).toFixed(1)),
-        Fatigue_B: parseFloat(weeklyData.reduce((s, d) => s + d.fatigue, 0).toFixed(1)),
-        EffectiveRepsCustom_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveReps || 0), 0).toFixed(1)),
-        Tut_B: parseFloat(weeklyData.reduce((s, d) => s + (d.totalTut || 0), 0).toFixed(1)),
-        EffectiveTut_B: parseFloat(weeklyData.reduce((s, d) => s + (d.effectiveTut || 0), 0).toFixed(1)),
-        Sets_B: parseFloat(weeklyData.reduce((s, d) => s + (d.sets || 0), 0).toFixed(1))
-      };
-    });
-  }, [cmpFilteredData, deferredCmpSession, allCompareFullWeeksList, deferredMacro, deferredSubgroup]);
+    return buildWeeklyMetricsRows(cmpFilteredData, targetSession, allCompareFullWeeksList, targetMacro, targetSub, '_B');
+  }, [isDashboardActive, compareMode, cmpFilteredData, deferredCmpSession, allCompareFullWeeksList, deferredMacro, deferredSubgroup]);
 
   const compareActiveWeeksList = useMemo(
     () => allCompareFullWeeksList.filter(w => isWeekInRange(w, deferredCmpWeekFrom, deferredCmpWeekTo)),
@@ -646,18 +731,20 @@ const DashboardTab = ({
   const lastFullWeekB = compareActiveWeeksList.length > 0 ? compareActiveWeeksList[compareActiveWeeksList.length - 1] : null;
 
   const muscleData = useMemo(
-    () => computeMuscleDistribution(
-      dashFilteredData,
-      activeWeeksList,
-      deferredMacro,
-      deferredSubgroup,
-      muscleMetric,
-      compareMode && lastFullWeekA !== null ? lastFullWeekA : undefined
-    ),
-    [dashFilteredData, activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric, compareMode, lastFullWeekA]
+    () => (isDashboardActive
+      ? computeMuscleDistribution(
+          dashFilteredData,
+          activeWeeksList,
+          deferredMacro,
+          deferredSubgroup,
+          muscleMetric,
+          compareMode && lastFullWeekA !== null ? lastFullWeekA : undefined
+        )
+      : []),
+    [isDashboardActive, dashFilteredData, activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric, compareMode, lastFullWeekA]
   );
   const compareMuscleData = useMemo(
-    () => compareMode
+    () => (isDashboardActive && compareMode
       ? computeMuscleDistribution(
           cmpFilteredData,
           compareActiveWeeksList,
@@ -666,8 +753,8 @@ const DashboardTab = ({
           muscleMetric,
           lastFullWeekB !== null ? lastFullWeekB : 'all'
         )
-      : [],
-    [compareMode, cmpFilteredData, compareActiveWeeksList, deferredMacro, deferredSubgroup, muscleMetric, lastFullWeekB]
+      : []),
+    [isDashboardActive, compareMode, cmpFilteredData, compareActiveWeeksList, deferredMacro, deferredSubgroup, muscleMetric, lastFullWeekB]
   );
 
   const displayMuscleData = useMemo(() => {
@@ -684,7 +771,39 @@ const DashboardTab = ({
     return macroObj.subMuscles;
   }, [compareMuscleData, deferredMacro]);
 
+  // Pre-aggregate per-exercise, per-week (base, partial) totals so week-range slider drags don't re-scan every set
+  const exerciseWeekRepTotals = useMemo(() => {
+    if (!isDashboardActive) return [];
+    return dashFilteredData.map(wEx => {
+      const byWeek = new Map();
+      for (let wi = 0; wi < wEx.weeks.length; wi++) {
+        const wData = wEx.weeks[wi];
+        let base = 0;
+        let partial = 0;
+        for (let si = 0; si < wData.sets.length; si++) {
+          const s = wData.sets[si];
+          if (muscleMetric === 'effective') {
+            const rpe = s.rpe !== undefined ? s.rpe : 9.0;
+            const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
+            base += effBase + (s.assisted_reps || 0) * 0.5;
+            partial += s.partial_reps || 0;
+          } else if (muscleMetric === 'volume') {
+            base += (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
+            partial += s.partial_reps || 0;
+          } else if (muscleMetric === 'sets') {
+            base += 1.0;
+          }
+        }
+        if (base > 0 || partial > 0) {
+          byWeek.set(wData.week_num, { base, partial });
+        }
+      }
+      return { wEx, byWeek };
+    });
+  }, [isDashboardActive, dashFilteredData, muscleMetric]);
+
   const cumulativeCurveData = useMemo(() => {
+    if (!isDashboardActive) return [];
     const topMuscles = displayMuscleData.slice(0, 6).map(m => m.name);
     if (topMuscles.length === 0) return [];
 
@@ -702,28 +821,18 @@ const DashboardTab = ({
     const isMacroView = deferredMacro === 'all';
     const partialCutoffIdx = Math.floor(resolution * 0.3333);
 
-    dashFilteredData.forEach(wEx => {
+    exerciseWeekRepTotals.forEach(({ wEx, byWeek }) => {
       const ex = wEx.exercise_obj;
       if (!ex) return;
 
-      // Accumulate base & partial totals across all allowed weeks/sets once per exercise
       let sumBase = 0;
       let sumPartial = 0;
-      wEx.weeks.forEach(wData => {
-        if (!allowedWeeks.has(wData.week_num)) return;
-        wData.sets.forEach(s => {
-          if (muscleMetric === 'effective') {
-            const rpe = s.rpe !== undefined ? s.rpe : 9.0;
-            const effBase = Math.min(s.base_reps || 0, Math.max(0, rpe - 4.0));
-            sumBase += effBase + (s.assisted_reps || 0) * 0.5;
-            sumPartial += s.partial_reps || 0;
-          } else if (muscleMetric === 'volume') {
-            sumBase += (s.base_reps || 0) + (s.assisted_reps || 0) * 0.5;
-            sumPartial += s.partial_reps || 0;
-          } else if (muscleMetric === 'sets') {
-            sumBase += 1.0;
-          }
-        });
+      allowedWeeks.forEach(weekNum => {
+        const t = byWeek.get(weekNum);
+        if (t) {
+          sumBase += t.base;
+          sumPartial += t.partial;
+        }
       });
 
       if (sumBase === 0 && sumPartial === 0) return;
@@ -735,11 +844,7 @@ const DashboardTab = ({
         const cacheKey = typeof distr === 'object'
           ? `${ex.name}_${subMuscle}_${distr.x0}_${distr.y0}_${distr.x1}_${distr.y1}_${distr.x2}_${distr.y2}_${distr.x3}_${distr.y3}_${distr.magnitude}`
           : `${ex.name}_${subMuscle}_${distr}`;
-        let normCurve = normalizedCurveCache.get(cacheKey);
-        if (!normCurve) {
-          normCurve = getNormalizedCurve(distr);
-          normalizedCurveCache.set(cacheKey, normCurve);
-        }
+        const normCurve = getCachedNormalizedCurve(cacheKey, distr);
 
         const totalWithPartial = sumBase + sumPartial;
         for (let i = 0; i <= partialCutoffIdx; i++) {
@@ -758,7 +863,7 @@ const DashboardTab = ({
     });
 
     return data;
-  }, [dashFilteredData, activeWeeksList, deferredMacro, muscleMetric, displayMuscleData]);
+  }, [isDashboardActive, exerciseWeekRepTotals, activeWeeksList, deferredMacro, displayMuscleData]);
 
   // Overall totals (filtered; in compare mode, uses each selection's last full week so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
@@ -1218,8 +1323,9 @@ const DashboardTab = ({
                                 <span className="metric-label">{label}</span>
                                 {hasToggle && (
                                   <CardModeToggle
+                                    cardId={card.id}
                                     mode={mode}
-                                    onSelect={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                                    onToggle={handleCardModeToggle}
                                   />
                                 )}
                               </div>
@@ -1314,8 +1420,9 @@ const DashboardTab = ({
                               <span className="metric-label">{label}</span>
                               {hasToggle && (
                                 <CardModeToggle
+                                  cardId={card.id}
                                   mode={mode}
-                                  onSelect={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                                  onToggle={handleCardModeToggle}
                                 />
                               )}
                             </div>

@@ -706,115 +706,168 @@ const getMagnitude = (val) => {
   return 0.0;
 };
 
+function resolveExerciseDistrSum(ex, targetMacro, targetSub) {
+  if (targetMacro) {
+    const hasMacro = Object.keys(ex.muscles_distr).some(sub => MUSCLES[sub] === targetMacro);
+    if (!hasMacro) return null;
+  }
+  if (targetSub && !(targetSub in ex.muscles_distr)) return null;
+
+  if (targetSub) {
+    return getMagnitude(ex.muscles_distr[targetSub]);
+  }
+  if (targetMacro) {
+    return Object.entries(ex.muscles_distr)
+      .filter(([sub]) => MUSCLES[sub] === targetMacro)
+      .reduce((sum, [, val]) => sum + getMagnitude(val), 0.0);
+  }
+  return 1.0;
+}
+
+function accumulateWeekSetMetrics(wEx, wData, distrSum) {
+  const ex = wEx.exercise_obj;
+  let vol = 0.0;
+  let ton = 0.0;
+  let effTon = 0.0;
+  let weightedTon = 0.0;
+  let weightedEffTon = 0.0;
+  let totalFat = 0.0;
+  let effRepsSum = 0.0;
+  let totalTut = 0.0;
+  let effectiveTut = 0.0;
+  let sets = 0.0;
+
+  for (const s of wData.sets) {
+    const reps = s.totalReps !== undefined ? s.totalReps : (s.base_reps + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
+    const clampedRpe = Math.min(10.0, Math.max(0.0, s.rpe ?? 9.0));
+    const setEffReps = s.effectiveReps !== undefined
+      ? s.effectiveReps
+      : (Math.min(s.base_reps, Math.max(0, clampedRpe - 4.0)) + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
+    vol += reps * distrSum;
+
+    const actualLoad = (s.load * ex.load_multiplier) + ex.load_offset;
+    ton += actualLoad * reps * distrSum;
+    effTon += actualLoad * setEffReps * distrSum;
+    weightedTon += actualLoad * reps * distrSum * ex.load_coeff;
+    weightedEffTon += actualLoad * setEffReps * distrSum * ex.load_coeff;
+
+    const setFat = s.fatigue !== undefined ? s.fatigue : calculateSetFatigue(
+      s.base_reps,
+      s.assisted_reps,
+      s.partial_reps,
+      clampedRpe,
+      wEx.concentric,
+      wEx.shortening_pause,
+      wEx.eccentric,
+      wEx.lengthening_pause,
+      ex.fatigue,
+      ex.load_coeff,
+      s.tuts
+    );
+    totalFat += setFat * distrSum;
+    effRepsSum += setEffReps * distrSum;
+
+    let setTotalTut = s.totalTut;
+    let setEffTut = s.effectiveTut;
+    if (setTotalTut === undefined) {
+      const tuts = (s.tuts && s.tuts.length > 0) ? s.tuts : calculateSetTuts(
+        s.base_reps,
+        s.assisted_reps,
+        s.partial_reps,
+        clampedRpe,
+        wEx.concentric,
+        wEx.shortening_pause,
+        wEx.eccentric,
+        wEx.lengthening_pause
+      );
+      setTotalTut = tuts.reduce((sum, val) => sum + val, 0);
+      setEffTut = computeEffectiveTut(tuts, s.base_reps, clampedRpe);
+    }
+    totalTut += (setTotalTut || 0) * distrSum;
+    effectiveTut += (setEffTut || 0) * distrSum;
+    sets += 1.0 * distrSum;
+  }
+
+  if (vol <= 0) return null;
+  return {
+    volume: vol,
+    tonnage: ton,
+    effectiveTonnage: effTon,
+    weightedTonnage: weightedTon,
+    effectiveWeightedTonnage: weightedEffTon,
+    fatigue: totalFat,
+    effectiveReps: effRepsSum,
+    totalTut,
+    effectiveTut,
+    sets
+  };
+}
+
 export function calculateMetrics(workoutData, targetSession, targetWeek, targetMacro, targetSub) {
   const results = [];
   for (const wEx of workoutData) {
     if (targetSession !== null && targetSession !== undefined && wEx.session !== targetSession) continue;
     const ex = wEx.exercise_obj;
-    
-    // Check macro muscle filter
-    if (targetMacro) {
-      const hasMacro = Object.keys(ex.muscles_distr).some(sub => MUSCLES[sub] === targetMacro);
-      if (!hasMacro) continue;
-    }
-
-    // Check sub muscle filter
-    if (targetSub && !(targetSub in ex.muscles_distr)) continue;
-
-    // Determine distribution coefficient
-    let distrSum = 1.0;
-    if (targetSub) {
-      distrSum = getMagnitude(ex.muscles_distr[targetSub]);
-    } else if (targetMacro) {
-      distrSum = Object.entries(ex.muscles_distr)
-        .filter(([sub]) => MUSCLES[sub] === targetMacro)
-        .reduce((sum, [, val]) => sum + getMagnitude(val), 0.0);
-    }
+    const distrSum = resolveExerciseDistrSum(ex, targetMacro, targetSub);
+    if (distrSum === null) continue;
 
     for (const wData of wEx.weeks) {
       if (targetWeek !== null && targetWeek !== undefined && wData.week_num !== targetWeek) continue;
-      
-      let vol = 0.0;
-      let ton = 0.0;
-      let effTon = 0.0;
-      let weightedTon = 0.0;
-      let weightedEffTon = 0.0;
-      let totalFat = 0.0;
-      let effRepsSum = 0.0;
-      let totalTut = 0.0;
-      let effectiveTut = 0.0;
-      let sets = 0.0;
-      
-      for (const s of wData.sets) {
-        const reps = s.totalReps !== undefined ? s.totalReps : (s.base_reps + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
-        const clampedRpe = Math.min(10.0, Math.max(0.0, s.rpe ?? 9.0));
-        const setEffReps = s.effectiveReps !== undefined
-          ? s.effectiveReps
-          : (Math.min(s.base_reps, Math.max(0, clampedRpe - 4.0)) + s.assisted_reps * COEFF_ASSISTED + s.partial_reps * COEFF_PARTIAL);
-        vol += reps * distrSum;
-        
-        const actualLoad = (s.load * ex.load_multiplier) + ex.load_offset;
-        ton += actualLoad * reps * distrSum;
-        effTon += actualLoad * setEffReps * distrSum;
-        weightedTon += actualLoad * reps * distrSum * ex.load_coeff;
-        weightedEffTon += actualLoad * setEffReps * distrSum * ex.load_coeff;
-        
-        const setFat = s.fatigue !== undefined ? s.fatigue : calculateSetFatigue(
-          s.base_reps,
-          s.assisted_reps,
-          s.partial_reps,
-          clampedRpe,
-          wEx.concentric,
-          wEx.shortening_pause,
-          wEx.eccentric,
-          wEx.lengthening_pause,
-          ex.fatigue,
-          ex.load_coeff,
-          s.tuts
-        );
-        totalFat += setFat * distrSum;
-        
-        effRepsSum += setEffReps * distrSum;
-
-        let setTotalTut = s.totalTut;
-        let setEffTut = s.effectiveTut;
-        if (setTotalTut === undefined) {
-          const tuts = (s.tuts && s.tuts.length > 0) ? s.tuts : calculateSetTuts(
-            s.base_reps,
-            s.assisted_reps,
-            s.partial_reps,
-            clampedRpe,
-            wEx.concentric,
-            wEx.shortening_pause,
-            wEx.eccentric,
-            wEx.lengthening_pause
-          );
-          setTotalTut = tuts.reduce((sum, val) => sum + val, 0);
-          setEffTut = computeEffectiveTut(tuts, s.base_reps, clampedRpe);
-        }
-        totalTut += (setTotalTut || 0) * distrSum;
-        effectiveTut += (setEffTut || 0) * distrSum;
-        sets += 1.0 * distrSum;
-      }
-      
-      if (vol > 0) {
+      const m = accumulateWeekSetMetrics(wEx, wData, distrSum);
+      if (m) {
         results.push({
           session: wEx.session,
           name: ex.name,
           week: wData.week_num,
-          volume: vol,
-          tonnage: ton,
-          effectiveTonnage: effTon,
-          weightedTonnage: weightedTon,
-          effectiveWeightedTonnage: weightedEffTon,
-          fatigue: totalFat,
-          effectiveReps: effRepsSum,
-          totalTut,
-          effectiveTut,
-          sets
+          ...m
         });
       }
     }
   }
   return results;
+}
+
+/** Single-pass weekly aggregation for Dashboard to avoid O(W * N) rescans. */
+export function calculateMetricsByWeek(workoutData, targetSession, weeksList, targetMacro, targetSub) {
+  if (!weeksList || weeksList.length === 0) return new Map();
+  const buckets = new Map();
+  for (const w of weeksList) {
+    buckets.set(w, {
+      volume: 0,
+      tonnage: 0,
+      effectiveTonnage: 0,
+      weightedTonnage: 0,
+      effectiveWeightedTonnage: 0,
+      fatigue: 0,
+      effectiveReps: 0,
+      totalTut: 0,
+      effectiveTut: 0,
+      sets: 0
+    });
+  }
+
+  for (const wEx of workoutData) {
+    if (targetSession !== null && targetSession !== undefined && wEx.session !== targetSession) continue;
+    const distrSum = resolveExerciseDistrSum(wEx.exercise_obj, targetMacro, targetSub);
+    if (distrSum === null) continue;
+
+    for (const wData of wEx.weeks) {
+      const bucket = buckets.get(wData.week_num);
+      if (!bucket) continue;
+      const m = accumulateWeekSetMetrics(wEx, wData, distrSum);
+      if (!m) continue;
+      bucket.volume += m.volume;
+      bucket.tonnage += m.tonnage;
+      bucket.effectiveTonnage += m.effectiveTonnage;
+      bucket.weightedTonnage += m.weightedTonnage;
+      bucket.effectiveWeightedTonnage += m.effectiveWeightedTonnage;
+      bucket.fatigue += m.fatigue;
+      bucket.effectiveReps += m.effectiveReps;
+      bucket.totalTut += m.totalTut;
+      bucket.effectiveTut += m.effectiveTut;
+      bucket.sets += m.sets;
+    }
+  }
+
+  return buckets;
 }

@@ -8,7 +8,8 @@ import {
   calculateSetTuts,
   calculateSetFatigue,
   parseLogbook,
-  calculateMetrics
+  calculateMetrics,
+  calculateMetricsByWeek
 } from '../parser.js';
 
 const mockExercises = [
@@ -200,6 +201,37 @@ Flat Barbell Bench | 3' | 1-0-2-0
       const metricsW1 = calculateMetrics(workoutData, null, 1, null, null);
       const metricsW2 = calculateMetrics(workoutData, null, 2, null, null);
       expect(metricsW1[0].fatigue).toBe(metricsW2[0].fatigue);
+    });
+
+    it('calculateMetricsByWeek matches calculateMetrics totals across weeks and filters', () => {
+      const log = `# 1
+Flat Barbell Bench | 3' | 1-0-2-0
+100.. 10@8, 8@9
+105.. 10@9, 8@9.5
+
+# 2
+Pulley | 2' | 1-0-2-0
+60.. 12@8
+65.. 12@8.5`;
+
+      const workoutData = parseLogbook(log, mockExercises);
+      const weeks = [1, 2];
+      const byWeek = calculateMetricsByWeek(workoutData, null, weeks, null, null);
+
+      for (const w of weeks) {
+        const expected = calculateMetrics(workoutData, null, w, null, null);
+        const bucket = byWeek.get(w);
+        expect(bucket).toBeDefined();
+        expect(bucket.volume).toBeCloseTo(expected.reduce((s, d) => s + d.volume, 0), 6);
+        expect(bucket.tonnage).toBeCloseTo(expected.reduce((s, d) => s + d.tonnage, 0), 6);
+        expect(bucket.effectiveTonnage).toBeCloseTo(expected.reduce((s, d) => s + d.effectiveTonnage, 0), 6);
+        expect(bucket.fatigue).toBeCloseTo(expected.reduce((s, d) => s + d.fatigue, 0), 6);
+        expect(bucket.sets).toBeCloseTo(expected.reduce((s, d) => s + d.sets, 0), 6);
+      }
+
+      const chestOnly = calculateMetricsByWeek(workoutData, 1, weeks, 'Chest', null);
+      const expectedChestW1 = calculateMetrics(workoutData, 1, 1, 'Chest', null);
+      expect(chestOnly.get(1).tonnage).toBeCloseTo(expectedChestW1.reduce((s, d) => s + d.tonnage, 0), 6);
     });
   });
 });
