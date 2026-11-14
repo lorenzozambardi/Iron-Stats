@@ -4,6 +4,7 @@ import { MUSCLES, calculateMetrics, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
+import { LockWheelPicker, DualWeekSlider } from '../FilterControls';
 
 const CURVE_RESOLUTION = 50;
 const normalizedCurveCache = new Map();
@@ -140,6 +141,7 @@ const DashboardTab = ({
   // Shared muscle group/subgroup isolation filter
   const [dashMuscleMacro, setDashMuscleMacro] = useState('all');   // 'all' or macro name e.g. 'Back'
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [tensionSliderPos, setTensionSliderPos] = useState(50); // 0-100 ROM % for mobile scrubber
   const [weekSliderIdx, setWeekSliderIdx] = useState(0); // week index for mobile scrubber
 
@@ -723,31 +725,6 @@ const DashboardTab = ({
     return { val: d.toFixed(2), pos: d >= 0 };
   };
 
-  const handleDashWeekFromChange = (val) => {
-    setDashFilterWeekFrom(val);
-    if (val !== 'all' && dashFilterWeekTo !== 'all' && parseInt(val, 10) > parseInt(dashFilterWeekTo, 10)) {
-      setDashFilterWeekTo(val);
-    }
-  };
-  const handleDashWeekToChange = (val) => {
-    setDashFilterWeekTo(val);
-    if (val !== 'all' && dashFilterWeekFrom !== 'all' && parseInt(val, 10) < parseInt(dashFilterWeekFrom, 10)) {
-      setDashFilterWeekFrom(val);
-    }
-  };
-  const handleCmpWeekFromChange = (val) => {
-    setCmpFilterWeekFrom(val);
-    if (val !== 'all' && cmpFilterWeekTo !== 'all' && parseInt(val, 10) > parseInt(cmpFilterWeekTo, 10)) {
-      setCmpFilterWeekTo(val);
-    }
-  };
-  const handleCmpWeekToChange = (val) => {
-    setCmpFilterWeekTo(val);
-    if (val !== 'all' && cmpFilterWeekFrom !== 'all' && parseInt(val, 10) < parseInt(cmpFilterWeekFrom, 10)) {
-      setCmpFilterWeekFrom(val);
-    }
-  };
-
   // Helper: clear all dashboard filters
   const clearAllDashFilters = () => {
     setDashFilterSession('all'); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all');
@@ -761,6 +738,34 @@ const DashboardTab = ({
   const hasAnyFilter = dashFilterSession !== 'all' || dashWeekRangeLabel !== null ||
     cmpFilterSession !== 'all' || cmpWeekRangeLabel !== null ||
     dashMuscleMacro !== 'all';
+
+  const sessionWheelOptions = useMemo(() => [
+    { value: 'all', label: 'All' },
+    ...sessionsList.map(s => ({ value: String(s), label: `S${s}` }))
+  ], [sessionsList]);
+
+  const cmpSessionWheelOptions = useMemo(() => [
+    { value: 'all', label: 'All' },
+    ...compareSessionsList.map(s => ({ value: String(s), label: `S${s}` }))
+  ], [compareSessionsList]);
+
+  const macroWheelOptions = useMemo(() => [
+    { value: 'all', label: 'All' },
+    ...allMacros.map(m => ({ value: m, label: m }))
+  ], [allMacros]);
+
+  const subWheelOptions = useMemo(() => [
+    { value: 'all', label: `All ${dashMuscleMacro}` },
+    ...subMusclesForMacro.map(s => ({ value: s, label: s }))
+  ], [dashMuscleMacro, subMusclesForMacro]);
+
+  const mobileFilterSummary = useMemo(() => {
+    const parts = [];
+    if (dashFilterSession !== 'all') parts.push(`S${dashFilterSession}`);
+    if (dashWeekRangeLabel) parts.push(dashWeekRangeLabel);
+    if (dashMuscleMacro !== 'all') parts.push(dashMuscleSubgroup !== 'all' ? dashMuscleSubgroup : dashMuscleMacro);
+    return parts.length > 0 ? parts.join(' · ') : 'Filters';
+  }, [dashFilterSession, dashWeekRangeLabel, dashMuscleMacro, dashMuscleSubgroup]);
 
   return (
     <>
@@ -801,7 +806,7 @@ const DashboardTab = ({
               >
                 {compareMode ? 'Compare' : 'Compare Programs'}
               </button>
-              {compareMode ? (
+              {compareMode && (
                 <>
                   <select
                     id="dash-compare-program"
@@ -815,56 +820,15 @@ const DashboardTab = ({
                   </select>
                   {compareLoading && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>Loading…</span>}
                 </>
-              ) : (
-                <>
-                  <select id="dash-session-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
-                    value={dashFilterSession}
-                    onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                  >
-                    <option value="all">All Sessions</option>
-                    {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
-                  </select>
-                  <select id="dash-week-from-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
-                    value={dashFilterWeekFrom}
-                    onChange={e => handleDashWeekFromChange(e.target.value)}
-                  >
-                    <option value="all">From</option>
-                    {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
-                  </select>
-                  <select id="dash-week-to-filter" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
-                    value={dashFilterWeekTo}
-                    onChange={e => handleDashWeekToChange(e.target.value)}
-                  >
-                    <option value="all">To</option>
-                    {dashWeeksList.map(w => <option key={w} value={w}>W{w}</option>)}
-                  </select>
-                  <select id="dash-muscle-macro" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
-                    value={dashMuscleMacro}
-                    onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
-                  >
-                    <option value="all">All Groups</option>
-                    {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                    <select id="dash-muscle-sub" className="select-control" style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
-                      value={dashMuscleSubgroup}
-                      onChange={e => setDashMuscleSubgroup(e.target.value)}
-                    >
-                      <option value="all">All {dashMuscleMacro}</option>
-                      {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  )}
-                </>
               )}
-              {hasAnyFilter && (
-                <button
-                  className="btn"
-                  style={{ marginLeft: 'auto', padding: '4px 10px', fontSize: '0.72rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)', whiteSpace: 'nowrap', flexShrink: 0 }}
-                  onClick={clearAllDashFilters}
-                >
-                  ✕ Clear
-                </button>
-              )}
+              <button
+                id="mobile-filters-toggle"
+                className={`btn ${mobileFiltersOpen || hasAnyFilter ? 'btn-secondary' : ''}`}
+                style={{ marginLeft: 'auto', padding: '5px 12px', fontSize: '0.75rem', borderRadius: '99px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                onClick={() => setMobileFiltersOpen(prev => !prev)}
+              >
+                {mobileFilterSummary} {mobileFiltersOpen ? '▲' : '▼'}
+              </button>
             </div>
           )}
 
@@ -872,11 +836,22 @@ const DashboardTab = ({
             <div className="main-content-card" style={{ overflow: 'hidden' }}>
                 <div className="glass-card-body" style={{ padding: '4px 8px 20px 8px' }}>
 
-                  {/* ── Dashboard Filter Bar (Desktop full bar; Mobile only when comparing two programs) ── */}
-                  {(!isMobile || (compareMode && compareProgram)) && (
+                  {/* ── Dashboard Filter Bar (Desktop always visible; Mobile smoothly expands/collapses) ── */}
+                  {(() => {
+                    const isFilterPanelOpen = !isMobile || mobileFiltersOpen || (compareMode && Boolean(compareProgram));
+                    return (
                   <div style={{
-                    display: 'flex', flexDirection: 'column', gap: '10px',
-                    padding: isMobile ? '10px' : '14px 16px', marginBottom: isMobile ? '8px' : '16px',
+                    display: 'grid',
+                    gridTemplateRows: isFilterPanelOpen ? '1fr' : '0fr',
+                    opacity: isFilterPanelOpen ? 1 : 0,
+                    marginBottom: isFilterPanelOpen ? (isMobile ? '8px' : '16px') : '0px',
+                    transition: 'grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, margin-bottom 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    pointerEvents: isFilterPanelOpen ? 'auto' : 'none',
+                  }}>
+                  <div style={{ overflow: 'hidden' }}>
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: '12px',
+                    padding: isMobile ? '12px' : '14px 16px',
                     background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)',
                     borderRadius: 'var(--card-radius)', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
                   }}>
@@ -927,137 +902,133 @@ const DashboardTab = ({
                     {/* Filter rows */}
                     {compareMode && compareProgram ? (
                       // Compare mode: two columns, one per program
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                         {/* Program A filters */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'var(--accent-primary-subtle)', border: '1px solid var(--accent-primary-glow)', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px 12px', background: 'var(--accent-primary-subtle)', border: '1px solid var(--accent-primary-glow)', borderRadius: '12px' }}>
                           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                           </div>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              <select id="dash-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                                value={dashFilterSession}
-                                onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                              >
-                                <option value="all">All sessions</option>
-                                {sessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
-                              </select>
-                              <select id="dash-week-from-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
-                                value={dashFilterWeekFrom}
-                                onChange={e => handleDashWeekFromChange(e.target.value)}
-                              >
-                                <option value="all">From: All</option>
-                                {dashWeeksList.map(w => <option key={w} value={w}>From W{w}</option>)}
-                              </select>
-                              <select id="dash-week-to-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
-                                value={dashFilterWeekTo}
-                                onChange={e => handleDashWeekToChange(e.target.value)}
-                              >
-                                <option value="all">To: All</option>
-                                {dashWeeksList.map(w => <option key={w} value={w}>To W{w}</option>)}
-                              </select>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <LockWheelPicker
+                              label="Session"
+                              options={sessionWheelOptions}
+                              value={dashFilterSession}
+                              onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
+                              width="92px"
+                              accentColor="var(--accent-primary)"
+                            />
+                            <DualWeekSlider
+                              label="Weeks"
+                              weeks={dashWeeksList}
+                              fromVal={dashFilterWeekFrom}
+                              toVal={dashFilterWeekTo}
+                              onChange={(f, t) => { setDashFilterWeekFrom(f); setDashFilterWeekTo(t); }}
+                              accentColor="var(--accent-primary)"
+                            />
                           </div>
                         </div>
 
                         {/* Program B filters */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'var(--accent-secondary-subtle)', border: '1px solid var(--accent-secondary-glow)', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px 12px', background: 'var(--accent-secondary-subtle)', border: '1px solid var(--accent-secondary-glow)', borderRadius: '12px' }}>
                           <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                           </div>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              <select id="cmp-session-filter" className="select-control" style={{ minWidth: '110px', fontSize: '0.78rem' }}
-                                value={cmpFilterSession}
-                                onChange={e => { setCmpFilterSession(e.target.value); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
-                              >
-                                <option value="all">All sessions</option>
-                                {compareSessionsList.map(s => <option key={s} value={s}>S{s}</option>)}
-                              </select>
-                              <select id="cmp-week-from-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
-                                value={cmpFilterWeekFrom}
-                                onChange={e => handleCmpWeekFromChange(e.target.value)}
-                              >
-                                <option value="all">From: All</option>
-                                {cmpWeeksList.map(w => <option key={w} value={w}>From W{w}</option>)}
-                              </select>
-                              <select id="cmp-week-to-filter" className="select-control" style={{ minWidth: '95px', fontSize: '0.78rem' }}
-                                value={cmpFilterWeekTo}
-                                onChange={e => handleCmpWeekToChange(e.target.value)}
-                              >
-                                <option value="all">To: All</option>
-                                {cmpWeeksList.map(w => <option key={w} value={w}>To W{w}</option>)}
-                              </select>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <LockWheelPicker
+                              label="Session"
+                              options={cmpSessionWheelOptions}
+                              value={cmpFilterSession}
+                              onChange={val => { setCmpFilterSession(val); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
+                              width="92px"
+                              accentColor="var(--accent-secondary)"
+                            />
+                            <DualWeekSlider
+                              label="Weeks"
+                              weeks={cmpWeeksList}
+                              fromVal={cmpFilterWeekFrom}
+                              toVal={cmpFilterWeekTo}
+                              onChange={(f, t) => { setCmpFilterWeekFrom(f); setCmpFilterWeekTo(t); }}
+                              accentColor="var(--accent-secondary)"
+                            />
                           </div>
                         </div>
 
-                        {/* Shared muscle filter — full width row */}
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid var(--border-color)' }}>
-                          <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px', fontSize: '0.78rem' }}
+                        {/* Shared muscle lock wheels — full width row */}
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                          <LockWheelPicker
+                            label="Muscle Group"
+                            options={macroWheelOptions}
                             value={dashMuscleMacro}
-                            onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
-                          >
-                            <option value="all">All Groups</option>
-                            {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
-                          </select>
+                            onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
+                            width={isMobile ? '120px' : '140px'}
+                          />
                           {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                            <>
-                              <span style={{ color: 'var(--border-color)' }}>›</span>
-                              <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px', fontSize: '0.78rem' }}
-                                value={dashMuscleSubgroup}
-                                onChange={e => setDashMuscleSubgroup(e.target.value)}
-                              >
-                                <option value="all">All {dashMuscleMacro}</option>
-                                {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
-                              </select>
-                            </>
+                            <LockWheelPicker
+                              label="Subgroup"
+                              options={subWheelOptions}
+                              value={dashMuscleSubgroup}
+                              onChange={val => setDashMuscleSubgroup(val)}
+                              width={isMobile ? '140px' : '165px'}
+                            />
                           )}
                           {dashMuscleMacro !== 'all' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(shared across both programs)</span>}
                         </div>
                       </div>
                     ) : (
-                      // Normal mode: single row of filters
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-                        <select id="dash-session-filter" className="select-control" style={{ minWidth: '120px' }}
-                          value={dashFilterSession}
-                          onChange={e => { setDashFilterSession(e.target.value); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                        >
-                          <option value="all">All Sessions</option>
-                          {sessionsList.map(s => <option key={s} value={s}>Session {s}</option>)}
-                        </select>
-                        <select id="dash-week-from-filter" className="select-control" style={{ minWidth: '110px' }}
-                          value={dashFilterWeekFrom}
-                          onChange={e => handleDashWeekFromChange(e.target.value)}
-                        >
-                          <option value="all">From: All</option>
-                          {dashWeeksList.map(w => <option key={w} value={w}>From Week {w}</option>)}
-                        </select>
-                        <select id="dash-week-to-filter" className="select-control" style={{ minWidth: '110px' }}
-                          value={dashFilterWeekTo}
-                          onChange={e => handleDashWeekToChange(e.target.value)}
-                        >
-                          <option value="all">To: All</option>
-                          {dashWeeksList.map(w => <option key={w} value={w}>To Week {w}</option>)}
-                        </select>
-                        <select id="dash-muscle-macro" className="select-control" style={{ minWidth: '130px' }}
+                      // Normal mode: Lock-wheel tumblers + Dual-thumb Week slider
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '10px' : '16px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', maxWidth: '100%' }}>
+                          <LockWheelPicker
+                            label="Session"
+                            options={sessionWheelOptions}
+                            value={dashFilterSession}
+                            onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
+                            width={isMobile ? '86px' : '100px'}
+                          />
+                          <LockWheelPicker
+                            label="Muscle Group"
+                            options={macroWheelOptions}
                             value={dashMuscleMacro}
-                            onChange={e => { setDashMuscleMacro(e.target.value); setDashMuscleSubgroup('all'); }}
-                          >
-                            <option value="all">All Groups</option>
-                            {allMacros.map(m => <option key={m} value={m}>{m}</option>)}
-                          </select>
-                        {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                          <select id="dash-muscle-sub" className="select-control" style={{ minWidth: '160px' }}
+                            onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
+                            width={isMobile ? '115px' : '135px'}
+                          />
+                          {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
+                            <LockWheelPicker
+                              label="Subgroup"
+                              options={subWheelOptions}
                               value={dashMuscleSubgroup}
-                              onChange={e => setDashMuscleSubgroup(e.target.value)}
-                            >
-                              <option value="all">All {dashMuscleMacro}</option>
-                              {subMusclesForMacro.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        )}
+                              onChange={val => setDashMuscleSubgroup(val)}
+                              width={isMobile ? '130px' : '155px'}
+                            />
+                          )}
+                        </div>
+                        <DualWeekSlider
+                          label="Weeks"
+                          weeks={dashWeeksList}
+                          fromVal={dashFilterWeekFrom}
+                          toVal={dashFilterWeekTo}
+                          onChange={(f, t) => { setDashFilterWeekFrom(f); setDashFilterWeekTo(t); }}
+                        />
+                      </div>
+                    )}
+                    {isMobile && hasAnyFilter && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                        <button
+                          className="btn"
+                          style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
+                          onClick={clearAllDashFilters}
+                        >
+                          ✕ Clear Filters
+                        </button>
                       </div>
                     )}
                   </div>
-                  )}
+                  </div>
+                  </div>
+                    );
+                  })()}
 
                   {/* Active filter pills */}
                   {hasAnyFilter && (
