@@ -502,68 +502,65 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       ref={containerRef}
       className={`swipe-view ${activeTab === 'stopwatch' ? 'active-desktop' : ''}`}
       id="view-stopwatch"
-      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}
+      style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}
     >
       {(isMobile || activeTab === 'stopwatch') && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px', width: '100%', maxWidth: '360px', padding: '20px' }}>
-
+        <>
           <div
             style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '100%',
-              padding: '12px 16px',
-              borderRadius: '16px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-color)'
+              gap: '10px',
+              padding: '6px 6px 6px 14px',
+              borderRadius: '99px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '0.7rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.55)' }}>
-                Session
-              </span>
-              <span
-                ref={sessionDisplayRef}
-                style={{
-                  fontSize: '1.35rem',
-                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-                  color: '#fff',
-                  fontVariantNumeric: 'tabular-nums',
-                  fontWeight: 500
-                }}
-              >
-                {formatSessionTime(sessionTime)}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.7rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)' }}>
+              Session
+            </span>
+            <span
+              ref={sessionDisplayRef}
+              style={{
+                fontSize: '0.95rem',
+                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                color: '#fff',
+                fontVariantNumeric: 'tabular-nums',
+                fontWeight: 500
+              }}
+            >
+              {formatSessionTime(sessionTime)}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <button
-                className="btn"
+                className={isSessionRunning ? 'btn' : 'btn btn-primary'}
                 onClick={handleSessionStartStop}
                 aria-label={isSessionRunning ? 'Pause session timer' : 'Start session timer'}
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '99px',
                   padding: 0,
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  background: isSessionRunning ? 'rgba(255, 255, 255, 0.14)' : 'var(--accent-color, #4f46e5)',
-                  border: '1px solid var(--border-color)',
-                  color: '#fff'
+                  ...(isSessionRunning ? { background: 'rgba(255, 255, 255, 0.12)', border: '1px solid var(--border-color)', color: '#fff' } : {})
                 }}
               >
-                {isSessionRunning ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+                {isSessionRunning ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
               </button>
               <button
                 className="btn"
                 onClick={handleSessionReset}
                 aria-label="Reset session timer"
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '99px',
                   padding: 0,
                   display: 'flex',
@@ -574,43 +571,45 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                   color: '#fff'
                 }}
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={14} />
               </button>
             </div>
           </div>
 
-          <div
-            ref={timeDisplayRef}
-            style={{
-              fontSize: '4.5rem',
-              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-              color: '#fff',
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-2px'
-            }}
-          >
-            {formatTime(time)}
-          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', width: '100%', maxWidth: '360px', padding: '20px' }}>
+            <div
+              ref={timeDisplayRef}
+              style={{
+                fontSize: '4.5rem',
+                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                color: '#fff',
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '-2px'
+              }}
+            >
+              {formatTime(time)}
+            </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
-            <button 
-              className="btn btn-primary" 
-              onClick={handleStartStop}
-              style={{ width: '100%', height: '100px', borderRadius: '99px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.6rem', fontWeight: 'normal', gap: '16px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}
-            >
-              {isRunning ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" />}
-              {isRunning ? 'Pause' : 'Start'}
-            </button>
-            <button 
-              className="btn" 
-              onClick={handleReset}
-              style={{ width: '100%', height: '100px', borderRadius: '99px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid var(--border-color)', fontSize: '1.6rem', fontWeight: 'normal', gap: '16px', color: '#fff', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}
-            >
-              <RotateCcw size={32} />
-              Reset
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleStartStop}
+                style={{ width: '100%', height: '100px', borderRadius: '99px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.6rem', fontWeight: 'normal', gap: '16px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}
+              >
+                {isRunning ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" />}
+                {isRunning ? 'Pause' : 'Start'}
+              </button>
+              <button 
+                className="btn" 
+                onClick={handleReset}
+                style={{ width: '100%', height: '100px', borderRadius: '99px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid var(--border-color)', fontSize: '1.6rem', fontWeight: 'normal', gap: '16px', color: '#fff', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)' }}
+              >
+                <RotateCcw size={32} />
+                Reset
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
