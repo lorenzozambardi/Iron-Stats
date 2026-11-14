@@ -238,20 +238,21 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
         padding: '4px 8px',
         minHeight: '24px',
         margin: '-3px -4px -3px 0',
-        borderRadius: '8px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        background: 'rgba(255, 255, 255, 0.05)',
-        color: '#e2e8f0',
-        fontSize: '0.65rem',
-        fontWeight: 600,
-        letterSpacing: '0.02em',
+        borderRadius: '999px',
+        border: '1px solid var(--border-color)',
+        background: 'var(--bg-secondary)',
+        boxShadow: 'var(--card-shadow)',
+        color: 'var(--text-secondary)',
+        fontSize: '0.62rem',
+        fontWeight: 500,
+        letterSpacing: '0.03em',
         lineHeight: 1,
         cursor: 'pointer',
         flexShrink: 0,
         transition: 'background 0.15s ease, border-color 0.15s ease',
       }}
     >
-      <span>{mode === 'total' ? 'Total' : 'Eff.'}</span>
+      <span>{mode === 'total' ? 'TOT.' : 'EFF.'}</span>
       <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
         <path d="M11 2l3 3-3 3" />
         <path d="M14 5H3" />
