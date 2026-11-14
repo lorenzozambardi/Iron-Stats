@@ -108,37 +108,52 @@ const editorTheme = EditorView.theme({
     backgroundImage: 'none',
     borderBottom: '2px dotted #60a5fa'
   },
-  '.cm-tooltip-lint': {
+  '.cm-tooltip.cm-tooltip-lint': {
     backgroundColor: 'var(--bg-glass-active, #181818) !important',
     border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important',
-    borderRadius: '8px !important',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.7) !important',
-    color: '#e2e8f0 !important',
+    borderRadius: 'var(--card-radius, 12px) !important',
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65) !important',
+    color: 'var(--text-primary, #f8fafc) !important',
+    fontFamily: 'var(--font-sans, inherit) !important',
     fontSize: '0.82rem !important',
-    maxWidth: '340px'
+    padding: '4px !important',
+    maxWidth: '360px',
+    overflow: 'hidden'
   },
-  '.cm-diagnostic': {
-    padding: '6px 10px !important',
-    borderLeftWidth: '3px !important'
+  '.cm-tooltip-lint .cm-diagnostic': {
+    padding: '8px 12px !important',
+    borderLeftWidth: '3px !important',
+    borderRadius: '6px !important',
+    lineHeight: '1.45 !important',
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '8px'
   },
   '.cm-diagnostic-error': {
-    borderLeftColor: '#f87171 !important'
+    borderLeftColor: '#ef4444 !important'
   },
   '.cm-diagnostic-warning': {
-    borderLeftColor: '#fbbf24 !important'
+    borderLeftColor: '#f59e0b !important'
   },
   '.cm-diagnostic-info': {
-    borderLeftColor: '#60a5fa !important'
+    borderLeftColor: 'var(--accent-secondary, #06b6d4) !important'
   },
   '.cm-diagnosticAction': {
-    backgroundColor: 'rgba(99, 102, 241, 0.2) !important',
-    color: '#a5b4fc !important',
-    border: '1px solid rgba(99, 102, 241, 0.35) !important',
-    borderRadius: '4px !important',
-    padding: '2px 7px !important',
-    marginLeft: '8px !important',
+    backgroundColor: 'var(--accent-primary-subtle, rgba(99, 102, 241, 0.15)) !important',
+    color: 'var(--accent-primary, #818cf8) !important',
+    border: '1px solid var(--accent-primary, #6366f1) !important',
+    borderRadius: 'var(--button-radius, 8px) !important',
+    fontFamily: 'var(--font-display, inherit) !important',
+    fontWeight: '500 !important',
+    padding: '3px 10px !important',
+    marginLeft: 'auto !important',
     cursor: 'pointer !important',
-    fontSize: '0.76rem !important'
+    fontSize: '0.74rem !important',
+    transition: 'filter 0.15s ease'
+  },
+  '.cm-diagnosticAction:hover': {
+    filter: 'brightness(1.2)'
   }
 }, { dark: true });
 
@@ -291,7 +306,10 @@ const FoldableEditor = forwardRef(function FoldableEditor({
       if (onDismissDiagnosticRef.current) {
         actions.push({
           name: 'Mark as OK',
-          apply() {
+          apply(targetView) {
+            const nextList = (diagnosticsRef.current || []).filter(item => item.fingerprint !== d.fingerprint);
+            diagnosticsRef.current = nextList;
+            targetView.dispatch(setDiagnostics(targetView.state, buildCmDiagnostics(targetView.state.doc, nextList)));
             onDismissDiagnosticRef.current(d);
           }
         });
