@@ -1,8 +1,8 @@
 :root {
-  --bg-primary: #080b11;
-  --bg-secondary: #0f1420;
-  --bg-glass: rgba(15, 20, 32, 0.6);
-  --bg-glass-active: rgba(25, 33, 52, 0.85);
+  --bg-primary: #090909;
+  --bg-secondary: #121212;
+  --bg-glass: rgba(18, 18, 18, 0.6);
+  --bg-glass-active: rgba(28, 28, 28, 0.85);
   
   --border-color: rgba(255, 255, 255, 0.08);
   --border-color-hover: rgba(255, 255, 255, 0.16);
@@ -1566,7 +1566,7 @@ input::-webkit-list-button {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(5, 7, 12, 0.85);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   z-index: 3000;
   display: flex;

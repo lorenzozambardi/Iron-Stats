@@ -345,7 +345,7 @@ export const ExerciseModal = ({
                   <input
                     type="text"
                     className="modal-input"
-                    style={{ width: '100%', padding: '8px 12px', fontSize: '0.85rem', background: 'rgba(5, 7, 15, 0.85)', color: 'var(--text-primary)', borderColor: 'rgba(99,102,241,0.3)' }}
+                    style={{ width: '100%', padding: '8px 12px', fontSize: '0.85rem', background: 'rgba(12, 12, 12, 0.9)', color: 'var(--text-primary)', borderColor: 'rgba(99,102,241,0.3)' }}
                     placeholder="Search muscle to add… (Tab to select top)"
                     value={muscleSearch}
                     onChange={(e) => setMuscleSearch(e.target.value)}
@@ -359,7 +359,7 @@ export const ExerciseModal = ({
                   {scored.length > 0 && (
                     <div style={{
                       marginTop: '6px',
-                      background: '#080b14',
+                      background: '#0d0d0d',
                       border: '1px solid rgba(99,102,241,0.45)',
                       borderRadius: '8px',
                       overflow: 'hidden'
