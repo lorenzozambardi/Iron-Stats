@@ -626,11 +626,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 }
 
+.metric-summary-card.volume .metric-label { color: var(--color-volume); }
+.metric-summary-card.tonnage .metric-label { color: var(--color-tonnage); }
+.metric-summary-card.effective-tonnage .metric-label { color: var(--color-effective-tonnage); }
+.metric-summary-card.weighted-tonnage .metric-label { color: var(--color-weighted-tonnage); }
+.metric-summary-card.effective-weighted-tonnage .metric-label { color: var(--color-effective-weighted-tonnage); }
+.metric-summary-card.effective .metric-label { color: var(--color-effective-volume); }
+.metric-summary-card.fatigue .metric-label { color: var(--color-fatigue); }
+.metric-summary-card.tut .metric-label { color: var(--color-tut); }
+.metric-summary-card.effective-tut .metric-label { color: var(--color-effective-tut); }
+.metric-summary-card.sets .metric-label { color: var(--color-sets); }
+
 
 .metric-label {
   font-size: 0.8rem;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
