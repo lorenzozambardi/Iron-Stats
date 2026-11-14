@@ -3551,7 +3551,7 @@ input::-webkit-list-button {
 
 .settings-pill-toggle.settings-segmented .settings-pill-btn.active {
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Compact Color Rows */
