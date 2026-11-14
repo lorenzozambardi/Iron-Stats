@@ -330,10 +330,15 @@ export const ExerciseModal = ({
                           className="btn-icon-small"
                           style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           onClick={() => {
+                            if (!window.confirm(`Remove "${m.name}" from this exercise?`)) return;
                             const updated = exerciseForm.muscles.filter((_, i) => i !== index);
                             setExerciseForm({ ...exerciseForm, muscles: updated });
-                            if (editingCurveIndex === index) setEditingCurveIndex(null);
-                            else if (editingCurveIndex !== null && editingCurveIndex > index) setEditingCurveIndex(editingCurveIndex - 1);
+                            if (editingCurveIndex === index) {
+                              setEditingCurveIndex(null);
+                              setCurveSnapshot(null);
+                            } else if (editingCurveIndex !== null && editingCurveIndex > index) {
+                              setEditingCurveIndex(editingCurveIndex - 1);
+                            }
                             setExerciseError('');
                           }}
                         >
