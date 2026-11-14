@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Latex, MathBlock } from './MathComponents';
 
 const TensionProfileExplainer = () => {
@@ -33,42 +33,42 @@ const TensionProfileExplainer = () => {
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         The tension curve for a given exercise is modeled mathematically as a Parametric Cubic Bézier Curve. The generic vector function <Latex math={String.raw`\mathbf{P}(t)`} /> is defined as the weighted sum of four control vectors <Latex math={String.raw`\mathbf{P}_i`} />, governed by the Bernstein basis polynomials for <Latex math={String.raw`t \in [0, 1]`} />:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`\mathbf{P}(t) = \sum_{i=0}^{3} \binom{3}{i} (1-t)^{3-i} t^i \mathbf{P}_i`} />
-      </div>
+      </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Expanding the summation yields the explicit parametric equation:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`\mathbf{P}(t) = (1-t)^3\mathbf{P}_0 + 3(1-t)^2t\mathbf{P}_1 + 3(1-t)t^2\mathbf{P}_2 + t^3\mathbf{P}_3`} />
-      </div>
+      </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Decomposing the vector function into its Cartesian components yields the system of equations that dictates the Range of Motion <Latex math={String.raw`x(t)`} /> and the resulting Tension <Latex math={String.raw`y(t)`} />:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '30px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`x(t) = (1-t)^3 x_0 + 3(1-t)^2 t x_1 + 3(1-t) t^2 x_2 + t^3 x_3`} />
         <Latex block math={String.raw`y(t) = (1-t)^3 y_0 + 3(1-t)^2 t y_1 + 3(1-t) t^2 y_2 + t^3 y_3`} />
-      </div>
+      </MathBlock>
 
       <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--text-primary)' }}>2. Differential Constraints (Derivatives)</h3>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         The intermediate vectors <Latex math={String.raw`\mathbf{P}_1`} /> and <Latex math={String.raw`\mathbf{P}_2`} /> serve as tangent and acceleration handles. Their position is determined by enforcing differential constraints at the boundary limits. Differentiating <Latex math={String.raw`\mathbf{P}(t)`} /> gives the first derivative (parametric tangent vector):
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`\mathbf{P}'(t) = 3(1-t)^2(\mathbf{P}_1 - \mathbf{P}_0) + 6(1-t)t(\mathbf{P}_2 - \mathbf{P}_1) + 3t^2(\mathbf{P}_3 - \mathbf{P}_2)`} />
-      </div>
+      </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Evaluating the limits at the anchors <Latex math={String.raw`t=0`} /> and <Latex math={String.raw`t=1`} /> proves that the initial and final tangents are strictly collinear with the difference vectors:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '30px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`\mathbf{P}'(0) = 3(\mathbf{P}_1 - \mathbf{P}_0) \quad \text{and} \quad \mathbf{P}'(1) = 3(\mathbf{P}_3 - \mathbf{P}_2)`} />
-      </div>
+      </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Similarly, the second derivative evaluated at <Latex math={String.raw`t=0`} /> defines the initial parametric curvature term:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '30px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`\mathbf{P}''(0) = 6(\mathbf{P}_2 - 2\mathbf{P}_1 + \mathbf{P}_0)`} />
-      </div>
+      </MathBlock>
 
       {/* Interactive Graph */}
       <style>{`
@@ -142,15 +142,15 @@ const TensionProfileExplainer = () => {
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         The equations above define the tension <Latex math={String.raw`y`} /> as a function of the parameter <Latex math={String.raw`t`}/>. But in practice, we need to evaluate the tension at a specific degree of joint flexion (the Range of Motion coordinate <Latex math={String.raw`X \in [0, 1]`}/>). To find <Latex math={String.raw`Y`} /> given <Latex math={String.raw`X`} />, we must mathematically invert the system. We set our parametric equation <Latex math={String.raw`x(t)`} /> equal to our known coordinate <Latex math={String.raw`X`} />:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`x(t) - X = 0`} />
-      </div>
+      </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         Expanding the <Latex math={String.raw`x(t)`} /> polynomial algebraically, this equality formulates a non-linear cubic equation in standard form:
       </p>
-      <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+      <MathBlock color="var(--accent-primary)">
         <Latex block math={String.raw`(-x_0 + 3x_1 - 3x_2 + x_3)t^3 + (3x_0 - 6x_1 + 3x_2)t^2 + (-3x_0 + 3x_1)t + (x_0 - X) = 0`} />
-      </div>
+      </MathBlock>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', fontSize: '0.9rem', lineHeight: 1.6 }}>
         This simplifies to <Latex math={String.raw`at^3 + bt^2 + ct + d = 0`} />. While one could mathematically apply Cardano's analytical method, doing so in software introduces floating-point instability and complex numbers. Instead, the backend algorithms explicitly implement a <strong>Binary Search approximation</strong> to isolate the principal real root <Latex math={String.raw`t^*`} /> strictly within the valid domain <Latex math={String.raw`[0, 1]`} />. 
         <br/><br/>
@@ -164,32 +164,32 @@ const TensionProfileExplainer = () => {
         <strong>Step 1: Choosing the 4 Control Points</strong><br/>
         We lock the boundary anchors at zero tension: <Latex math={String.raw`\mathbf{P}_0 = (0, 0)`} /> and <Latex math={String.raw`\mathbf{P}_3 = (1, 0)`} />.<br/>
         To ensure a constant horizontal progression within <Latex math={String.raw`[0, 1]^2`} />, we set <Latex math={String.raw`x_1 = 1/3, x_2 = 2/3`} /> and maximal control height <Latex math={String.raw`y_1 = y_2 = 1`} />. 
-        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
+        <MathBlock color="var(--accent-primary)">
           <Latex block math={String.raw`\mathbf{P}_0(0, 0), \quad \mathbf{P}_1(1/3, 1), \quad \mathbf{P}_2(2/3, 1), \quad \mathbf{P}_3(1, 0)`} />
-        </div>
+        </MathBlock>
 
         <strong>Step 2: Formulating x(t) and y(t)</strong><br/>
         Substituting these points into the generic Bernstein polynomials yields two remarkably clean parametric equations:
-        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
+        <MathBlock color="var(--accent-primary)">
           <Latex block math={String.raw`x(t) = t \left[ (1-t)^2 + 2(1-t)t + t^2 \right] = t`} />
           <Latex block math={String.raw`y(t) = 3t(1-t) \left[ (1-t) + t \right] = 3t(1-t)`} />
-        </div>
+        </MathBlock>
         Notice how the horizontal equation elegantly collapses into a linear mapping <Latex math={String.raw`x(t) = t`} />, proving that our parameter perfectly traces the ROM.
         <br/><br/>
 
         <strong>Step 3: Extracting t from x(t)</strong><br/>
         Suppose the user's joint is exactly halfway through the movement (<Latex math={String.raw`X = 0.5`} />). We must find the hidden <Latex math={String.raw`t`} /> using the root-finding logic:
-        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
+        <MathBlock color="var(--accent-primary)">
           <Latex block math={String.raw`x(t) - X = 0 \implies t - 0.5 = 0`} />
-        </div>
+        </MathBlock>
         The Binary Search engine evaluates this and instantly converges on <Latex math={String.raw`t = 0.5`} />.
         <br/><br/>
 
         <strong>Step 4: Calculating y(t)</strong><br/>
         Finally, we plug our discovered <Latex math={String.raw`t = 0.5`} /> into the tension polynomial to find the raw curve height at that joint angle:
-        <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', margin: '12px 0' }}>
+        <MathBlock color="var(--accent-primary)">
           <Latex block math={String.raw`Y = y(0.5) = 3(0.5)(1 - 0.5) = 3(0.25) = 0.75`} />
-        </div>
+        </MathBlock>
         After UI peak normalization (<Latex math={String.raw`y(t)/\max y = 0.75/0.75 = 1.0`} />) or solver GL3 area normalization (<Latex math={String.raw`M_{e,m}/I_{\mathrm{GL3}}`} />), the midpoint achieves its peak tension while keeping every control point inside <Latex math={String.raw`[0, 1]^2`} />!
       </div>
     </div>
@@ -513,10 +513,12 @@ export default function MetricDetailsPage({ metric, onBack }) {
               </h3>
               <MathBlock color={data.color}>
                 {data.formulas.map((f, idx) => (
-                  <React.Fragment key={idx}>
-                    {idx > 0 && <div style={{ margin: '12px 0' }} />}
+                  <div
+                    key={idx}
+                    style={idx > 0 ? { borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '10px' } : undefined}
+                  >
                     <Latex block math={f} />
-                  </React.Fragment>
+                  </div>
                 ))}
               </MathBlock>
             </div>
