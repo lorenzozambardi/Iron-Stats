@@ -8,6 +8,53 @@ import { bezierArea, solveBezierY } from '../helpers';
 const CURVE_RESOLUTION = 50;
 const normalizedCurveCache = new Map();
 
+const MetricSparkline = ({ values, color, gradId }) => {
+  if (!values || values.length < 2) return null;
+
+  const w = 120;
+  const h = 24;
+  const padY = 3;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = range > 0
+      ? h - padY - ((v - min) / range) * (h - padY * 2)
+      : h / 2;
+    return [x, y];
+  });
+
+  const linePath = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${w},${h} L0,${h} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      style={{ width: '100%', height: '24px', display: 'block', marginTop: '2px', overflow: 'visible' }}
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.26" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+};
+
 const getNormalizedCurve = (distr) => {
   const x0 = typeof distr === 'object' ? (distr.x0 ?? 0.0) : 0.0;
   const y0 = typeof distr === 'object' ? (distr.y0 ?? 1.0) : 1.0;
@@ -861,23 +908,24 @@ const DashboardTab = ({
                         </span>
                       </div>
 
-                      {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(compareTotalTonnage, totalTonnage)],
-                        ['Effective Tonnage', 'effective-tonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveTonnage, totalEffectiveTonnage)],
-                        ['Reps', 'volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
-                        ['Effective Reps', 'effective', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(compareTotalEffReps, totalEffectiveReps)],
-                        ['W. Tonnage', 'weighted-tonnage', `${totalWeightedTonnage.toLocaleString()} kg`, `${compareTotalWeightedTonnage.toLocaleString()} kg`, delta(compareTotalWeightedTonnage, totalWeightedTonnage)],
-                        ['Eff. W. Tonnage', 'effective-weighted-tonnage', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`, `${compareTotalEffectiveWeightedTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveWeightedTonnage, totalEffectiveWeightedTonnage)],
-                        ['Volume', 'sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
-                        ['TUT', 'tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
-                        ['Effective TUT', 'effective-tut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
-                        ['Accumulated Fatigue', 'fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
-                      ].map(([label, cls, valA, valB, d]) => (
+                      {[['Tonnage', 'tonnage', 'Tonnage', 'var(--color-tonnage)', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(compareTotalTonnage, totalTonnage)],
+                        ['Effective Tonnage', 'effective-tonnage', 'EffectiveTonnage', 'var(--color-effective-tonnage)', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveTonnage, totalEffectiveTonnage)],
+                        ['Reps', 'volume', 'Volume', 'var(--color-volume)', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
+                        ['Effective Reps', 'effective', 'EffectiveRepsCustom', 'var(--color-effective-volume)', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(compareTotalEffReps, totalEffectiveReps)],
+                        ['W. Tonnage', 'weighted-tonnage', 'WeightedTonnage', 'var(--color-weighted-tonnage)', `${totalWeightedTonnage.toLocaleString()} kg`, `${compareTotalWeightedTonnage.toLocaleString()} kg`, delta(compareTotalWeightedTonnage, totalWeightedTonnage)],
+                        ['Eff. W. Tonnage', 'effective-weighted-tonnage', 'EffectiveWeightedTonnage', 'var(--color-effective-weighted-tonnage)', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`, `${compareTotalEffectiveWeightedTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveWeightedTonnage, totalEffectiveWeightedTonnage)],
+                        ['Volume', 'sets', 'Sets', 'var(--color-sets)', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
+                        ['TUT', 'tut', 'Tut', 'var(--color-tut)', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
+                        ['Effective TUT', 'effective-tut', 'EffectiveTut', 'var(--color-effective-tut)', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
+                        ['Accumulated Fatigue', 'fatigue', 'Fatigue', 'var(--color-fatigue)', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
+                      ].map(([label, cls, metricKey, color, valA, valB, d]) => (
                         <React.Fragment key={label}>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0 }} onClick={() => { setSelectedMetricDetail(cls); }}>
                             <span className="metric-label">
                               {label}
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valA}</span>
+                            <MetricSparkline values={metricsByWeek.map(m => m[metricKey] || 0)} color={color} gradId={`spark-a-${cls}`} />
                             <span className="metric-trend">{currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}</span>
                           </div>
                           <div className={`metric-summary-card ${cls}`} style={{ margin: 0, opacity: 0.75 }} onClick={() => { setSelectedMetricDetail(cls); }}>
@@ -885,6 +933,7 @@ const DashboardTab = ({
                               {label}
                             </span>
                             <span className="metric-value" style={{ fontSize: '1.4rem' }}>{valB}</span>
+                            <MetricSparkline values={compareMetricsByWeek.map(m => m[`${metricKey}_B`] || 0)} color={color} gradId={`spark-b-${cls}`} />
                             {d ? (
                               <span style={{ fontSize: '0.75rem', color: d.pos ? '#10b981' : '#f43f5e' }}>{d.pos ? '▲' : '▼'} {Math.abs(d.val)}% vs {currentProgram === compareProgram ? 'Selection A' : currentProgram}</span>
                             ) : (
@@ -899,42 +948,52 @@ const DashboardTab = ({
                       <div className="metric-summary-card volume" onClick={() => { setSelectedMetricDetail('volume'); }}>
                         <span className="metric-label">Reps</span>
                         <span className="metric-value">{totalVolume.toLocaleString()} reps</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.Volume || 0)} color="var(--color-volume)" gradId="spark-volume" />
                       </div>
                       <div className="metric-summary-card effective" onClick={() => { setSelectedMetricDetail('effective'); }}>
                         <span className="metric-label">Effective Reps</span>
                         <span className="metric-value">{totalEffectiveReps.toLocaleString()} reps</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveRepsCustom || 0)} color="var(--color-effective-volume)" gradId="spark-effective" />
                       </div>
                       <div className="metric-summary-card tonnage" onClick={() => { setSelectedMetricDetail('tonnage'); }}>
                         <span className="metric-label">Tonnage</span>
                         <span className="metric-value">{totalTonnage.toLocaleString()} kg</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.Tonnage || 0)} color="var(--color-tonnage)" gradId="spark-tonnage" />
                       </div>
                       <div className="metric-summary-card effective-tonnage" onClick={() => { setSelectedMetricDetail('effective-tonnage'); }}>
                         <span className="metric-label">Effective Tonnage</span>
                         <span className="metric-value">{totalEffectiveTonnage.toLocaleString()} kg</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveTonnage || 0)} color="var(--color-effective-tonnage)" gradId="spark-effective-tonnage" />
                       </div>
                       <div className="metric-summary-card weighted-tonnage" onClick={() => { setSelectedMetricDetail('weighted-tonnage'); }}>
                         <span className="metric-label">W. Tonnage</span>
                         <span className="metric-value">{totalWeightedTonnage.toLocaleString()} kg</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.WeightedTonnage || 0)} color="var(--color-weighted-tonnage)" gradId="spark-weighted-tonnage" />
                       </div>
                       <div className="metric-summary-card effective-weighted-tonnage" onClick={() => { setSelectedMetricDetail('effective-weighted-tonnage'); }}>
                         <span className="metric-label">Eff. W. Tonnage</span>
                         <span className="metric-value">{totalEffectiveWeightedTonnage.toLocaleString()} kg</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveWeightedTonnage || 0)} color="var(--color-effective-weighted-tonnage)" gradId="spark-eff-weighted-tonnage" />
                       </div>
                       <div className="metric-summary-card tut" onClick={() => { setSelectedMetricDetail('tut'); }}>
                         <span className="metric-label">TUT</span>
                         <span className="metric-value">{totalTut.toLocaleString()}s</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.Tut || 0)} color="var(--color-tut)" gradId="spark-tut" />
                       </div>
                       <div className="metric-summary-card effective-tut" onClick={() => { setSelectedMetricDetail('effective-tut'); }}>
                         <span className="metric-label">Effective TUT</span>
                         <span className="metric-value">{totalEffectiveTut.toLocaleString()}s</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.EffectiveTut || 0)} color="var(--color-effective-tut)" gradId="spark-effective-tut" />
                       </div>
                       <div className="metric-summary-card sets" onClick={() => { setSelectedMetricDetail('sets'); }}>
                         <span className="metric-label">Volume</span>
                         <span className="metric-value">{totalSets.toLocaleString()} sets</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.Sets || 0)} color="var(--color-sets)" gradId="spark-sets" />
                       </div>
                       <div className="metric-summary-card fatigue" onClick={() => { setSelectedMetricDetail('fatigue'); }}>
                         <span className="metric-label">Accumulated Fatigue</span>
                         <span className="metric-value">{totalFatigue.toLocaleString()}</span>
+                        <MetricSparkline values={metricsByWeek.map(m => m.Fatigue || 0)} color="var(--color-fatigue)" gradId="spark-fatigue" />
                       </div>
                     </div>
                   )}
