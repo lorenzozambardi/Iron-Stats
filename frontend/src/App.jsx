@@ -15,12 +15,18 @@ import {
   Undo2,
   Redo2,
   Settings,
-  Timer
+  Timer,
+  AlertTriangle,
+  Info,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import {
   parseLogbook,
   getExercisesWithOverrides
 } from './parser';
+import { lintLogbook } from './linter';
 import { getStorageConfig, setStorageConfig, pickDirectory } from './offlineApi.js';
 import { App as CapacitorApp } from '@capacitor/app';
 
@@ -98,6 +104,9 @@ export default function App() {
   const [muscleSearch, setMuscleSearch] = useState('');
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const [editorType, setEditorType] = useState(() => localStorage.getItem('editor-type') || 'manual');
+  const [showLintPanel, setShowLintPanel] = useState(false);
+  const [lintFilter, setLintFilter] = useState('all');
+  const foldableEditorRef = useRef(null);
 
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
@@ -609,6 +618,26 @@ export default function App() {
     }
     return [];
   }, [debouncedLogbookText, exercisesDb]);
+
+  const diagnostics = useMemo(() => {
+    if (!debouncedLogbookText || exercisesDb.length === 0) return [];
+    return lintLogbook(debouncedLogbookText, exercisesDb, workoutData);
+  }, [debouncedLogbookText, exercisesDb, workoutData]);
+
+  const lintCounts = useMemo(() => {
+    let errors = 0, warnings = 0, infos = 0;
+    for (const d of diagnostics) {
+      if (d.severity === 'error') errors++;
+      else if (d.severity === 'warning') warnings++;
+      else infos++;
+    }
+    return { errors, warnings, infos, total: diagnostics.length };
+  }, [diagnostics]);
+
+  const filteredDiagnostics = useMemo(() => {
+    if (lintFilter === 'all') return diagnostics;
+    return diagnostics.filter(d => d.category === lintFilter);
+  }, [diagnostics, lintFilter]);
 
   // Cursor Tracking State for scroll sync
   const [activeCursorLine, setActiveCursorLine] = useState(null);
@@ -1348,11 +1377,91 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="editor-actions">
+                <button
+                  type="button"
+                  className={`lint-status-pill ${lintCounts.errors > 0 ? 'has-errors' : lintCounts.warnings > 0 ? 'has-warnings' : 'is-clean'} ${showLintPanel ? 'open' : ''}`}
+                  onClick={() => setShowLintPanel(prev => !prev)}
+                  title="Toggle Linter & Anomaly Checker"
+                >
+                  {lintCounts.errors > 0 ? (
+                    <AlertCircle size={14} />
+                  ) : lintCounts.warnings > 0 ? (
+                    <AlertTriangle size={14} />
+                  ) : (
+                    <CheckCircle2 size={14} />
+                  )}
+                  <span>
+                    {lintCounts.total === 0
+                      ? 'No issues'
+                      : [
+                          lintCounts.errors > 0 ? `${lintCounts.errors} err` : null,
+                          lintCounts.warnings > 0 ? `${lintCounts.warnings} warn` : null,
+                          lintCounts.infos > 0 ? `${lintCounts.infos} info` : null
+                        ].filter(Boolean).join(' · ')}
+                  </span>
+                  {showLintPanel ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
                 <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookText)}>
                   <Save size={14} /> Save Now
                 </button>
               </div>
             </div>
+
+            {showLintPanel && (
+              <div className="lint-drawer">
+                <div className="lint-drawer-header">
+                  <div className="lint-filter-tabs">
+                    <button
+                      type="button"
+                      className={`lint-filter-btn ${lintFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setLintFilter('all')}
+                    >
+                      All ({diagnostics.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`lint-filter-btn ${lintFilter === 'syntax' ? 'active' : ''}`}
+                      onClick={() => setLintFilter('syntax')}
+                    >
+                      Syntax ({diagnostics.filter(d => d.category === 'syntax').length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`lint-filter-btn ${lintFilter === 'anomaly' ? 'active' : ''}`}
+                      onClick={() => setLintFilter('anomaly')}
+                    >
+                      Anomalies ({diagnostics.filter(d => d.category === 'anomaly').length})
+                    </button>
+                  </div>
+                </div>
+                <div className="lint-drawer-list">
+                  {filteredDiagnostics.length === 0 ? (
+                    <div className="lint-empty-state">No issues in this category.</div>
+                  ) : (
+                    filteredDiagnostics.map((d, idx) => (
+                      <button
+                        key={`${d.id}-${d.lineIndex}-${idx}`}
+                        type="button"
+                        className={`lint-item severity-${d.severity}`}
+                        onClick={() => {
+                          if (editorMode === 'preview') setEditorMode('split');
+                          setTimeout(() => {
+                            foldableEditorRef.current?.scrollToLine(d.lineIndex);
+                          }, 0);
+                        }}
+                      >
+                        <span className="lint-item-icon">
+                          {d.severity === 'error' ? <AlertCircle size={13} /> : d.severity === 'warning' ? <AlertTriangle size={13} /> : <Info size={13} />}
+                        </span>
+                        <span className="lint-item-line">L{d.lineIndex + 1}</span>
+                        <span className="lint-item-msg">{d.message}</span>
+                        <span className={`lint-item-cat cat-${d.category}`}>{d.category}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Split / Main Editor container */}
             <div className={`editor-split-container mode-${editorMode}`}>
@@ -1372,6 +1481,7 @@ export default function App() {
                       />
                     ) : (
                       <FoldableEditor
+                        ref={foldableEditorRef}
                         value={logbookText}
                         onChange={(newText) => {
                           setLogbookText(newText);
@@ -1382,6 +1492,7 @@ export default function App() {
                           }, 1500);
                         }}
                         exercisesDb={activeExercises}
+                        diagnostics={diagnostics}
                         onCursorLineChange={!isMobile && (editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
                       />
                     )}
@@ -1398,6 +1509,7 @@ export default function App() {
                       activeExerciseStartLine={activeExerciseStartLine}
                       activeWeekLineIndex={activeWeekLineIndex}
                       editorMode={editorMode}
+                      diagnostics={diagnostics}
                     />
                   </div>
                 </div>

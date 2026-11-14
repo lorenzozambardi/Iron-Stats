@@ -2,9 +2,18 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MUSCLES } from '../parser';
 import { formatRestTime, groupSets } from './helpers';
 
-function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode }) {
+function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode, diagnostics = [] }) {
   const scrollAnimRef = useRef(null);
   const [expandedExerciseName, setExpandedExerciseName] = useState(null);
+
+  const diagnosticsByLine = useMemo(() => {
+    const map = new Map();
+    for (const d of diagnostics) {
+      if (!map.has(d.lineIndex)) map.set(d.lineIndex, []);
+      map.get(d.lineIndex).push(d);
+    }
+    return map;
+  }, [diagnostics]);
 
   useEffect(() => {
     if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
@@ -110,6 +119,10 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
           <div className="preview-exercises-list">
             {exercises.map((ex, exIdx) => {
               const isActive = activeExerciseStartLine === ex.startLine;
+              const exDiagnostics = [
+                ...(diagnosticsByLine.get(ex.startLine) || []),
+                ...ex.weeks.flatMap(w => diagnosticsByLine.get(w.lineIndex) || [])
+              ];
               return (
                 <div 
                   key={exIdx} 
@@ -135,6 +148,14 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                         {ex.concentric !== undefined && (
                           <span className="badge tempo">
                             Tempo: {ex.concentric}-{ex.shortening_pause}-{ex.eccentric}-{ex.lengthening_pause}
+                          </span>
+                        )}
+                        {exDiagnostics.length > 0 && (
+                          <span
+                            className={`badge ${exDiagnostics.some(d => d.severity === 'error') ? 'lint-badge-error' : 'lint-badge-warn'}`}
+                            title={exDiagnostics.map(d => d.message).join('\n')}
+                          >
+                            {exDiagnostics.length} {exDiagnostics.length === 1 ? 'issue' : 'issues'}
                           </span>
                         )}
                         {editorMode === 'preview' && ex.exercise_obj && (

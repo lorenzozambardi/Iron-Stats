@@ -1134,6 +1134,169 @@ input::-webkit-list-button {
   gap: 8px;
 }
 
+.lint-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #94a3b8);
+  transition: all 0.15s ease;
+}
+
+.lint-status-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lint-status-pill.has-errors {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.lint-status-pill.has-warnings {
+  color: #fde68a;
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.lint-status-pill.is-clean {
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.25);
+  background: rgba(74, 222, 128, 0.07);
+}
+
+.lint-drawer {
+  background: rgba(17, 17, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.lint-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lint-filter-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.lint-filter-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.74rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.lint-filter-btn.active {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #c7d2fe;
+}
+
+.lint-drawer-list {
+  max-height: 165px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.lint-empty-state {
+  padding: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  text-align: center;
+}
+
+.lint-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.lint-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.lint-item.severity-error .lint-item-icon { color: #f87171; }
+.lint-item.severity-warning .lint-item-icon { color: #fbbf24; }
+.lint-item.severity-info .lint-item-icon { color: #60a5fa; }
+
+.lint-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.lint-item-line {
+  font-family: monospace;
+  font-size: 0.74rem;
+  color: var(--text-muted, #94a3b8);
+  min-width: 34px;
+}
+
+.lint-item-msg {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lint-item-cat {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.lint-item-cat.cat-syntax {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+.lint-item-cat.cat-anomaly {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fde68a;
+}
+
+.badge.lint-badge-error {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.badge.lint-badge-warn {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fde68a;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
 .editor-split-container {
   display: grid;
   gap: 32px;

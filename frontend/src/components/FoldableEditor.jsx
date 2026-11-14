@@ -1,9 +1,9 @@
-/* eslint-disable react-hooks/refs */
-import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
+import { linter, lintGutter, forceLinting } from '@codemirror/lint';
 import { customFoldService } from './customFoldService';
 import { fuzzyScore } from './helpers';
 
@@ -88,6 +88,60 @@ const editorTheme = EditorView.theme({
   '.cm-tooltip-autocomplete ul li[aria-selected]': {
     backgroundColor: 'var(--accent-primary-subtle, rgba(99, 102, 241, 0.2)) !important',
     color: 'var(--accent-primary, #818cf8) !important'
+  },
+  '.cm-gutter-lint': {
+    width: '16px'
+  },
+  '.cm-lint-marker': {
+    width: '10px',
+    height: '10px'
+  },
+  '.cm-lintRange-error': {
+    backgroundImage: 'none',
+    textDecoration: 'underline wavy #f87171',
+    textUnderlineOffset: '3px'
+  },
+  '.cm-lintRange-warning': {
+    backgroundImage: 'none',
+    textDecoration: 'underline wavy #fbbf24',
+    textUnderlineOffset: '3px'
+  },
+  '.cm-lintRange-info': {
+    backgroundImage: 'none',
+    textDecoration: 'underline dotted #60a5fa',
+    textUnderlineOffset: '3px'
+  },
+  '.cm-tooltip-lint': {
+    backgroundColor: 'var(--bg-glass-active, #181818) !important',
+    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important',
+    borderRadius: '8px !important',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.7) !important',
+    color: '#e2e8f0 !important',
+    fontSize: '0.82rem !important',
+    maxWidth: '340px'
+  },
+  '.cm-diagnostic': {
+    padding: '6px 10px !important',
+    borderLeftWidth: '3px !important'
+  },
+  '.cm-diagnostic-error': {
+    borderLeftColor: '#f87171 !important'
+  },
+  '.cm-diagnostic-warning': {
+    borderLeftColor: '#fbbf24 !important'
+  },
+  '.cm-diagnostic-info': {
+    borderLeftColor: '#60a5fa !important'
+  },
+  '.cm-diagnosticAction': {
+    backgroundColor: 'rgba(99, 102, 241, 0.2) !important',
+    color: '#a5b4fc !important',
+    border: '1px solid rgba(99, 102, 241, 0.35) !important',
+    borderRadius: '4px !important',
+    padding: '2px 7px !important',
+    marginLeft: '8px !important',
+    cursor: 'pointer !important',
+    fontSize: '0.76rem !important'
   }
 }, { dark: true });
 
@@ -119,12 +173,13 @@ const BASIC_SETUP = {
   autocompletion: false
 };
 
-export default function FoldableEditor({
+const FoldableEditor = forwardRef(function FoldableEditor({
   value,
   onChange,
   exercisesDb = [],
-  onCursorLineChange
-}) {
+  onCursorLineChange,
+  diagnostics = []
+}, ref) {
   const exercisesDbRef = useRef(exercisesDb);
   exercisesDbRef.current = exercisesDb;
 
@@ -134,9 +189,26 @@ export default function FoldableEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const diagnosticsRef = useRef(diagnostics);
+  diagnosticsRef.current = diagnostics;
+
   const editorViewRef = useRef(null);
   const lastEmittedValueRef = useRef(value);
   const [initialValue] = useState(value);
+
+  useImperativeHandle(ref, () => ({
+    scrollToLine(lineIndex) {
+      const view = editorViewRef.current;
+      if (!view) return;
+      const lineNum = Math.max(1, Math.min(lineIndex + 1, view.state.doc.lines));
+      const line = view.state.doc.line(lineNum);
+      view.dispatch({
+        selection: { anchor: line.from },
+        effects: EditorView.scrollIntoView(line.from, { y: 'center' })
+      });
+      view.focus();
+    }
+  }), []);
 
   const exerciseCompletion = useMemo(() => {
     return autocompletion({
@@ -185,9 +257,52 @@ export default function FoldableEditor({
     });
   }, []);
 
+  const lintExtension = useMemo(() => {
+    return linter((view) => {
+      const list = diagnosticsRef.current;
+      if (!list || list.length === 0) return [];
+      const doc = view.state.doc;
+      const cmDiagnostics = [];
+
+      for (const d of list) {
+        const lineNum = d.lineIndex + 1;
+        if (lineNum < 1 || lineNum > doc.lines) continue;
+        const line = doc.line(lineNum);
+        const from = Math.min(line.to, line.from + Math.max(0, d.from ?? 0));
+        const to = Math.min(line.to, Math.max(from, line.from + (d.to ?? line.length)));
+
+        const entry = {
+          from,
+          to,
+          severity: d.severity || 'warning',
+          message: d.message
+        };
+
+        if (d.suggestion) {
+          entry.actions = [
+            {
+              name: `Use "${d.suggestion}"`,
+              apply(targetView, f, t) {
+                targetView.dispatch({
+                  changes: { from: f, to: t, insert: d.suggestion }
+                });
+              }
+            }
+          ];
+        }
+
+        cmDiagnostics.push(entry);
+      }
+
+      return cmDiagnostics;
+    }, { delay: 150 });
+  }, []);
+
   const extensions = useMemo(() => [
     customFoldService,
     foldGutterExtension,
+    lintGutter(),
+    lintExtension,
     EditorView.lineWrapping,
     exerciseCompletion,
     editorTheme,
@@ -198,7 +313,13 @@ export default function FoldableEditor({
         onCursorLineChangeRef.current(line.number - 1);
       }
     })
-  ], [exerciseCompletion]);
+  ], [exerciseCompletion, lintExtension]);
+
+  useEffect(() => {
+    if (editorViewRef.current) {
+      forceLinting(editorViewRef.current);
+    }
+  }, [diagnostics]);
 
   const handleChange = useCallback((val) => {
     lastEmittedValueRef.current = val;
@@ -239,4 +360,6 @@ export default function FoldableEditor({
       />
     </div>
   );
-}
+});
+
+export default FoldableEditor;
