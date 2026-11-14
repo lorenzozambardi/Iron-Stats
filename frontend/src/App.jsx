@@ -95,6 +95,10 @@ const SEC_PALETTES = [
 export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
+  const logbookTextRef = useRef('');
+  useEffect(() => {
+    logbookTextRef.current = logbookText;
+  }, [logbookText]);
   const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
   const [exercisesDb, setExercisesDb] = useState([]);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
@@ -1089,11 +1093,17 @@ export default function App() {
 
   // Handle manual / debounced auto-saving to [program].md
   const saveLogbookContent = (newText, progName = currentProgram) => {
+    const formattedText = formatLogbook(newText);
+    if (formattedText !== newText && logbookTextRef.current === newText) {
+      setLogbookText(formattedText);
+      setDebouncedLogbookText(formattedText);
+    }
+
     setSyncStatus('syncing');
     fetch(`/api/logbook?program=${progName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: newText
+      body: formattedText
     })
       .then(res => {
         if (!res.ok) throw new Error('Server returned error status');

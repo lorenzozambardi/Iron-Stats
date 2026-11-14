@@ -355,8 +355,14 @@ const FoldableEditor = forwardRef(function FoldableEditor({
     if (!view) return;
     const currentDoc = view.state.doc.toString();
     if (currentDoc !== value) {
+      const sel = view.state.selection.main;
+      const maxPos = value.length;
       view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: value }
+        changes: { from: 0, to: currentDoc.length, insert: value },
+        selection: {
+          anchor: Math.min(sel.anchor, maxPos),
+          head: Math.min(sel.head, maxPos)
+        }
       });
     }
   }, [value]);
