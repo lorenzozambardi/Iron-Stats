@@ -836,7 +836,7 @@ const DashboardTab = ({
                   {/* ── Summary Cards ── */}
                   {compareMode && compareProgram && !compareLoading ? (
                     // Compare mode: 2-column layout with A vs B
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '8px' : '16px', marginBottom: isMobile ? '8px' : '16px' }}>
                       {/* Column headers */}
                       <div style={{
                         gridColumn: '1', padding: '8px 16px',
@@ -1255,7 +1255,7 @@ const DashboardTab = ({
                     </div>
 
                     {/* Cumulative Tension Curves Chart */}
-                    <div className="chart-container" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
+                    <div className="chart-container" style={{ gridColumn: '1 / -1' }}>
                       <div className="chart-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedMetricDetail('tension-profiles'); }}>
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', transition: 'color 0.2s' }}>
                           Tension Profiles

@@ -593,7 +593,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-wrap: wrap;
   gap: 16px;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .metrics-summary-grid .metric-summary-card {
@@ -2109,6 +2109,11 @@ input::-webkit-list-button {
   /* Scale down Dashboard elements */
   .metrics-summary-grid {
     gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+  .analytics-grid {
+    gap: 8px !important;
+    margin-bottom: 8px !important;
   }
   .metric-summary-card {
     padding: 10px 12px !important;
@@ -2138,7 +2143,7 @@ input::-webkit-list-button {
     gap: 8px !important;
     max-width: 100% !important;
     width: 100% !important;
-    margin: 0 0 16px 0 !important;
+    margin: 0 !important;
     box-sizing: border-box !important;
   }
   .chart-title {
