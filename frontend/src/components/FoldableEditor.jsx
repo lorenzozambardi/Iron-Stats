@@ -1,9 +1,9 @@
-import { useMemo, useCallback, useRef, useEffect, useState, forwardRef, useImperativeHandle, memo } from 'react';
+/* eslint-disable react-hooks/refs */
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
-import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { customFoldService } from './customFoldService';
 import { fuzzyScore } from './helpers';
 
@@ -12,7 +12,7 @@ const editorTheme = EditorView.theme({
     height: '100%',
     width: '100%',
     backgroundColor: 'transparent',
-    color: '#e2e8f0',
+    color: '#e5e5e5',
     fontFamily: 'inherit',
     fontSize: 'inherit'
   },
@@ -56,16 +56,20 @@ const editorTheme = EditorView.theme({
     color: 'var(--accent-primary, #6366f1)'
   },
   '.cm-foldPlaceholder': {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    border: '1px solid rgba(255, 255, 255, 0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
     color: 'var(--accent-primary, #818cf8)',
-    borderRadius: '4px',
-    padding: '0 5px',
+    borderRadius: '999px',
+    padding: '1px 8px',
     marginLeft: '6px',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    fontSize: '0.82rem',
-    fontWeight: '500'
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    lineHeight: '1.2',
+    display: 'inline-flex',
+    alignItems: 'center',
+    verticalAlign: 'middle'
   },
   '.cm-activeLine': {
     backgroundColor: 'rgba(255, 255, 255, 0.03)'
@@ -88,72 +92,6 @@ const editorTheme = EditorView.theme({
   '.cm-tooltip-autocomplete ul li[aria-selected]': {
     backgroundColor: 'var(--accent-primary-subtle, rgba(99, 102, 241, 0.2)) !important',
     color: 'var(--accent-primary, #818cf8) !important'
-  },
-  '.cm-gutter-lint': {
-    width: '16px'
-  },
-  '.cm-lint-marker': {
-    width: '10px',
-    height: '10px'
-  },
-  '.cm-lintRange-error': {
-    backgroundImage: 'none',
-    borderBottom: '2px solid #ef4444'
-  },
-  '.cm-lintRange-warning': {
-    backgroundImage: 'none',
-    borderBottom: '2px dashed #f59e0b'
-  },
-  '.cm-lintRange-info': {
-    backgroundImage: 'none',
-    borderBottom: '2px dotted #60a5fa'
-  },
-  '.cm-tooltip.cm-tooltip-lint': {
-    backgroundColor: 'var(--bg-glass-active, #181818) !important',
-    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important',
-    borderRadius: 'var(--card-radius, 12px) !important',
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65) !important',
-    color: 'var(--text-primary, #f8fafc) !important',
-    fontFamily: 'var(--font-sans, inherit) !important',
-    fontSize: '0.82rem !important',
-    padding: '4px !important',
-    maxWidth: '360px',
-    overflow: 'hidden'
-  },
-  '.cm-tooltip-lint .cm-diagnostic': {
-    padding: '8px 12px !important',
-    borderLeftWidth: '3px !important',
-    borderRadius: '6px !important',
-    lineHeight: '1.45 !important',
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: '8px'
-  },
-  '.cm-diagnostic-error': {
-    borderLeftColor: '#ef4444 !important'
-  },
-  '.cm-diagnostic-warning': {
-    borderLeftColor: '#f59e0b !important'
-  },
-  '.cm-diagnostic-info': {
-    borderLeftColor: 'var(--accent-secondary, #06b6d4) !important'
-  },
-  '.cm-diagnosticAction': {
-    backgroundColor: 'var(--accent-primary-subtle, rgba(99, 102, 241, 0.15)) !important',
-    color: 'var(--accent-primary, #818cf8) !important',
-    border: '1px solid var(--accent-primary, #6366f1) !important',
-    borderRadius: 'var(--button-radius, 8px) !important',
-    fontFamily: 'var(--font-display, inherit) !important',
-    fontWeight: '500 !important',
-    padding: '3px 10px !important',
-    marginLeft: 'auto !important',
-    cursor: 'pointer !important',
-    fontSize: '0.74rem !important',
-    transition: 'filter 0.15s ease'
-  },
-  '.cm-diagnosticAction:hover': {
-    filter: 'brightness(1.2)'
   }
 }, { dark: true });
 
@@ -185,14 +123,34 @@ const BASIC_SETUP = {
   autocompletion: false
 };
 
-const FoldableEditor = forwardRef(function FoldableEditor({
+const computeMinimalChange = (oldText, newText) => {
+  const oldLen = oldText.length;
+  const newLen = newText.length;
+  const minLen = Math.min(oldLen, newLen);
+  let prefix = 0;
+  while (prefix < minLen && oldText.charCodeAt(prefix) === newText.charCodeAt(prefix)) {
+    prefix++;
+  }
+  let suffix = 0;
+  while (
+    suffix < minLen - prefix &&
+    oldText.charCodeAt(oldLen - 1 - suffix) === newText.charCodeAt(newLen - 1 - suffix)
+  ) {
+    suffix++;
+  }
+  return {
+    from: prefix,
+    to: oldLen - suffix,
+    insert: newText.slice(prefix, newLen - suffix)
+  };
+};
+
+export default function FoldableEditor({
   value,
   onChange,
   exercisesDb = [],
-  onCursorLineChange,
-  diagnostics = [],
-  onDismissDiagnostic
-}, ref) {
+  onCursorLineChange
+}) {
   const exercisesDbRef = useRef(exercisesDb);
   exercisesDbRef.current = exercisesDb;
 
@@ -202,30 +160,11 @@ const FoldableEditor = forwardRef(function FoldableEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const diagnosticsRef = useRef(diagnostics);
-  diagnosticsRef.current = diagnostics;
-
-  const onDismissDiagnosticRef = useRef(onDismissDiagnostic);
-  onDismissDiagnosticRef.current = onDismissDiagnostic;
-
   const editorViewRef = useRef(null);
   const lastEmittedValueRef = useRef(value);
-  const lastCursorLineRef = useRef(-1);
+  const pendingLocalValuesRef = useRef([]);
+  const isSyncingExternalRef = useRef(false);
   const [initialValue] = useState(value);
-
-  useImperativeHandle(ref, () => ({
-    scrollToLine(lineIndex) {
-      const view = editorViewRef.current;
-      if (!view) return;
-      const lineNum = Math.max(1, Math.min(lineIndex + 1, view.state.doc.lines));
-      const line = view.state.doc.line(lineNum);
-      view.dispatch({
-        selection: { anchor: line.from },
-        effects: EditorView.scrollIntoView(line.from, { y: 'center' })
-      });
-      view.focus();
-    }
-  }), []);
 
   const exerciseCompletion = useMemo(() => {
     return autocompletion({
@@ -274,84 +213,27 @@ const FoldableEditor = forwardRef(function FoldableEditor({
     });
   }, []);
 
-  const buildCmDiagnostics = useCallback((doc, list) => {
-    if (!list || list.length === 0) return [];
-    const cmDiagnostics = [];
-
-    for (const d of list) {
-      const lineNum = d.lineIndex + 1;
-      if (lineNum < 1 || lineNum > doc.lines) continue;
-      const line = doc.line(lineNum);
-      const from = Math.min(line.to, line.from + Math.max(0, d.from ?? 0));
-      const to = Math.min(line.to, Math.max(from, line.from + (d.to ?? line.length)));
-
-      const entry = {
-        from,
-        to,
-        severity: d.severity || 'warning',
-        message: d.message
-      };
-
-      const actions = [];
-      if (d.suggestion !== undefined) {
-        actions.push({
-          name: d.replaceFullLine ? 'Format line' : `Use "${d.suggestion}"`,
-          apply(targetView, f, t) {
-            targetView.dispatch({
-              changes: { from: f, to: t, insert: d.suggestion }
-            });
-          }
-        });
-      }
-      if (onDismissDiagnosticRef.current) {
-        actions.push({
-          name: 'Mark as OK',
-          apply(targetView) {
-            const nextList = (diagnosticsRef.current || []).filter(item => item.fingerprint !== d.fingerprint);
-            diagnosticsRef.current = nextList;
-            targetView.dispatch(setDiagnostics(targetView.state, buildCmDiagnostics(targetView.state.doc, nextList)));
-            onDismissDiagnosticRef.current(d);
-          }
-        });
-      }
-      if (actions.length > 0) {
-        entry.actions = actions;
-      }
-
-      cmDiagnostics.push(entry);
-    }
-
-    return cmDiagnostics;
-  }, []);
-
   const extensions = useMemo(() => [
     customFoldService,
     foldGutterExtension,
-    lintGutter(),
     EditorView.lineWrapping,
     exerciseCompletion,
     editorTheme,
     EditorView.updateListener.of((update) => {
       if (update.selectionSet && onCursorLineChangeRef.current) {
         const head = update.state.selection.main.head;
-        const lineNum = update.state.doc.lineAt(head).number - 1;
-        if (lineNum !== lastCursorLineRef.current) {
-          lastCursorLineRef.current = lineNum;
-          onCursorLineChangeRef.current(lineNum);
-        }
+        const line = update.state.doc.lineAt(head);
+        onCursorLineChangeRef.current(line.number - 1);
       }
     })
   ], [exerciseCompletion]);
 
-  useEffect(() => {
-    const view = editorViewRef.current;
-    if (!view) return;
-    const cmDiags = buildCmDiagnostics(view.state.doc, diagnostics);
-    view.dispatch(setDiagnostics(view.state, cmDiags));
-  }, [diagnostics, buildCmDiagnostics]);
-
   const handleChange = useCallback((val) => {
+    if (isSyncingExternalRef.current) return;
     lastEmittedValueRef.current = val;
+    const pending = pendingLocalValuesRef.current;
+    pending.push(val);
+    if (pending.length > 50) pending.shift();
     if (onChangeRef.current) {
       onChangeRef.current(val);
     }
@@ -359,30 +241,54 @@ const FoldableEditor = forwardRef(function FoldableEditor({
 
   const handleCreateEditor = useCallback((view) => {
     editorViewRef.current = view;
-    if (diagnosticsRef.current && diagnosticsRef.current.length > 0) {
-      const cmDiags = buildCmDiagnostics(view.state.doc, diagnosticsRef.current);
-      view.dispatch(setDiagnostics(view.state, cmDiags));
-    }
-  }, [buildCmDiagnostics]);
+  }, []);
 
-  // Only sync external value changes (program switch, undo/redo, modal edits) into CodeMirror.
-  // Never echo back the user's own keystrokes, which prevents cursor resets during fast typing / IME.
+  // Only sync external value changes (program switch, undo/redo, modal edits, save-time formatting) into CodeMirror.
+  // Never echo back stale intermediate keystrokes, and apply minimal diffs with mapped selection to prevent cursor resets.
   useEffect(() => {
-    if (value === lastEmittedValueRef.current) return;
+    if (value === lastEmittedValueRef.current) {
+      pendingLocalValuesRef.current = [];
+      return;
+    }
+
+    const pending = pendingLocalValuesRef.current;
+    const pendingIdx = pending.indexOf(value);
+    if (pendingIdx !== -1) {
+      pendingLocalValuesRef.current = pending.slice(pendingIdx + 1);
+      return;
+    }
+
+    pendingLocalValuesRef.current = [];
     lastEmittedValueRef.current = value;
     const view = editorViewRef.current;
     if (!view) return;
     const currentDoc = view.state.doc.toString();
     if (currentDoc !== value) {
-      const sel = view.state.selection.main;
-      const maxPos = value.length;
-      view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: value },
-        selection: {
-          anchor: Math.min(sel.anchor, maxPos),
-          head: Math.min(sel.head, maxPos)
-        }
-      });
+      const change = computeMinimalChange(currentDoc, value);
+      const isFullReplacement = change.from === 0 && change.to === currentDoc.length && currentDoc.length > 0 && value.length > 0;
+      const { anchor, head } = view.state.selection.main;
+      const delta = change.insert.length - (change.to - change.from);
+      const mapPos = (pos) => {
+        if (pos <= change.from) return pos;
+        if (pos >= change.to) return pos + delta;
+        return Math.min(pos, change.from + change.insert.length);
+      };
+      const nextSelection = isFullReplacement
+        ? { anchor: 0, head: 0 }
+        : {
+            anchor: Math.max(0, Math.min(mapPos(anchor), value.length)),
+            head: Math.max(0, Math.min(mapPos(head), value.length))
+          };
+
+      isSyncingExternalRef.current = true;
+      try {
+        view.dispatch({
+          changes: change,
+          selection: nextSelection
+        });
+      } finally {
+        isSyncingExternalRef.current = false;
+      }
     }
   }, [value]);
 
@@ -399,6 +305,4 @@ const FoldableEditor = forwardRef(function FoldableEditor({
       />
     </div>
   );
-});
-
-export default memo(FoldableEditor);
+}
