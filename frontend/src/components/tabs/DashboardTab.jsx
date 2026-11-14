@@ -220,39 +220,42 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   );
 });
 
-const CardModeToggle = React.memo(({ mode, onSelect }) => (
-  <div
-    onClick={(e) => e.stopPropagation()}
-    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
-  >
-    {[['total', 'Total'], ['effective', 'Eff.']].map(([m, lbl], i) => {
-      const active = mode === m;
-      return (
-        <React.Fragment key={m}>
-          {i > 0 && <span style={{ fontSize: '0.62rem', color: 'rgba(255, 255, 255, 0.18)', userSelect: 'none' }}>/</span>}
-          <button
-            type="button"
-            onClick={() => onSelect(m)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              padding: '2px 1px',
-              fontSize: '0.66rem',
-              fontWeight: active ? 700 : 500,
-              color: active ? '#ffffff' : 'var(--text-muted)',
-              opacity: active ? 1 : 0.6,
-              cursor: 'pointer',
-              lineHeight: 1,
-              transition: 'color 0.15s ease, opacity 0.15s ease',
-            }}
-          >
-            {lbl}
-          </button>
-        </React.Fragment>
-      );
-    })}
-  </div>
-));
+const CardModeToggle = React.memo(({ mode, onSelect }) => {
+  const nextMode = mode === 'total' ? 'effective' : 'total';
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(nextMode);
+      }}
+      title={`Switch to ${nextMode === 'total' ? 'Total' : 'Effective'}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        border: 'none',
+        background: 'transparent',
+        padding: '2px 0',
+        fontSize: '0.66rem',
+        fontWeight: 600,
+        color: 'var(--text-secondary)',
+        cursor: 'pointer',
+        lineHeight: 1,
+        flexShrink: 0,
+        transition: 'color 0.15s ease',
+      }}
+    >
+      <span>{mode === 'total' ? 'Total' : 'Eff.'}</span>
+      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55 }}>
+        <path d="M11 2l3 3-3 3" />
+        <path d="M14 5H3" />
+        <path d="M5 14l-3-3 3-3" />
+        <path d="M2 11h11" />
+      </svg>
+    </button>
+  );
+});
 
 const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
   const hasA = values && values.length >= 1;
