@@ -390,7 +390,7 @@ export const ExerciseModal = ({
                               <button
                                 type="button"
                                 className="btn btn-outline"
-                                style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                                style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem', height: '36px' }}
                                 onClick={() => {
                                   if (curveSnapshot) {
                                     const updated = [...exerciseForm.muscles];
@@ -406,7 +406,7 @@ export const ExerciseModal = ({
                               <button
                                 type="button"
                                 className="btn btn-primary"
-                                style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                                style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem', height: '36px' }}
                                 onClick={() => {
                                   setEditingCurveIndex(null);
                                   setCurveSnapshot(null);
@@ -419,7 +419,7 @@ export const ExerciseModal = ({
                             <button 
                               type="button" 
                               className="btn btn-outline"
-                              style={{ width: '100%', padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
+                              style={{ width: '100%', padding: '6px 10px', fontSize: '0.8rem', height: '36px' }}
                               onClick={() => {
                                 setCurveSnapshot({
                                   x0: m.x0, y0: m.y0,
@@ -436,12 +436,12 @@ export const ExerciseModal = ({
                           )}
                         </div>
                         <div>
-                          <label className="modal-label" style={{ fontSize: '0.7rem' }}>Magnitude (%)</label>
+                          <label style={fieldLabelStyle}>Magnitude (%)</label>
                           <input type="number" className="modal-input" min="0" max="100" step="1" value={m.percentage} onChange={(e) => {
                             const updated = [...exerciseForm.muscles];
                             updated[index] = { ...m, percentage: Math.max(0, parseInt(e.target.value, 10) || 0) };
                             setExerciseForm({ ...exerciseForm, muscles: updated });
-                          }} style={{ ...fieldInputStyle, padding: '5px 10px', fontSize: '0.82rem' }} />
+                          }} style={fieldInputStyle} />
                         </div>
                       </div>
                     </div>
