@@ -224,7 +224,7 @@ const DashboardTab = ({
   }, [compareMode, metricsByWeek, compareMetricsByWeek]);
 
   // Calculate Muscle distribution breakdown — respects all filters
-  const calculateMuscleDistribution = useCallback((dataSource, weekOverride, activeWeeksOverride) => {
+  const calculateMuscleDistribution = useCallback((dataSource, weekOverride, activeWeeksOverride, weekDivisor = 1) => {
     const distributions = {};
     const src = dataSource;
     if (!src) return [];
@@ -260,18 +260,22 @@ const DashboardTab = ({
         });
       });
     });
+    const div = Math.max(1, weekDivisor);
     return Object.entries(distributions).map(([macro, data]) => ({
       name: macro,
-      value: parseFloat(data.total.toFixed(1)),
+      value: parseFloat((data.total / div).toFixed(1)),
       subMuscles: Object.entries(data.subMuscles).map(([sub, val]) => ({
         name: sub,
-        value: parseFloat(val.toFixed(1))
+        value: parseFloat((val / div).toFixed(1))
       })).sort((a,b) => b.value - a.value)
     })).sort((a,b) => b.value - a.value);
   }, [dashFilterWeek, activeWeeksList, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
 
-  const muscleData = useMemo(() => calculateMuscleDistribution(dashFilteredData), [dashFilteredData, calculateMuscleDistribution]);
-  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all', compareActiveWeeksList) : [], [compareMode, cmpFilteredData, cmpFilterWeek, compareActiveWeeksList, calculateMuscleDistribution]);
+  const normWeeksA = compareMode ? Math.max(1, activeWeeksList.length) : 1;
+  const normWeeksB = compareMode ? Math.max(1, compareActiveWeeksList.length) : 1;
+
+  const muscleData = useMemo(() => calculateMuscleDistribution(dashFilteredData, undefined, undefined, normWeeksA), [dashFilteredData, calculateMuscleDistribution, normWeeksA]);
+  const compareMuscleData = useMemo(() => compareMode ? calculateMuscleDistribution(cmpFilteredData, cmpFilterWeek !== 'all' ? cmpFilterWeek : 'all', compareActiveWeeksList, normWeeksB) : [], [compareMode, cmpFilteredData, cmpFilterWeek, compareActiveWeeksList, calculateMuscleDistribution, normWeeksB]);
 
   const displayMuscleData = useMemo(() => {
     if (dashMuscleMacro === 'all') return muscleData;
@@ -363,32 +367,43 @@ const DashboardTab = ({
     return data;
   }, [dashFilteredData, dashFilterWeek, activeWeeksList, dashMuscleMacro, muscleMetric, displayMuscleData]);
 
-  // Overall totals (filtered) — consolidated into a single useMemo
-  const mainTotals = useMemo(() => ({
-    totalVolume: metricsByWeek.reduce((sum, m) => sum + m.Volume, 0),
-    totalTonnage: metricsByWeek.reduce((sum, m) => sum + m.Tonnage, 0),
-    totalEffectiveTonnage: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage || 0), 0),
-    totalWeightedTonnage: metricsByWeek.reduce((sum, m) => sum + (m.WeightedTonnage || 0), 0),
-    totalEffectiveWeightedTonnage: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveWeightedTonnage || 0), 0),
-    totalFatigue: metricsByWeek.reduce((sum, m) => sum + m.Fatigue, 0),
-    totalEffectiveReps: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom || 0), 0),
-    totalTut: metricsByWeek.reduce((sum, m) => sum + (m.Tut || 0), 0),
-    totalEffectiveTut: metricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut || 0), 0),
-    totalSets: metricsByWeek.reduce((sum, m) => sum + (m.Sets || 0), 0),
-  }), [metricsByWeek]);
+  // Overall totals (filtered; normalized per week in compare mode so programs of different lengths compare fairly)
+  const mainTotals = useMemo(() => {
+    const div = normWeeksA;
+    const agg = (fn) => {
+      const sum = metricsByWeek.reduce((acc, m) => acc + fn(m), 0);
+      return compareMode ? parseFloat((sum / div).toFixed(1)) : sum;
+    };
+    return {
+      totalVolume: agg(m => m.Volume),
+      totalTonnage: agg(m => m.Tonnage),
+      totalEffectiveTonnage: agg(m => m.EffectiveTonnage || 0),
+      totalWeightedTonnage: agg(m => m.WeightedTonnage || 0),
+      totalEffectiveWeightedTonnage: agg(m => m.EffectiveWeightedTonnage || 0),
+      totalFatigue: agg(m => m.Fatigue),
+      totalEffectiveReps: agg(m => m.EffectiveRepsCustom || 0),
+      totalTut: agg(m => m.Tut || 0),
+      totalEffectiveTut: agg(m => m.EffectiveTut || 0),
+      totalSets: agg(m => m.Sets || 0),
+    };
+  }, [metricsByWeek, normWeeksA, compareMode]);
 
-  const compareTotals = useMemo(() => ({
-    compareTotalVolume: compareMetricsByWeek.reduce((sum, m) => sum + (m.Volume_B || 0), 0),
-    compareTotalTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.Tonnage_B || 0), 0),
-    compareTotalEffectiveTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTonnage_B || 0), 0),
-    compareTotalWeightedTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.WeightedTonnage_B || 0), 0),
-    compareTotalEffectiveWeightedTonnage: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveWeightedTonnage_B || 0), 0),
-    compareTotalFatigue: compareMetricsByWeek.reduce((sum, m) => sum + (m.Fatigue_B || 0), 0),
-    compareTotalEffReps: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveRepsCustom_B || 0), 0),
-    compareTotalTut: compareMetricsByWeek.reduce((sum, m) => sum + (m.Tut_B || 0), 0),
-    compareTotalEffectiveTut: compareMetricsByWeek.reduce((sum, m) => sum + (m.EffectiveTut_B || 0), 0),
-    compareTotalSets: compareMetricsByWeek.reduce((sum, m) => sum + (m.Sets_B || 0), 0),
-  }), [compareMetricsByWeek]);
+  const compareTotals = useMemo(() => {
+    const div = normWeeksB;
+    const agg = (fn) => parseFloat((compareMetricsByWeek.reduce((acc, m) => acc + fn(m), 0) / div).toFixed(1));
+    return {
+      compareTotalVolume: agg(m => m.Volume_B || 0),
+      compareTotalTonnage: agg(m => m.Tonnage_B || 0),
+      compareTotalEffectiveTonnage: agg(m => m.EffectiveTonnage_B || 0),
+      compareTotalWeightedTonnage: agg(m => m.WeightedTonnage_B || 0),
+      compareTotalEffectiveWeightedTonnage: agg(m => m.EffectiveWeightedTonnage_B || 0),
+      compareTotalFatigue: agg(m => m.Fatigue_B || 0),
+      compareTotalEffReps: agg(m => m.EffectiveRepsCustom_B || 0),
+      compareTotalTut: agg(m => m.Tut_B || 0),
+      compareTotalEffectiveTut: agg(m => m.EffectiveTut_B || 0),
+      compareTotalSets: agg(m => m.Sets_B || 0),
+    };
+  }, [compareMetricsByWeek, normWeeksB]);
 
   const { totalVolume, totalTonnage, totalEffectiveTonnage, totalWeightedTonnage, totalEffectiveWeightedTonnage, totalFatigue,
     totalEffectiveReps, totalTut, totalEffectiveTut, totalSets } = mainTotals;
@@ -812,6 +827,9 @@ const DashboardTab = ({
                       }}>
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
                         {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
+                        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', opacity: 0.85 }}>
+                          {activeWeeksList.length > 1 ? `avg/wk (${activeWeeksList.length}w)` : `${activeWeeksList.length}w`}
+                        </span>
                       </div>
                       <div style={{
                         gridColumn: '2', padding: '8px 16px',
@@ -821,6 +839,9 @@ const DashboardTab = ({
                       }}>
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
                         {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
+                        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', opacity: 0.85 }}>
+                          {compareActiveWeeksList.length > 1 ? `avg/wk (${compareActiveWeeksList.length}w)` : `${compareActiveWeeksList.length}w`}
+                        </span>
                       </div>
 
                       {[['Tonnage', 'tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(compareTotalTonnage, totalTonnage)],
@@ -1207,6 +1228,8 @@ const DashboardTab = ({
                         compareData={compareMode ? displayCompareMuscleData : null}
                         currentProgram={currentProgram}
                         compareProgram={compareProgram}
+                        weeksA={activeWeeksList.length}
+                        weeksB={compareActiveWeeksList.length}
                         metric={muscleMetric}
                         isMobile={isMobile}
                       />
