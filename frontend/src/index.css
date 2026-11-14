@@ -3365,23 +3365,10 @@ input::-webkit-list-button {
 }
 
 .settings-storage-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  pointer-events: none;
-  transition: grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
-  will-change: grid-template-rows, opacity;
-}
-
-.settings-storage-collapse.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.settings-storage-collapse-inner {
   overflow: hidden;
-  min-height: 0;
+  contain: layout style;
+  transition: height 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
+  will-change: height, opacity;
 }
 
 .settings-storage-drawer {

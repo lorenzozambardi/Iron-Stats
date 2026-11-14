@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
   FolderOpen,
   ChevronDown,
@@ -24,7 +24,7 @@ const resolveLabel = (value, list) => {
   return match ? match.label : value;
 };
 
-export const SettingsPanel = ({
+export const SettingsPanel = memo(({
   editorType,
   setEditorType,
   editorMode,
@@ -48,9 +48,7 @@ export const SettingsPanel = ({
   setShowNewProgramModal,
   syncStatus,
   // Storage settings
-  showStorageSettings,
-  toggleStorageSettings,
-  isStorageClosing,
+  storageDrawerRef,
   getStorageConfig,
   handlePickFolder,
   storagePickError,
@@ -62,6 +60,24 @@ export const SettingsPanel = ({
   applyStorageConfig
 }) => {
   const [openColorSlot, setOpenColorSlot] = useState(null);
+  const [isStorageOpen, setIsStorageOpen] = useState(false);
+  const [storageHeight, setStorageHeight] = useState(0);
+  const storageContentRef = useRef(null);
+
+  useEffect(() => {
+    if (!storageDrawerRef) return;
+    storageDrawerRef.current = {
+      isOpen: isStorageOpen,
+      close: () => setIsStorageOpen(false)
+    };
+  }, [storageDrawerRef, isStorageOpen]);
+
+  const toggleStorageDrawer = () => {
+    if (!isStorageOpen && storageContentRef.current) {
+      setStorageHeight(storageContentRef.current.scrollHeight);
+    }
+    setIsStorageOpen(prev => !prev);
+  };
 
   const toggleSlot = (slot) => {
     setOpenColorSlot(prev => (prev === slot ? null : slot));
@@ -169,24 +185,31 @@ export const SettingsPanel = ({
             <button
               type="button"
               className="storage-toggle-btn settings-storage-btn"
-              onClick={toggleStorageSettings}
+              onClick={toggleStorageDrawer}
+              aria-expanded={isStorageOpen}
             >
               <FolderOpen size={15} className="icon-folder" />
               <span style={{ flex: 1 }}>Storage Folder</span>
-              <ChevronDown size={14} className={`storage-chevron${showStorageSettings ? ' open' : ''}`} />
+              <ChevronDown size={14} className={`storage-chevron${isStorageOpen ? ' open' : ''}`} />
             </button>
 
             {(() => {
               const cfg = getStorageConfig();
               const isCustom = cfg.dirType === 'custom' && cfg.safUri;
-              const isExpanded = showStorageSettings && !isStorageClosing;
+              const resolvedHeight = isStorageOpen
+                ? (storageContentRef.current?.scrollHeight || storageHeight || 220)
+                : 0;
               return (
                 <div
-                  className={`settings-storage-collapse${isExpanded ? ' open' : ''}`}
-                  aria-hidden={!isExpanded}
+                  className={`settings-storage-collapse${isStorageOpen ? ' open' : ''}`}
+                  style={{
+                    height: `${resolvedHeight}px`,
+                    opacity: isStorageOpen ? 1 : 0,
+                    pointerEvents: isStorageOpen ? 'auto' : 'none'
+                  }}
+                  aria-hidden={!isStorageOpen}
                 >
-                  <div className="settings-storage-collapse-inner">
-                    <div className="storage-panel settings-storage-drawer">
+                  <div ref={storageContentRef} className="storage-panel settings-storage-drawer">
                       <div className="settings-storage-current">
                         <div className="settings-storage-current-info">
                           <span className="settings-storage-sublabel">Current</span>
@@ -261,7 +284,6 @@ export const SettingsPanel = ({
                       </div>
                     </div>
                   </div>
-                </div>
               );
             })()}
           </div>
@@ -378,4 +400,6 @@ export const SettingsPanel = ({
       </div>
     </div>
   );
-};
+});
+
+SettingsPanel.displayName = 'SettingsPanel';
