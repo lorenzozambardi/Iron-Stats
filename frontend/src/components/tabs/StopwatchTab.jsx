@@ -521,7 +521,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
               boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)'
             }}
           >
-            <span style={{ fontSize: '0.7rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)' }}>
+            <span style={{ fontSize: '0.7rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#fff' }}>
               Session
             </span>
             <span
