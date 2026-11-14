@@ -502,7 +502,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       ref={containerRef}
       className={`swipe-view ${activeTab === 'stopwatch' ? 'active-desktop' : ''}`}
       id="view-stopwatch"
-      style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}
+      style={{ justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}
     >
       {(isMobile || activeTab === 'stopwatch') && (
         <>
