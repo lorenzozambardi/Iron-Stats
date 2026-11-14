@@ -99,7 +99,7 @@ class BezierProfile:
                 + 3.0 * u * (t_cut**2) * self.x2
                 + (t_cut**3) * self.x3
             )
-            if abs(x - x_cut) < 1e-12 and (upper - lower) < 1e-12:
+            if x == x_cut or (abs(x - x_cut) < 1e-12 and (upper - lower) < 1e-12):
                 break
             if x < x_cut:
                 lower = t_cut
@@ -159,7 +159,7 @@ class BezierProfile:
                 + 3.0 * u * (t**2) * self.x2
                 + (t**3) * self.x3
             )
-            if abs(x - target_x) < tol and (upper - lower) < tol:
+            if x == target_x or (abs(x - target_x) < tol and (upper - lower) < tol):
                 break
             if x < target_x:
                 lower = t
@@ -187,8 +187,12 @@ class BezierProfile:
 
 def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProfile"]:
     """Convert raw muscle distribution entries to BezierProfile objects and enforce sum == 1.0."""
+    if not isinstance(muscles_distr, dict):
+        raise TypeError("muscles_distr must be a dictionary")
     new_distr: dict[str, BezierProfile] = {}
     for m, val in muscles_distr.items():
+        if isinstance(val, bool):
+            raise TypeError(f"Invalid muscle distribution entry for '{m}': {val!r}")
         if isinstance(val, (int, float)):
             new_distr[m] = BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, float(val))
         elif isinstance(val, dict):
@@ -205,6 +209,8 @@ def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProf
             )
         elif isinstance(val, BezierProfile):
             new_distr[m] = val
+        else:
+            raise TypeError(f"Invalid muscle distribution entry for '{m}': {val!r}")
 
     total_mag = sum(tp.magnitude for tp in new_distr.values())
     if new_distr and total_mag <= 0.0:

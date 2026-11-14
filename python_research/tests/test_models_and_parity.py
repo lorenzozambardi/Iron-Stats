@@ -357,8 +357,10 @@ def test_rpe_clamping_hard_map_and_weighted_ecurve() -> None:
     # Every HARD_MAP target exists in defaultExercises.json
     ex_names = {e.name for e in exercises_list}
     assert all(target in ex_names for target in HARD_MAP.values())
-    assert match_exercise("Shoulder Press Machine", exercises_list).name == "Machine Shoulder Press"
-    assert match_exercise("Incl Cable Pushdown", exercises_list).name == "Bench 54 Pushdown"
+    m1 = match_exercise("Shoulder Press Machine", exercises_list)
+    m2 = match_exercise("Incl Cable Pushdown", exercises_list)
+    assert m1 is not None and m1.name == "Machine Shoulder Press"
+    assert m2 is not None and m2.name == "Bench 54 Pushdown"
 
     # Peak-normalized logistic target curves & target-weighted E_curve invariance to untargeted synergists
     assert float(np.max(get_target_curve("sigmoid"))) == pytest.approx(1.0, abs=1e-12)
@@ -481,3 +483,28 @@ def test_nan_rejection_old_prefix_boundary_and_calibrate_reset() -> None:
     slv.config.calibration_steps = 0
     slv.calibrate()
     assert slv.scales == {}
+
+
+def test_exact_dyadic_root_override_finiteness_and_carry_forward() -> None:
+    # Exact dyadic root t* = 0.5 must converge immediately without repelling
+    sym_prof = BezierProfile(0.0, 0.0, 1.0 / 3.0, 1.0, 2.0 / 3.0, 1.0, 1.0, 0.0, 1.0)
+    assert sym_prof.solve_y(0.5) == 0.75
+    step_prof = BezierProfile(0.0, 0.0, 1.0 / 3.0, 0.0, 2.0 / 3.0, 1.0, 1.0, 1.0, 1.0)
+    assert step_prof.solve_y(0.5) == 0.5
+    assert step_prof.stretched_area(0.5) == pytest.approx(0.09375, abs=1e-15)
+
+    # Non-finite or malformed overrides must be ignored without crashing or injecting inf/nan
+    log_override = (
+        "override: LR | load_offset=not_a_number | fatigue=inf | load_coeff=nan | load_multiplier=inf\n"
+        "override: LR | muscles_distr=[1, 2]\n"
+        "override: LR | muscles_distr={\"Lateral Deltoid\": \"bad\"}\n"
+        "# 1\nLR\n10.. 10\nold 12..\n14..12..\n"
+    )
+    parsed = analyze_workout_log(log_override, exercises_list)
+    assert len(parsed) == 1
+    assert parsed[0].exercise_obj.load_offset == 0.0
+    assert np.isfinite(parsed[0].exercise_obj.fatigue)
+    assert len(parsed[0].weeks) == 3
+    assert parsed[0].weeks[1].sets[0].load == 12.0
+    assert parsed[0].weeks[2].sets[0].load == 14.0
+

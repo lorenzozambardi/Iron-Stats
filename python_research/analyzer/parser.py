@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import sys
 
@@ -178,11 +179,13 @@ def parse_line(line: str, line_index: int = 0) -> list[SetData]:
                 else subparts[0].strip()
             )
             if load_str:
-                current_loads = (
+                parsed_loads = (
                     [float(x) for x in load_str.split("/") if x]
                     if "/" in load_str
                     else [float(load_str)]
                 )
+                if parsed_loads and all(math.isfinite(x) for x in parsed_loads):
+                    current_loads = parsed_loads
             if rep_str:
                 parsed_sets.extend(parse_rep_token(rep_str, current_loads, ds_id))
         else:
@@ -250,25 +253,39 @@ def analyze_workout_log(
                         val = val.strip()
 
                         if key == "fatigue":
-                            parsed_val = float(val)
-                            if parsed_val >= 0.0:
+                            try:
+                                parsed_val = float(val)
+                            except ValueError:
+                                parsed_val = math.nan
+                            if math.isfinite(parsed_val) and parsed_val >= 0.0:
                                 ex_obj.fatigue = parsed_val
                         elif key == "load_coeff":
-                            parsed_val = float(val)
-                            if parsed_val >= 0.0:
+                            try:
+                                parsed_val = float(val)
+                            except ValueError:
+                                parsed_val = math.nan
+                            if math.isfinite(parsed_val) and parsed_val >= 0.0:
                                 ex_obj.load_coeff = parsed_val
                         elif key == "load_multiplier":
-                            parsed_val = float(val)
-                            if parsed_val > 0.0:
+                            try:
+                                parsed_val = float(val)
+                            except ValueError:
+                                parsed_val = math.nan
+                            if math.isfinite(parsed_val) and parsed_val > 0.0:
                                 ex_obj.load_multiplier = parsed_val
                         elif key == "load_offset":
-                            ex_obj.load_offset = float(val)
+                            try:
+                                parsed_val = float(val)
+                            except ValueError:
+                                parsed_val = math.nan
+                            if math.isfinite(parsed_val):
+                                ex_obj.load_offset = parsed_val
                         elif key == "is_isolation":
                             ex_obj.is_isolation = val.lower() in ("true", "1")
                         elif key == "muscles_distr":
                             try:
                                 ex_obj.muscles_distr = coerce_muscles_distr(json.loads(val))
-                            except (json.JSONDecodeError, ValueError) as exc:
+                            except (json.JSONDecodeError, ValueError, TypeError) as exc:
                                 sys.stderr.write(
                                     f"Failed to parse muscles_distr JSON in override: '{val}' | {exc}\n"
                                 )
@@ -295,23 +312,30 @@ def analyze_workout_log(
                 if current_exercise:
                     parsed_sets = parse_line(line, i)
                     if not parsed_sets and ".." in line and current_exercise.weeks:
-                        load_str = line.split("..")[0].strip()
+                        clean_cf = RE_OLD_PREFIX.sub("", line).strip()
+                        cf_subparts = clean_cf.split("..")
+                        load_str = (
+                            "/".join(cf_subparts[:-1]).strip()
+                            if len(cf_subparts) > 2
+                            else cf_subparts[0].strip()
+                        )
                         if load_str:
                             loads = [float(x) for x in load_str.split("/") if x]
-                            prev_sets = current_exercise.weeks[-1].sets
-                            parsed_sets = [
-                                SetData(
-                                    load=loads[idx] if idx < len(loads) else loads[-1],
-                                    base_reps=s.base_reps,
-                                    assisted_reps=s.assisted_reps,
-                                    partial_reps=s.partial_reps,
-                                    rpe=s.rpe,
-                                    fatigue=s.fatigue,
-                                    dropset_id=s.dropset_id,
-                                    tuts=list(s.tuts),
-                                )
-                                for idx, s in enumerate(prev_sets)
-                            ]
+                            if loads and all(math.isfinite(x) for x in loads):
+                                prev_sets = current_exercise.weeks[-1].sets
+                                parsed_sets = [
+                                    SetData(
+                                        load=loads[idx] if idx < len(loads) else loads[-1],
+                                        base_reps=s.base_reps,
+                                        assisted_reps=s.assisted_reps,
+                                        partial_reps=s.partial_reps,
+                                        rpe=s.rpe,
+                                        fatigue=s.fatigue,
+                                        dropset_id=s.dropset_id,
+                                        tuts=list(s.tuts),
+                                    )
+                                    for idx, s in enumerate(prev_sets)
+                                ]
 
                     for s in parsed_sets:
                         tuts = (
