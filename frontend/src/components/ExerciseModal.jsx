@@ -66,7 +66,7 @@ export const ExerciseModal = ({
             </button>
           )}
         </div>
-        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: isMobile ? '16px 8px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           
           <div>
             <label className="modal-label">Exercise Name</label>
