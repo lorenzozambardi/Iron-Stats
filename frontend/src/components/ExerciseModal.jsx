@@ -441,7 +441,7 @@ export const ExerciseModal = ({
                             const updated = [...exerciseForm.muscles];
                             updated[index] = { ...m, percentage: Math.max(0, parseInt(e.target.value, 10) || 0) };
                             setExerciseForm({ ...exerciseForm, muscles: updated });
-                          }} style={{ padding: '4px 8px', fontSize: '0.8rem' }} />
+                          }} style={{ ...fieldInputStyle, padding: '5px 10px', fontSize: '0.82rem' }} />
                         </div>
                       </div>
                     </div>
@@ -484,7 +484,7 @@ export const ExerciseModal = ({
               </div>
             )}
 
-            {Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m)).length > 0 && (() => {
+            {(() => {
               const available = Object.keys(MUSCLES).filter(m => !exerciseForm.muscles.some(added => added.name === m));
               const scored = muscleSearch
                 ? available
@@ -513,81 +513,105 @@ export const ExerciseModal = ({
                 setMuscleSearch('');
               };
 
+              const hasAvailable = available.length > 0;
+
               return (
-                <div style={{ marginTop: '12px' }}>
-                  <input
-                    type="text"
-                    className="modal-input"
-                    style={{ width: '100%', padding: '8px 12px', fontSize: '0.85rem', background: 'rgba(12, 12, 12, 0.9)', color: 'var(--text-primary)', borderColor: 'rgba(99,102,241,0.3)' }}
-                    placeholder="Search muscle to add… (Tab to select top)"
-                    value={muscleSearch}
-                    onChange={(e) => setMuscleSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Tab' && scored.length > 0) {
-                        e.preventDefault();
-                        addMuscle(scored[0].m);
-                      }
-                    }}
-                  />
-                  {scored.length > 0 && (
-                    <div style={{
-                      marginTop: '6px',
-                      background: '#0d0d0d',
-                      border: '1px solid rgba(99,102,241,0.45)',
-                      borderRadius: '8px',
-                      overflow: 'hidden'
-                    }}>
-                      {scored.map(({ m }, i) => (
-                        <div
-                          key={m}
-                          style={{
-                            padding: '9px 14px', cursor: 'pointer', fontSize: '0.85rem',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            color: 'var(--text-primary)',
-                            borderBottom: i < scored.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                            background: i === 0 ? 'rgba(99,102,241,0.10)' : 'transparent'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.22)'}
-                          onMouseLeave={e => e.currentTarget.style.background = i === 0 ? 'rgba(99,102,241,0.10)' : 'transparent'}
-                          onMouseDown={(e) => { e.preventDefault(); addMuscle(m); }}
-                        >
-                          <span>
-                            {i === 0 && <span style={{ fontSize: '0.65rem', color: 'var(--accent-primary)', marginRight: '6px', border: '1px solid rgba(99,102,241,0.4)', borderRadius: '3px', padding: '1px 4px' }}>Tab ↵</span>}
-                            {m}
-                          </span>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--accent-secondary)', background: 'rgba(6,182,212,0.12)', padding: '2px 7px', borderRadius: '4px' }}>{MUSCLES[m]}</span>
+                <div style={{
+                  marginTop: isMobile ? '8px' : '14px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--card-radius)',
+                  padding: isMobile ? '12px' : '14px 16px',
+                  boxShadow: 'var(--card-shadow)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  {hasAvailable && (
+                    <div>
+                      <label style={fieldLabelStyle}>Add Muscle</label>
+                      <input
+                        type="text"
+                        className="modal-input"
+                        style={fieldInputStyle}
+                        placeholder="Search muscle to add… (Tab to select top)"
+                        value={muscleSearch}
+                        onChange={(e) => setMuscleSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Tab' && scored.length > 0) {
+                            e.preventDefault();
+                            addMuscle(scored[0].m);
+                          }
+                        }}
+                      />
+                      {scored.length > 0 && (
+                        <div style={{
+                          marginTop: '6px',
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color-hover)',
+                          borderRadius: '10px',
+                          overflow: 'hidden'
+                        }}>
+                          {scored.map(({ m }, i) => (
+                            <div
+                              key={m}
+                              style={{
+                                padding: '9px 12px', cursor: 'pointer', fontSize: '0.84rem',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                color: 'var(--text-primary)',
+                                borderBottom: i < scored.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                background: i === 0 ? 'rgba(99,102,241,0.12)' : 'transparent'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.22)'}
+                              onMouseLeave={e => e.currentTarget.style.background = i === 0 ? 'rgba(99,102,241,0.12)' : 'transparent'}
+                              onMouseDown={(e) => { e.preventDefault(); addMuscle(m); }}
+                            >
+                              <span>
+                                {i === 0 && <span style={{ fontSize: '0.65rem', color: 'var(--accent-primary)', marginRight: '6px', border: '1px solid rgba(99,102,241,0.4)', borderRadius: '4px', padding: '1px 4px' }}>Tab ↵</span>}
+                                {m}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--accent-secondary)', background: 'rgba(6,182,212,0.12)', padding: '2px 7px', borderRadius: '4px' }}>{MUSCLES[m]}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
+
+                  {/* Muscle validation bar */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    paddingTop: hasAvailable ? '10px' : 0,
+                    borderTop: hasAvailable ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Distribution Total</span>
+                      <span style={{ fontWeight: 600, color: muscleSum === 100 ? '#22c55e' : '#ef4444' }}>
+                        {muscleSum}% / 100%
+                      </span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-primary)', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(100, muscleSum)}%`,
+                        background: muscleSum === 100 ? '#22c55e' : '#eab308',
+                        borderRadius: '999px',
+                        transition: 'width 0.2s ease, background-color 0.2s ease'
+                      }} />
+                    </div>
+                  </div>
                 </div>
               );
             })()}
-
-            {/* Muscle validation bar */}
-            <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Distribution Total:</span>
-                <span style={{ fontWeight: 'bold', color: muscleSum === 100 ? '#22c55e' : '#ef4444' }}>
-                  {muscleSum}% / 100%
-                </span>
-              </div>
-              <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.min(100, muscleSum)}%`,
-                  background: muscleSum === 100 ? '#22c55e' : '#eab308',
-                  transition: 'width 0.2s ease, background-color 0.2s ease'
-                }} />
-              </div>
-            </div>
 
           </div>
 
           {exerciseError && <div className="modal-error" style={{ marginTop: '4px' }}>{exerciseError}</div>}
 
         </div>
-        <div className="modal-actions">
+        <div className="modal-actions" style={{ background: 'var(--bg-primary)' }}>
           {currentHasOverride && (
             <button
               className="btn btn-danger"
