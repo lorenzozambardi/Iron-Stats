@@ -164,3 +164,7 @@ Thumbs.db
 *.fdb_latexmk
 *.synctex.gz
 
+# Logbooks (keep only S1M3.md)
+logbooks/*
+!logbooks/S1M3.md
+
