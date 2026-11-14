@@ -642,7 +642,7 @@ const DashboardTab = ({
                 style={{ marginLeft: 'auto', padding: '5px 12px', fontSize: '0.75rem', borderRadius: '99px', whiteSpace: 'nowrap', flexShrink: 0 }}
                 onClick={() => setMobileFiltersOpen(prev => !prev)}
               >
-                {mobileFilterSummary} {mobileFiltersOpen ? '▲' : '▼'}
+                {mobileFilterSummary}
               </button>
             </div>
           )}
