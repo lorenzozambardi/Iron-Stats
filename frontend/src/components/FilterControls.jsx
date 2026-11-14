@@ -199,8 +199,8 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
           const color = isCenter
             ? '#ffffff'
             : dist < 1.35
-              ? '#9ca3af'
-              : '#52525b';
+              ? '#a3a3a3'
+              : '#525252';
           const xPx = linearCenters
             ? linearCenters.pos[optIdx] - interpLinearX(virtualIdx)
             : (rel - fracOffset) * itemWidth;

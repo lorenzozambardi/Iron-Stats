@@ -180,7 +180,7 @@ export const ExerciseModal = ({
                     width: '16px',
                     height: '16px',
                     borderRadius: '50%',
-                    background: '#f8fafc',
+                    background: '#fafafa',
                     transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
                   }}

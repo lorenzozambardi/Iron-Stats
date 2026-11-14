@@ -283,55 +283,55 @@ export default function GeneratorConfig({ isMobile }) {
     <div className="generator-container" style={{ display: 'flex', gap: '20px', height: '100%', overflow: 'hidden' }}>
 
       {/* Left Pane: Configuration UI */}
-      <div className="config-pane" style={{ flex: '1', overflowY: 'auto', padding: '20px', background: '#1c1c1e', borderRadius: '12px', border: '1px solid #333' }}>
+      <div className="config-pane" style={{ flex: '1', overflowY: 'auto', padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid #333' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
           <Settings size={20} color="#007aff" /> Generator Configuration (WIP)
         </h2>
 
         {/* Global Params */}
-        <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
+        <div className="config-section" style={{ marginBottom: '25px', background: '#262626', padding: '15px', borderRadius: '8px' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Activity size={16} /> Global Limits
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Days (D) [3-7]</label>
-              <input type="number" min="3" max="7" value={globalParams.days} onChange={e => setGlobalParams({...globalParams, days: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Days (D) [3-7]</label>
+              <input type="number" min="3" max="7" value={globalParams.days} onChange={e => setGlobalParams({...globalParams, days: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Sets (Min - Max)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Sets (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="number" min="1" value={globalParams.minSets} onChange={e => setGlobalParams({...globalParams, minSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
-                <input type="number" min="1" value={globalParams.maxSets} onChange={e => setGlobalParams({...globalParams, maxSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.minSets} onChange={e => setGlobalParams({...globalParams, minSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.maxSets} onChange={e => setGlobalParams({...globalParams, maxSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Reps (Min - Max)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Reps (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="number" min="1" value={globalParams.minReps} onChange={e => setGlobalParams({...globalParams, minReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
-                <input type="number" min="1" value={globalParams.maxReps} onChange={e => setGlobalParams({...globalParams, maxReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.minReps} onChange={e => setGlobalParams({...globalParams, minReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.maxReps} onChange={e => setGlobalParams({...globalParams, maxReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Exercises/Day (Min - Max)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Exercises/Day (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="number" min="1" value={globalParams.minEx} onChange={e => setGlobalParams({...globalParams, minEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
-                <input type="number" min="1" value={globalParams.maxEx} onChange={e => setGlobalParams({...globalParams, maxEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.minEx} onChange={e => setGlobalParams({...globalParams, minEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.maxEx} onChange={e => setGlobalParams({...globalParams, maxEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Iterations (SA)</label>
-              <input type="number" step="1000" min="1000" value={globalParams.iterations} onChange={e => setGlobalParams({...globalParams, iterations: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Iterations (SA)</label>
+              <input type="number" step="1000" min="1000" value={globalParams.iterations} onChange={e => setGlobalParams({...globalParams, iterations: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '5px' }}>Calibration (Auto-Scale)</label>
-              <input type="number" step="100" min="0" value={globalParams.calibrationSteps} onChange={e => setGlobalParams({...globalParams, calibrationSteps: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} title="Number of random programs to calibrate magnitudes. 0 to disable." />
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Calibration (Auto-Scale)</label>
+              <input type="number" step="100" min="0" value={globalParams.calibrationSteps} onChange={e => setGlobalParams({...globalParams, calibrationSteps: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} title="Number of random programs to calibrate magnitudes. 0 to disable." />
             </div>
           </div>
         </div>
 
         {/* Volume Distribution (Macro & Micro) */}
-        <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
+        <div className="config-section" style={{ marginBottom: '25px', background: '#262626', padding: '15px', borderRadius: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Target size={16} /> Volume Distribution (Macro/Micro)
@@ -347,7 +347,7 @@ export default function GeneratorConfig({ isMobile }) {
               const mValid = mSum === 100;
               const isExpanded = expandedMacro === m;
               return (
-                <div key={m} style={{ background: '#1c1c1e', padding: '10px', borderRadius: '6px', border: `1px solid ${!mValid ? '#ff453a' : '#3a3a3c'}` }}>
+                <div key={m} style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '6px', border: `1px solid ${!mValid ? '#ff453a' : '#3a3a3a'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                     <button
                       onClick={() => setExpandedMacro(isExpanded ? null : m)}
@@ -367,14 +367,14 @@ export default function GeneratorConfig({ isMobile }) {
                   </div>
 
                   {isExpanded && (
-                    <div style={{ marginTop: '15px', paddingLeft: '15px', borderLeft: '2px solid #3a3a3c', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#8e8e93', marginBottom: '4px' }}>
+                    <div style={{ marginTop: '15px', paddingLeft: '15px', borderLeft: '2px solid #3a3a3a', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '4px' }}>
                         <span>Subgroups ({m})</span>
                         <span style={{ color: mValid ? '#30d158' : '#ff453a' }}>Sum: {mSum}%</span>
                       </div>
                       {MACRO_SUB_MAP[m].map(sub => (
                         <div key={sub} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <label style={{ width: '120px', fontSize: '0.75rem', color: '#d1d1d6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</label>
+                          <label style={{ width: '120px', fontSize: '0.75rem', color: '#d4d4d4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</label>
                           <input
                             type="range" min="0" max="100" step="1"
                             value={volumeDist.subs[m][sub]}
@@ -395,7 +395,7 @@ export default function GeneratorConfig({ isMobile }) {
         </div>
 
         {/* Multi-Objective Weights */}
-        <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
+        <div className="config-section" style={{ marginBottom: '25px', background: '#262626', padding: '15px', borderRadius: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Scale size={16} /> Objective Weights (Real Values)
@@ -405,9 +405,9 @@ export default function GeneratorConfig({ isMobile }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {Object.entries(weights).map(([key, val]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <label style={{ width: '80px', fontSize: '0.85rem', color: '#d1d1d6', textTransform: 'capitalize' }}>w_{key}</label>
-                <input type="number" step="0.5" value={val} onChange={e => handleWeightChange(key, e.target.value)} style={{ width: '70px', padding: '6px', borderRadius: '6px', background: '#1c1c1e', border: '1px solid #3a3a3c', color: 'white' }} />
-                <div style={{ flex: '1', height: '8px', background: '#1c1c1e', borderRadius: '4px', overflow: 'hidden' }}>
+                <label style={{ width: '80px', fontSize: '0.85rem', color: '#d4d4d4', textTransform: 'capitalize' }}>w_{key}</label>
+                <input type="number" step="0.5" value={val} onChange={e => handleWeightChange(key, e.target.value)} style={{ width: '70px', padding: '6px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <div style={{ flex: '1', height: '8px', background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden' }}>
                   <div style={{ width: `${normalizedWeights[key] * 100}%`, height: '100%', background: '#007aff' }}></div>
                 </div>
                 <span style={{ width: '50px', fontSize: '0.85rem', textAlign: 'right', color: '#007aff', fontWeight: 'bold' }}>
@@ -416,20 +416,20 @@ export default function GeneratorConfig({ isMobile }) {
               </div>
             ))}
           </div>
-          <p style={{ fontSize: '0.75rem', color: '#8e8e93', marginTop: '12px', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.75rem', color: '#8e8e8e', marginTop: '12px', textAlign: 'center' }}>
             Real numbers are converted to percentages (Sum = 100%) via Softmax function.
           </p>
         </div>
 
         {/* Target Ratios */}
-        <div className="config-section" style={{ marginBottom: '25px', background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
+        <div className="config-section" style={{ marginBottom: '25px', background: '#262626', padding: '15px', borderRadius: '8px' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Target size={16} /> Target Efficiency (0-100%)
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {Object.entries(targets).map(([key, val]) => (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <label style={{ width: '80px', fontSize: '0.85rem', color: '#d1d1d6', textTransform: 'capitalize' }}>{key} Ratio</label>
+                <label style={{ width: '80px', fontSize: '0.85rem', color: '#d4d4d4', textTransform: 'capitalize' }}>{key} Ratio</label>
                 <input type="range" min="0" max="100" step="1" value={val} onChange={e => setTargets(prev => ({...prev, [key]: parseInt(e.target.value)}))} style={{ flex: '1', accentColor: '#ff9f0a' }} />
                 <span style={{ width: '40px', fontSize: '0.85rem', textAlign: 'right', color: '#ff9f0a' }}>{val}%</span>
               </div>
@@ -438,18 +438,18 @@ export default function GeneratorConfig({ isMobile }) {
         </div>
 
         {/* Muscle Target Curves */}
-        <div className="config-section" style={{ background: '#2c2c2e', padding: '15px', borderRadius: '8px' }}>
+        <div className="config-section" style={{ background: '#262626', padding: '15px', borderRadius: '8px' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sliders size={16} /> Target Curves by Muscle
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
             {MACRO_MUSCLES.map(m => (
               <div key={m} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: '#d1d1d6' }}>{m}</span>
+                <span style={{ fontSize: '0.85rem', color: '#d4d4d4' }}>{m}</span>
                 <select
                   value={muscleCurves[m]}
                   onChange={e => setMuscleCurves(prev => ({...prev, [m]: e.target.value}))}
-                  style={{ background: '#1c1c1e', color: 'white', border: '1px solid #3a3a3c', padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', width: '160px' }}
+                  style={{ background: 'var(--bg-secondary)', color: 'white', border: '1px solid #3a3a3a', padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', width: '160px' }}
                 >
                   {CURVE_OPTIONS.map(opt => (
                     <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -463,7 +463,7 @@ export default function GeneratorConfig({ isMobile }) {
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !isVolumeValid}
-          style={{ marginTop: '20px', width: '100%', padding: '12px', background: (isGenerating || !isVolumeValid) ? '#636366' : '#30d158', color: (isGenerating || !isVolumeValid) ? '#aeaeb2' : 'black', border: 'none', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (isGenerating || !isVolumeValid) ? 'not-allowed' : 'pointer' }}
+          style={{ marginTop: '20px', width: '100%', padding: '12px', background: (isGenerating || !isVolumeValid) ? '#636363' : '#30d158', color: (isGenerating || !isVolumeValid) ? '#b0b0b0' : 'black', border: 'none', borderRadius: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (isGenerating || !isVolumeValid) ? 'not-allowed' : 'pointer' }}
         >
           {isGenerating ? <Activity size={18} className="spin" /> : <Play size={18} />}
           {isGenerating ? 'Calculating...' : 'Start Solver'}
@@ -477,26 +477,26 @@ export default function GeneratorConfig({ isMobile }) {
       </div>
 
       {/* Right Pane: Markdown Documentation or Result */}
-      <div className="docs-pane" style={{ flex: '1', display: 'flex', flexDirection: 'column', padding: '20px', background: '#1c1c1e', borderRadius: '12px', border: '1px solid #333' }}>
+      <div className="docs-pane" style={{ flex: '1', display: 'flex', flexDirection: 'column', padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid #333' }}>
 
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
           <button
             onClick={() => setRightTab('info')}
-            style={{ padding: '8px 16px', background: rightTab === 'info' ? '#007aff' : 'transparent', color: rightTab === 'info' ? 'white' : '#8e8e93', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'info' ? 'bold' : 'normal' }}
+            style={{ padding: '8px 16px', background: rightTab === 'info' ? '#007aff' : 'transparent', color: rightTab === 'info' ? 'white' : '#8e8e8e', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'info' ? 'bold' : 'normal' }}
           >
             <BookOpen size={18} /> Mathematical Model
           </button>
           <button
             onClick={() => setRightTab('result')}
             disabled={!generatedResult}
-            style={{ padding: '8px 16px', background: rightTab === 'result' ? '#30d158' : 'transparent', color: rightTab === 'result' ? 'black' : (generatedResult ? 'white' : '#48484a'), border: 'none', borderRadius: '8px', cursor: generatedResult ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'result' ? 'bold' : 'normal' }}
+            style={{ padding: '8px 16px', background: rightTab === 'result' ? '#30d158' : 'transparent', color: rightTab === 'result' ? 'black' : (generatedResult ? 'white' : '#484848'), border: 'none', borderRadius: '8px', cursor: generatedResult ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: rightTab === 'result' ? 'bold' : 'normal' }}
           >
             <Activity size={18} /> Generated Result
           </button>
         </div>
 
         {rightTab === 'info' && (
-          <div className="markdown-content" style={{ flex: '1', overflowY: 'auto', lineHeight: '1.6', fontSize: '0.9rem', color: '#d1d1d6', paddingRight: '10px', paddingBottom: '100px' }}>
+          <div className="markdown-content" style={{ flex: '1', overflowY: 'auto', lineHeight: '1.6', fontSize: '0.9rem', color: '#d4d4d4', paddingRight: '10px', paddingBottom: '100px' }}>
             {markdownContent ? (
               <ReactMarkdown
                 remarkPlugins={[remarkMath]}
@@ -528,24 +528,24 @@ export default function GeneratorConfig({ isMobile }) {
             <div style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '20px' }}>
               {generatedResult.days.map((day, dIdx) => (
                 <div key={dIdx} style={{ minWidth: '320px', flex: '0 0 auto', display: 'flex', flexDirection: 'column' }}>
-                  <h4 style={{ color: '#007aff', marginBottom: '15px', fontSize: '1.2rem', borderBottom: '2px solid #3a3a3c', paddingBottom: '10px' }}>Day {dIdx + 1}</h4>
+                  <h4 style={{ color: '#007aff', marginBottom: '15px', fontSize: '1.2rem', borderBottom: '2px solid #3a3a3a', paddingBottom: '10px' }}>Day {dIdx + 1}</h4>
                   {day.map((ex, exIdx) => (
-                    <div key={exIdx} style={{ background: '#1c1c1e', border: '1px solid #3a3a3c', borderRadius: '10px', padding: '15px', marginBottom: '15px' }}>
+                    <div key={exIdx} style={{ background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', borderRadius: '10px', padding: '15px', marginBottom: '15px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <strong style={{ color: 'white', fontSize: '1.1rem' }}>{ex.exercise}</strong>
-                        <span style={{ fontSize: '0.75rem', color: '#8e8e93', border: '1px solid #3a3a3c', padding: '2px 6px', borderRadius: '4px' }}>Info</span>
+                        <span style={{ fontSize: '0.75rem', color: '#8e8e8e', border: '1px solid #3a3a3a', padding: '2px 6px', borderRadius: '4px' }}>Info</span>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
                         <span style={{ border: '1px solid rgba(88, 86, 214, 0.4)', color: '#8281d9', background: 'rgba(88, 86, 214, 0.1)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem' }}>{ex.muscles}</span>
-                        <span style={{ border: '1px solid rgba(255, 255, 255, 0.2)', color: '#d1d1d6', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem' }}>{ex.rest} rest</span>
+                        <span style={{ border: '1px solid rgba(255, 255, 255, 0.2)', color: '#d4d4d4', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem' }}>{ex.rest} rest</span>
                       </div>
-                      <div style={{ marginTop: '15px', border: '1px solid #3a3a3c', borderRadius: '8px', padding: '12px', background: '#2c2c2e' }}>
-                        <div style={{ textAlign: 'center', color: '#8e8e93', fontSize: '0.8rem', marginBottom: '8px' }}>Volume & RPE</div>
+                      <div style={{ marginTop: '15px', border: '1px solid #3a3a3a', borderRadius: '8px', padding: '12px', background: '#262626' }}>
+                        <div style={{ textAlign: 'center', color: '#8e8e8e', fontSize: '0.8rem', marginBottom: '8px' }}>Volume & RPE</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {ex.sets.map((s, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'center', gap: '15px', padding: '4px 0', borderBottom: i < ex.sets.length - 1 ? '1px dashed #3a3a3c' : 'none' }}>
+                            <div key={i} style={{ display: 'flex', justifyContent: 'center', gap: '15px', padding: '4px 0', borderBottom: i < ex.sets.length - 1 ? '1px dashed #3a3a3a' : 'none' }}>
                                <span style={{ fontSize: '1rem', color: '#30d158', fontWeight: 'bold' }}>x {s.base_reps}{s.partial_reps > 0 ? '+'+s.partial_reps : ''}</span>
-                               <span style={{ fontSize: '1rem', color: '#8e8e93' }}>@{s.rpe}</span>
+                               <span style={{ fontSize: '1rem', color: '#8e8e8e' }}>@{s.rpe}</span>
                             </div>
                           ))}
                         </div>

@@ -19,7 +19,7 @@ const getContrastTextColor = (hex) => {
   const g = parseInt(clean.slice(2, 4), 16) / 255;
   const b = parseInt(clean.slice(4, 6), 16) / 255;
   const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 0.32 ? '#0b0d12' : '#f8fafc';
+  return lum > 0.32 ? '#090909' : '#fafafa';
 };
 
 const polarToCartesian = (cx, cy, r, angleRad) => ({

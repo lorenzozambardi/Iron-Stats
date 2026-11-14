@@ -120,7 +120,7 @@ const TensionProfileExplainer = () => {
           height: 12px;
           border-radius: 50%;
           background: var(--accent-primary, #6366f1);
-          border: 2px solid var(--text-primary, #f8fafc);
+          border: 2px solid var(--text-primary, #fafafa);
           cursor: pointer;
         }
       `}</style>
@@ -142,24 +142,24 @@ const TensionProfileExplainer = () => {
             ))}
 
             {/* Axes */}
-            <line x1="0" y1="100" x2="102" y2="100" stroke="rgba(148,163,184,0.5)" strokeWidth="0.5" />
-            <line x1="0" y1="-2" x2="0" y2="100" stroke="rgba(148,163,184,0.5)" strokeWidth="0.5" />
-            <text x="50" y="110" fill="rgba(148,163,184,0.75)" fontSize="4" textAnchor="middle">x (ROM)</text>
-            <text x="-8" y="50" fill="rgba(148,163,184,0.75)" fontSize="4" textAnchor="middle" transform="rotate(-90, -8, 50)">y (Tension)</text>
+            <line x1="0" y1="100" x2="102" y2="100" stroke="rgba(163,163,163,0.5)" strokeWidth="0.5" />
+            <line x1="0" y1="-2" x2="0" y2="100" stroke="rgba(163,163,163,0.5)" strokeWidth="0.5" />
+            <text x="50" y="110" fill="rgba(163,163,163,0.75)" fontSize="4" textAnchor="middle">x (ROM)</text>
+            <text x="-8" y="50" fill="rgba(163,163,163,0.75)" fontSize="4" textAnchor="middle" transform="rotate(-90, -8, 50)">y (Tension)</text>
 
             {/* Tangent Lines */}
-            <line x1={P0.x * 100} y1={(1 - P0.y) * 100} x2={P1.x * 100} y2={(1 - P1.y) * 100} stroke="rgba(148,163,184,0.35)" strokeWidth="0.5" strokeDasharray="1.5,1.5" />
-            <line x1={P2.x * 100} y1={(1 - P2.y) * 100} x2={P3.x * 100} y2={(1 - P3.y) * 100} stroke="rgba(148,163,184,0.35)" strokeWidth="0.5" strokeDasharray="1.5,1.5" />
+            <line x1={P0.x * 100} y1={(1 - P0.y) * 100} x2={P1.x * 100} y2={(1 - P1.y) * 100} stroke="rgba(163,163,163,0.35)" strokeWidth="0.5" strokeDasharray="1.5,1.5" />
+            <line x1={P2.x * 100} y1={(1 - P2.y) * 100} x2={P3.x * 100} y2={(1 - P3.y) * 100} stroke="rgba(163,163,163,0.35)" strokeWidth="0.5" strokeDasharray="1.5,1.5" />
 
             {/* Main Curve */}
             <polyline points={points} fill="none" stroke="var(--accent-primary, #6366f1)" strokeWidth="1.3" strokeLinecap="round" />
 
             {/* Tangent Control Points */}
-            <circle cx={P1.x * 100} cy={(1 - P1.y) * 100} r="1.1" fill="var(--bg-secondary)" stroke="rgba(148,163,184,0.8)" strokeWidth="0.5" />
-            <text x={P1.x * 100 + 2} y={(1 - P1.y) * 100 + 1} fill="rgba(148,163,184,0.85)" fontSize="3.5">P1</text>
+            <circle cx={P1.x * 100} cy={(1 - P1.y) * 100} r="1.1" fill="var(--bg-secondary)" stroke="rgba(163,163,163,0.8)" strokeWidth="0.5" />
+            <text x={P1.x * 100 + 2} y={(1 - P1.y) * 100 + 1} fill="rgba(163,163,163,0.85)" fontSize="3.5">P1</text>
 
-            <circle cx={P2.x * 100} cy={(1 - P2.y) * 100} r="1.1" fill="var(--bg-secondary)" stroke="rgba(148,163,184,0.8)" strokeWidth="0.5" />
-            <text x={P2.x * 100 + 2} y={(1 - P2.y) * 100 + 1} fill="rgba(148,163,184,0.85)" fontSize="3.5">P2</text>
+            <circle cx={P2.x * 100} cy={(1 - P2.y) * 100} r="1.1" fill="var(--bg-secondary)" stroke="rgba(163,163,163,0.8)" strokeWidth="0.5" />
+            <text x={P2.x * 100 + 2} y={(1 - P2.y) * 100 + 1} fill="rgba(163,163,163,0.85)" fontSize="3.5">P2</text>
 
             {/* Anchor Points */}
             <circle cx={P0.x * 100} cy={(1 - P0.y) * 100} r="1.5" fill="var(--text-primary, #fff)" />
