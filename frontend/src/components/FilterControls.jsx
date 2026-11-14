@@ -6,7 +6,7 @@ const mod = (n, m) => ((n % m) + m) % m;
  * Minimal lateral (horizontal) circular lock-wheel picker.
  * Selected item is centered in white; neighbors left/right fade out in grayer shades.
  */
-export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84 }) => {
+export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, circular = true, style }) => {
   const containerRef = useRef(null);
 
   const count = options.length;
@@ -24,6 +24,13 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
   // Sync virtualIdx when external value changes (and not dragging)
   useEffect(() => {
     if (dragRef.current.active || count === 0) return;
+    if (!circular) {
+      if (Math.round(virtualRef.current) !== activeIdx) {
+        virtualRef.current = activeIdx;
+        setVirtualIdx(activeIdx);
+      }
+      return;
+    }
     const currentMod = mod(Math.round(virtualRef.current), count);
     if (currentMod !== activeIdx) {
       let diff = activeIdx - currentMod;
@@ -33,18 +40,20 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
       virtualRef.current = nextV;
       setVirtualIdx(nextV);
     }
-  }, [activeIdx, count]);
+  }, [activeIdx, count, circular]);
 
   const commitStep = useCallback((targetVirtual) => {
     if (count === 0) return;
-    const snapped = Math.round(targetVirtual);
+    const snapped = circular
+      ? Math.round(targetVirtual)
+      : Math.max(0, Math.min(count - 1, Math.round(targetVirtual)));
     virtualRef.current = snapped;
     setVirtualIdx(snapped);
-    const nextOption = options[mod(snapped, count)];
+    const nextOption = options[circular ? mod(snapped, count) : snapped];
     if (nextOption && String(nextOption.value) !== String(value)) {
       onChange(nextOption.value);
     }
-  }, [count, options, value, onChange]);
+  }, [count, options, value, onChange, circular]);
 
   // Non-passive wheel listener so spinning the dial doesn't scroll the page
   useEffect(() => {
@@ -84,7 +93,8 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
     if (!dragRef.current.active) return;
     const dx = e.clientX - dragRef.current.startX;
     if (Math.abs(dx) > 4) dragRef.current.moved = true;
-    const nextV = dragRef.current.startVirtual - dx / dragStepPx;
+    const rawNext = dragRef.current.startVirtual - dx / dragStepPx;
+    const nextV = circular ? rawNext : Math.max(-0.25, Math.min(count - 0.75, rawNext));
     virtualRef.current = nextV;
     setVirtualIdx(nextV);
   };
@@ -108,7 +118,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
   const offsets = count === 1 ? [0] : [-3, -2, -1, 0, 1, 2, 3];
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', ...style }}>
       {label && (
         <span style={{
           fontSize: '0.68rem',
@@ -145,7 +155,8 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
       >
         {offsets.map((rel) => {
           const slotIdx = baseCenter + rel;
-          const optIdx = mod(slotIdx, count);
+          if (!circular && (slotIdx < 0 || slotIdx >= count)) return null;
+          const optIdx = circular ? mod(slotIdx, count) : slotIdx;
           const opt = options[optIdx];
           const dist = Math.abs(rel - fracOffset);
           const isCenter = dist < 0.45;

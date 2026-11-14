@@ -1250,19 +1250,21 @@ const DashboardTab = ({
 
                     {/* Muscle Group Volume */}
                     <div className="chart-container">
-                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                        <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                           {dashMuscleMacro !== 'all' 
                             ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Volume` : `${dashMuscleMacro} Sub-group Reps`)
                             : (muscleMetric === 'sets' ? 'Muscle Group Volume' : 'Muscle Group Reps')}
                         </span>
+                        <LockWheelPicker
+                          options={MUSCLE_METRIC_OPTIONS}
+                          value={muscleMetric}
+                          onChange={setMuscleMetric}
+                          itemWidth={88}
+                          circular={false}
+                          style={{ width: isMobile ? '170px' : '210px', flexShrink: 0 }}
+                        />
                       </div>
-                      <LockWheelPicker
-                        options={MUSCLE_METRIC_OPTIONS}
-                        value={muscleMetric}
-                        onChange={setMuscleMetric}
-                        itemWidth={96}
-                      />
                       <MuscleDonutChart
                         data={displayMuscleData}
                         compareData={compareMode ? displayCompareMuscleData : null}
