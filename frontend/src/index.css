@@ -830,7 +830,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   cursor: pointer;
 }
 
@@ -904,7 +904,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -2242,6 +2242,21 @@ input::-webkit-list-button {
   .metrics-summary-grid {
     gap: 8px !important;
     margin-bottom: 8px !important;
+  }
+  .db-tab-workspace {
+    gap: 8px !important;
+    padding: 4px 0 0 0 !important;
+  }
+  .exercise-db-grid {
+    gap: 8px !important;
+    grid-template-columns: 1fr !important;
+  }
+  .exercise-db-card {
+    padding: 10px 12px !important;
+    gap: 6px !important;
+  }
+  .ex-card-muscle-badges {
+    padding-top: 6px !important;
   }
   .analytics-grid {
     gap: 8px !important;
