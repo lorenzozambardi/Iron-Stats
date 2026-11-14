@@ -2245,7 +2245,9 @@ input::-webkit-list-button {
   }
   .db-tab-workspace {
     gap: 8px !important;
-    padding: 4px 0 0 0 !important;
+    padding-top: 84px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
   .exercise-db-grid {
     gap: 8px !important;
