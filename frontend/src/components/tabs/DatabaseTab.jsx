@@ -130,28 +130,6 @@ const DatabaseTab = React.memo(({
                     </span>
                   )}
                 </div>
-                <div className="ex-card-detail">
-                  <span className="ex-stat-item">
-                    <span className="ex-stat-label">Fatigue</span>
-                    <span className="ex-stat-val">{ex.fatigue}</span>
-                  </span>
-                  <span className="ex-stat-item">
-                    <span className="ex-stat-label">Coeff</span>
-                    <span className="ex-stat-val">{ex.load_coeff}</span>
-                  </span>
-                  {ex.load_multiplier !== 1 && (
-                    <span className="ex-stat-item">
-                      <span className="ex-stat-label">Multiplier</span>
-                      <span className="ex-stat-val">{ex.load_multiplier}x</span>
-                    </span>
-                  )}
-                  {ex.load_offset !== 0 && (
-                    <span className="ex-stat-item">
-                      <span className="ex-stat-label">Offset</span>
-                      <span className="ex-stat-val">{ex.load_offset}kg</span>
-                    </span>
-                  )}
-                </div>
               </div>
             ))}
           </div>
