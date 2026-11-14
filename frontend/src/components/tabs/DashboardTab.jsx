@@ -220,6 +220,109 @@ const MetricSparkline = React.memo(({ values, compareValues, color, compareColor
   );
 });
 
+const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
+  const hasA = values && values.length >= 1;
+  const hasB = compareValues && compareValues.length >= 1;
+  if (!hasA && !hasB) return null;
+
+  const w = 120;
+  const h = 60;
+  const count = Math.max(hasA ? values.length : 0, hasB ? compareValues.length : 0);
+  const allVals = [...(hasA ? values : []), ...(hasB ? compareValues : [])];
+  const max = Math.max(...allVals, 1);
+  const slotW = w / count;
+  const isCompare = hasA && hasB;
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      style={{ width: '100%', height: '58px', display: 'block', marginTop: '4px' }}
+    >
+      {Array.from({ length: count }).map((_, i) => {
+        const valA = hasA && i < values.length ? values[i] : 0;
+        const valB = hasB && i < compareValues.length ? compareValues[i] : 0;
+        if (isCompare) {
+          const pad = Math.min(2.5, slotW * 0.14);
+          const innerGap = Math.min(1.5, slotW * 0.08);
+          const barW = Math.max(1.5, (slotW - pad * 2 - innerGap) / 2);
+          const hA = Math.max(2, (valA / max) * (h - 4));
+          const hB = Math.max(2, (valB / max) * (h - 4));
+          return (
+            <g key={i}>
+              <rect x={i * slotW + pad} y={h - hA} width={barW} height={hA} rx="1.2" fill={color} fillOpacity={0.9} />
+              <rect x={i * slotW + pad + barW + innerGap} y={h - hB} width={barW} height={hB} rx="1.2" fill={compareColor} fillOpacity={0.85} />
+            </g>
+          );
+        }
+        const pad = Math.min(3, slotW * 0.22);
+        const barW = Math.max(2, slotW - pad * 2);
+        const barH = Math.max(2, (valA / max) * (h - 4));
+        return (
+          <rect
+            key={i}
+            x={i * slotW + pad}
+            y={h - barH}
+            width={barW}
+            height={barH}
+            rx="1.5"
+            fill={color}
+            fillOpacity={i === count - 1 ? 0.95 : 0.65}
+          />
+        );
+      })}
+    </svg>
+  );
+});
+
+const TotalEffectiveToggle = React.memo(({ mode, onToggle, accentColor }) => (
+  <div
+    onClick={(e) => e.stopPropagation()}
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      background: 'rgba(255, 255, 255, 0.05)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      borderRadius: '99px',
+      padding: '2px',
+      gap: '2px',
+      marginBottom: '2px',
+    }}
+  >
+    {[
+      ['total', 'Total'],
+      ['effective', 'Effective'],
+    ].map(([key, text]) => {
+      const active = mode === key;
+      return (
+        <button
+          key={key}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!active) onToggle(key);
+          }}
+          style={{
+            border: 'none',
+            background: active ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+            color: active ? (accentColor || '#ffffff') : 'var(--text-muted)',
+            fontSize: '0.62rem',
+            fontWeight: active ? 700 : 500,
+            padding: '2px 7px',
+            borderRadius: '99px',
+            cursor: 'pointer',
+            lineHeight: 1.2,
+            transition: 'background 0.15s ease, color 0.15s ease',
+          }}
+        >
+          {text}
+        </button>
+      );
+    })}
+  </div>
+));
+
 const computeMuscleDistribution = (dataSource, activeWeeksArr, targetMacro, targetSub, muscleMetric, weekOverride) => {
   if (!dataSource || dataSource.length === 0) return [];
   const distributions = {};
@@ -439,6 +542,12 @@ const DashboardTab = ({
   setSelectedMetricDetail
 }) => {
   const [muscleMetric, setMuscleMetric] = useState('sets');
+  const [cardModes, setCardModes] = useState({
+    reps: 'total',
+    tonnage: 'total',
+    weightedTonnage: 'total',
+    tut: 'total',
+  });
 
   // Dashboard filter state
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
@@ -1175,44 +1284,116 @@ const DashboardTab = ({
                         </div>
                       </div>
                       <div className="metrics-summary-grid">
-                        {[['Reps', 'volume', 'Volume', `${totalVolume.toLocaleString()} reps`, `${compareTotalVolume.toLocaleString()} reps`, delta(compareTotalVolume, totalVolume)],
-                          ['Effective Reps', 'effective', 'EffectiveRepsCustom', `${totalEffectiveReps.toLocaleString()} reps`, `${compareTotalEffReps.toLocaleString()} reps`, delta(compareTotalEffReps, totalEffectiveReps)],
-                          ['Tonnage', 'tonnage', 'Tonnage', `${totalTonnage.toLocaleString()} kg`, `${compareTotalTonnage.toLocaleString()} kg`, delta(compareTotalTonnage, totalTonnage)],
-                          ['Effective Tonnage', 'effective-tonnage', 'EffectiveTonnage', `${totalEffectiveTonnage.toLocaleString()} kg`, `${compareTotalEffectiveTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveTonnage, totalEffectiveTonnage)],
-                          ['W. Tonnage', 'weighted-tonnage', 'WeightedTonnage', `${totalWeightedTonnage.toLocaleString()} kg`, `${compareTotalWeightedTonnage.toLocaleString()} kg`, delta(compareTotalWeightedTonnage, totalWeightedTonnage)],
-                          ['Eff. W. Tonnage', 'effective-weighted-tonnage', 'EffectiveWeightedTonnage', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`, `${compareTotalEffectiveWeightedTonnage.toLocaleString()} kg`, delta(compareTotalEffectiveWeightedTonnage, totalEffectiveWeightedTonnage)],
-                          ['TUT', 'tut', 'Tut', `${totalTut.toLocaleString()}s`, `${compareTotalTut.toLocaleString()}s`, delta(compareTotalTut, totalTut)],
-                          ['Effective TUT', 'effective-tut', 'EffectiveTut', `${totalEffectiveTut.toLocaleString()}s`, `${compareTotalEffectiveTut.toLocaleString()}s`, delta(compareTotalEffectiveTut, totalEffectiveTut)],
-                          ['Volume', 'sets', 'Sets', `${totalSets.toLocaleString()} sets`, `${compareTotalSets.toLocaleString()} sets`, delta(compareTotalSets, totalSets)],
-                          ['Accumulated Fatigue', 'fatigue', 'Fatigue', `${totalFatigue.toLocaleString()}`, `${compareTotalFatigue.toLocaleString()}`, delta(compareTotalFatigue, totalFatigue)]
-                        ].map(([label, cls, metricKey, valA, valB, d]) => {
-                          const valsA = sparkSeriesA[metricKey];
-                          const valsB = sparkSeriesB[metricKey];
+                        {[
+                          {
+                            id: 'reps',
+                            mode: cardModes.reps,
+                            label: cardModes.reps === 'effective' ? 'Effective Reps' : 'Reps',
+                            cls: cardModes.reps === 'effective' ? 'effective' : 'volume',
+                            metricKey: cardModes.reps === 'effective' ? 'EffectiveRepsCustom' : 'Volume',
+                            color: cardModes.reps === 'effective' ? 'var(--color-effective-volume)' : 'var(--color-volume)',
+                            valA: `${(cardModes.reps === 'effective' ? totalEffectiveReps : totalVolume).toLocaleString()} reps`,
+                            valB: `${(cardModes.reps === 'effective' ? compareTotalEffReps : compareTotalVolume).toLocaleString()} reps`,
+                            d: cardModes.reps === 'effective' ? delta(compareTotalEffReps, totalEffectiveReps) : delta(compareTotalVolume, totalVolume),
+                          },
+                          {
+                            id: 'tonnage',
+                            mode: cardModes.tonnage,
+                            label: cardModes.tonnage === 'effective' ? 'Effective Tonnage' : 'Tonnage',
+                            cls: cardModes.tonnage === 'effective' ? 'effective-tonnage' : 'tonnage',
+                            metricKey: cardModes.tonnage === 'effective' ? 'EffectiveTonnage' : 'Tonnage',
+                            color: cardModes.tonnage === 'effective' ? 'var(--color-effective-tonnage)' : 'var(--color-tonnage)',
+                            valA: `${(cardModes.tonnage === 'effective' ? totalEffectiveTonnage : totalTonnage).toLocaleString()} kg`,
+                            valB: `${(cardModes.tonnage === 'effective' ? compareTotalEffectiveTonnage : compareTotalTonnage).toLocaleString()} kg`,
+                            d: cardModes.tonnage === 'effective' ? delta(compareTotalEffectiveTonnage, totalEffectiveTonnage) : delta(compareTotalTonnage, totalTonnage),
+                          },
+                          {
+                            id: 'weightedTonnage',
+                            mode: cardModes.weightedTonnage,
+                            label: cardModes.weightedTonnage === 'effective' ? 'Eff. W. Tonnage' : 'W. Tonnage',
+                            cls: cardModes.weightedTonnage === 'effective' ? 'effective-weighted-tonnage' : 'weighted-tonnage',
+                            metricKey: cardModes.weightedTonnage === 'effective' ? 'EffectiveWeightedTonnage' : 'WeightedTonnage',
+                            color: cardModes.weightedTonnage === 'effective' ? 'var(--color-effective-weighted-tonnage)' : 'var(--color-weighted-tonnage)',
+                            valA: `${(cardModes.weightedTonnage === 'effective' ? totalEffectiveWeightedTonnage : totalWeightedTonnage).toLocaleString()} kg`,
+                            valB: `${(cardModes.weightedTonnage === 'effective' ? compareTotalEffectiveWeightedTonnage : compareTotalWeightedTonnage).toLocaleString()} kg`,
+                            d: cardModes.weightedTonnage === 'effective' ? delta(compareTotalEffectiveWeightedTonnage, totalEffectiveWeightedTonnage) : delta(compareTotalWeightedTonnage, totalWeightedTonnage),
+                          },
+                          {
+                            id: 'tut',
+                            mode: cardModes.tut,
+                            label: cardModes.tut === 'effective' ? 'Effective TUT' : 'TUT',
+                            cls: cardModes.tut === 'effective' ? 'effective-tut' : 'tut',
+                            metricKey: cardModes.tut === 'effective' ? 'EffectiveTut' : 'Tut',
+                            color: cardModes.tut === 'effective' ? 'var(--color-effective-tut)' : 'var(--color-tut)',
+                            valA: `${(cardModes.tut === 'effective' ? totalEffectiveTut : totalTut).toLocaleString()}s`,
+                            valB: `${(cardModes.tut === 'effective' ? compareTotalEffectiveTut : compareTotalTut).toLocaleString()}s`,
+                            d: cardModes.tut === 'effective' ? delta(compareTotalEffectiveTut, totalEffectiveTut) : delta(compareTotalTut, totalTut),
+                          },
+                          {
+                            id: 'sets',
+                            label: 'Volume',
+                            cls: 'sets',
+                            metricKey: 'Sets',
+                            color: 'var(--color-sets)',
+                            isBar: true,
+                            valA: `${totalSets.toLocaleString()} sets`,
+                            valB: `${compareTotalSets.toLocaleString()} sets`,
+                            d: delta(compareTotalSets, totalSets),
+                          },
+                          {
+                            id: 'fatigue',
+                            label: 'Accumulated Fatigue',
+                            cls: 'fatigue',
+                            metricKey: 'Fatigue',
+                            color: 'var(--color-fatigue)',
+                            valA: `${totalFatigue.toLocaleString()}`,
+                            valB: `${compareTotalFatigue.toLocaleString()}`,
+                            d: delta(compareTotalFatigue, totalFatigue),
+                          },
+                        ].map((card) => {
+                          const valsA = sparkSeriesA[card.metricKey];
+                          const valsB = sparkSeriesB[card.metricKey];
                           return (
-                            <div key={cls} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
-                              <span className="metric-label">{label}</span>
+                            <div key={card.id} className={`metric-summary-card ${card.cls}`} onClick={() => { setSelectedMetricDetail(card.cls); }}>
+                              {card.mode && (
+                                <TotalEffectiveToggle
+                                  mode={card.mode}
+                                  accentColor={card.color}
+                                  onToggle={(next) => setCardModes(prev => ({ ...prev, [card.id]: next }))}
+                                />
+                              )}
+                              <span className="metric-label">{card.label}</span>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-primary)', flexShrink: 0 }} />
-                                  <span className="metric-value" style={{ fontSize: isMobile ? '1.1rem' : '1.35rem' }}>{valA}</span>
+                                  <span className="metric-value" style={{ fontSize: isMobile ? '1.1rem' : '1.35rem' }}>{card.valA}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-secondary)', flexShrink: 0 }} />
-                                  <span className="metric-value" style={{ fontSize: isMobile ? '0.95rem' : '1.1rem', opacity: 0.85 }}>{valB}</span>
-                                  {d && (
-                                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 600, color: (cls === 'fatigue' ? !d.pos : d.pos) ? '#10b981' : '#f43f5e' }}>
-                                      {d.pos ? '▲' : '▼'} {Math.abs(d.val).toFixed(2)}%
+                                  <span className="metric-value" style={{ fontSize: isMobile ? '0.95rem' : '1.1rem', opacity: 0.85 }}>{card.valB}</span>
+                                  {card.d && (
+                                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 600, color: (card.cls === 'fatigue' ? !card.d.pos : card.d.pos) ? '#10b981' : '#f43f5e' }}>
+                                      {card.d.pos ? '▲' : '▼'} {Math.abs(card.d.val).toFixed(2)}%
                                     </span>
                                   )}
                                 </div>
                               </div>
-                              <MetricSparkline
-                                values={valsA}
-                                compareValues={valsB}
-                                color="var(--accent-primary)"
-                                compareColor="var(--accent-secondary)"
-                                gradId={`spark-cmp-${cls}`}
-                              />
+                              {card.isBar ? (
+                                <MetricBarSparkline
+                                  values={valsA}
+                                  compareValues={valsB}
+                                  color="var(--accent-primary)"
+                                  compareColor="var(--accent-secondary)"
+                                />
+                              ) : (
+                                <MetricSparkline
+                                  values={valsA}
+                                  compareValues={valsB}
+                                  color="var(--accent-primary)"
+                                  compareColor="var(--accent-secondary)"
+                                  gradId={`spark-cmp-${card.id}`}
+                                />
+                              )}
                             </div>
                           );
                         })}
@@ -1221,24 +1402,78 @@ const DashboardTab = ({
                   ) : (
                     <div className="metrics-summary-grid">
                       {[
-                        ['Reps', 'volume', 'Volume', 'var(--color-volume)', `${totalVolume.toLocaleString()} reps`],
-                        ['Effective Reps', 'effective', 'EffectiveRepsCustom', 'var(--color-effective-volume)', `${totalEffectiveReps.toLocaleString()} reps`],
-                        ['Tonnage', 'tonnage', 'Tonnage', 'var(--color-tonnage)', `${totalTonnage.toLocaleString()} kg`],
-                        ['Effective Tonnage', 'effective-tonnage', 'EffectiveTonnage', 'var(--color-effective-tonnage)', `${totalEffectiveTonnage.toLocaleString()} kg`],
-                        ['W. Tonnage', 'weighted-tonnage', 'WeightedTonnage', 'var(--color-weighted-tonnage)', `${totalWeightedTonnage.toLocaleString()} kg`],
-                        ['Eff. W. Tonnage', 'effective-weighted-tonnage', 'EffectiveWeightedTonnage', 'var(--color-effective-weighted-tonnage)', `${totalEffectiveWeightedTonnage.toLocaleString()} kg`],
-                        ['TUT', 'tut', 'Tut', 'var(--color-tut)', `${totalTut.toLocaleString()}s`],
-                        ['Effective TUT', 'effective-tut', 'EffectiveTut', 'var(--color-effective-tut)', `${totalEffectiveTut.toLocaleString()}s`],
-                        ['Volume', 'sets', 'Sets', 'var(--color-sets)', `${totalSets.toLocaleString()} sets`],
-                        ['Accumulated Fatigue', 'fatigue', 'Fatigue', 'var(--color-fatigue)', `${totalFatigue.toLocaleString()}`],
-                      ].map(([label, cls, metricKey, color, formattedVal]) => {
-                        const vals = sparkSeriesA[metricKey];
+                        {
+                          id: 'reps',
+                          mode: cardModes.reps,
+                          label: cardModes.reps === 'effective' ? 'Effective Reps' : 'Reps',
+                          cls: cardModes.reps === 'effective' ? 'effective' : 'volume',
+                          metricKey: cardModes.reps === 'effective' ? 'EffectiveRepsCustom' : 'Volume',
+                          color: cardModes.reps === 'effective' ? 'var(--color-effective-volume)' : 'var(--color-volume)',
+                          formattedVal: `${(cardModes.reps === 'effective' ? totalEffectiveReps : totalVolume).toLocaleString()} reps`,
+                        },
+                        {
+                          id: 'tonnage',
+                          mode: cardModes.tonnage,
+                          label: cardModes.tonnage === 'effective' ? 'Effective Tonnage' : 'Tonnage',
+                          cls: cardModes.tonnage === 'effective' ? 'effective-tonnage' : 'tonnage',
+                          metricKey: cardModes.tonnage === 'effective' ? 'EffectiveTonnage' : 'Tonnage',
+                          color: cardModes.tonnage === 'effective' ? 'var(--color-effective-tonnage)' : 'var(--color-tonnage)',
+                          formattedVal: `${(cardModes.tonnage === 'effective' ? totalEffectiveTonnage : totalTonnage).toLocaleString()} kg`,
+                        },
+                        {
+                          id: 'weightedTonnage',
+                          mode: cardModes.weightedTonnage,
+                          label: cardModes.weightedTonnage === 'effective' ? 'Eff. W. Tonnage' : 'W. Tonnage',
+                          cls: cardModes.weightedTonnage === 'effective' ? 'effective-weighted-tonnage' : 'weighted-tonnage',
+                          metricKey: cardModes.weightedTonnage === 'effective' ? 'EffectiveWeightedTonnage' : 'WeightedTonnage',
+                          color: cardModes.weightedTonnage === 'effective' ? 'var(--color-effective-weighted-tonnage)' : 'var(--color-weighted-tonnage)',
+                          formattedVal: `${(cardModes.weightedTonnage === 'effective' ? totalEffectiveWeightedTonnage : totalWeightedTonnage).toLocaleString()} kg`,
+                        },
+                        {
+                          id: 'tut',
+                          mode: cardModes.tut,
+                          label: cardModes.tut === 'effective' ? 'Effective TUT' : 'TUT',
+                          cls: cardModes.tut === 'effective' ? 'effective-tut' : 'tut',
+                          metricKey: cardModes.tut === 'effective' ? 'EffectiveTut' : 'Tut',
+                          color: cardModes.tut === 'effective' ? 'var(--color-effective-tut)' : 'var(--color-tut)',
+                          formattedVal: `${(cardModes.tut === 'effective' ? totalEffectiveTut : totalTut).toLocaleString()}s`,
+                        },
+                        {
+                          id: 'sets',
+                          label: 'Volume',
+                          cls: 'sets',
+                          metricKey: 'Sets',
+                          color: 'var(--color-sets)',
+                          isBar: true,
+                          formattedVal: `${totalSets.toLocaleString()} sets`,
+                        },
+                        {
+                          id: 'fatigue',
+                          label: 'Accumulated Fatigue',
+                          cls: 'fatigue',
+                          metricKey: 'Fatigue',
+                          color: 'var(--color-fatigue)',
+                          formattedVal: `${totalFatigue.toLocaleString()}`,
+                        },
+                      ].map((card) => {
+                        const vals = sparkSeriesA[card.metricKey];
                         return (
-                          <div key={cls} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
-                            <span className="metric-label">{label}</span>
-                            <span className="metric-value">{formattedVal}</span>
-                            <TrendBadge values={vals} invertColor={cls === 'fatigue'} />
-                            <MetricSparkline values={vals} color={color} gradId={`spark-${cls}`} />
+                          <div key={card.id} className={`metric-summary-card ${card.cls}`} onClick={() => { setSelectedMetricDetail(card.cls); }}>
+                            {card.mode && (
+                              <TotalEffectiveToggle
+                                mode={card.mode}
+                                accentColor={card.color}
+                                onToggle={(next) => setCardModes(prev => ({ ...prev, [card.id]: next }))}
+                              />
+                            )}
+                            <span className="metric-label">{card.label}</span>
+                            <span className="metric-value">{card.formattedVal}</span>
+                            <TrendBadge values={vals} invertColor={card.cls === 'fatigue'} />
+                            {card.isBar ? (
+                              <MetricBarSparkline values={vals} color={card.color} />
+                            ) : (
+                              <MetricSparkline values={vals} color={card.color} gradId={`spark-${card.id}`} />
+                            )}
                           </div>
                         );
                       })}
