@@ -237,7 +237,8 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
         gap: '4px',
         border: 'none',
         background: 'transparent',
-        padding: '4px 2px',
+        padding: '8px 4px 8px 12px',
+        margin: '-8px -4px -8px 0',
         cursor: 'pointer',
         flexShrink: 0,
       }}
@@ -255,6 +256,47 @@ const CardModeToggle = React.memo(({ mode, onSelect }) => {
         />
       ))}
     </button>
+  );
+});
+
+const StatSummaryCard = React.memo(({ cls, hasToggle, onToggleMode, onOpenDetail, children }) => {
+  const swipeRef = useRef({ active: false, startX: 0, startY: 0, swiped: false });
+
+  const handlePointerDown = (e) => {
+    if (!hasToggle) return;
+    swipeRef.current = { active: true, startX: e.clientX, startY: e.clientY, swiped: false };
+  };
+
+  const handlePointerUp = (e) => {
+    if (!swipeRef.current.active) return;
+    const dx = e.clientX - swipeRef.current.startX;
+    const dy = e.clientY - swipeRef.current.startY;
+    swipeRef.current.active = false;
+    if (Math.abs(dx) >= 28 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      swipeRef.current.swiped = true;
+      onToggleMode(dx < 0 ? 'effective' : 'total');
+    }
+  };
+
+  const handleClick = () => {
+    if (swipeRef.current.swiped) {
+      swipeRef.current.swiped = false;
+      return;
+    }
+    onOpenDetail();
+  };
+
+  return (
+    <div
+      className={`metric-summary-card ${cls}`}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { swipeRef.current.active = false; }}
+      onClick={handleClick}
+      style={hasToggle ? { touchAction: 'pan-y' } : undefined}
+    >
+      {children}
+    </div>
   );
 });
 
@@ -1298,7 +1340,13 @@ const DashboardTab = ({
                           const valsA = sparkSeriesA[metricKey];
                           const valsB = sparkSeriesB[metricKey];
                           return (
-                            <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
+                            <StatSummaryCard
+                              key={card.id}
+                              cls={cls}
+                              hasToggle={hasToggle}
+                              onToggleMode={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                              onOpenDetail={() => setSelectedMetricDetail(cls)}
+                            >
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                                 <span className="metric-label">{label}</span>
                                 {hasToggle && (
@@ -1339,7 +1387,7 @@ const DashboardTab = ({
                                   gradId={`spark-cmp-${card.id}`}
                                 />
                               )}
-                            </div>
+                            </StatSummaryCard>
                           );
                         })}
                       </div>
@@ -1394,7 +1442,13 @@ const DashboardTab = ({
                         const [label, cls, metricKey, color, formattedVal] = card.variants[mode];
                         const vals = sparkSeriesA[metricKey];
                         return (
-                          <div key={card.id} className={`metric-summary-card ${cls}`} onClick={() => { setSelectedMetricDetail(cls); }}>
+                          <StatSummaryCard
+                            key={card.id}
+                            cls={cls}
+                            hasToggle={hasToggle}
+                            onToggleMode={(m) => setCardModes(prev => ({ ...prev, [card.id]: m }))}
+                            onOpenDetail={() => setSelectedMetricDetail(cls)}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                               <span className="metric-label">{label}</span>
                               {hasToggle && (
@@ -1411,7 +1465,7 @@ const DashboardTab = ({
                             ) : (
                               <MetricSparkline values={vals} color={color} gradId={`spark-${card.id}`} />
                             )}
-                          </div>
+                          </StatSummaryCard>
                         );
                       })}
                     </div>
