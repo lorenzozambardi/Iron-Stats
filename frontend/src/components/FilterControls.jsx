@@ -3,21 +3,18 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 const mod = (n, m) => ((n % m) + m) % m;
 
 /**
- * Combination-lock style circular vertical wheel picker.
- * Selected item is centered in white; neighbors above/below step down in gray and fade out.
+ * Minimal lateral (horizontal) circular lock-wheel picker.
+ * Selected item is centered in white; neighbors left/right fade out in grayer shades.
  */
-export const LockWheelPicker = ({ label, options, value, onChange, width = '130px', accentColor = 'var(--accent-primary)' }) => {
+export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84 }) => {
   const containerRef = useRef(null);
-  const ITEM_H = 24;
-  const HALF_VISIBLE = 2; // 2 neighbors above + 1 center + 2 below = 5 rows
 
   const count = options.length;
   const activeIdx = Math.max(0, options.findIndex(o => String(o.value) === String(value)));
 
-  // Continuous virtual index (can go negative or >= count for seamless circular drag)
   const [virtualIdx, setVirtualIdx] = useState(activeIdx);
   const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ active: false, startY: 0, startVirtual: activeIdx, moved: false });
+  const dragRef = useRef({ active: false, startX: 0, startVirtual: activeIdx, moved: false });
   const virtualRef = useRef(activeIdx);
 
   useEffect(() => {
@@ -29,7 +26,6 @@ export const LockWheelPicker = ({ label, options, value, onChange, width = '130p
     if (dragRef.current.active || count === 0) return;
     const currentMod = mod(Math.round(virtualRef.current), count);
     if (currentMod !== activeIdx) {
-      // Move by shortest circular distance
       let diff = activeIdx - currentMod;
       if (diff > count / 2) diff -= count;
       if (diff < -count / 2) diff += count;
@@ -58,7 +54,8 @@ export const LockWheelPicker = ({ label, options, value, onChange, width = '130p
     const onWheel = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      wheelAccum += e.deltaY;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      wheelAccum += delta;
       if (Math.abs(wheelAccum) >= 22) {
         const dir = wheelAccum > 0 ? 1 : -1;
         wheelAccum = 0;
@@ -74,7 +71,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, width = '130p
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       active: true,
-      startY: e.clientY,
+      startX: e.clientX,
       startVirtual: virtualRef.current,
       moved: false
     };
@@ -83,10 +80,9 @@ export const LockWheelPicker = ({ label, options, value, onChange, width = '130p
 
   const handlePointerMove = (e) => {
     if (!dragRef.current.active) return;
-    const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dy) > 3) dragRef.current.moved = true;
-    // Dragging up advances index (like spinning a lock wheel upward)
-    const nextV = dragRef.current.startVirtual - dy / ITEM_H;
+    const dx = e.clientX - dragRef.current.startX;
+    if (Math.abs(dx) > 3) dragRef.current.moved = true;
+    const nextV = dragRef.current.startVirtual - dx / itemWidth;
     virtualRef.current = nextV;
     setVirtualIdx(nextV);
   };
@@ -106,18 +102,21 @@ export const LockWheelPicker = ({ label, options, value, onChange, width = '130p
   if (count === 0) return null;
 
   const baseCenter = Math.round(virtualIdx);
-  const fracOffset = virtualIdx - baseCenter; // [-0.5, 0.5]
+  const fracOffset = virtualIdx - baseCenter;
   const offsets = count === 1 ? [0] : [-2, -1, 0, 1, 2];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', width, flexShrink: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
       {label && (
         <span style={{
-          fontSize: '0.65rem',
+          fontSize: '0.68rem',
           fontWeight: 700,
           textTransform: 'uppercase',
-          letterSpacing: '0.07em',
-          color: String(value) !== 'all' && String(value) !== '' ? accentColor : 'var(--text-muted)',
+          letterSpacing: '0.06em',
+          color: '#ffffff',
+          whiteSpace: 'nowrap',
+          minWidth: '92px',
+          flexShrink: 0,
           userSelect: 'none'
         }}>
           {label}
@@ -131,99 +130,68 @@ export const LockWheelPicker = ({ label, options, value, onChange, width = '130p
         onPointerCancel={handlePointerUp}
         style={{
           position: 'relative',
-          width: '100%',
-          height: `${ITEM_H * (HALF_VISIBLE * 2 + 1)}px`,
+          flex: 1,
+          minWidth: 0,
+          height: '28px',
           overflow: 'hidden',
-          cursor: count > 1 ? (isDragging ? 'grabbing' : 'ns-resize') : 'default',
+          cursor: count > 1 ? (isDragging ? 'grabbing' : 'ew-resize') : 'default',
           touchAction: 'none',
           userSelect: 'none',
-          background: 'rgba(0, 0, 0, 0.28)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          boxShadow: 'inset 0 6px 14px rgba(0,0,0,0.55), inset 0 -6px 14px rgba(0,0,0,0.55)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
+          maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
         }}
       >
-        {/* Center lock-slot highlight band */}
-        <div
-          style={{
-            position: 'absolute',
-            left: '4px',
-            right: '4px',
-            top: '50%',
-            height: `${ITEM_H}px`,
-            transform: 'translateY(-50%)',
-            background: 'rgba(255, 255, 255, 0.06)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.14)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.14)',
-            borderRadius: '6px',
-            pointerEvents: 'none',
-            zIndex: 1
-          }}
-        />
+        {offsets.map((rel) => {
+          const slotIdx = baseCenter + rel;
+          const optIdx = mod(slotIdx, count);
+          const opt = options[optIdx];
+          const dist = Math.abs(rel - fracOffset);
+          const isCenter = dist < 0.45;
 
-        {/* Circular options with top/bottom fade mask */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 18%, #000 38%, #000 62%, rgba(0,0,0,0.55) 82%, transparent 100%)',
-            maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 18%, #000 38%, #000 62%, rgba(0,0,0,0.55) 82%, transparent 100%)',
-            zIndex: 2
-          }}
-        >
-          {offsets.map((rel) => {
-            const slotIdx = baseCenter + rel;
-            const optIdx = mod(slotIdx, count);
-            const opt = options[optIdx];
-            const dist = Math.abs(rel - fracOffset);
-            const isCenter = dist < 0.45;
+          const opacity = Math.max(0.18, 1 - dist * 0.36);
+          const scale = Math.max(0.84, 1 - dist * 0.07);
+          const color = isCenter
+            ? '#ffffff'
+            : dist < 1.35
+              ? '#9ca3af'
+              : '#52525b';
+          const xPx = (rel - fracOffset) * itemWidth;
 
-            // Grayer & smaller as distance from center grows
-            const opacity = Math.max(0.18, 1 - dist * 0.36);
-            const scale = Math.max(0.82, 1 - dist * 0.075);
-            const color = isCenter
-              ? '#ffffff'
-              : dist < 1.35
-                ? '#a1a1aa'
-                : '#52525b';
-            const yPx = (HALF_VISIBLE + rel - fracOffset) * ITEM_H;
-
-            return (
-              <div
-                key={`${rel}-${optIdx}`}
-                onClick={() => {
-                  if (!dragRef.current.moved && rel !== 0 && count > 1) {
-                    commitStep(baseCenter + rel);
-                  }
-                }}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: `${ITEM_H}px`,
-                  transform: `translateY(${yPx}px) scale(${scale})`,
-                  transition: isDragging ? 'none' : 'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 8px',
-                  fontSize: isCenter ? '0.82rem' : '0.75rem',
-                  fontWeight: isCenter ? 700 : 500,
-                  color,
-                  opacity,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  cursor: rel !== 0 && count > 1 ? 'pointer' : 'inherit'
-                }}
-                title={opt.label}
-              >
-                {opt.label}
-              </div>
-            );
-          })}
-        </div>
+          return (
+            <div
+              key={`${rel}-${optIdx}`}
+              onClick={() => {
+                if (!dragRef.current.moved && rel !== 0 && count > 1) {
+                  commitStep(baseCenter + rel);
+                }
+              }}
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: 0,
+                height: '28px',
+                width: `${itemWidth}px`,
+                transform: `translateX(calc(-50% + ${xPx}px)) scale(${scale})`,
+                transition: isDragging ? 'none' : 'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 4px',
+                fontSize: isCenter ? '0.82rem' : '0.74rem',
+                fontWeight: isCenter ? 700 : 500,
+                color,
+                opacity,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                cursor: rel !== 0 && count > 1 ? 'pointer' : 'inherit'
+              }}
+              title={opt.label}
+            >
+              {opt.label}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -241,7 +209,7 @@ export const DualWeekSlider = ({
   accentColor = 'var(--accent-primary)'
 }) => {
   const trackRef = useRef(null);
-  const [draggingThumb, setDraggingThumb] = useState(null); // 'from' | 'to' | null
+  const [draggingThumb, setDraggingThumb] = useState(null);
   const dragStateRef = useRef({ thumb: null, fromIdx: 0, toIdx: 0 });
 
   const maxIdx = Math.max(0, weeks.length - 1);
@@ -339,152 +307,105 @@ export const DualWeekSlider = ({
       ? `All (W${weeks[0]}–W${weeks[maxIdx]})`
       : fromIdx === toIdx
         ? `W${weeks[fromIdx]}`
-        : `W${weeks[fromIdx]} – W${weeks[toIdx]}`;
+        : `W${weeks[fromIdx]}–W${weeks[toIdx]}`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 220px', minWidth: '180px', padding: '4px 6px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-        <span style={{
-          fontSize: '0.65rem',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.07em',
-          color: isAll ? 'var(--text-muted)' : accentColor
-        }}>
-          {label}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ffffff' }}>{rangeText}</span>
-          {!isAll && (
-            <button
-              type="button"
-              onClick={() => onChange('all', 'all')}
-              style={{
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-secondary)',
-                borderRadius: '99px',
-                fontSize: '0.65rem',
-                padding: '1px 7px',
-                cursor: 'pointer'
-              }}
-            >
-              All
-            </button>
-          )}
-        </div>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+      <span style={{
+        fontSize: '0.68rem',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        color: '#ffffff',
+        whiteSpace: 'nowrap',
+        minWidth: '92px',
+        flexShrink: 0,
+        userSelect: 'none'
+      }}>
+        {label}
+      </span>
 
-      {/* Slider track */}
-      <div
-        ref={trackRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={{
-          position: 'relative',
-          height: '28px',
-          display: 'flex',
-          alignItems: 'center',
-          cursor: weeks.length > 1 ? 'pointer' : 'default',
-          touchAction: 'none',
-          userSelect: 'none'
-        }}
-      >
-        {/* Base rail */}
-        <div style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          height: '5px',
-          borderRadius: '99px',
-          background: 'rgba(255, 255, 255, 0.12)'
-        }} />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div
+          ref={trackRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{
+            position: 'relative',
+            flex: 1,
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            cursor: weeks.length > 1 ? 'pointer' : 'default',
+            touchAction: 'none',
+            userSelect: 'none'
+          }}
+        >
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            height: '4px',
+            borderRadius: '99px',
+            background: 'rgba(255, 255, 255, 0.14)'
+          }} />
 
-        {/* Active interval bar */}
-        <div style={{
-          position: 'absolute',
-          left: `${leftPct}%`,
-          width: `${Math.max(0, rightPct - leftPct)}%`,
-          height: '5px',
-          borderRadius: '99px',
-          background: accentColor,
-          boxShadow: `0 0 10px ${accentColor}`
-        }} />
+          <div style={{
+            position: 'absolute',
+            left: `${leftPct}%`,
+            width: `${Math.max(0, rightPct - leftPct)}%`,
+            height: '4px',
+            borderRadius: '99px',
+            background: accentColor,
+          }} />
 
-        {/* Week tick dots */}
-        {weeks.length > 1 && weeks.length <= 20 && weeks.map((w, i) => {
-          const pct = (i / maxIdx) * 100;
-          const inRange = i >= fromIdx && i <= toIdx;
-          return (
-            <span
-              key={w}
+          {weeks.length > 1 && (
+            <div
+              data-thumb="from"
               style={{
                 position: 'absolute',
-                left: `${pct}%`,
-                width: '3px',
-                height: '3px',
+                left: `${leftPct}%`,
+                width: draggingThumb === 'from' ? '18px' : '14px',
+                height: draggingThumb === 'from' ? '18px' : '14px',
                 borderRadius: '50%',
+                background: '#ffffff',
+                border: `2px solid ${accentColor}`,
+                boxShadow: '0 1px 6px rgba(0,0,0,0.6)',
                 transform: 'translateX(-50%)',
-                background: inRange ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.2)',
-                pointerEvents: 'none'
+                transition: draggingThumb === 'from' ? 'none' : 'left 100ms ease, width 100ms ease, height 100ms ease',
+                zIndex: draggingThumb === 'from' ? 4 : 3,
+                cursor: 'grab'
               }}
             />
-          );
-        })}
+          )}
 
-        {/* From Thumb */}
-        {weeks.length > 1 && (
-          <div
-            data-thumb="from"
-            style={{
-              position: 'absolute',
-              left: `${leftPct}%`,
-              width: draggingThumb === 'from' ? '20px' : '16px',
-              height: draggingThumb === 'from' ? '20px' : '16px',
-              borderRadius: '50%',
-              background: '#ffffff',
-              border: `2.5px solid ${accentColor}`,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
-              transform: 'translateX(-50%)',
-              transition: draggingThumb === 'from' ? 'none' : 'left 100ms ease, width 100ms ease, height 100ms ease',
-              zIndex: draggingThumb === 'from' ? 4 : 3,
-              cursor: 'grab'
-            }}
-          />
-        )}
-
-        {/* To Thumb */}
-        {weeks.length > 1 && (
-          <div
-            data-thumb="to"
-            style={{
-              position: 'absolute',
-              left: `${rightPct}%`,
-              width: draggingThumb === 'to' ? '20px' : '16px',
-              height: draggingThumb === 'to' ? '20px' : '16px',
-              borderRadius: '50%',
-              background: '#ffffff',
-              border: `2.5px solid ${accentColor}`,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
-              transform: 'translateX(-50%)',
-              transition: draggingThumb === 'to' ? 'none' : 'left 100ms ease, width 100ms ease, height 100ms ease',
-              zIndex: draggingThumb === 'to' ? 4 : 3,
-              cursor: 'grab'
-            }}
-          />
-        )}
-      </div>
-
-      {/* Min / Max labels */}
-      {weeks.length > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '-4px' }}>
-          <span>W{weeks[0]}</span>
-          {weeks.length > 4 && <span>W{weeks[Math.floor(maxIdx / 2)]}</span>}
-          <span>W{weeks[maxIdx]}</span>
+          {weeks.length > 1 && (
+            <div
+              data-thumb="to"
+              style={{
+                position: 'absolute',
+                left: `${rightPct}%`,
+                width: draggingThumb === 'to' ? '18px' : '14px',
+                height: draggingThumb === 'to' ? '18px' : '14px',
+                borderRadius: '50%',
+                background: '#ffffff',
+                border: `2px solid ${accentColor}`,
+                boxShadow: '0 1px 6px rgba(0,0,0,0.6)',
+                transform: 'translateX(-50%)',
+                transition: draggingThumb === 'to' ? 'none' : 'left 100ms ease, width 100ms ease, height 100ms ease',
+                zIndex: draggingThumb === 'to' ? 4 : 3,
+                cursor: 'grab'
+              }}
+            />
+          )}
         </div>
-      )}
+
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {rangeText}
+        </span>
+      </div>
     </div>
   );
 };

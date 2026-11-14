@@ -909,14 +909,13 @@ const DashboardTab = ({
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram}
                           </div>
-                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <LockWheelPicker
                               label="Session"
                               options={sessionWheelOptions}
                               value={dashFilterSession}
                               onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                              width="92px"
-                              accentColor="var(--accent-primary)"
+                              itemWidth={64}
                             />
                             <DualWeekSlider
                               label="Weeks"
@@ -935,14 +934,13 @@ const DashboardTab = ({
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block' }} />
                             {currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram}
                           </div>
-                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <LockWheelPicker
                               label="Session"
                               options={cmpSessionWheelOptions}
                               value={cmpFilterSession}
                               onChange={val => { setCmpFilterSession(val); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
-                              width="92px"
-                              accentColor="var(--accent-secondary)"
+                              itemWidth={64}
                             />
                             <DualWeekSlider
                               label="Weeks"
@@ -956,13 +954,13 @@ const DashboardTab = ({
                         </div>
 
                         {/* Shared muscle lock wheels — full width row */}
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
                           <LockWheelPicker
                             label="Muscle Group"
                             options={macroWheelOptions}
                             value={dashMuscleMacro}
                             onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
-                            width={isMobile ? '120px' : '140px'}
+                            itemWidth={88}
                           />
                           {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
                             <LockWheelPicker
@@ -970,40 +968,37 @@ const DashboardTab = ({
                               options={subWheelOptions}
                               value={dashMuscleSubgroup}
                               onChange={val => setDashMuscleSubgroup(val)}
-                              width={isMobile ? '140px' : '165px'}
+                              itemWidth={104}
                             />
                           )}
-                          {dashMuscleMacro !== 'all' && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(shared across both programs)</span>}
                         </div>
                       </div>
                     ) : (
-                      // Normal mode: Lock-wheel tumblers + Dual-thumb Week slider
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '10px' : '16px', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', maxWidth: '100%' }}>
+                      // Normal mode: minimal lateral lock-wheels + Dual-thumb Week slider
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <LockWheelPicker
+                          label="Session"
+                          options={sessionWheelOptions}
+                          value={dashFilterSession}
+                          onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
+                          itemWidth={64}
+                        />
+                        <LockWheelPicker
+                          label="Muscle Group"
+                          options={macroWheelOptions}
+                          value={dashMuscleMacro}
+                          onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
+                          itemWidth={88}
+                        />
+                        {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
                           <LockWheelPicker
-                            label="Session"
-                            options={sessionWheelOptions}
-                            value={dashFilterSession}
-                            onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
-                            width={isMobile ? '86px' : '100px'}
+                            label="Subgroup"
+                            options={subWheelOptions}
+                            value={dashMuscleSubgroup}
+                            onChange={val => setDashMuscleSubgroup(val)}
+                            itemWidth={104}
                           />
-                          <LockWheelPicker
-                            label="Muscle Group"
-                            options={macroWheelOptions}
-                            value={dashMuscleMacro}
-                            onChange={val => { setDashMuscleMacro(val); setDashMuscleSubgroup('all'); }}
-                            width={isMobile ? '115px' : '135px'}
-                          />
-                          {dashMuscleMacro !== 'all' && subMusclesForMacro.length > 0 && (
-                            <LockWheelPicker
-                              label="Subgroup"
-                              options={subWheelOptions}
-                              value={dashMuscleSubgroup}
-                              onChange={val => setDashMuscleSubgroup(val)}
-                              width={isMobile ? '130px' : '155px'}
-                            />
-                          )}
-                        </div>
+                        )}
                         <DualWeekSlider
                           label="Weeks"
                           weeks={dashWeeksList}
