@@ -1260,9 +1260,9 @@ const DashboardTab = ({
                           options={MUSCLE_METRIC_OPTIONS}
                           value={muscleMetric}
                           onChange={setMuscleMetric}
-                          itemWidth={58}
+                          itemWidth={66}
                           circular={false}
-                          style={{ width: isMobile ? '160px' : '185px', flexShrink: 0 }}
+                          style={{ width: isMobile ? '170px' : '200px', flexShrink: 0 }}
                         />
                       </div>
                       <MuscleDonutChart
