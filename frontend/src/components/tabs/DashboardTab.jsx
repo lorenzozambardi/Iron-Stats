@@ -372,8 +372,8 @@ const DashboardTab = ({
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
             // Muscle group filter
-            if (dashMuscleMacro !== 'all' && MUSCLES[subMuscle] !== dashMuscleMacro) return;
-            if (dashMuscleSubgroup !== 'all' && subMuscle !== dashMuscleSubgroup) return;
+            if (deferredMacro !== 'all' && MUSCLES[subMuscle] !== deferredMacro) return;
+            if (deferredSubgroup !== 'all' && subMuscle !== deferredSubgroup) return;
             const macro = MUSCLES[subMuscle] || 'Other';
             let metricValue = 0;
             if (muscleMetric === 'effective') {
@@ -402,7 +402,7 @@ const DashboardTab = ({
         value: parseFloat((val / div).toFixed(1))
       })).sort((a,b) => b.value - a.value)
     })).sort((a,b) => b.value - a.value);
-  }, [activeWeeksList, dashMuscleMacro, dashMuscleSubgroup, muscleMetric]);
+  }, [activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric]);
 
   const lastFullWeekA = activeWeeksList.length > 0 ? activeWeeksList[activeWeeksList.length - 1] : null;
   const lastFullWeekB = compareActiveWeeksList.length > 0 ? compareActiveWeeksList[compareActiveWeeksList.length - 1] : null;
@@ -429,18 +429,18 @@ const DashboardTab = ({
   );
 
   const displayMuscleData = useMemo(() => {
-    if (dashMuscleMacro === 'all') return muscleData;
-    const macroObj = muscleData.find(m => m.name === dashMuscleMacro);
+    if (deferredMacro === 'all') return muscleData;
+    const macroObj = muscleData.find(m => m.name === deferredMacro);
     if (!macroObj) return [];
     return macroObj.subMuscles;
-  }, [muscleData, dashMuscleMacro]);
+  }, [muscleData, deferredMacro]);
 
   const displayCompareMuscleData = useMemo(() => {
-    if (dashMuscleMacro === 'all') return compareMuscleData;
-    const macroObj = compareMuscleData.find(m => m.name === dashMuscleMacro);
+    if (deferredMacro === 'all') return compareMuscleData;
+    const macroObj = compareMuscleData.find(m => m.name === deferredMacro);
     if (!macroObj) return [];
     return macroObj.subMuscles;
-  }, [compareMuscleData, dashMuscleMacro]);
+  }, [compareMuscleData, deferredMacro]);
 
   const cumulativeCurveData = useMemo(() => {
     const topMuscles = displayMuscleData.slice(0, 6).map(m => m.name);
@@ -468,7 +468,7 @@ const DashboardTab = ({
         wData.sets.forEach(s => {
           Object.entries(ex.muscles_distr).forEach(([subMuscle, distr]) => {
             const macro = MUSCLES[subMuscle] || 'Other';
-            const isMacroView = dashMuscleMacro === 'all';
+            const isMacroView = deferredMacro === 'all';
             const targetMuscle = isMacroView ? macro : subMuscle;
             
             if (topMusclesSet.has(targetMuscle)) {
@@ -515,7 +515,7 @@ const DashboardTab = ({
     });
 
     return data;
-  }, [dashFilteredData, activeWeeksList, dashMuscleMacro, muscleMetric, displayMuscleData]);
+  }, [dashFilteredData, activeWeeksList, deferredMacro, muscleMetric, displayMuscleData]);
 
   // Overall totals (filtered; in compare mode, uses each selection's last full week so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
