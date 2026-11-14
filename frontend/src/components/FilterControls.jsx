@@ -18,7 +18,7 @@ const measureLabelWidth = (text) => {
  * Minimal lateral (horizontal) circular lock-wheel picker.
  * Selected item is centered in white; neighbors left/right fade out in grayer shades.
  */
-export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, gap = null, circular = true, compact = false, style }) => {
+export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 84, gap = null, circular = true, style }) => {
   const containerRef = useRef(null);
 
   const count = options.length;
@@ -177,17 +177,13 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
           position: 'relative',
           flex: 1,
           minWidth: 0,
-          height: compact ? '22px' : '28px',
+          height: '28px',
           overflow: 'hidden',
           cursor: count > 1 ? (isDragging ? 'grabbing' : 'ew-resize') : 'default',
           touchAction: 'none',
           userSelect: 'none',
-          WebkitMaskImage: compact
-            ? 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 10%, #000 26%, #000 74%, rgba(0,0,0,0.55) 90%, transparent 100%)'
-            : 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
-          maskImage: compact
-            ? 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 10%, #000 26%, #000 74%, rgba(0,0,0,0.55) 90%, transparent 100%)'
-            : 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
+          maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.45) 14%, #000 36%, #000 64%, rgba(0,0,0,0.45) 86%, transparent 100%)',
         }}
       >
         {offsets.map((rel) => {
@@ -222,7 +218,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
                 position: 'absolute',
                 left: '50%',
                 top: 0,
-                height: compact ? '22px' : '28px',
+                height: '28px',
                 width: `${slotWidth}px`,
                 transform: `translateX(calc(-50% + ${xPx}px)) scale(${scale})`,
                 transition: isDragging ? 'none' : 'transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease',
@@ -230,7 +226,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '0 4px',
-                fontSize: compact ? (isCenter ? '0.7rem' : '0.62rem') : (isCenter ? '0.82rem' : '0.74rem'),
+                fontSize: isCenter ? '0.82rem' : '0.74rem',
                 fontWeight: isCenter ? 700 : 500,
                 color,
                 opacity,
@@ -479,6 +475,106 @@ export const DualWeekSlider = ({
           {rangeText}
         </span>
       </div>
+    </div>
+  );
+};
+
+/** Pointer-draggable ROM scrubber styled to match DualWeekSlider. */
+export const TensionRomSlider = ({ value, onChange }) => {
+  const trackRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+
+  const updateFromClientX = useCallback((clientX) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    onChange(Math.round(ratio * 100));
+  }, [onChange]);
+
+  const handlePointerDown = (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+    updateFromClientX(e.clientX);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!dragging) return;
+    updateFromClientX(e.clientX);
+  };
+
+  const handlePointerUp = () => {
+    setDragging(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none' }}>
+        Stretch
+      </span>
+      <div
+        ref={trackRef}
+        role="slider"
+        aria-label="Range of motion percentage"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{
+          position: 'relative',
+          flex: 1,
+          height: '26px',
+          display: 'flex',
+          alignItems: 'center',
+          touchAction: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '4px',
+            borderRadius: '999px',
+            background: 'rgba(255, 255, 255, 0.14)',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              height: '100%',
+              width: `${value}%`,
+              borderRadius: '999px',
+              background: 'var(--accent-primary)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: `${value}%`,
+              top: '50%',
+              width: '15px',
+              height: '15px',
+              borderRadius: '50%',
+              background: '#ffffff',
+              border: '2px solid var(--accent-primary)',
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.45)',
+              transform: `translate(-50%, -50%) scale(${dragging ? 1.15 : 1})`,
+              transition: dragging ? 'none' : 'transform 0.12s ease',
+            }}
+          />
+        </div>
+      </div>
+      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none' }}>
+        Contract
+      </span>
     </div>
   );
 };

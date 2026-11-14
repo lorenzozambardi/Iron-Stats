@@ -13,6 +13,7 @@ import {
 import { MUSCLES } from '../parser';
 import { solveBezierY, getBezierCurveData } from './helpers';
 import BezierEditor from '../BezierEditor';
+import { TensionRomSlider } from './FilterControls';
 
 export const ExerciseModal = ({
   showExerciseModal,
@@ -149,28 +150,96 @@ export const ExerciseModal = ({
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-            <span className="modal-label" style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600 }}>
-              Muscle Distribution
-            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span className="modal-label" style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>
+                Muscle Distribution
+              </span>
+              {isMobile && exerciseForm.muscles.length > 0 && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                  ROM <strong style={{ color: '#fff', fontWeight: 600 }}>{tensionSliderPos}%</strong>
+                </span>
+              )}
+            </div>
             
             {exerciseForm.muscles.length > 0 && (
-              <div style={{ width: '100%', marginBottom: isMobile ? '8px' : '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 10px 0 0' }}>
-                <ResponsiveContainer width="99%" height={isMobile ? 140 : 160} minWidth={0} minHeight={0}>
-                  <LineChart data={chartData} style={isMobile ? { pointerEvents: 'none' } : undefined}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="x" type="number" domain={[0, 1]} tickCount={5} stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => val === 0 ? 'Stretch' : val === 1 ? 'Contract' : val} />
-                    <YAxis stroke="var(--text-muted)" fontSize={10} width={30} domain={[0, 1]} tickFormatter={(v) => Math.round(v*100)} />
-                    {!isMobile && <Tooltip contentStyle={{ backgroundColor: 'var(--bg-glass-active)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} labelFormatter={(l) => `ROM: ${(l*100).toFixed(0)}%`} formatter={(val) => [(val*100).toFixed(1)+'%', 'Tension']} />}
-                    {isMobile && <ReferenceLine x={tensionSliderPos / 100} stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="4 4" />}
-                    {exerciseForm.muscles.map((m, i) => {
-                       return <Line key={m.name} type="monotone" dataKey={m.name} stroke={chartColors[i % chartColors.length]} dot={false} strokeWidth={2} name={m.name} />;
-                    })}
-                  </LineChart>
-                </ResponsiveContainer>
-                {isMobile && (
-                  <div style={{ padding: '4px 8px 10px 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {/* Per-muscle tension values at current ROM */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+              <div style={{
+                width: '100%',
+                marginBottom: isMobile ? '10px' : '16px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--card-radius)',
+                padding: isMobile ? '12px 12px 10px 12px' : '14px 16px 12px 16px',
+                boxShadow: 'var(--card-shadow)',
+              }}>
+                <div style={{ height: isMobile ? '150px' : '170px', width: '100%' }}>
+                  <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+                      style={isMobile ? { pointerEvents: 'none' } : undefined}
+                    >
+                      <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+                      <XAxis
+                        dataKey="x"
+                        type="number"
+                        domain={[0, 1]}
+                        ticks={[0, 0.25, 0.5, 0.75, 1]}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                        tickFormatter={(val) => `${Math.round(val * 100)}%`}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                        width={38}
+                        domain={[0, 1]}
+                        tickFormatter={(v) => Math.round(v * 100)}
+                      />
+                      {!isMobile && (
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--bg-glass-active)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            color: 'var(--text-primary)',
+                            backdropFilter: 'blur(16px)',
+                            WebkitBackdropFilter: 'blur(16px)',
+                          }}
+                          labelFormatter={(l) => `ROM: ${(l * 100).toFixed(0)}%`}
+                          formatter={(val) => [(val * 100).toFixed(1) + '%', 'Tension']}
+                        />
+                      )}
+                      {isMobile && (
+                        <ReferenceLine
+                          x={tensionSliderPos / 100}
+                          stroke="rgba(255,255,255,0.35)"
+                          strokeWidth={1.5}
+                          strokeDasharray="3 3"
+                        />
+                      )}
+                      {exerciseForm.muscles.map((m, i) => (
+                        <Line
+                          key={m.name}
+                          type="monotone"
+                          dataKey={m.name}
+                          name={m.name}
+                          stroke={chartColors[i % chartColors.length]}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          dot={false}
+                          activeDot={{ r: 4, strokeWidth: 0 }}
+                          isAnimationActive={false}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                {isMobile ? (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px 18px' }}>
                       {exerciseForm.muscles.map((m, i) => {
                         const y = solveBezierY(
                           tensionSliderPos / 100,
@@ -188,40 +257,39 @@ export const ExerciseModal = ({
                         const normalizedY = maxY > 0 ? (y / maxY) * magnitude : 0;
                         const color = chartColors[i % chartColors.length];
                         return (
-                          <span key={m.name} style={{
-                            fontSize: '0.68rem',
-                            color: color,
-                            background: 'rgba(0,0,0,0.35)',
-                            padding: '2px 8px',
-                            borderRadius: '100px',
-                            border: `1px solid ${color}33`,
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {m.name}: {(normalizedY * 100).toFixed(1)}%
-                          </span>
+                          <div
+                            key={m.name}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              minWidth: 0,
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {m.name}
+                              </span>
+                            </span>
+                            <span style={{ fontSize: '0.76rem', color: '#ffffff', fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                              {(normalizedY * 100).toFixed(1)}%
+                            </span>
+                          </div>
                         );
                       })}
                     </div>
-                    <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      ROM: {tensionSliderPos}%
-                    </div>
-                    {/* ROM scrubber slider */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '36px', textAlign: 'right' }}>Stretch</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={tensionSliderPos}
-                        onChange={(e) => setTensionSliderPos(parseInt(e.target.value))}
-                        className="tension-scrubber-slider"
-                        style={{
-                          flex: 1,
-                          accentColor: 'var(--accent-primary)'
-                        }}
-                      />
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', minWidth: '44px' }}>Contract</span>
-                    </div>
+                    <TensionRomSlider value={tensionSliderPos} onChange={setTensionSliderPos} />
+                  </div>
+                ) : (
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'center' }}>
+                    {exerciseForm.muscles.map((m, i) => (
+                      <span key={m.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: chartColors[i % chartColors.length] }} />
+                        {m.name}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
