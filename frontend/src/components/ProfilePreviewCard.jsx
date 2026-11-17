@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { calcBMI, calcFFMI } from '../profileUtils';
+import { CIRCUMFERENCE_FIELDS, calcBMI, calcFFMI, getLimbAverage } from '../profileUtils';
 
 const PREVIEW_CIRCUMFERENCES = [
   { key: 'shoulders', label: 'Shoulders' },
@@ -67,15 +67,19 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
 
       {/* Symmetric 3x2 circumferences grid */}
       <div className="profile-circ-summary-grid">
-        {PREVIEW_CIRCUMFERENCES.map((item) => (
-          <div key={item.key} className="profile-circ-summary-item">
-            <span className="profile-circ-chip-label">{item.label}</span>
-            <span className="profile-circ-chip-val">
-              {Number(current[item.key] || 0).toFixed(1)}
-              <small> cm</small>
-            </span>
-          </div>
-        ))}
+        {PREVIEW_CIRCUMFERENCES.map((item) => {
+          const field = CIRCUMFERENCE_FIELDS.find((f) => f.key === item.key);
+          const val = field ? getLimbAverage(current, field) : Number(current[item.key] || 0);
+          return (
+            <div key={item.key} className="profile-circ-summary-item">
+              <span className="profile-circ-chip-label">{item.label}</span>
+              <span className="profile-circ-chip-val">
+                {val.toFixed(1)}
+                <small> cm</small>
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

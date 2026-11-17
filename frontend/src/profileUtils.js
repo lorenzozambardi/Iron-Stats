@@ -1,19 +1,21 @@
 export const PROFILE_STORAGE_KEY = 'iron_stats_profile_v1';
 
 export const CIRCUMFERENCE_FIELDS = [
-  { key: 'neck', label: 'Neck' },
-  { key: 'shoulders', label: 'Shoulders' },
-  { key: 'chest', label: 'Chest' },
-  { key: 'waist', label: 'Waist' },
-  { key: 'hips', label: 'Hips' },
-  { key: 'arm', label: 'Arm' },
-  { key: 'forearm', label: 'Forearm' },
-  { key: 'thigh', label: 'Thigh' },
-  { key: 'calf', label: 'Calf' },
+  { key: 'neck', label: 'Neck', bilateral: false },
+  { key: 'shoulders', label: 'Shoulders', bilateral: false },
+  { key: 'chest', label: 'Chest', bilateral: false },
+  { key: 'waist', label: 'Waist', bilateral: false },
+  { key: 'hips', label: 'Hips', bilateral: false },
+  { key: 'arm', label: 'Arm', bilateral: true, leftKey: 'armLeft', rightKey: 'armRight' },
+  { key: 'forearm', label: 'Forearm', bilateral: true, leftKey: 'forearmLeft', rightKey: 'forearmRight' },
+  { key: 'thigh', label: 'Thigh', bilateral: true, leftKey: 'thighLeft', rightKey: 'thighRight' },
+  { key: 'calf', label: 'Calf', bilateral: true, leftKey: 'calfLeft', rightKey: 'calfRight' },
 ];
 
 export const DEFAULT_PROFILE = {
   current: {
+    birthDate: '1998-01-01',
+    sex: 'M',
     weight: 78.5,
     height: 178,
     bodyFat: 13.5,
@@ -22,10 +24,14 @@ export const DEFAULT_PROFILE = {
     chest: 106.0,
     waist: 79.0,
     hips: 96.0,
-    arm: 39.5,
-    forearm: 31.5,
-    thigh: 59.0,
-    calf: 38.5,
+    armLeft: 39.5,
+    armRight: 39.5,
+    forearmLeft: 31.5,
+    forearmRight: 31.5,
+    thighLeft: 59.0,
+    thighRight: 59.0,
+    calfLeft: 38.5,
+    calfRight: 38.5,
     avgSteps: 8000,
   },
 };
@@ -35,12 +41,47 @@ export function loadProfile() {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_PROFILE);
     const parsed = JSON.parse(raw);
-    return {
-      current: { ...DEFAULT_PROFILE.current, ...(parsed.current || {}) },
-    };
+    const saved = parsed.current || {};
+    const current = { ...DEFAULT_PROFILE.current, ...saved };
+
+    // Migrate legacy single-value limbs if L/R keys are absent
+    for (const field of CIRCUMFERENCE_FIELDS) {
+      if (!field.bilateral) continue;
+      const legacyVal = saved[field.key];
+      if (legacyVal !== undefined) {
+        if (saved[field.leftKey] === undefined) current[field.leftKey] = legacyVal;
+        if (saved[field.rightKey] === undefined) current[field.rightKey] = legacyVal;
+      }
+    }
+
+    return { current };
   } catch {
     return structuredClone(DEFAULT_PROFILE);
   }
+}
+
+export function getLimbAverage(current, field) {
+  if (!field.bilateral) return Number(current?.[field.key] || 0);
+  const l = Number(current?.[field.leftKey] || 0);
+  const r = Number(current?.[field.rightKey] || 0);
+  if (l > 0 && r > 0) return (l + r) / 2;
+  return l || r || 0;
+}
+
+export function calcAge(birthDateStr, refDate = new Date()) {
+  if (!birthDateStr || typeof birthDateStr !== 'string') return null;
+  const parts = birthDateStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+  const [y, m, d] = parts;
+  const dob = new Date(y, m - 1, d);
+  if (Number.isNaN(dob.getTime())) return null;
+
+  let age = refDate.getFullYear() - y;
+  const monthDiff = refDate.getMonth() - (m - 1);
+  if (monthDiff < 0 || (monthDiff === 0 && refDate.getDate() < d)) {
+    age -= 1;
+  }
+  return age >= 0 && age <= 130 ? age : null;
 }
 
 export function saveProfile(profile) {

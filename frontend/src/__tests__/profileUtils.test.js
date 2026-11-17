@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_PROFILE,
+  CIRCUMFERENCE_FIELDS,
+  calcAge,
+  getLimbAverage,
   calcBMI,
   calcLeanMass,
   calcFatMass,
@@ -55,5 +58,14 @@ describe('profileUtils', () => {
       expect(axis.scoreB).toBeGreaterThanOrEqual(20);
       expect(axis.scoreB).toBeLessThanOrEqual(99);
     }
+  });
+
+  it('calculates age from birth date and averages bilateral limb circumferences', () => {
+    const ref = new Date(2026, 10, 18); // 2026-11-18
+    expect(calcAge('1998-01-01', ref)).toBe(28);
+    expect(calcAge('1998-12-01', ref)).toBe(27);
+
+    const armField = CIRCUMFERENCE_FIELDS.find((f) => f.key === 'arm');
+    expect(getLimbAverage({ armLeft: 39, armRight: 40 }, armField)).toBeCloseTo(39.5, 2);
   });
 });

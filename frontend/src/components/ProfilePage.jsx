@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CIRCUMFERENCE_FIELDS,
+  calcAge,
   calcBMI,
   calcLeanMass,
   calcFatMass,
@@ -69,15 +70,18 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
   const { current } = profile;
 
   const updateCurrent = (key, rawVal) => {
-    const val = parseFloat(rawVal);
+    const isStringField = key === 'birthDate' || key === 'sex';
+    const val = isStringField ? rawVal : parseFloat(rawVal);
     setProfile((prev) => ({
       ...prev,
       current: {
         ...prev.current,
-        [key]: Number.isFinite(val) ? val : 0,
+        [key]: isStringField ? rawVal : (Number.isFinite(val) ? val : 0),
       },
     }));
   };
+
+  const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
 
   const derived = useMemo(() => {
     const bmi = calcBMI(current.weight, current.height);
@@ -195,6 +199,28 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             gap: '12px',
           }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <span className="profile-stat-label">
+                Birth Date{age !== null ? ` · ${age} yrs` : ''}
+              </span>
+              <input
+                type="date"
+                style={inputStyle}
+                value={current.birthDate || ''}
+                onChange={(e) => updateCurrent('birthDate', e.target.value)}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <span className="profile-stat-label">Sex</span>
+              <select
+                style={inputStyle}
+                value={current.sex || 'M'}
+                onChange={(e) => updateCurrent('sex', e.target.value)}
+              >
+                <option value="M">M</option>
+                <option value="F">F</option>
+              </select>
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <span className="profile-stat-label">Height (cm)</span>
               <input
                 type="number"
@@ -275,11 +301,11 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           <h3 style={sectionTitleStyle}>Circumferences (cm)</h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '10px',
           }}>
             {CIRCUMFERENCE_FIELDS.map((field) => (
-              <label
+              <div
                 key={field.key}
                 style={{
                   background: 'rgba(255, 255, 255, 0.025)',
@@ -292,16 +318,45 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 }}
               >
                 <span className="profile-stat-label">{field.label} (cm)</span>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="10"
-                  max="250"
-                  style={inputStyle}
-                  value={current[field.key] ?? ''}
-                  onChange={(e) => updateCurrent(field.key, e.target.value)}
-                />
-              </label>
+                {field.bilateral ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontWeight: 600 }}>L</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="10"
+                        max="250"
+                        style={inputStyle}
+                        value={current[field.leftKey] ?? ''}
+                        onChange={(e) => updateCurrent(field.leftKey, e.target.value)}
+                      />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontWeight: 600 }}>R</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="10"
+                        max="250"
+                        style={inputStyle}
+                        value={current[field.rightKey] ?? ''}
+                        onChange={(e) => updateCurrent(field.rightKey, e.target.value)}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="10"
+                    max="250"
+                    style={inputStyle}
+                    value={current[field.key] ?? ''}
+                    onChange={(e) => updateCurrent(field.key, e.target.value)}
+                  />
+                )}
+              </div>
             ))}
           </div>
         </div>
