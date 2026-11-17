@@ -2427,6 +2427,9 @@ input::-webkit-list-button {
   }
 
   /* Scale down Dashboard elements */
+  .profile-preview-card {
+    margin-bottom: 8px !important;
+  }
   .metrics-summary-grid {
     gap: 8px !important;
     margin-bottom: 8px !important;
