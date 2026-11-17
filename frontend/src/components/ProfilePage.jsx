@@ -49,7 +49,7 @@ const inputStyle = {
 
 export default function ProfilePage({ profile, setProfile, onBack }) {
   const [visible, setVisible] = useState(false);
-  const [pendingOverwrite, setPendingOverwrite] = useState(null);
+  const [pendingConfirm, setPendingConfirm] = useState(null);
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -128,10 +128,12 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             : `Body Fat (${Number(c.value).toFixed(1)}%)`
         ))
         .join(' and ');
-      setPendingOverwrite({
-        type,
-        date: targetDate,
+      setPendingConfirm({
+        title: `Overwrite log for ${targetDate}?`,
         message: `You already logged ${details} for ${targetDate}. Continuing will overwrite that day's entry.`,
+        confirmLabel: 'Overwrite',
+        accentColor: 'var(--color-volume)',
+        onConfirm: () => applyLogStat(type),
       });
       return;
     }
@@ -139,11 +141,23 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     applyLogStat(type);
   };
 
-  const handleDeleteLog = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      logs: (prev.logs || []).filter((item) => item.id !== id),
-    }));
+  const handleDeleteLog = (entry) => {
+    const label = entry.type === 'weight' ? 'Weight' : 'Body Fat';
+    const formatted = entry.type === 'weight'
+      ? `${Number(entry.value).toFixed(1)} kg`
+      : `${Number(entry.value).toFixed(1)}%`;
+    setPendingConfirm({
+      title: 'Delete log?',
+      message: `Remove ${label} (${formatted}) for ${entry.date}?`,
+      confirmLabel: 'Delete',
+      accentColor: 'var(--color-fatigue)',
+      onConfirm: () => {
+        setProfile((prev) => ({
+          ...prev,
+          logs: (prev.logs || []).filter((item) => item.id !== entry.id),
+        }));
+      },
+    });
   };
 
   const { weightSeries, bodyFatSeries } = useMemo(() => {
@@ -551,7 +565,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleDeleteLog(entry.id)}
+                    onClick={() => handleDeleteLog(entry)}
                     aria-label={`Delete log ${entry.date}`}
                     style={{
                       background: 'transparent',
@@ -571,11 +585,11 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
         </div>
       </div>
 
-      {pendingOverwrite && (
+      {pendingConfirm && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="overwrite-log-title"
+          aria-labelledby="profile-confirm-title"
           style={{
             position: 'fixed',
             inset: 0,
@@ -587,38 +601,38 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             justifyContent: 'center',
             padding: '16px',
           }}
-          onClick={() => setPendingOverwrite(null)}
+          onClick={() => setPendingConfirm(null)}
         >
           <div
             style={{
               ...cardStyle,
               maxWidth: '400px',
               width: '100%',
-              borderColor: 'rgba(245, 158, 11, 0.35)',
+              borderColor: pendingConfirm.accentColor,
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3
-              id="overwrite-log-title"
+              id="profile-confirm-title"
               style={{
                 margin: 0,
                 fontFamily: 'var(--font-display)',
                 fontSize: '1.05rem',
                 fontWeight: 700,
-                color: 'var(--color-volume)',
+                color: pendingConfirm.accentColor,
               }}
             >
-              Overwrite log for {pendingOverwrite.date}?
+              {pendingConfirm.title}
             </h3>
             <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              {pendingOverwrite.message}
+              {pendingConfirm.message}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
               <button
                 type="button"
                 className="btn"
                 style={{ padding: '7px 14px', fontSize: '0.8rem' }}
-                onClick={() => setPendingOverwrite(null)}
+                onClick={() => setPendingConfirm(null)}
               >
                 Cancel
               </button>
@@ -627,11 +641,11 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 className="btn btn-primary"
                 style={{ padding: '7px 14px', fontSize: '0.8rem' }}
                 onClick={() => {
-                  applyLogStat(pendingOverwrite.type);
-                  setPendingOverwrite(null);
+                  pendingConfirm.onConfirm();
+                  setPendingConfirm(null);
                 }}
               >
-                Overwrite
+                {pendingConfirm.confirmLabel}
               </button>
             </div>
           </div>
