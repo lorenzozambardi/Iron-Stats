@@ -1,11 +1,11 @@
 export const PROFILE_STORAGE_KEY = 'iron_stats_profile_v1';
 
 export const ACTIVITY_LEVELS = [
-  { value: 1.2, label: 'Sedentary (1.2×)' },
-  { value: 1.375, label: 'Light (1.375×)' },
-  { value: 1.55, label: 'Moderate (1.55×)' },
-  { value: 1.725, label: 'High / Athlete (1.725×)' },
-  { value: 1.9, label: 'Extreme (1.9×)' },
+  { value: 1.2, label: 'Sedentary · < 4,000 steps/day (1.2×)' },
+  { value: 1.375, label: 'Light · 4,000–7,000 steps/day (1.375×)' },
+  { value: 1.55, label: 'Moderate · 7,000–10,000 steps/day (1.55×)' },
+  { value: 1.725, label: 'Active · 10,000–14,000 steps/day (1.725×)' },
+  { value: 1.9, label: 'Very Active · 14,000+ steps/day (1.9×)' },
 ];
 
 export const CIRCUMFERENCE_FIELDS = [
