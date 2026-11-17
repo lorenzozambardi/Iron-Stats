@@ -28,7 +28,6 @@ export const DEFAULT_PROFILE = {
     calf: 38.5,
     avgSteps: 8000,
   },
-  history: [],
 };
 
 export function loadProfile() {
@@ -38,7 +37,6 @@ export function loadProfile() {
     const parsed = JSON.parse(raw);
     return {
       current: { ...DEFAULT_PROFILE.current, ...(parsed.current || {}) },
-      history: Array.isArray(parsed.history) ? parsed.history : [],
     };
   } catch {
     return structuredClone(DEFAULT_PROFILE);

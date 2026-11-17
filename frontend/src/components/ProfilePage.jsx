@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { History, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import {
   CIRCUMFERENCE_FIELDS,
   DEFAULT_PROFILE,
@@ -72,7 +72,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     setTimeout(() => onBack(), 200);
   };
 
-  const { current, history } = profile;
+  const { current } = profile;
 
   const updateCurrent = (key, rawVal) => {
     const val = parseFloat(rawVal);
@@ -82,25 +82,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
         ...prev.current,
         [key]: Number.isFinite(val) ? val : 0,
       },
-    }));
-  };
-
-  const handleSaveCheckin = () => {
-    const entry = {
-      id: `${Date.now()}`,
-      date: new Date().toISOString().slice(0, 10),
-      ...current,
-    };
-    setProfile((prev) => ({
-      ...prev,
-      history: [entry, ...(prev.history || [])].slice(0, 50),
-    }));
-  };
-
-  const handleDeleteHistory = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      history: (prev.history || []).filter((item) => item.id !== id),
     }));
   };
 
@@ -181,50 +162,26 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       }}>
         {/* Header Card */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: 'var(--accent-primary)',
-              }}>
-                Athlete Profile
-              </span>
-              <h2 style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.6rem',
-                fontWeight: 700,
-                margin: '2px 0 4px 0',
-                color: 'var(--text-primary)',
-                lineHeight: 1.2,
-              }}>
-                Body Composition &amp; Proportions
-              </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: 0 }}>
-                Track biometrics, circumferences, FFMI, metabolic estimates, and aesthetic ratios.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                onClick={handleSaveCheckin}
-              >
-                <Plus size={14} /> Save Check-in
-              </button>
-              <button
-                type="button"
-                className="btn"
-                style={{ padding: '7px 12px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                onClick={handleResetDefaults}
-                title="Reset to default sample values"
-              >
-                <RotateCcw size={13} /> Reset
-              </button>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              margin: 0,
+              color: 'var(--text-primary)',
+              lineHeight: 1.2,
+            }}>
+              Profile
+            </h2>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: '7px 12px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={handleResetDefaults}
+              title="Reset to default sample values"
+            >
+              <RotateCcw size={13} /> Reset
+            </button>
           </div>
         </div>
 
@@ -404,73 +361,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               </label>
             ))}
           </div>
-        </div>
-
-        {/* Check-in History */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ ...sectionTitleStyle, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <History size={14} /> Check-in History
-            </h3>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              {history?.length || 0} saved
-            </span>
-          </div>
-
-          {!history || history.length === 0 ? (
-            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
-              No check-ins recorded yet. Click &ldquo;Save Check-in&rdquo; above to log a snapshot and unlock &ldquo;vs Previous&rdquo; radar comparisons.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {history.map((entry) => {
-                const entryLbm = calcLeanMass(entry.weight, entry.bodyFat);
-                const entryFfmi = calcFFMI(entry.weight, entry.height, entry.bodyFat).normalizedFfmi;
-                return (
-                  <div
-                    key={entry.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      padding: '10px 12px',
-                      background: 'rgba(255, 255, 255, 0.025)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '10px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-primary)', minWidth: '88px' }}>
-                      {entry.date}
-                    </span>
-                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                      <span><strong style={{ color: 'var(--text-primary)' }}>{Number(entry.weight).toFixed(1)}</strong> kg</span>
-                      <span><strong style={{ color: 'var(--text-primary)' }}>{Number(entry.bodyFat).toFixed(1)}%</strong> BF</span>
-                      <span>LBM <strong style={{ color: 'var(--text-primary)' }}>{entryLbm.toFixed(1)}</strong> kg</span>
-                      <span>FFMI <strong style={{ color: 'var(--text-primary)' }}>{entryFfmi.toFixed(1)}</strong></span>
-                      <span>Waist <strong style={{ color: 'var(--text-primary)' }}>{Number(entry.waist).toFixed(1)}</strong> cm</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteHistory(entry.id)}
-                      aria-label={`Delete check-in ${entry.date}`}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'inline-flex',
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </div>,
