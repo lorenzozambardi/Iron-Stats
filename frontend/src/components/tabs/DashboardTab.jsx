@@ -421,6 +421,7 @@ const DashboardTab = ({
   setSelectedMetricDetail,
   profileOpen,
   setProfileOpen,
+  dateFormat,
 }) => {
   const isDashboardActive = isMobile || activeTab === 'dashboard';
   const [profile, setProfile] = useState(() => loadProfile());
@@ -1411,6 +1412,7 @@ const DashboardTab = ({
               <ProfilePage
                 profile={profile}
                 setProfile={setProfile}
+                dateFormat={dateFormat}
                 onBack={() => setProfileOpen(false)}
               />
             </React.Suspense>

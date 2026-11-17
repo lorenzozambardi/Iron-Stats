@@ -13,6 +13,7 @@ import {
   calcWaistToHeight,
   calcVTaper,
   computeRadarAxes,
+  formatDisplayDate,
 } from '../profileUtils';
 
 describe('profileUtils', () => {
@@ -67,5 +68,9 @@ describe('profileUtils', () => {
 
     const armField = CIRCUMFERENCE_FIELDS.find((f) => f.key === 'arm');
     expect(getLimbAverage({ armLeft: 39, armRight: 40 }, armField)).toBeCloseTo(39.5, 2);
+
+    expect(formatDisplayDate('2026-11-18', 'dd/mm/yyyy')).toBe('18/11/2026');
+    expect(formatDisplayDate('2026-11-18', 'mm/dd/yyyy')).toBe('11/18/2026');
+    expect(formatDisplayDate('2026-11-18', 'yyyy-mm-dd')).toBe('2026-11-18');
   });
 });

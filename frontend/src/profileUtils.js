@@ -1,4 +1,31 @@
 export const PROFILE_STORAGE_KEY = 'iron_stats_profile_v1';
+export const DATE_FORMAT_STORAGE_KEY = 'iron_stats_date_format';
+
+export const DATE_FORMATS = [
+  { id: 'dd/mm/yyyy', label: 'DD/MM/YYYY' },
+  { id: 'mm/dd/yyyy', label: 'MM/DD/YYYY' },
+  { id: 'yyyy-mm-dd', label: 'YYYY-MM-DD' },
+];
+
+export function getDateFormat() {
+  try {
+    const saved = localStorage.getItem(DATE_FORMAT_STORAGE_KEY);
+    if (DATE_FORMATS.some((f) => f.id === saved)) return saved;
+  } catch {
+    // Ignore storage errors
+  }
+  return 'dd/mm/yyyy';
+}
+
+export function formatDisplayDate(isoDateStr, format = 'dd/mm/yyyy') {
+  if (!isoDateStr || typeof isoDateStr !== 'string') return '';
+  const parts = isoDateStr.split('-');
+  if (parts.length !== 3) return isoDateStr;
+  const [y, m, d] = parts;
+  if (format === 'mm/dd/yyyy') return `${m}/${d}/${y}`;
+  if (format === 'yyyy-mm-dd') return `${y}-${m}-${d}`;
+  return `${d}/${m}/${y}`;
+}
 
 export const CIRCUMFERENCE_FIELDS = [
   { key: 'neck', label: 'Neck', bilateral: false },

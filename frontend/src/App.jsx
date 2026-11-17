@@ -33,6 +33,7 @@ import EasyEditor from './components/EasyEditor';
 import FoldableEditor from './components/FoldableEditor';
 import { formatLogbookSpaces } from './formatLogbook';
 import { SettingsPanel } from './components/SettingsPanel';
+import { DATE_FORMAT_STORAGE_KEY, getDateFormat } from './profileUtils';
 const ExerciseModal = lazy(() => import('./components/ExerciseModal').then(m => ({ default: m.ExerciseModal })));
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
@@ -99,6 +100,15 @@ export default function App() {
   const [muscleSearch, setMuscleSearch] = useState('');
   const [highlightStyle, setHighlightStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const [editorType, setEditorType] = useState(() => localStorage.getItem('editor-type') || 'manual');
+  const [dateFormat, setDateFormat] = useState(() => getDateFormat());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DATE_FORMAT_STORAGE_KEY, dateFormat);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [dateFormat]);
 
   const [appPalette, setAppPalette] = useState(() => localStorage.getItem('app-palette') || 'indigo');
   const [bgPalette, setBgPalette] = useState(() => localStorage.getItem('bg-palette') || 'black');
@@ -1144,6 +1154,8 @@ export default function App() {
                 pendingSubfolder={pendingSubfolder}
                 setPendingSubfolder={setPendingSubfolder}
                 applyStorageConfig={applyStorageConfig}
+                dateFormat={dateFormat}
+                setDateFormat={setDateFormat}
               />
             </div>
           </div>
@@ -1241,6 +1253,8 @@ export default function App() {
                 pendingSubfolder={pendingSubfolder}
                 setPendingSubfolder={setPendingSubfolder}
                 applyStorageConfig={applyStorageConfig}
+                dateFormat={dateFormat}
+                setDateFormat={setDateFormat}
               />
             </div>
           )}
@@ -1427,6 +1441,7 @@ export default function App() {
           setSelectedMetricDetail={setSelectedMetricDetail}
           profileOpen={profileOpen}
           setProfileOpen={setProfileOpen}
+          dateFormat={dateFormat}
         />
         {/* TAB CONTENT: EXERCISE DATABASE */}
         <DatabaseTab

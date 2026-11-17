@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   Check
 } from 'lucide-react';
+import { DATE_FORMATS } from '../profileUtils';
 
 const resolveColor = (value, list, colorKey = 'color') => {
   if (!value) return '#000000';
@@ -57,7 +58,9 @@ export const SettingsPanel = memo(({
   setPendingDirType,
   pendingSubfolder,
   setPendingSubfolder,
-  applyStorageConfig
+  applyStorageConfig,
+  dateFormat,
+  setDateFormat,
 }) => {
   const [openColorSlot, setOpenColorSlot] = useState(null);
   const [optimisticEditorType, setOptimisticEditorType] = useOptimistic(editorType);
@@ -324,6 +327,30 @@ export const SettingsPanel = memo(({
           </button>
         </div>
       </div>
+
+      {/* Date Format Section */}
+      {setDateFormat && (
+        <div className="settings-section">
+          <div className="settings-section-label">Preferences</div>
+          <div className="settings-group-card">
+            <div className="settings-group-row">
+              <span className="settings-row-label">Date Format</span>
+              <select
+                className="settings-program-select"
+                value={dateFormat || 'dd/mm/yyyy'}
+                onChange={(e) => setDateFormat(e.target.value)}
+                aria-label="Date Format"
+              >
+                {DATE_FORMATS.map((fmt) => (
+                  <option key={fmt.id} value={fmt.id}>
+                    {fmt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Appearance Section */}
       <div className="settings-section">

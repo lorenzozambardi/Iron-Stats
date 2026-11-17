@@ -11,6 +11,7 @@ import {
   calcFFMI,
   calcKatchMcArdleBMR,
   calcTDEEFromSteps,
+  formatDisplayDate,
 } from '../profileUtils';
 
 const cardStyle = {
@@ -47,7 +48,7 @@ const inputStyle = {
   outline: 'none',
 };
 
-export default function ProfilePage({ profile, setProfile, onBack }) {
+export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/yyyy', onBack }) {
   const [visible, setVisible] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -121,6 +122,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     );
 
     if (conflicts.length > 0) {
+      const displayDate = formatDisplayDate(targetDate, dateFormat);
       const details = conflicts
         .map((c) => (
           c.type === 'weight'
@@ -129,8 +131,8 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
         ))
         .join(' and ');
       setPendingConfirm({
-        title: `Overwrite log for ${targetDate}?`,
-        message: `You already logged ${details} for ${targetDate}. Continuing will overwrite that day's entry.`,
+        title: `Overwrite log for ${displayDate}?`,
+        message: `You already logged ${details} for ${displayDate}. Continuing will overwrite that day's entry.`,
         confirmLabel: 'Overwrite',
         accentColor: 'var(--color-volume)',
         onConfirm: () => applyLogStat(type),
@@ -146,9 +148,10 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     const formatted = entry.type === 'weight'
       ? `${Number(entry.value).toFixed(1)} kg`
       : `${Number(entry.value).toFixed(1)}%`;
+    const displayDate = formatDisplayDate(entry.date, dateFormat);
     setPendingConfirm({
       title: 'Delete log?',
-      message: `Remove ${label} (${formatted}) for ${entry.date}?`,
+      message: `Remove ${label} (${formatted}) for ${displayDate}?`,
       confirmLabel: 'Delete',
       accentColor: 'var(--color-fatigue)',
       onConfirm: () => {
@@ -551,7 +554,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                   }}
                 >
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '88px' }}>
-                    {entry.date}
+                    {formatDisplayDate(entry.date, dateFormat)}
                   </span>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
                     <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
