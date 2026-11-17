@@ -2,6 +2,9 @@ import React, { useState, useMemo, useCallback, useRef, useEffect, useDeferredVa
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
+const ProfilePage = React.lazy(() => import('../ProfilePage'));
+import ProfilePreviewCard from '../ProfilePreviewCard';
+import { loadProfile, saveProfile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
 import { LockWheelPicker, DualWeekSlider, TensionRomSlider } from '../FilterControls';
@@ -521,9 +524,15 @@ const DashboardTab = ({
   programs,
   exercisesDb,
   selectedMetricDetail,
-  setSelectedMetricDetail
+  setSelectedMetricDetail,
+  profileOpen,
+  setProfileOpen,
 }) => {
   const isDashboardActive = isMobile || activeTab === 'dashboard';
+  const [profile, setProfile] = useState(() => loadProfile());
+  useEffect(() => {
+    saveProfile(profile);
+  }, [profile]);
   const [muscleMetric, setMuscleMetric] = useState('sets');
   const [cardModes, setCardModes] = useState({
     reps: 'effective',
@@ -1235,6 +1244,13 @@ const DashboardTab = ({
                     );
                   })()}
 
+                  {/* ── Full-Width Profile Preview Card ── */}
+                  <ProfilePreviewCard
+                    profile={profile}
+                    isMobile={isMobile}
+                    onOpen={() => setProfileOpen(true)}
+                  />
+
                   {/* ── Summary Cards ── */}
                   {compareMode && compareProgram && !compareLoading ? (
                     <>
@@ -1492,6 +1508,17 @@ const DashboardTab = ({
               <MetricDetailsPage
                 metric={selectedMetricDetail}
                 onBack={() => setSelectedMetricDetail(null)}
+              />
+            </React.Suspense>
+          )}
+
+          {/* Full Athlete Profile Overlay */}
+          {profileOpen && (
+            <React.Suspense fallback={<div className="loading-spinner">Loading profile...</div>}>
+              <ProfilePage
+                profile={profile}
+                setProfile={setProfile}
+                onBack={() => setProfileOpen(false)}
               />
             </React.Suspense>
           )}

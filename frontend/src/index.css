@@ -4050,4 +4050,193 @@ input::-webkit-list-button {
   text-transform: uppercase;
 }
 
+/* ── Profile Preview Card & Profile Page ───────────────────────────────────── */
+.profile-preview-card {
+  padding: 16px 20px;
+  border-radius: var(--card-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow);
+  margin-bottom: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-preview-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-accent);
+  }
+}
+
+.profile-preview-card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.profile-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-preview-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-primary-subtle);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary-glow);
+}
+
+.profile-preview-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.profile-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .profile-stats-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.profile-stat-pill {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profile-stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.profile-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.profile-stat-sub {
+  font-size: 0.67rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.profile-circ-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-circ-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.profile-circ-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 480px) {
+  .profile-circ-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.profile-circ-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  font-size: 0.76rem;
+}
+
+.profile-circ-chip-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.profile-circ-chip-val {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-circ-chip-val small {
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.profile-preview-chart-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.profile-derived-box {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-derived-val {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+
 

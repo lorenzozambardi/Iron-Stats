@@ -92,6 +92,7 @@ export default function App() {
   const [exercisesDb, setExercisesDb] = useState([]);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [showDesktopSettings, setShowDesktopSettings] = useState(false);
@@ -540,7 +541,8 @@ export default function App() {
   useEffect(() => {
     let backListener;
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-      if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
+      if (profileOpen) window.dispatchEvent(new Event('close-profile-page'));
+      else if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
       else if (showNewProgramModal) setShowNewProgramModal(false);
       else if (showExerciseModal) setShowExerciseModal(false);
       else if (storageDrawerRef.current.isOpen) resetStorageDrawer();
@@ -557,7 +559,7 @@ export default function App() {
     return () => {
       if (backListener) backListener.remove();
     };
-  }, [selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
+  }, [profileOpen, selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
 
   // Load initial data
   useEffect(() => {
@@ -1423,6 +1425,8 @@ export default function App() {
           exercisesDb={exercisesDb}
           selectedMetricDetail={selectedMetricDetail}
           setSelectedMetricDetail={setSelectedMetricDetail}
+          profileOpen={profileOpen}
+          setProfileOpen={setProfileOpen}
         />
         {/* TAB CONTENT: EXERCISE DATABASE */}
         <DatabaseTab
