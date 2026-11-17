@@ -322,64 +322,48 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               />
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                <span className="profile-stat-label">Weight (kg)</span>
+              <span className="profile-stat-label">Weight (kg)</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="20"
+                  max="300"
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                  value={current.weight}
+                  onChange={(e) => updateCurrent('weight', e.target.value)}
+                />
                 <button
                   type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
                   onClick={() => handleLogStat('weight')}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '99px',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.66rem',
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    cursor: 'pointer',
-                  }}
                 >
-                  + Log
+                  <Plus size={14} /> Log
                 </button>
               </div>
-              <input
-                type="number"
-                step="0.1"
-                min="20"
-                max="300"
-                style={inputStyle}
-                value={current.weight}
-                onChange={(e) => updateCurrent('weight', e.target.value)}
-              />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                <span className="profile-stat-label">Body Fat (%)</span>
+              <span className="profile-stat-label">Body Fat (%)</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="3"
+                  max="60"
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                  value={current.bodyFat}
+                  onChange={(e) => updateCurrent('bodyFat', e.target.value)}
+                />
                 <button
                   type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
                   onClick={() => handleLogStat('bodyFat')}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '99px',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.66rem',
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    cursor: 'pointer',
-                  }}
                 >
-                  + Log
+                  <Plus size={14} /> Log
                 </button>
               </div>
-              <input
-                type="number"
-                step="0.1"
-                min="3"
-                max="60"
-                style={inputStyle}
-                value={current.bodyFat}
-                onChange={(e) => updateCurrent('bodyFat', e.target.value)}
-              />
             </div>
           </div>
 
