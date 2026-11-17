@@ -50,6 +50,8 @@ const inputStyle = {
 export default function ProfilePage({ profile, setProfile, onBack }) {
   const [visible, setVisible] = useState(false);
   const [pendingOverwrite, setPendingOverwrite] = useState(null);
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
@@ -85,34 +87,37 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
   };
 
   const applyLogStat = (type) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const now = Date.now();
+    const targetDate = logDate || todayStr;
+    const targetTs = Date.parse(`${targetDate}T12:00:00`) || Date.now();
     const typesToWrite = type === 'all' ? ['weight', 'bodyFat'] : [type];
 
     setProfile((prev) => {
       const existing = Array.isArray(prev.logs) ? prev.logs : [];
       const filtered = existing.filter(
-        (item) => !(item.date === today && typesToWrite.includes(item.type))
+        (item) => !(item.date === targetDate && typesToWrite.includes(item.type))
       );
       const newEntries = typesToWrite.map((t) => ({
-        id: `${now}-${t === 'weight' ? 'w' : 'bf'}`,
-        date: today,
-        ts: now,
+        id: `${Date.now()}-${t === 'weight' ? 'w' : 'bf'}`,
+        date: targetDate,
+        ts: targetTs,
         type: t,
         value: Number(t === 'weight' ? current.weight : current.bodyFat) || 0,
       }));
+      const merged = [...newEntries, ...filtered].sort(
+        (a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0)
+      );
       return {
         ...prev,
-        logs: [...newEntries, ...filtered].slice(0, 150),
+        logs: merged.slice(0, 150),
       };
     });
   };
 
   const handleLogStat = (type) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const targetDate = logDate || todayStr;
     const typesToCheck = type === 'all' ? ['weight', 'bodyFat'] : [type];
     const conflicts = logs.filter(
-      (item) => item.date === today && typesToCheck.includes(item.type)
+      (item) => item.date === targetDate && typesToCheck.includes(item.type)
     );
 
     if (conflicts.length > 0) {
@@ -125,7 +130,8 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
         .join(' and ');
       setPendingOverwrite({
         type,
-        message: `You already logged ${details} today (${today}). Continuing will overwrite today's entry.`,
+        date: targetDate,
+        message: `You already logged ${details} for ${targetDate}. Continuing will overwrite that day's entry.`,
       });
       return;
     }
@@ -217,7 +223,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       }}>
         {/* Header Card */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <h2 style={{
               fontFamily: 'var(--font-display)',
               fontSize: '1.5rem',
@@ -228,14 +234,24 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             }}>
               Profile
             </h2>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={() => handleLogStat('all')}
-            >
-              <Plus size={14} /> Log All
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <input
+                type="date"
+                max={todayStr}
+                aria-label="Log date"
+                style={{ ...inputStyle, width: 'auto', padding: '6px 10px', fontSize: '0.8rem' }}
+                value={logDate}
+                onChange={(e) => setLogDate(e.target.value || todayStr)}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => handleLogStat('all')}
+              >
+                <Plus size={14} /> Log All
+              </button>
+            </div>
           </div>
         </div>
 
@@ -592,7 +608,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 color: 'var(--color-volume)',
               }}
             >
-              Overwrite today&apos;s log?
+              Overwrite log for {pendingOverwrite.date}?
             </h3>
             <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               {pendingOverwrite.message}
