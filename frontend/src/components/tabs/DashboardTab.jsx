@@ -1247,7 +1247,6 @@ const DashboardTab = ({
                   {/* ── Full-Width Profile Preview Card ── */}
                   <ProfilePreviewCard
                     profile={profile}
-                    isMobile={isMobile}
                     onOpen={() => setProfileOpen(true)}
                   />
 

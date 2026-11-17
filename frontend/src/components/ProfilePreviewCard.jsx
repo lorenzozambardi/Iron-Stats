@@ -1,11 +1,6 @@
 import React, { useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
-import ProfileRadarChart from './ProfileRadarChart';
-import {
-  calcBMI,
-  calcFFMI,
-  computeRadarAxes,
-} from '../profileUtils';
+import { calcBMI, calcFFMI } from '../profileUtils';
 
 const PREVIEW_CIRCUMFERENCES = [
   { key: 'shoulders', label: 'Shoulders' },
@@ -16,22 +11,24 @@ const PREVIEW_CIRCUMFERENCES = [
   { key: 'calf', label: 'Calves' },
 ];
 
-const ProfilePreviewCard = React.memo(({ profile, isMobile, onOpen }) => {
-  const { current, targets } = profile;
+const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
+  const { current } = profile;
 
-  const { bmi, ffmiData, radarAxes } = useMemo(() => {
-    const bmiVal = calcBMI(current.weight, current.height);
+  const { bmi, ffmiVal } = useMemo(() => {
+    const bmiNum = calcBMI(current.weight, current.height);
     const ffmi = calcFFMI(current.weight, current.height, current.bodyFat);
-    const axes = computeRadarAxes(current, targets);
-    return { bmi: bmiVal, ffmiData: ffmi, radarAxes: axes };
-  }, [current, targets]);
+    return {
+      bmi: bmiNum ? bmiNum.toFixed(1) : '—',
+      ffmiVal: ffmi.normalizedFfmi ? ffmi.normalizedFfmi.toFixed(1) : '—',
+    };
+  }, [current]);
 
   const primaryStats = [
-    { label: 'Weight', value: `${Number(current.weight).toFixed(1)} kg`, accent: 'var(--text-primary)' },
-    { label: 'Height', value: `${Math.round(current.height)} cm`, accent: 'var(--text-primary)' },
-    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}%`, accent: 'var(--accent-secondary)' },
-    { label: 'BMI', value: bmi ? bmi.toFixed(1) : '—', accent: 'var(--text-primary)' },
-    { label: 'FFMI', value: ffmiData.normalizedFfmi ? ffmiData.normalizedFfmi.toFixed(1) : '—', accent: 'var(--accent-primary)' },
+    { label: 'Weight', value: `${Number(current.weight).toFixed(1)}`, unit: 'kg', accent: 'var(--text-primary)' },
+    { label: 'Height', value: `${Math.round(current.height)}`, unit: 'cm', accent: 'var(--text-primary)' },
+    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}`, unit: '%', accent: 'var(--accent-secondary)' },
+    { label: 'BMI', value: bmi, unit: '', accent: 'var(--text-primary)' },
+    { label: 'FFMI', value: ffmiVal, unit: '', accent: 'var(--accent-primary)' },
   ];
 
   return (
@@ -55,46 +52,30 @@ const ProfilePreviewCard = React.memo(({ profile, isMobile, onOpen }) => {
         <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1.2fr 0.8fr',
-          gap: isMobile ? '10px' : '16px',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
-          <div className="profile-stats-row">
-            {primaryStats.map((stat) => (
-              <div key={stat.label} className="profile-stat-compact">
-                <span className="profile-stat-label">{stat.label}</span>
-                <span className="profile-stat-value" style={{ color: stat.accent }}>
-                  {stat.value}
-                </span>
-              </div>
-            ))}
+      {/* Single-row 5-column primary stats */}
+      <div className="profile-stats-row">
+        {primaryStats.map((stat) => (
+          <div key={stat.label} className="profile-stat-compact">
+            <span className="profile-stat-label">{stat.label}</span>
+            <span className="profile-stat-value" style={{ color: stat.accent }}>
+              {stat.value}
+              {stat.unit && <small className="profile-stat-unit">{stat.unit}</small>}
+            </span>
           </div>
+        ))}
+      </div>
 
-          <div className="profile-circ-inline">
-            {PREVIEW_CIRCUMFERENCES.map((item) => (
-              <span key={item.key} className="profile-circ-inline-item">
-                <span className="profile-circ-chip-label">{item.label}</span>{' '}
-                <strong className="profile-circ-chip-val">
-                  {Number(current[item.key] || 0).toFixed(1)}
-                </strong>
-                <small>cm</small>
-              </span>
-            ))}
+      {/* Symmetric 3x2 circumferences grid */}
+      <div className="profile-circ-summary-grid">
+        {PREVIEW_CIRCUMFERENCES.map((item) => (
+          <div key={item.key} className="profile-circ-summary-item">
+            <span className="profile-circ-chip-label">{item.label}</span>
+            <span className="profile-circ-chip-val">
+              {Number(current[item.key] || 0).toFixed(1)}
+              <small> cm</small>
+            </span>
           </div>
-        </div>
-
-        <div className="profile-preview-chart-wrap">
-          <ProfileRadarChart
-            axes={radarAxes}
-            compact
-            showLegend={false}
-          />
-        </div>
+        ))}
       </div>
     </div>
   );
