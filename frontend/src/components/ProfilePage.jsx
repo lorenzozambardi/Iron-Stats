@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { RotateCcw } from 'lucide-react';
 import {
   CIRCUMFERENCE_FIELDS,
-  DEFAULT_PROFILE,
   calcBMI,
   getBMICategory,
   calcLeanMass,
@@ -85,10 +83,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     }));
   };
 
-  const handleResetDefaults = () => {
-    setProfile(structuredClone(DEFAULT_PROFILE));
-  };
-
   const derived = useMemo(() => {
     const bmi = calcBMI(current.weight, current.height);
     const bmiCategory = getBMICategory(bmi);
@@ -162,27 +156,16 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       }}>
         {/* Header Card */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <h2 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              margin: 0,
-              color: 'var(--text-primary)',
-              lineHeight: 1.2,
-            }}>
-              Profile
-            </h2>
-            <button
-              type="button"
-              className="btn"
-              style={{ padding: '7px 12px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={handleResetDefaults}
-              title="Reset to default sample values"
-            >
-              <RotateCcw size={13} /> Reset
-            </button>
-          </div>
+          <h2 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            margin: 0,
+            color: 'var(--text-primary)',
+            lineHeight: 1.2,
+          }}>
+            Profile
+          </h2>
         </div>
 
         {/* Derived Composition & Aesthetic Ratios */}
