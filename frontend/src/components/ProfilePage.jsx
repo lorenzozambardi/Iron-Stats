@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { History, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import ProfileRadarChart from './ProfileRadarChart';
 import {
@@ -160,7 +161,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     [current, activeCompare]
   );
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -616,6 +617,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
