@@ -24,11 +24,11 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
   }, [current]);
 
   const primaryStats = [
-    { label: 'Weight', value: `${Number(current.weight).toFixed(1)}`, unit: 'kg', accent: 'var(--text-primary)' },
-    { label: 'Height', value: `${Math.round(current.height)}`, unit: 'cm', accent: 'var(--text-primary)' },
-    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}`, unit: '%', accent: 'var(--accent-secondary)' },
-    { label: 'BMI', value: bmi, unit: '', accent: 'var(--text-primary)' },
-    { label: 'FFMI', value: ffmiVal, unit: '', accent: 'var(--accent-primary)' },
+    { label: 'Weight', value: `${Number(current.weight).toFixed(1)}`, unit: 'kg' },
+    { label: 'Height', value: `${Math.round(current.height)}`, unit: 'cm' },
+    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}`, unit: '%' },
+    { label: 'BMI', value: bmi, unit: '' },
+    { label: 'FFMI', value: ffmiVal, unit: '' },
   ];
 
   return (
@@ -57,7 +57,7 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
         {primaryStats.map((stat) => (
           <div key={stat.label} className="profile-stat-compact">
             <span className="profile-stat-label">{stat.label}</span>
-            <span className="profile-stat-value" style={{ color: stat.accent }}>
+            <span className="profile-stat-value">
               {stat.value}
               {stat.unit && <small className="profile-stat-unit">{stat.unit}</small>}
             </span>

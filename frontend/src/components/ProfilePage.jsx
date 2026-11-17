@@ -319,7 +319,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               </div>
               <div className="profile-derived-box">
                 <span className="profile-stat-label">Norm. FFMI</span>
-                <span className="profile-derived-val" style={{ color: 'var(--accent-primary)' }}>
+                <span className="profile-derived-val">
                   {derived.ffmiData.normalizedFfmi.toFixed(1)}
                 </span>
                 <span className="profile-stat-sub">
@@ -333,7 +333,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               </div>
               <div className="profile-derived-box">
                 <span className="profile-stat-label">Fat Mass</span>
-                <span className="profile-derived-val" style={{ color: 'var(--accent-secondary)' }}>
+                <span className="profile-derived-val">
                   {derived.fm.toFixed(1)} kg
                 </span>
                 <span className="profile-stat-sub">{Number(current.bodyFat).toFixed(1)}% BF</span>
@@ -449,7 +449,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             </div>
             <div className="profile-derived-box">
               <span className="profile-stat-label">Estimated TDEE</span>
-              <span className="profile-derived-val" style={{ color: 'var(--color-tonnage)' }}>
+              <span className="profile-derived-val">
                 {Math.round(derived.tdee).toLocaleString()} kcal
               </span>
               <span className="profile-stat-sub">Daily maintenance</span>
