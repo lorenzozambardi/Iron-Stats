@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { MetricSparkline, TrendBadge } from './Sparkline';
 import {
   CIRCUMFERENCE_FIELDS,
   calcAge,
@@ -67,7 +68,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     setTimeout(() => onBack(), 200);
   };
 
-  const { current } = profile;
+  const { current, weightTrend = [], bodyFatTrend = [] } = profile;
 
   const updateCurrent = (key, rawVal) => {
     const isStringField = key === 'birthDate' || key === 'sex';
@@ -79,6 +80,21 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
         [key]: isStringField ? rawVal : (Number.isFinite(val) ? val : 0),
       },
     }));
+  };
+
+  const commitTrendPoint = (trendKey, value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return;
+    setProfile((prev) => {
+      const existing = Array.isArray(prev[trendKey]) ? prev[trendKey] : [];
+      if (existing.length > 0 && Math.abs(existing[existing.length - 1] - num) < 0.01) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [trendKey]: [...existing, num].slice(-30),
+      };
+    });
   };
 
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
@@ -156,6 +172,34 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           }}>
             Profile
           </h2>
+        </div>
+
+        {/* Weight & Body Fat Trend Cards (Dashboard sparkline style, light gray) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: '12px',
+        }}>
+          <div className="metric-summary-card">
+            <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
+            <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
+            <TrendBadge values={weightTrend} />
+            <MetricSparkline
+              values={weightTrend}
+              color="#a3a3a3"
+              gradId="profile-spark-weight"
+            />
+          </div>
+          <div className="metric-summary-card">
+            <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
+            <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
+            <TrendBadge values={bodyFatTrend} invertColor />
+            <MetricSparkline
+              values={bodyFatTrend}
+              color="#a3a3a3"
+              gradId="profile-spark-bf"
+            />
+          </div>
         </div>
 
         {/* Derived Composition */}
@@ -242,6 +286,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 style={inputStyle}
                 value={current.weight}
                 onChange={(e) => updateCurrent('weight', e.target.value)}
+                onBlur={(e) => commitTrendPoint('weightTrend', e.target.value)}
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -254,6 +299,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 style={inputStyle}
                 value={current.bodyFat}
                 onChange={(e) => updateCurrent('bodyFat', e.target.value)}
+                onBlur={(e) => commitTrendPoint('bodyFatTrend', e.target.value)}
               />
             </label>
           </div>

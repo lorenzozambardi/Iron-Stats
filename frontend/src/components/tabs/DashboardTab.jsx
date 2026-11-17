@@ -4,9 +4,10 @@ import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
+import { MetricSparkline, TrendBadge } from '../Sparkline';
 import { loadProfile, saveProfile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
-import { bezierArea, solveBezierY } from '../helpers';
+import { bezierArea, getMinMax, solveBezierY } from '../helpers';
 import { LockWheelPicker, DualWeekSlider, TensionRomSlider } from '../FilterControls';
 
 const CURVE_RESOLUTION = 50;
@@ -33,113 +34,6 @@ const formatWeekRangeLabel = (fromVal, toVal) => {
   if (toVal !== 'all') return `≤W${toVal}`;
   return null;
 };
-
-const TrendBadge = React.memo(({ values, invertColor = false }) => {
-  if (!values || values.length < 2) return null;
-  const first = values[0];
-  const last = values[values.length - 1];
-  if (first === 0) return null;
-  const pct = ((last - first) / first) * 100;
-  const pos = pct >= 0;
-  const isGood = invertColor ? !pos : pos;
-  return (
-    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isGood ? '#10b981' : '#f43f5e', lineHeight: 1.1 }}>
-      {pos ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
-    </span>
-  );
-});
-
-const buildSparklinePath = (vals, w, h, padY, min, range) => {
-  const pts = vals.map((v, i) => {
-    const x = vals.length > 1 ? (i / (vals.length - 1)) * w : w / 2;
-    const y = range > 0
-      ? h - padY - ((v - min) / range) * (h - padY * 2)
-      : h / 2;
-    return [x, y];
-  });
-  let linePath = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [x0, y0] = pts[i];
-    const [x1, y1] = pts[i + 1];
-    const cx = (x0 + x1) / 2;
-    linePath += ` C${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
-  }
-  return linePath;
-};
-
-const getMinMax = (values, compareValues, hasA, hasB) => {
-  let min = Infinity;
-  let max = -Infinity;
-  if (hasA) {
-    for (let i = 0; i < values.length; i++) {
-      const v = values[i];
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-  }
-  if (hasB) {
-    for (let i = 0; i < compareValues.length; i++) {
-      const v = compareValues[i];
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-  }
-  return { min, max, range: max - min };
-};
-
-const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId }) => {
-  const hasA = values && values.length >= 2;
-  const hasB = compareValues && compareValues.length >= 2;
-  if (!hasA && !hasB) return null;
-
-  const w = 120;
-  const h = 60;
-  const padY = 2;
-  const { min, range } = getMinMax(values, compareValues, hasA, hasB);
-
-  const linePathA = hasA ? buildSparklinePath(values, w, h, padY, min, range) : null;
-  const areaPathA = linePathA ? `${linePathA} L${w},${h} L0,${h} Z` : null;
-  const linePathB = hasB ? buildSparklinePath(compareValues, w, h, padY, min, range) : null;
-
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      style={{ width: '100%', height: '58px', display: 'block', marginTop: '4px', overflow: 'visible' }}
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.26" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {areaPathA && <path d={areaPathA} fill={`url(#${gradId})`} />}
-      {linePathB && (
-        <path
-          d={linePathB}
-          fill="none"
-          stroke={compareColor}
-          strokeWidth="1.75"
-          strokeDasharray="4 3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
-      {linePathA && (
-        <path
-          d={linePathA}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
-    </svg>
-  );
-});
 
 const CardModeToggle = React.memo(({ cardId, mode, onToggle }) => {
   const nextMode = mode === 'total' ? 'effective' : 'total';
