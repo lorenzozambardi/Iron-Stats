@@ -54,7 +54,6 @@ const inputStyle = {
 
 export default function ProfilePage({ profile, setProfile, onBack }) {
   const [visible, setVisible] = useState(false);
-  const [compareMode, setCompareMode] = useState('target'); // 'target' | 'previous'
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
@@ -75,7 +74,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     setTimeout(() => onBack(), 200);
   };
 
-  const { current, targets, history } = profile;
+  const { current, history } = profile;
 
   const updateCurrent = (key, rawVal) => {
     const val = parseFloat(rawVal);
@@ -83,17 +82,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       ...prev,
       current: {
         ...prev.current,
-        [key]: Number.isFinite(val) ? val : 0,
-      },
-    }));
-  };
-
-  const updateTarget = (key, rawVal) => {
-    const val = parseFloat(rawVal);
-    setProfile((prev) => ({
-      ...prev,
-      targets: {
-        ...prev.targets,
         [key]: Number.isFinite(val) ? val : 0,
       },
     }));
@@ -151,14 +139,12 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
   }, [current]);
 
   const hasPrevious = history && history.length > 0;
-  const activeCompare = compareMode === 'previous' && hasPrevious ? history[0] : targets;
-  const compareLabel = compareMode === 'previous' && hasPrevious
-    ? `Prev (${history[0].date})`
-    : 'Target';
+  const previousEntry = hasPrevious ? history[0] : null;
+  const compareLabel = hasPrevious ? `Prev (${history[0].date})` : 'Previous';
 
   const radarAxes = useMemo(
-    () => computeRadarAxes(current, activeCompare),
-    [current, activeCompare]
+    () => computeRadarAxes(current, previousEntry),
+    [current, previousEntry]
   );
 
   return createPortal(
@@ -260,40 +246,9 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h3 style={sectionTitleStyle}>Physique Radar</h3>
               {hasPrevious && (
-                <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.04)', padding: '3px', borderRadius: '99px', border: '1px solid var(--border-color)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('target')}
-                    style={{
-                      padding: '3px 10px',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      borderRadius: '99px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: compareMode === 'target' ? 'var(--accent-primary)' : 'transparent',
-                      color: compareMode === 'target' ? '#fff' : 'var(--text-secondary)',
-                    }}
-                  >
-                    vs Target
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('previous')}
-                    style={{
-                      padding: '3px 10px',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      borderRadius: '99px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: compareMode === 'previous' ? 'var(--accent-primary)' : 'transparent',
-                      color: compareMode === 'previous' ? '#fff' : 'var(--text-secondary)',
-                    }}
-                  >
-                    vs Previous
-                  </button>
-                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  vs {history[0].date}
+                </span>
               )}
             </div>
             <ProfileRadarChart
@@ -384,18 +339,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <span className="profile-stat-label">Target Weight (kg)</span>
-              <input
-                type="number"
-                step="0.1"
-                min="20"
-                max="300"
-                style={inputStyle}
-                value={targets.weight}
-                onChange={(e) => updateTarget('weight', e.target.value)}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <span className="profile-stat-label">Height (cm)</span>
               <input
                 type="number"
@@ -417,18 +360,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 style={inputStyle}
                 value={current.bodyFat}
                 onChange={(e) => updateCurrent('bodyFat', e.target.value)}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <span className="profile-stat-label">Target BF (%)</span>
-              <input
-                type="number"
-                step="0.1"
-                min="3"
-                max="60"
-                style={inputStyle}
-                value={targets.bodyFat}
-                onChange={(e) => updateTarget('bodyFat', e.target.value)}
               />
             </label>
           </div>
@@ -476,77 +407,34 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           <h3 style={sectionTitleStyle}>Circumferences (cm)</h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: '10px',
           }}>
-            {CIRCUMFERENCE_FIELDS.map((field) => {
-              const curVal = Number(current[field.key] || 0);
-              const tgtVal = field.hasTarget ? Number(targets[field.key] || 0) : null;
-              const diff = tgtVal !== null ? curVal - tgtVal : null;
-              return (
-                <div
-                  key={field.key}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.025)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
-                    padding: '10px 12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {field.label}
-                    </span>
-                    {diff !== null && (
-                      <span style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        color: field.key === 'waist'
-                          ? (diff <= 0 ? '#10b981' : 'var(--text-muted)')
-                          : (diff >= 0 ? '#10b981' : 'var(--accent-secondary)'),
-                      }}>
-                        {diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)} cm vs goal
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: field.hasTarget ? '1fr 1fr' : '1fr', gap: '8px' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                        Current
-                      </span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="10"
-                        max="250"
-                        style={inputStyle}
-                        value={current[field.key] ?? ''}
-                        onChange={(e) => updateCurrent(field.key, e.target.value)}
-                      />
-                    </label>
-                    {field.hasTarget && (
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                          Target
-                        </span>
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="10"
-                          max="250"
-                          style={inputStyle}
-                          value={targets[field.key] ?? ''}
-                          onChange={(e) => updateTarget(field.key, e.target.value)}
-                        />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {CIRCUMFERENCE_FIELDS.map((field) => (
+              <label
+                key={field.key}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.025)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <span className="profile-stat-label">{field.label} (cm)</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="10"
+                  max="250"
+                  style={inputStyle}
+                  value={current[field.key] ?? ''}
+                  onChange={(e) => updateCurrent(field.key, e.target.value)}
+                />
+              </label>
+            ))}
           </div>
         </div>
 

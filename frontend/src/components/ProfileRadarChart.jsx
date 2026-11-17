@@ -68,7 +68,7 @@ const ProfileRadarChart = React.memo(({
   axes = [],
   compact = false,
   labelA = 'Current',
-  labelB = 'Target',
+  labelB = 'Previous',
   showLegend = true,
 }) => {
   const vbWidth = 370;
@@ -76,6 +76,11 @@ const ProfileRadarChart = React.memo(({
   const cx = vbWidth / 2;
   const cy = vbHeight / 2 + 2;
   const maxRadius = 74;
+
+  const hasSeriesB = useMemo(
+    () => axes.some((a) => a.scoreB !== null && a.scoreB !== undefined),
+    [axes]
+  );
 
   const { gridPaths, pathA, pathB } = useMemo(() => {
     const grids = GRID_LEVELS.map((lvl) => {
@@ -89,18 +94,22 @@ const ProfileRadarChart = React.memo(({
       return getHexPoint(cx, cy, r, ang);
     });
 
-    const ptsB = HEX_ANGLES_DEG.map((ang, idx) => {
-      const score = axes[idx]?.scoreB ?? 50;
-      const r = maxRadius * (Math.min(100, Math.max(10, score)) / 100);
-      return getHexPoint(cx, cy, r, ang);
-    });
+    let computedPathB = null;
+    if (hasSeriesB) {
+      const ptsB = HEX_ANGLES_DEG.map((ang, idx) => {
+        const score = axes[idx]?.scoreB ?? 50;
+        const r = maxRadius * (Math.min(100, Math.max(10, score)) / 100);
+        return getHexPoint(cx, cy, r, ang);
+      });
+      computedPathB = buildRoundedPolygonPath(ptsB, 6);
+    }
 
     return {
       gridPaths: grids,
       pathA: buildRoundedPolygonPath(ptsA, 6),
-      pathB: buildRoundedPolygonPath(ptsB, 6),
+      pathB: computedPathB,
     };
-  }, [axes, cx, cy]);
+  }, [axes, cx, cy, hasSeriesB]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -127,15 +136,17 @@ const ProfileRadarChart = React.memo(({
           />
         ))}
 
-        {/* Compare / Target polygon (Series B) */}
-        <path
-          d={pathB}
-          fill="var(--accent-secondary)"
-          fillOpacity={0.14}
-          stroke="var(--accent-secondary)"
-          strokeWidth={2.1}
-          strokeLinejoin="round"
-        />
+        {/* Previous / Compare polygon (Series B) */}
+        {pathB && (
+          <path
+            d={pathB}
+            fill="var(--accent-secondary)"
+            fillOpacity={0.14}
+            stroke="var(--accent-secondary)"
+            strokeWidth={2.1}
+            strokeLinejoin="round"
+          />
+        )}
 
         {/* Current polygon (Series A) */}
         <path
@@ -166,8 +177,12 @@ const ProfileRadarChart = React.memo(({
                 }}
               >
                 <tspan fill="var(--accent-primary)">{axis.scoreA}</tspan>
-                <tspan fill="var(--text-muted)" fontWeight={500}> / </tspan>
-                <tspan fill="var(--accent-secondary)">{axis.scoreB}</tspan>
+                {axis.scoreB !== null && axis.scoreB !== undefined && (
+                  <>
+                    <tspan fill="var(--text-muted)" fontWeight={500}> / </tspan>
+                    <tspan fill="var(--accent-secondary)">{axis.scoreB}</tspan>
+                  </>
+                )}
               </text>
               <text
                 x={0}
@@ -204,10 +219,12 @@ const ProfileRadarChart = React.memo(({
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-primary)' }} />
             {labelA}
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)' }} />
-            {labelB}
-          </span>
+          {hasSeriesB && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)' }} />
+              {labelB}
+            </span>
+          )}
         </div>
       )}
     </div>

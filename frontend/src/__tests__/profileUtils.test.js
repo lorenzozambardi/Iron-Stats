@@ -30,12 +30,18 @@ describe('profileUtils', () => {
     expect(calcVTaper(122, 79)).toBeCloseTo(1.544, 3);
   });
 
-  it('computes 6 bounded radar axes (20..99) for current vs target', () => {
-    const axes = computeRadarAxes(DEFAULT_PROFILE.current, DEFAULT_PROFILE.targets);
-    expect(axes).toHaveLength(6);
-    for (const axis of axes) {
+  it('computes 6 bounded radar axes (20..99) with and without comparison', () => {
+    const singleAxes = computeRadarAxes(DEFAULT_PROFILE.current);
+    expect(singleAxes).toHaveLength(6);
+    for (const axis of singleAxes) {
       expect(axis.scoreA).toBeGreaterThanOrEqual(20);
       expect(axis.scoreA).toBeLessThanOrEqual(99);
+      expect(axis.scoreB).toBeNull();
+    }
+
+    const comparedAxes = computeRadarAxes(DEFAULT_PROFILE.current, DEFAULT_PROFILE.current);
+    expect(comparedAxes).toHaveLength(6);
+    for (const axis of comparedAxes) {
       expect(axis.scoreB).toBeGreaterThanOrEqual(20);
       expect(axis.scoreB).toBeLessThanOrEqual(99);
     }

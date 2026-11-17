@@ -9,15 +9,15 @@ export const ACTIVITY_LEVELS = [
 ];
 
 export const CIRCUMFERENCE_FIELDS = [
-  { key: 'neck', label: 'Neck', hasTarget: false },
-  { key: 'shoulders', label: 'Shoulders', hasTarget: true },
-  { key: 'chest', label: 'Chest', hasTarget: true },
-  { key: 'waist', label: 'Waist', hasTarget: true },
-  { key: 'hips', label: 'Hips', hasTarget: false },
-  { key: 'arm', label: 'Arm', hasTarget: true },
-  { key: 'forearm', label: 'Forearm', hasTarget: false },
-  { key: 'thigh', label: 'Thigh', hasTarget: true },
-  { key: 'calf', label: 'Calf', hasTarget: true },
+  { key: 'neck', label: 'Neck' },
+  { key: 'shoulders', label: 'Shoulders' },
+  { key: 'chest', label: 'Chest' },
+  { key: 'waist', label: 'Waist' },
+  { key: 'hips', label: 'Hips' },
+  { key: 'arm', label: 'Arm' },
+  { key: 'forearm', label: 'Forearm' },
+  { key: 'thigh', label: 'Thigh' },
+  { key: 'calf', label: 'Calf' },
 ];
 
 export const DEFAULT_PROFILE = {
@@ -36,16 +36,6 @@ export const DEFAULT_PROFILE = {
     calf: 38.5,
     activityFactor: 1.55,
   },
-  targets: {
-    weight: 82.0,
-    bodyFat: 10.5,
-    shoulders: 126.0,
-    chest: 110.0,
-    waist: 76.0,
-    arm: 42.0,
-    thigh: 62.0,
-    calf: 40.5,
-  },
   history: [],
 };
 
@@ -56,7 +46,6 @@ export function loadProfile() {
     const parsed = JSON.parse(raw);
     return {
       current: { ...DEFAULT_PROFILE.current, ...(parsed.current || {}) },
-      targets: { ...DEFAULT_PROFILE.targets, ...(parsed.targets || {}) },
       history: Array.isArray(parsed.history) ? parsed.history : [],
     };
   } catch {
@@ -153,15 +142,18 @@ const scaleLinear = (val, minVal, maxVal) => {
 };
 
 /**
- * Computes 6 normalized (20-99) radar axes for Current vs Compare (Target or Previous).
+ * Computes 6 normalized (20-99) radar axes for Current and optional Previous snapshot.
  * Benchmarks are height-normalized so athletes of any stature get fair proportional scores.
  */
-export function computeRadarAxes(current, compare) {
+export function computeRadarAxes(current, compare = null) {
   const h = safePositive(current?.height, 175);
-  const cmpH = safePositive(compare?.height, h);
+  const hasCompare = Boolean(compare);
+  const cmpH = hasCompare ? safePositive(compare?.height, h) : h;
 
   const curFfmi = calcFFMI(current?.weight, h, current?.bodyFat).normalizedFfmi;
-  const cmpFfmi = calcFFMI(compare?.weight ?? current?.weight, cmpH, compare?.bodyFat ?? current?.bodyFat).normalizedFfmi;
+  const cmpFfmi = hasCompare
+    ? calcFFMI(compare?.weight ?? current?.weight, cmpH, compare?.bodyFat ?? current?.bodyFat).normalizedFfmi
+    : null;
 
   const ratio = (obj, key, heightVal) => safePositive(obj?.[key]) / heightVal;
 
@@ -170,27 +162,27 @@ export function computeRadarAxes(current, compare) {
       key: 'shoulders',
       label: 'SHOULDERS',
       scoreA: scaleLinear(ratio(current, 'shoulders', h), 0.58, 0.75),
-      scoreB: scaleLinear(ratio(compare, 'shoulders', cmpH), 0.58, 0.75),
+      scoreB: hasCompare ? scaleLinear(ratio(compare, 'shoulders', cmpH), 0.58, 0.75) : null,
       rawA: safePositive(current?.shoulders),
-      rawB: safePositive(compare?.shoulders),
+      rawB: hasCompare ? safePositive(compare?.shoulders) : null,
       unit: 'cm',
     },
     {
       key: 'chest',
       label: 'CHEST',
       scoreA: scaleLinear(ratio(current, 'chest', h), 0.50, 0.66),
-      scoreB: scaleLinear(ratio(compare, 'chest', cmpH), 0.50, 0.66),
+      scoreB: hasCompare ? scaleLinear(ratio(compare, 'chest', cmpH), 0.50, 0.66) : null,
       rawA: safePositive(current?.chest),
-      rawB: safePositive(compare?.chest),
+      rawB: hasCompare ? safePositive(compare?.chest) : null,
       unit: 'cm',
     },
     {
       key: 'arm',
       label: 'ARMS',
       scoreA: scaleLinear(ratio(current, 'arm', h), 0.175, 0.255),
-      scoreB: scaleLinear(ratio(compare, 'arm', cmpH), 0.175, 0.255),
+      scoreB: hasCompare ? scaleLinear(ratio(compare, 'arm', cmpH), 0.175, 0.255) : null,
       rawA: safePositive(current?.arm),
-      rawB: safePositive(compare?.arm),
+      rawB: hasCompare ? safePositive(compare?.arm) : null,
       unit: 'cm',
     },
     {
@@ -198,27 +190,27 @@ export function computeRadarAxes(current, compare) {
       label: 'WAIST',
       // Lower waist-to-height ratio yields a higher conditioning score
       scoreA: scaleLinear(0.58 - ratio(current, 'waist', h), 0.02, 0.17),
-      scoreB: scaleLinear(0.58 - ratio(compare, 'waist', cmpH), 0.02, 0.17),
+      scoreB: hasCompare ? scaleLinear(0.58 - ratio(compare, 'waist', cmpH), 0.02, 0.17) : null,
       rawA: safePositive(current?.waist),
-      rawB: safePositive(compare?.waist),
+      rawB: hasCompare ? safePositive(compare?.waist) : null,
       unit: 'cm',
     },
     {
       key: 'thigh',
       label: 'THIGHS',
       scoreA: scaleLinear(ratio(current, 'thigh', h), 0.275, 0.375),
-      scoreB: scaleLinear(ratio(compare, 'thigh', cmpH), 0.275, 0.375),
+      scoreB: hasCompare ? scaleLinear(ratio(compare, 'thigh', cmpH), 0.275, 0.375) : null,
       rawA: safePositive(current?.thigh),
-      rawB: safePositive(compare?.thigh),
+      rawB: hasCompare ? safePositive(compare?.thigh) : null,
       unit: 'cm',
     },
     {
       key: 'ffmi',
       label: 'FFMI',
       scoreA: scaleLinear(curFfmi, 17.5, 25.5),
-      scoreB: scaleLinear(cmpFfmi, 17.5, 25.5),
+      scoreB: hasCompare ? scaleLinear(cmpFfmi, 17.5, 25.5) : null,
       rawA: Number(curFfmi.toFixed(1)),
-      rawB: Number(cmpFfmi.toFixed(1)),
+      rawB: hasCompare ? Number(cmpFfmi.toFixed(1)) : null,
       unit: '',
     },
   ];
