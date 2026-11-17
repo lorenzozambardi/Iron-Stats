@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import {
   CIRCUMFERENCE_FIELDS,
@@ -68,7 +69,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     setTimeout(() => onBack(), 200);
   };
 
-  const { current, weightTrend = [], bodyFatTrend = [] } = profile;
+  const { current, logs = [] } = profile;
 
   const updateCurrent = (key, rawVal) => {
     const isStringField = key === 'birthDate' || key === 'sex';
@@ -82,20 +83,33 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     }));
   };
 
-  const commitTrendPoint = (trendKey, value) => {
-    const num = Number(value);
-    if (!Number.isFinite(num) || num <= 0) return;
-    setProfile((prev) => {
-      const existing = Array.isArray(prev[trendKey]) ? prev[trendKey] : [];
-      if (existing.length > 0 && Math.abs(existing[existing.length - 1] - num) < 0.01) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [trendKey]: [...existing, num].slice(-30),
-      };
-    });
+  const handleAddLog = () => {
+    const entry = {
+      id: `${Date.now()}`,
+      date: new Date().toISOString().slice(0, 10),
+      weight: Number(current.weight) || 0,
+      bodyFat: Number(current.bodyFat) || 0,
+    };
+    setProfile((prev) => ({
+      ...prev,
+      logs: [entry, ...(prev.logs || [])].slice(0, 100),
+    }));
   };
+
+  const handleDeleteLog = (id) => {
+    setProfile((prev) => ({
+      ...prev,
+      logs: (prev.logs || []).filter((item) => item.id !== id),
+    }));
+  };
+
+  const { weightSeries, bodyFatSeries } = useMemo(() => {
+    const chronological = [...logs].reverse();
+    return {
+      weightSeries: chronological.map((item) => Number(item.weight) || 0),
+      bodyFatSeries: chronological.map((item) => Number(item.bodyFat) || 0),
+    };
+  }, [logs]);
 
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
 
@@ -162,16 +176,26 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       }}>
         {/* Header Card */}
         <div style={cardStyle}>
-          <h2 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            margin: 0,
-            color: 'var(--text-primary)',
-            lineHeight: 1.2,
-          }}>
-            Profile
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              margin: 0,
+              color: 'var(--text-primary)',
+              lineHeight: 1.2,
+            }}>
+              Profile
+            </h2>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={handleAddLog}
+            >
+              <Plus size={14} /> Log
+            </button>
+          </div>
         </div>
 
         {/* Weight & Body Fat Trend Cards (Dashboard sparkline style, light gray) */}
@@ -183,9 +207,9 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           <div className="metric-summary-card">
             <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
             <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
-            <TrendBadge values={weightTrend} />
+            <TrendBadge values={weightSeries} />
             <MetricSparkline
-              values={weightTrend}
+              values={weightSeries}
               color="#a3a3a3"
               gradId="profile-spark-weight"
             />
@@ -193,9 +217,9 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           <div className="metric-summary-card">
             <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
             <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
-            <TrendBadge values={bodyFatTrend} invertColor />
+            <TrendBadge values={bodyFatSeries} invertColor />
             <MetricSparkline
-              values={bodyFatTrend}
+              values={bodyFatSeries}
               color="#a3a3a3"
               gradId="profile-spark-bf"
             />
@@ -286,7 +310,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 style={inputStyle}
                 value={current.weight}
                 onChange={(e) => updateCurrent('weight', e.target.value)}
-                onBlur={(e) => commitTrendPoint('weightTrend', e.target.value)}
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -299,7 +322,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 style={inputStyle}
                 value={current.bodyFat}
                 onChange={(e) => updateCurrent('bodyFat', e.target.value)}
-                onBlur={(e) => commitTrendPoint('bodyFatTrend', e.target.value)}
               />
             </label>
           </div>
@@ -405,6 +427,64 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Logs History */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={sectionTitleStyle}>Logs</h3>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+              {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
+            </span>
+          </div>
+
+          {logs.length === 0 ? (
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
+              No logs yet. Press &ldquo;Log&rdquo; at the top to record Weight and Body Fat for the graphs.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {logs.map((entry) => (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: 'rgba(255, 255, 255, 0.025)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '88px' }}>
+                    {entry.date}
+                  </span>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span><strong style={{ color: 'var(--text-primary)' }}>{Number(entry.weight).toFixed(1)}</strong> kg</span>
+                    <span><strong style={{ color: 'var(--text-primary)' }}>{Number(entry.bodyFat).toFixed(1)}%</strong> BF</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteLog(entry.id)}
+                    aria-label={`Delete log ${entry.date}`}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'inline-flex',
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>,

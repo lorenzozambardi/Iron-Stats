@@ -34,8 +34,7 @@ export const DEFAULT_PROFILE = {
     calfRight: 38.5,
     avgSteps: 8000,
   },
-  weightTrend: [79.8, 79.4, 79.1, 78.9, 78.7, 78.5],
-  bodyFatTrend: [14.6, 14.3, 14.1, 13.9, 13.7, 13.5],
+  logs: [],
 };
 
 export function loadProfile() {
@@ -56,14 +55,9 @@ export function loadProfile() {
       }
     }
 
-    const weightTrend = Array.isArray(parsed.weightTrend) && parsed.weightTrend.length >= 2
-      ? parsed.weightTrend
-      : [...DEFAULT_PROFILE.weightTrend.slice(0, -1), Number(current.weight) || DEFAULT_PROFILE.current.weight];
-    const bodyFatTrend = Array.isArray(parsed.bodyFatTrend) && parsed.bodyFatTrend.length >= 2
-      ? parsed.bodyFatTrend
-      : [...DEFAULT_PROFILE.bodyFatTrend.slice(0, -1), Number(current.bodyFat) || DEFAULT_PROFILE.current.bodyFat];
+    const logs = Array.isArray(parsed.logs) ? parsed.logs : [];
 
-    return { current, weightTrend, bodyFatTrend };
+    return { current, logs };
   } catch {
     return structuredClone(DEFAULT_PROFILE);
   }
