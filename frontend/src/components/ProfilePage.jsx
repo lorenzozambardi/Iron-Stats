@@ -272,33 +272,41 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
           </div>
         </div>
 
-        {/* Weight & Body Fat Trend Cards (Dashboard sparkline style, light gray) */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: '12px',
-        }}>
-          <div className="metric-summary-card">
-            <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
-            <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
-            <TrendBadge values={weightSeries} />
-            <MetricSparkline
-              values={weightSeries}
-              color="#a3a3a3"
-              gradId="profile-spark-weight"
-            />
+        {/* Weight & Body Fat Trend Cards (shown once >= 2 logs exist for a metric) */}
+        {(weightSeries.length >= 2 || bodyFatSeries.length >= 2) && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: weightSeries.length >= 2 && bodyFatSeries.length >= 2
+              ? 'repeat(2, minmax(0, 1fr))'
+              : '1fr',
+            gap: '12px',
+          }}>
+            {weightSeries.length >= 2 && (
+              <div className="metric-summary-card">
+                <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
+                <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
+                <TrendBadge values={weightSeries} />
+                <MetricSparkline
+                  values={weightSeries}
+                  color="#a3a3a3"
+                  gradId="profile-spark-weight"
+                />
+              </div>
+            )}
+            {bodyFatSeries.length >= 2 && (
+              <div className="metric-summary-card">
+                <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
+                <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
+                <TrendBadge values={bodyFatSeries} invertColor />
+                <MetricSparkline
+                  values={bodyFatSeries}
+                  color="#a3a3a3"
+                  gradId="profile-spark-bf"
+                />
+              </div>
+            )}
           </div>
-          <div className="metric-summary-card">
-            <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
-            <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
-            <TrendBadge values={bodyFatSeries} invertColor />
-            <MetricSparkline
-              values={bodyFatSeries}
-              color="#a3a3a3"
-              gradId="profile-spark-bf"
-            />
-          </div>
-        </div>
+        )}
 
         {/* Derived Composition */}
         <div style={cardStyle}>
