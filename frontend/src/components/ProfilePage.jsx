@@ -235,18 +235,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             gap: '12px',
           }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <span className="profile-stat-label">Weight (kg)</span>
-              <input
-                type="number"
-                step="0.1"
-                min="20"
-                max="300"
-                style={inputStyle}
-                value={current.weight}
-                onChange={(e) => updateCurrent('weight', e.target.value)}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <span className="profile-stat-label">Height (cm)</span>
               <input
                 type="number"
@@ -256,6 +244,18 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 style={inputStyle}
                 value={current.height}
                 onChange={(e) => updateCurrent('height', e.target.value)}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <span className="profile-stat-label">Weight (kg)</span>
+              <input
+                type="number"
+                step="0.1"
+                min="20"
+                max="300"
+                style={inputStyle}
+                value={current.weight}
+                onChange={(e) => updateCurrent('weight', e.target.value)}
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>

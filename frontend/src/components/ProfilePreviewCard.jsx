@@ -24,10 +24,10 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
   }, [current]);
 
   const primaryStats = [
-    { label: 'Weight', value: `${Number(current.weight).toFixed(1)}`, unit: 'kg' },
     { label: 'Height', value: `${Math.round(current.height)}`, unit: 'cm' },
-    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}`, unit: '%' },
+    { label: 'Weight', value: `${Number(current.weight).toFixed(1)}`, unit: 'kg' },
     { label: 'BMI', value: bmi, unit: '' },
+    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}`, unit: '%' },
     { label: 'FFMI', value: ffmiVal, unit: '' },
   ];
 
