@@ -9,9 +9,6 @@ import {
   calcFFMI,
   calcKatchMcArdleBMR,
   calcTDEEFromSteps,
-  calcWaistToHeight,
-  calcVTaper,
-  calcChestToWaist,
 } from '../profileUtils';
 
 const cardStyle = {
@@ -95,10 +92,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       weightKg: current.weight,
       avgSteps: current.avgSteps,
     });
-    const whtr = calcWaistToHeight(current.waist, current.height);
-    const vTaper = calcVTaper(current.shoulders, current.waist);
-    const chestWaist = calcChestToWaist(current.chest, current.waist);
-    const armCalfRatio = current.calf > 0 ? current.arm / current.calf : 0;
 
     return {
       bmi,
@@ -108,10 +101,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       ffmiData,
       bmr,
       tdeeData,
-      whtr,
-      vTaper,
-      chestWaist,
-      armCalfRatio,
     };
   }, [current]);
 
@@ -168,60 +157,40 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           </h2>
         </div>
 
-        {/* Derived Composition & Aesthetic Ratios */}
+        {/* Derived Composition */}
         <div style={cardStyle}>
-          <h3 style={sectionTitleStyle}>Derived Metrics &amp; Ratios</h3>
+          <h3 style={sectionTitleStyle}>Derived Metrics</h3>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: '10px',
           }}>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">BMI</span>
-                <span className="profile-derived-val">{derived.bmi.toFixed(1)}</span>
-                <span className="profile-stat-sub">{derived.bmiCategory}</span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">Norm. FFMI</span>
-                <span className="profile-derived-val">
-                  {derived.ffmiData.normalizedFfmi.toFixed(1)}
-                </span>
-                <span className="profile-stat-sub">
-                  Raw {derived.ffmiData.ffmi.toFixed(1)} · {derived.ffmiData.category}
-                </span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">Lean Mass (LBM)</span>
-                <span className="profile-derived-val">{derived.lbm.toFixed(1)} kg</span>
-                <span className="profile-stat-sub">{(100 - current.bodyFat).toFixed(1)}% of weight</span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">Fat Mass</span>
-                <span className="profile-derived-val">
-                  {derived.fm.toFixed(1)} kg
-                </span>
-                <span className="profile-stat-sub">{Number(current.bodyFat).toFixed(1)}% BF</span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">V-Taper (Sh / Waist)</span>
-                <span className="profile-derived-val">{derived.vTaper.toFixed(2)}</span>
-                <span className="profile-stat-sub">Ideal ≈ 1.62</span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">Waist / Height</span>
-                <span className="profile-derived-val">{derived.whtr.toFixed(2)}</span>
-                <span className="profile-stat-sub">{derived.whtr < 0.5 ? 'Optimal (<0.50)' : 'Above 0.50'}</span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">Chest / Waist</span>
-                <span className="profile-derived-val">{derived.chestWaist.toFixed(2)}</span>
-                <span className="profile-stat-sub">Ideal ≈ 1.40</span>
-              </div>
-              <div className="profile-derived-box">
-                <span className="profile-stat-label">Arm / Calf Ratio</span>
-                <span className="profile-derived-val">{derived.armCalfRatio.toFixed(2)}</span>
-                <span className="profile-stat-sub">Symmetry ≈ 1.00</span>
-              </div>
+            <div className="profile-derived-box">
+              <span className="profile-stat-label">BMI</span>
+              <span className="profile-derived-val">{derived.bmi.toFixed(1)}</span>
+              <span className="profile-stat-sub">{derived.bmiCategory}</span>
+            </div>
+            <div className="profile-derived-box">
+              <span className="profile-stat-label">Norm. FFMI</span>
+              <span className="profile-derived-val">
+                {derived.ffmiData.normalizedFfmi.toFixed(1)}
+              </span>
+              <span className="profile-stat-sub">
+                Raw {derived.ffmiData.ffmi.toFixed(1)} · {derived.ffmiData.category}
+              </span>
+            </div>
+            <div className="profile-derived-box">
+              <span className="profile-stat-label">Lean Mass (LBM)</span>
+              <span className="profile-derived-val">{derived.lbm.toFixed(1)} kg</span>
+              <span className="profile-stat-sub">{(100 - current.bodyFat).toFixed(1)}% of weight</span>
+            </div>
+            <div className="profile-derived-box">
+              <span className="profile-stat-label">Fat Mass</span>
+              <span className="profile-derived-val">
+                {derived.fm.toFixed(1)} kg
+              </span>
+              <span className="profile-stat-sub">{Number(current.bodyFat).toFixed(1)}% BF</span>
+            </div>
           </div>
         </div>
 
