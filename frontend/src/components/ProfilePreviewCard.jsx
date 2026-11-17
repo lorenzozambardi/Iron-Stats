@@ -46,10 +46,10 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
       aria-label="Open full athlete profile"
     >
       <div className="profile-preview-header">
-        <span className="metric-label" style={{ color: 'var(--accent-primary)', margin: 0 }}>
+        <span className="metric-label" style={{ color: 'var(--text-primary)', margin: 0 }}>
           Profile
         </span>
-        <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+        <ChevronRight size={16} style={{ color: 'var(--text-secondary)' }} />
       </div>
 
       {/* Single-row 5-column primary stats */}
