@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import {
   CIRCUMFERENCE_FIELDS,
   calcBMI,
-  getBMICategory,
   calcLeanMass,
   calcFatMass,
   calcFFMI,
@@ -82,7 +81,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
 
   const derived = useMemo(() => {
     const bmi = calcBMI(current.weight, current.height);
-    const bmiCategory = getBMICategory(bmi);
     const lbm = calcLeanMass(current.weight, current.bodyFat);
     const fm = calcFatMass(current.weight, current.bodyFat);
     const ffmiData = calcFFMI(current.weight, current.height, current.bodyFat);
@@ -95,7 +93,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
 
     return {
       bmi,
-      bmiCategory,
       lbm,
       fm,
       ffmiData,
@@ -168,28 +165,22 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             <div className="profile-derived-box">
               <span className="profile-stat-label">BMI</span>
               <span className="profile-derived-val">{derived.bmi.toFixed(1)}</span>
-              <span className="profile-stat-sub">{derived.bmiCategory}</span>
             </div>
             <div className="profile-derived-box">
               <span className="profile-stat-label">Norm. FFMI</span>
               <span className="profile-derived-val">
                 {derived.ffmiData.normalizedFfmi.toFixed(1)}
               </span>
-              <span className="profile-stat-sub">
-                Raw {derived.ffmiData.ffmi.toFixed(1)} · {derived.ffmiData.category}
-              </span>
             </div>
             <div className="profile-derived-box">
               <span className="profile-stat-label">Lean Mass (LBM)</span>
               <span className="profile-derived-val">{derived.lbm.toFixed(1)} kg</span>
-              <span className="profile-stat-sub">{(100 - current.bodyFat).toFixed(1)}% of weight</span>
             </div>
             <div className="profile-derived-box">
               <span className="profile-stat-label">Fat Mass</span>
               <span className="profile-derived-val">
                 {derived.fm.toFixed(1)} kg
               </span>
-              <span className="profile-stat-sub">{Number(current.bodyFat).toFixed(1)}% BF</span>
             </div>
           </div>
         </div>
