@@ -92,6 +92,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       newEntries.push({
         id: `${now}-w`,
         date: today,
+        ts: now,
         type: 'weight',
         value: Number(current.weight) || 0,
       });
@@ -100,6 +101,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       newEntries.push({
         id: `${now}-bf`,
         date: today,
+        ts: now,
         type: 'bodyFat',
         value: Number(current.bodyFat) || 0,
       });
@@ -119,14 +121,14 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
   };
 
   const { weightSeries, bodyFatSeries } = useMemo(() => {
-    const chronological = [...logs].reverse();
+    const toPoint = (item) => ({
+      t: Number.isFinite(item.ts) ? item.ts : (Date.parse(item.date) || 0),
+      v: Number(item.value) || 0,
+    });
+    const byTime = (a, b) => a.t - b.t;
     return {
-      weightSeries: chronological
-        .filter((item) => item.type === 'weight')
-        .map((item) => Number(item.value) || 0),
-      bodyFatSeries: chronological
-        .filter((item) => item.type === 'bodyFat')
-        .map((item) => Number(item.value) || 0),
+      weightSeries: logs.filter((item) => item.type === 'weight').map(toPoint).sort(byTime),
+      bodyFatSeries: logs.filter((item) => item.type === 'bodyFat').map(toPoint).sort(byTime),
     };
   }, [logs]);
 

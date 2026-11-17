@@ -1,10 +1,12 @@
 import React from 'react';
 import { getMinMax } from './helpers';
 
+const getVal = (item) => (typeof item === 'number' ? item : item?.v ?? 0);
+
 export const TrendBadge = React.memo(({ values, invertColor = false }) => {
   if (!values || values.length < 2) return null;
-  const first = values[0];
-  const last = values[values.length - 1];
+  const first = getVal(values[0]);
+  const last = getVal(values[values.length - 1]);
   if (first === 0) return null;
   const pct = ((last - first) / first) * 100;
   const pos = pct >= 0;
@@ -17,8 +19,24 @@ export const TrendBadge = React.memo(({ values, invertColor = false }) => {
 });
 
 const buildSparklinePath = (vals, w, h, padY, min, range) => {
-  const pts = vals.map((v, i) => {
-    const x = vals.length > 1 ? (i / (vals.length - 1)) * w : w / 2;
+  const hasTimestamps = typeof vals[0] === 'object' && vals[0] !== null && Number.isFinite(vals[0].t);
+  let tMin = 0;
+  let tRange = 0;
+  if (hasTimestamps) {
+    tMin = vals[0].t;
+    let tMax = vals[0].t;
+    for (let i = 1; i < vals.length; i++) {
+      if (vals[i].t < tMin) tMin = vals[i].t;
+      if (vals[i].t > tMax) tMax = vals[i].t;
+    }
+    tRange = tMax - tMin;
+  }
+
+  const pts = vals.map((item, i) => {
+    const v = getVal(item);
+    const x = hasTimestamps && tRange > 0
+      ? ((item.t - tMin) / tRange) * w
+      : (vals.length > 1 ? (i / (vals.length - 1)) * w : w / 2);
     const y = range > 0
       ? h - padY - ((v - min) / range) * (h - padY * 2)
       : h / 2;

@@ -200,19 +200,21 @@ export const fuzzyScore = (needle, haystack) => {
   return fuzzyScoreLower(needle.toLowerCase(), haystack.toLowerCase());
 };
 
+const getNumericVal = (item) => (typeof item === 'number' ? item : item?.v ?? 0);
+
 export const getMinMax = (values, compareValues, hasA, hasB) => {
   let min = Infinity;
   let max = -Infinity;
   if (hasA) {
     for (let i = 0; i < values.length; i++) {
-      const v = values[i];
+      const v = getNumericVal(values[i]);
       if (v < min) min = v;
       if (v > max) max = v;
     }
   }
   if (hasB) {
     for (let i = 0; i < compareValues.length; i++) {
-      const v = compareValues[i];
+      const v = getNumericVal(compareValues[i]);
       if (v < min) min = v;
       if (v > max) max = v;
     }
