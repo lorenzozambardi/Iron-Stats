@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calculator, History, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { History, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import ProfileRadarChart from './ProfileRadarChart';
 import {
   ACTIVITY_LEVELS,
@@ -14,7 +14,6 @@ import {
   calcWaistToHeight,
   calcVTaper,
   calcChestToWaist,
-  calcNavyBodyFat,
   computeRadarAxes,
 } from '../profileUtils';
 
@@ -78,12 +77,12 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
   const { current, targets, history } = profile;
 
   const updateCurrent = (key, rawVal) => {
-    const val = key === 'sex' ? rawVal : parseFloat(rawVal);
+    const val = parseFloat(rawVal);
     setProfile((prev) => ({
       ...prev,
       current: {
         ...prev.current,
-        [key]: key === 'sex' ? rawVal : (Number.isFinite(val) ? val : 0),
+        [key]: Number.isFinite(val) ? val : 0,
       },
     }));
   };
@@ -97,19 +96,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
         [key]: Number.isFinite(val) ? val : 0,
       },
     }));
-  };
-
-  const handleEstimateNavyBF = () => {
-    const bf = calcNavyBodyFat({
-      sex: current.sex || 'male',
-      heightCm: current.height,
-      waistCm: current.waist,
-      neckCm: current.neck,
-      hipsCm: current.hips,
-    });
-    if (bf !== null) {
-      updateCurrent('bodyFat', Number(bf.toFixed(1)));
-    }
   };
 
   const handleSaveCheckin = () => {
@@ -377,18 +363,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
 
         {/* Core Biometrics + Metabolic Estimates */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 style={sectionTitleStyle}>Core Biometrics &amp; Energy Expenditure</h3>
-            <button
-              type="button"
-              className="btn"
-              style={{ padding: '4px 10px', fontSize: '0.73rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-              onClick={handleEstimateNavyBF}
-              title="Estimate Body Fat % using Height, Neck, Waist (and Hips for female)"
-            >
-              <Calculator size={13} /> Estimate BF% (US Navy)
-            </button>
-          </div>
+          <h3 style={sectionTitleStyle}>Core Biometrics &amp; Energy Expenditure</h3>
 
           <div style={{
             display: 'grid',
@@ -454,17 +429,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 value={targets.bodyFat}
                 onChange={(e) => updateTarget('bodyFat', e.target.value)}
               />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <span className="profile-stat-label">Sex (Navy BF%)</span>
-              <select
-                style={inputStyle}
-                value={current.sex || 'male'}
-                onChange={(e) => updateCurrent('sex', e.target.value)}
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
             </label>
           </div>
 

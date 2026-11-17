@@ -8,7 +8,6 @@ import {
   calcKatchMcArdleBMR,
   calcWaistToHeight,
   calcVTaper,
-  calcNavyBodyFat,
   computeRadarAxes,
 } from '../profileUtils';
 
@@ -29,27 +28,6 @@ describe('profileUtils', () => {
     expect(calcKatchMcArdleBMR(68)).toBeCloseTo(1838.8, 1);
     expect(calcWaistToHeight(79, 178)).toBeCloseTo(0.4438, 3);
     expect(calcVTaper(122, 79)).toBeCloseTo(1.544, 3);
-  });
-
-  it('estimates US Navy body fat for male and female', () => {
-    const maleBf = calcNavyBodyFat({
-      sex: 'male',
-      heightCm: 178,
-      waistCm: 80,
-      neckCm: 39,
-    });
-    expect(maleBf).toBeGreaterThan(10);
-    expect(maleBf).toBeLessThan(20);
-
-    const femaleBf = calcNavyBodyFat({
-      sex: 'female',
-      heightCm: 165,
-      waistCm: 70,
-      neckCm: 32,
-      hipsCm: 95,
-    });
-    expect(femaleBf).toBeGreaterThan(15);
-    expect(femaleBf).toBeLessThan(35);
   });
 
   it('computes 6 bounded radar axes (20..99) for current vs target', () => {

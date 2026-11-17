@@ -35,7 +35,6 @@ export const DEFAULT_PROFILE = {
     thigh: 59.0,
     calf: 38.5,
     activityFactor: 1.55,
-    sex: 'male',
   },
   targets: {
     weight: 82.0,
@@ -144,26 +143,6 @@ export function calcChestToWaist(chestCm, waistCm) {
   const w = safePositive(waistCm);
   if (!c || !w) return 0;
   return c / w;
-}
-
-export function calcNavyBodyFat({ sex = 'male', heightCm, waistCm, neckCm, hipsCm }) {
-  const h = safePositive(heightCm);
-  const w = safePositive(waistCm);
-  const n = safePositive(neckCm);
-  if (!h || !w || !n) return null;
-
-  if (sex === 'female') {
-    const hip = safePositive(hipsCm);
-    const diff = w + hip - n;
-    if (!hip || diff <= 0) return null;
-    const bf = 495 / (1.29579 - 0.35004 * Math.log10(diff) + 0.221 * Math.log10(h)) - 450;
-    return Math.min(Math.max(bf, 5), 60);
-  }
-
-  const diff = w - n;
-  if (diff <= 0) return null;
-  const bf = 495 / (1.0324 - 0.19077 * Math.log10(diff) + 0.15456 * Math.log10(h)) - 450;
-  return Math.min(Math.max(bf, 3), 55);
 }
 
 const clampScore = (val) => Math.round(Math.min(99, Math.max(20, val)));
