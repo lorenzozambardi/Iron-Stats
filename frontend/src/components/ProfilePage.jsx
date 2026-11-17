@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { History, Plus, RotateCcw, Trash2 } from 'lucide-react';
-import ProfileRadarChart from './ProfileRadarChart';
 import {
   ACTIVITY_LEVELS,
   CIRCUMFERENCE_FIELDS,
@@ -15,7 +14,6 @@ import {
   calcWaistToHeight,
   calcVTaper,
   calcChestToWaist,
-  computeRadarAxes,
 } from '../profileUtils';
 
 const cardStyle = {
@@ -138,15 +136,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     };
   }, [current]);
 
-  const hasPrevious = history && history.length > 0;
-  const previousEntry = hasPrevious ? history[0] : null;
-  const compareLabel = hasPrevious ? `Prev (${history[0].date})` : 'Previous';
-
-  const radarAxes = useMemo(
-    () => computeRadarAxes(current, previousEntry),
-    [current, previousEntry]
-  );
-
   return createPortal(
     <div style={{
       position: 'fixed',
@@ -235,38 +224,14 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           </div>
         </div>
 
-        {/* Radar + Ratios Card */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '14px',
-        }}>
-          {/* Polygon Radar Card */}
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h3 style={sectionTitleStyle}>Physique Radar</h3>
-              {hasPrevious && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  vs {history[0].date}
-                </span>
-              )}
-            </div>
-            <ProfileRadarChart
-              axes={radarAxes}
-              labelA="Current"
-              labelB={compareLabel}
-              showLegend
-            />
-          </div>
-
-          {/* Derived Composition & Aesthetic Ratios */}
-          <div style={cardStyle}>
-            <h3 style={sectionTitleStyle}>Derived Metrics &amp; Ratios</h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '10px',
-            }}>
+        {/* Derived Composition & Aesthetic Ratios */}
+        <div style={cardStyle}>
+          <h3 style={sectionTitleStyle}>Derived Metrics &amp; Ratios</h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: '10px',
+          }}>
               <div className="profile-derived-box">
                 <span className="profile-stat-label">BMI</span>
                 <span className="profile-derived-val">{derived.bmi.toFixed(1)}</span>
@@ -313,7 +278,6 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 <span className="profile-derived-val">{derived.armCalfRatio.toFixed(2)}</span>
                 <span className="profile-stat-sub">Symmetry ≈ 1.00</span>
               </div>
-            </div>
           </div>
         </div>
 
