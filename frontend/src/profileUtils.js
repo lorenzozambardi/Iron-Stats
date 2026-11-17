@@ -1,11 +1,5 @@
 export const PROFILE_STORAGE_KEY = 'iron_stats_profile_v1';
 
-export const CARDIO_INTENSITIES = [
-  { id: 'low', label: 'Low (Walk / Easy)', met: 4.0 },
-  { id: 'moderate', label: 'Moderate (Jog / Steady)', met: 7.0 },
-  { id: 'high', label: 'High (HIIT / Fast Run)', met: 10.0 },
-];
-
 export const CIRCUMFERENCE_FIELDS = [
   { key: 'neck', label: 'Neck' },
   { key: 'shoulders', label: 'Shoulders' },
@@ -32,8 +26,8 @@ export const DEFAULT_PROFILE = {
     forearm: 31.5,
     thigh: 59.0,
     calf: 38.5,
+    avgSteps: 8000,
   },
-  activityLogs: [],
   history: [],
 };
 
@@ -44,7 +38,6 @@ export function loadProfile() {
     const parsed = JSON.parse(raw);
     return {
       current: { ...DEFAULT_PROFILE.current, ...(parsed.current || {}) },
-      activityLogs: Array.isArray(parsed.activityLogs) ? parsed.activityLogs : [],
       history: Array.isArray(parsed.history) ? parsed.history : [],
     };
   } catch {
@@ -112,36 +105,19 @@ export function calcKatchMcArdleBMR(lbmKg) {
   return 370 + 21.6 * lbm;
 }
 
-export function calcDailyTDEE({
-  bmr,
-  weightKg,
-  steps = 0,
-  cardioDone = false,
-  cardioIntensity = 'moderate',
-  cardioMinutes = 0,
-}) {
+export function calcTDEEFromSteps({ bmr, weightKg, avgSteps = 0 }) {
   const baseBmr = safePositive(bmr);
   const w = safePositive(weightKg, 70);
-  if (!baseBmr) return { tdee: 0, baseline: 0, stepsKcal: 0, cardioKcal: 0 };
+  if (!baseBmr) return { tdee: 0, baseline: 0, stepsKcal: 0 };
 
-  // Sedentary baseline (resting + TEF + minimal daily movement)
   const baseline = baseBmr * 1.15;
-  const safeSteps = Math.max(0, Number(steps) || 0);
+  const safeSteps = Math.max(0, Number(avgSteps) || 0);
   const stepsKcal = 0.04 * (w / 70) * safeSteps;
 
-  let cardioKcal = 0;
-  if (cardioDone) {
-    const mins = Math.max(0, Number(cardioMinutes) || 0);
-    const intensityObj = CARDIO_INTENSITIES.find((c) => c.id === cardioIntensity) || CARDIO_INTENSITIES[1];
-    // Net METs above resting (MET - 1) avoids double-counting BMR
-    cardioKcal = Math.max(0, intensityObj.met - 1) * w * (mins / 60);
-  }
-
   return {
-    tdee: baseline + stepsKcal + cardioKcal,
+    tdee: baseline + stepsKcal,
     baseline,
     stepsKcal,
-    cardioKcal,
   };
 }
 

@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Activity, History, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { History, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
-  CARDIO_INTENSITIES,
   CIRCUMFERENCE_FIELDS,
   DEFAULT_PROFILE,
   calcBMI,
@@ -11,7 +10,7 @@ import {
   calcFatMass,
   calcFFMI,
   calcKatchMcArdleBMR,
-  calcDailyTDEE,
+  calcTDEEFromSteps,
   calcWaistToHeight,
   calcVTaper,
   calcChestToWaist,
@@ -73,45 +72,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     setTimeout(() => onBack(), 200);
   };
 
-  const { current, activityLogs = [], history } = profile;
-  const [activityDate, setActivityDate] = useState(() => new Date().toISOString().slice(0, 10));
-
-  const activeDayLog = useMemo(() => {
-    const found = activityLogs.find((item) => item.date === activityDate);
-    return found || {
-      date: activityDate,
-      steps: 8000,
-      cardioDone: false,
-      cardioIntensity: 'moderate',
-      cardioMinutes: 30,
-    };
-  }, [activityLogs, activityDate]);
-
-  const upsertActivityLog = (patch) => {
-    setProfile((prev) => {
-      const logs = Array.isArray(prev.activityLogs) ? [...prev.activityLogs] : [];
-      const idx = logs.findIndex((item) => item.date === activityDate);
-      const base = idx >= 0 ? logs[idx] : {
-        date: activityDate,
-        steps: 8000,
-        cardioDone: false,
-        cardioIntensity: 'moderate',
-        cardioMinutes: 30,
-      };
-      const updated = { ...base, ...patch, date: activityDate };
-      if (idx >= 0) logs[idx] = updated;
-      else logs.unshift(updated);
-      logs.sort((a, b) => b.date.localeCompare(a.date));
-      return { ...prev, activityLogs: logs.slice(0, 90) };
-    });
-  };
-
-  const handleDeleteActivityLog = (dateToRemove) => {
-    setProfile((prev) => ({
-      ...prev,
-      activityLogs: (prev.activityLogs || []).filter((item) => item.date !== dateToRemove),
-    }));
-  };
+  const { current, history } = profile;
 
   const updateCurrent = (key, rawVal) => {
     const val = parseFloat(rawVal);
@@ -154,13 +115,10 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     const fm = calcFatMass(current.weight, current.bodyFat);
     const ffmiData = calcFFMI(current.weight, current.height, current.bodyFat);
     const bmr = calcKatchMcArdleBMR(lbm);
-    const tdeeData = calcDailyTDEE({
+    const tdeeData = calcTDEEFromSteps({
       bmr,
       weightKg: current.weight,
-      steps: activeDayLog.steps,
-      cardioDone: activeDayLog.cardioDone,
-      cardioIntensity: activeDayLog.cardioIntensity,
-      cardioMinutes: activeDayLog.cardioMinutes,
+      avgSteps: current.avgSteps,
     });
     const whtr = calcWaistToHeight(current.waist, current.height);
     const vTaper = calcVTaper(current.shoulders, current.waist);
@@ -180,7 +138,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
       chestWaist,
       armCalfRatio,
     };
-  }, [current, activeDayLog]);
+  }, [current]);
 
   return createPortal(
     <div style={{
@@ -374,14 +332,14 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
             </label>
           </div>
 
-          {/* BMR & Daily TDEE Bar */}
+          {/* BMR & TDEE Bar */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '10px',
             paddingTop: '8px',
             borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-            alignItems: 'stretch',
+            alignItems: 'center',
           }}>
             <div className="profile-derived-box">
               <span className="profile-stat-label">BMR (Katch-McArdle)</span>
@@ -389,163 +347,26 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               <span className="profile-stat-sub">Resting expenditure</span>
             </div>
             <div className="profile-derived-box">
-              <span className="profile-stat-label">Daily TDEE ({activityDate})</span>
+              <span className="profile-stat-label">Estimated TDEE</span>
               <span className="profile-derived-val">
                 {Math.round(derived.tdeeData.tdee).toLocaleString()} kcal
               </span>
               <span className="profile-stat-sub">
-                Base {Math.round(derived.tdeeData.baseline)} + Steps {Math.round(derived.tdeeData.stepsKcal)}
-                {activeDayLog.cardioDone ? ` + Cardio ${Math.round(derived.tdeeData.cardioKcal)}` : ''} kcal
+                Base {Math.round(derived.tdeeData.baseline)} + Steps {Math.round(derived.tdeeData.stepsKcal)} kcal
               </span>
             </div>
-          </div>
-
-          {/* Daily Steps & Cardio Logger */}
-          <div style={{
-            paddingTop: '10px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <h4 style={{ ...sectionTitleStyle, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <Activity size={13} /> Daily Activity Log
-              </h4>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <span className="profile-stat-label">Avg. Steps / Day</span>
               <input
-                type="date"
-                style={{ ...inputStyle, width: 'auto', padding: '5px 10px', fontSize: '0.8rem' }}
-                value={activityDate}
-                onChange={(e) => setActivityDate(e.target.value || new Date().toISOString().slice(0, 10))}
+                type="number"
+                step="500"
+                min="0"
+                max="100000"
+                style={inputStyle}
+                value={current.avgSteps ?? 8000}
+                onChange={(e) => updateCurrent('avgSteps', e.target.value)}
               />
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: '10px',
-              alignItems: 'end',
-            }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span className="profile-stat-label">Steps</span>
-                <input
-                  type="number"
-                  step="100"
-                  min="0"
-                  max="100000"
-                  style={inputStyle}
-                  value={activeDayLog.steps}
-                  onChange={(e) => upsertActivityLog({ steps: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                />
-              </label>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span className="profile-stat-label">Cardio</span>
-                <button
-                  type="button"
-                  onClick={() => upsertActivityLog({ cardioDone: !activeDayLog.cardioDone })}
-                  style={{
-                    ...inputStyle,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    borderColor: activeDayLog.cardioDone ? 'var(--accent-primary)' : 'var(--border-color)',
-                    background: activeDayLog.cardioDone ? 'var(--accent-primary-subtle)' : 'rgba(255, 255, 255, 0.04)',
-                    color: activeDayLog.cardioDone ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  }}
-                >
-                  {activeDayLog.cardioDone ? 'Yes · Logged' : 'No cardio'}
-                </button>
-              </div>
-
-              {activeDayLog.cardioDone && (
-                <>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <span className="profile-stat-label">Intensity</span>
-                    <select
-                      style={inputStyle}
-                      value={activeDayLog.cardioIntensity}
-                      onChange={(e) => upsertActivityLog({ cardioIntensity: e.target.value })}
-                    >
-                      {CARDIO_INTENSITIES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <span className="profile-stat-label">Duration (min)</span>
-                    <input
-                      type="number"
-                      step="5"
-                      min="0"
-                      max="600"
-                      style={inputStyle}
-                      value={activeDayLog.cardioMinutes}
-                      onChange={(e) => upsertActivityLog({ cardioMinutes: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                    />
-                  </label>
-                </>
-              )}
-            </div>
-
-            {activityLogs.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
-                {activityLogs.slice(0, 7).map((log) => {
-                  const dayTdee = calcDailyTDEE({
-                    bmr: derived.bmr,
-                    weightKg: current.weight,
-                    steps: log.steps,
-                    cardioDone: log.cardioDone,
-                    cardioIntensity: log.cardioIntensity,
-                    cardioMinutes: log.cardioMinutes,
-                  });
-                  return (
-                    <div
-                      key={log.date}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '10px',
-                        padding: '8px 10px',
-                        background: 'rgba(255, 255, 255, 0.025)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '10px',
-                        fontSize: '0.78rem',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', minWidth: '84px' }}>{log.date}</span>
-                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                        <span><strong style={{ color: 'var(--text-primary)' }}>{Number(log.steps).toLocaleString()}</strong> steps</span>
-                        <span>
-                          {log.cardioDone
-                            ? <>Cardio: <strong style={{ color: 'var(--text-primary)' }}>{log.cardioMinutes} min</strong> ({log.cardioIntensity})</>
-                            : 'No cardio'}
-                        </span>
-                        <span>TDEE <strong style={{ color: 'var(--text-primary)' }}>{Math.round(dayTdee.tdee).toLocaleString()}</strong> kcal</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteActivityLog(log.date)}
-                        aria-label={`Delete activity log ${log.date}`}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          padding: '2px',
-                          display: 'inline-flex',
-                        }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            </label>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ import {
   calcFatMass,
   calcFFMI,
   calcKatchMcArdleBMR,
-  calcDailyTDEE,
+  calcTDEEFromSteps,
   calcWaistToHeight,
   calcVTaper,
   computeRadarAxes,
@@ -25,25 +25,16 @@ describe('profileUtils', () => {
     expect(ffmi.category).toBe('Intermediate');
   });
 
-  it('calculates Katch-McArdle BMR, daily TDEE from steps/cardio, and body proportion ratios', () => {
+  it('calculates Katch-McArdle BMR, TDEE from avg steps, and body proportion ratios', () => {
     const bmr = calcKatchMcArdleBMR(68);
     expect(bmr).toBeCloseTo(1838.8, 1);
 
-    const restDay = calcDailyTDEE({ bmr, weightKg: 70, steps: 5000, cardioDone: false });
-    expect(restDay.stepsKcal).toBeCloseTo(200, 1);
-    expect(restDay.cardioKcal).toBe(0);
+    const lowSteps = calcTDEEFromSteps({ bmr, weightKg: 70, avgSteps: 5000 });
+    expect(lowSteps.stepsKcal).toBeCloseTo(200, 1);
 
-    const cardioDay = calcDailyTDEE({
-      bmr,
-      weightKg: 70,
-      steps: 10000,
-      cardioDone: true,
-      cardioIntensity: 'moderate',
-      cardioMinutes: 30,
-    });
-    expect(cardioDay.stepsKcal).toBeCloseTo(400, 1);
-    expect(cardioDay.cardioKcal).toBeCloseTo(210, 1);
-    expect(cardioDay.tdee).toBeGreaterThan(restDay.tdee);
+    const highSteps = calcTDEEFromSteps({ bmr, weightKg: 70, avgSteps: 10000 });
+    expect(highSteps.stepsKcal).toBeCloseTo(400, 1);
+    expect(highSteps.tdee).toBeGreaterThan(lowSteps.tdee);
 
     expect(calcWaistToHeight(79, 178)).toBeCloseTo(0.4438, 3);
     expect(calcVTaper(122, 79)).toBeCloseTo(1.544, 3);
