@@ -49,6 +49,7 @@ const inputStyle = {
 
 export default function ProfilePage({ profile, setProfile, onBack }) {
   const [visible, setVisible] = useState(false);
+  const [pendingOverwrite, setPendingOverwrite] = useState(null);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
@@ -83,34 +84,53 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     }));
   };
 
-  const handleLogStat = (type) => {
+  const applyLogStat = (type) => {
     const today = new Date().toISOString().slice(0, 10);
     const now = Date.now();
-    const newEntries = [];
+    const typesToWrite = type === 'all' ? ['weight', 'bodyFat'] : [type];
 
-    if (type === 'all' || type === 'weight') {
-      newEntries.push({
-        id: `${now}-w`,
+    setProfile((prev) => {
+      const existing = Array.isArray(prev.logs) ? prev.logs : [];
+      const filtered = existing.filter(
+        (item) => !(item.date === today && typesToWrite.includes(item.type))
+      );
+      const newEntries = typesToWrite.map((t) => ({
+        id: `${now}-${t === 'weight' ? 'w' : 'bf'}`,
         date: today,
         ts: now,
-        type: 'weight',
-        value: Number(current.weight) || 0,
+        type: t,
+        value: Number(t === 'weight' ? current.weight : current.bodyFat) || 0,
+      }));
+      return {
+        ...prev,
+        logs: [...newEntries, ...filtered].slice(0, 150),
+      };
+    });
+  };
+
+  const handleLogStat = (type) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const typesToCheck = type === 'all' ? ['weight', 'bodyFat'] : [type];
+    const conflicts = logs.filter(
+      (item) => item.date === today && typesToCheck.includes(item.type)
+    );
+
+    if (conflicts.length > 0) {
+      const details = conflicts
+        .map((c) => (
+          c.type === 'weight'
+            ? `Weight (${Number(c.value).toFixed(1)} kg)`
+            : `Body Fat (${Number(c.value).toFixed(1)}%)`
+        ))
+        .join(' and ');
+      setPendingOverwrite({
+        type,
+        message: `You already logged ${details} today (${today}). Continuing will overwrite today's entry.`,
       });
-    }
-    if (type === 'all' || type === 'bodyFat') {
-      newEntries.push({
-        id: `${now}-bf`,
-        date: today,
-        ts: now,
-        type: 'bodyFat',
-        value: Number(current.bodyFat) || 0,
-      });
+      return;
     }
 
-    setProfile((prev) => ({
-      ...prev,
-      logs: [...newEntries, ...(prev.logs || [])].slice(0, 150),
-    }));
+    applyLogStat(type);
   };
 
   const handleDeleteLog = (id) => {
@@ -534,6 +554,73 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
           )}
         </div>
       </div>
+
+      {pendingOverwrite && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="overwrite-log-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 10010,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setPendingOverwrite(null)}
+        >
+          <div
+            style={{
+              ...cardStyle,
+              maxWidth: '400px',
+              width: '100%',
+              borderColor: 'rgba(245, 158, 11, 0.35)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="overwrite-log-title"
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                color: 'var(--color-volume)',
+              }}
+            >
+              Overwrite today&apos;s log?
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {pendingOverwrite.message}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ padding: '7px 14px', fontSize: '0.8rem' }}
+                onClick={() => setPendingOverwrite(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ padding: '7px 14px', fontSize: '0.8rem' }}
+                onClick={() => {
+                  applyLogStat(pendingOverwrite.type);
+                  setPendingOverwrite(null);
+                }}
+              >
+                Overwrite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );
