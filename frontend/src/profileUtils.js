@@ -55,7 +55,20 @@ export function loadProfile() {
       }
     }
 
-    const logs = Array.isArray(parsed.logs) ? parsed.logs : [];
+    const rawLogs = Array.isArray(parsed.logs) ? parsed.logs : [];
+    const logs = [];
+    for (const item of rawLogs) {
+      if (item && (item.type === 'weight' || item.type === 'bodyFat')) {
+        logs.push(item);
+      } else if (item && (item.weight !== undefined || item.bodyFat !== undefined)) {
+        if (item.weight !== undefined) {
+          logs.push({ id: `${item.id}-w`, date: item.date, type: 'weight', value: Number(item.weight) });
+        }
+        if (item.bodyFat !== undefined) {
+          logs.push({ id: `${item.id}-bf`, date: item.date, type: 'bodyFat', value: Number(item.bodyFat) });
+        }
+      }
+    }
 
     return { current, logs };
   } catch {

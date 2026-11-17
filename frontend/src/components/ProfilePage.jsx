@@ -83,16 +83,31 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
     }));
   };
 
-  const handleAddLog = () => {
-    const entry = {
-      id: `${Date.now()}`,
-      date: new Date().toISOString().slice(0, 10),
-      weight: Number(current.weight) || 0,
-      bodyFat: Number(current.bodyFat) || 0,
-    };
+  const handleLogStat = (type) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
+    const newEntries = [];
+
+    if (type === 'all' || type === 'weight') {
+      newEntries.push({
+        id: `${now}-w`,
+        date: today,
+        type: 'weight',
+        value: Number(current.weight) || 0,
+      });
+    }
+    if (type === 'all' || type === 'bodyFat') {
+      newEntries.push({
+        id: `${now}-bf`,
+        date: today,
+        type: 'bodyFat',
+        value: Number(current.bodyFat) || 0,
+      });
+    }
+
     setProfile((prev) => ({
       ...prev,
-      logs: [entry, ...(prev.logs || [])].slice(0, 100),
+      logs: [...newEntries, ...(prev.logs || [])].slice(0, 150),
     }));
   };
 
@@ -106,8 +121,12 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
   const { weightSeries, bodyFatSeries } = useMemo(() => {
     const chronological = [...logs].reverse();
     return {
-      weightSeries: chronological.map((item) => Number(item.weight) || 0),
-      bodyFatSeries: chronological.map((item) => Number(item.bodyFat) || 0),
+      weightSeries: chronological
+        .filter((item) => item.type === 'weight')
+        .map((item) => Number(item.value) || 0),
+      bodyFatSeries: chronological
+        .filter((item) => item.type === 'bodyFat')
+        .map((item) => Number(item.value) || 0),
     };
   }, [logs]);
 
@@ -191,9 +210,9 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
               type="button"
               className="btn btn-primary"
               style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              onClick={handleAddLog}
+              onClick={() => handleLogStat('all')}
             >
-              <Plus size={14} /> Log
+              <Plus size={14} /> Log All
             </button>
           </div>
         </div>
@@ -300,8 +319,26 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 onChange={(e) => updateCurrent('height', e.target.value)}
               />
             </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <span className="profile-stat-label">Weight (kg)</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                <span className="profile-stat-label">Weight (kg)</span>
+                <button
+                  type="button"
+                  onClick={() => handleLogStat('weight')}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '99px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.66rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Log
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -311,9 +348,27 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 value={current.weight}
                 onChange={(e) => updateCurrent('weight', e.target.value)}
               />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <span className="profile-stat-label">Body Fat (%)</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                <span className="profile-stat-label">Body Fat (%)</span>
+                <button
+                  type="button"
+                  onClick={() => handleLogStat('bodyFat')}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '99px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.66rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Log
+                </button>
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -323,7 +378,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                 value={current.bodyFat}
                 onChange={(e) => updateCurrent('bodyFat', e.target.value)}
               />
-            </label>
+            </div>
           </div>
 
           {/* BMR & TDEE Bar */}
@@ -440,7 +495,7 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
 
           {logs.length === 0 ? (
             <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
-              No logs yet. Press &ldquo;Log&rdquo; at the top to record Weight and Body Fat for the graphs.
+              No logs yet. Press &ldquo;Log All&rdquo; at the top or &ldquo;+ Log&rdquo; on Weight / Body Fat.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -462,9 +517,15 @@ export default function ProfilePage({ profile, setProfile, onBack }) {
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '88px' }}>
                     {entry.date}
                   </span>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                    <span><strong style={{ color: 'var(--text-primary)' }}>{Number(entry.weight).toFixed(1)}</strong> kg</span>
-                    <span><strong style={{ color: 'var(--text-primary)' }}>{Number(entry.bodyFat).toFixed(1)}%</strong> BF</span>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
+                      {entry.type === 'weight' ? 'Weight' : 'Body Fat'}
+                    </span>
+                    <strong style={{ color: 'var(--text-primary)' }}>
+                      {entry.type === 'weight'
+                        ? `${Number(entry.value).toFixed(1)} kg`
+                        : `${Number(entry.value).toFixed(1)}%`}
+                    </strong>
                   </div>
                   <button
                     type="button"
