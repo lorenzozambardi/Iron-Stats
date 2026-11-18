@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
+import { LockWheelPicker } from './FilterControls';
 import {
   CIRCUMFERENCE_FIELDS,
   calcAge,
@@ -49,12 +50,12 @@ const inputStyle = {
 };
 
 const TIME_RANGES = [
-  { id: '7d', label: '7D', days: 7 },
-  { id: '30d', label: '1M', days: 30 },
-  { id: '90d', label: '3M', days: 90 },
-  { id: '180d', label: '6M', days: 180 },
-  { id: '365d', label: '1Y', days: 365 },
-  { id: 'all', label: 'All', days: null },
+  { value: '7d', label: '7D', days: 7 },
+  { value: '30d', label: '1M', days: 30 },
+  { value: '90d', label: '3M', days: 90 },
+  { value: '180d', label: '6M', days: 180 },
+  { value: '365d', label: '1Y', days: 365 },
+  { value: 'all', label: 'All', days: null },
 ];
 
 function FormattedDateInput({ value, max, dateFormat, onChange, ariaLabel, style }) {
@@ -224,7 +225,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     const allW = logs.filter((item) => item.type === 'weight').map(toPoint).sort(byTime);
     const allBf = logs.filter((item) => item.type === 'bodyFat').map(toPoint).sort(byTime);
 
-    const rangeDef = TIME_RANGES.find((r) => r.id === timeRange);
+    const rangeDef = TIME_RANGES.find((r) => r.value === timeRange);
     const cutoff = rangeDef?.days
       ? Date.parse(`${todayStr}T23:59:59`) - rangeDef.days * 86400000
       : null;
@@ -338,37 +339,16 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         {(allWeightCount >= 2 || allBfCount >= 2) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <div style={{
-                display: 'inline-flex',
-                gap: '2px',
-                padding: '3px',
-                borderRadius: '99px',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-              }}>
-                {TIME_RANGES.map((r) => {
-                  const active = timeRange === r.id;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setTimeRange(r.id)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '99px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        background: active ? 'var(--accent-primary)' : 'transparent',
-                        color: active ? '#fff' : 'var(--text-secondary)',
-                      }}
-                    >
-                      {r.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <LockWheelPicker
+                label="Range"
+                options={TIME_RANGES}
+                value={timeRange}
+                onChange={setTimeRange}
+                itemWidth={44}
+                gap={10}
+                circular={false}
+                style={{ width: '240px', flexShrink: 0 }}
+              />
             </div>
 
             <div style={{
