@@ -48,6 +48,15 @@ const inputStyle = {
   outline: 'none',
 };
 
+const TIME_RANGES = [
+  { id: '7d', label: '7D', days: 7 },
+  { id: '30d', label: '1M', days: 30 },
+  { id: '90d', label: '3M', days: 90 },
+  { id: '180d', label: '6M', days: 180 },
+  { id: '365d', label: '1Y', days: 365 },
+  { id: 'all', label: 'All', days: null },
+];
+
 function FormattedDateInput({ value, max, dateFormat, onChange, ariaLabel, style }) {
   return (
     <div
@@ -95,6 +104,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [timeRange, setTimeRange] = useState('all');
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
@@ -205,17 +215,27 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     });
   };
 
-  const { weightSeries, bodyFatSeries } = useMemo(() => {
+  const { allWeightCount, allBfCount, weightSeries, bodyFatSeries } = useMemo(() => {
     const toPoint = (item) => ({
       t: Number.isFinite(item.ts) ? item.ts : (Date.parse(item.date) || 0),
       v: Number(item.value) || 0,
     });
     const byTime = (a, b) => a.t - b.t;
+    const allW = logs.filter((item) => item.type === 'weight').map(toPoint).sort(byTime);
+    const allBf = logs.filter((item) => item.type === 'bodyFat').map(toPoint).sort(byTime);
+
+    const rangeDef = TIME_RANGES.find((r) => r.id === timeRange);
+    const cutoff = rangeDef?.days
+      ? Date.parse(`${todayStr}T23:59:59`) - rangeDef.days * 86400000
+      : null;
+
     return {
-      weightSeries: logs.filter((item) => item.type === 'weight').map(toPoint).sort(byTime),
-      bodyFatSeries: logs.filter((item) => item.type === 'bodyFat').map(toPoint).sort(byTime),
+      allWeightCount: allW.length,
+      allBfCount: allBf.length,
+      weightSeries: cutoff ? allW.filter((p) => p.t >= cutoff) : allW,
+      bodyFatSeries: cutoff ? allBf.filter((p) => p.t >= cutoff) : allBf,
     };
-  }, [logs]);
+  }, [logs, timeRange, todayStr]);
 
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
 
@@ -315,38 +335,90 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         </div>
 
         {/* Weight & Body Fat Trend Cards (shown once >= 2 logs exist for a metric) */}
-        {(weightSeries.length >= 2 || bodyFatSeries.length >= 2) && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: weightSeries.length >= 2 && bodyFatSeries.length >= 2
-              ? 'repeat(2, minmax(0, 1fr))'
-              : '1fr',
-            gap: '12px',
-          }}>
-            {weightSeries.length >= 2 && (
-              <div className="metric-summary-card">
-                <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
-                <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
-                <TrendBadge values={weightSeries} />
-                <MetricSparkline
-                  values={weightSeries}
-                  color="#a3a3a3"
-                  gradId="profile-spark-weight"
-                />
+        {(allWeightCount >= 2 || allBfCount >= 2) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{
+                display: 'inline-flex',
+                gap: '2px',
+                padding: '3px',
+                borderRadius: '99px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+              }}>
+                {TIME_RANGES.map((r) => {
+                  const active = timeRange === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setTimeRange(r.id)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '99px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        background: active ? 'var(--accent-primary)' : 'transparent',
+                        color: active ? '#fff' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            {bodyFatSeries.length >= 2 && (
-              <div className="metric-summary-card">
-                <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
-                <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
-                <TrendBadge values={bodyFatSeries} invertColor />
-                <MetricSparkline
-                  values={bodyFatSeries}
-                  color="#a3a3a3"
-                  gradId="profile-spark-bf"
-                />
-              </div>
-            )}
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: allWeightCount >= 2 && allBfCount >= 2
+                ? 'repeat(2, minmax(0, 1fr))'
+                : '1fr',
+              gap: '12px',
+            }}>
+              {allWeightCount >= 2 && (
+                <div className="metric-summary-card">
+                  <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
+                  <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
+                  {weightSeries.length >= 2 ? (
+                    <>
+                      <TrendBadge values={weightSeries} />
+                      <MetricSparkline
+                        values={weightSeries}
+                        color="#a3a3a3"
+                        gradId="profile-spark-weight"
+                      />
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Not enough logs in range
+                    </span>
+                  )}
+                </div>
+              )}
+              {allBfCount >= 2 && (
+                <div className="metric-summary-card">
+                  <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
+                  <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
+                  {bodyFatSeries.length >= 2 ? (
+                    <>
+                      <TrendBadge values={bodyFatSeries} invertColor />
+                      <MetricSparkline
+                        values={bodyFatSeries}
+                        color="#a3a3a3"
+                        gradId="profile-spark-bf"
+                      />
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Not enough logs in range
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
