@@ -253,7 +253,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
       overflowY: 'auto',
       padding: '80px 16px 80px 16px',
       opacity: visible ? 1 : 0,
-      transform: visible ? 'translateY(0)' : 'translateY(16px)',
+      transform: visible ? 'none' : 'translateY(16px)',
       transition: 'opacity 0.2s ease, transform 0.2s ease',
     }}>
       <button
@@ -639,7 +639,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         </div>
       </div>
 
-      {pendingConfirm && (
+      {pendingConfirm && createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -703,7 +703,8 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>,
     document.body
