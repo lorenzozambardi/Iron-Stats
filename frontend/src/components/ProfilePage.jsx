@@ -333,12 +333,13 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Weight & Body Fat Trend Cards (shown once >= 2 logs exist for a metric) */}
-        {(allWeightCount >= 2 || allBfCount >= 2) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+          {(allWeightCount >= 2 || allBfCount >= 2) && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              paddingTop: '12px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+            }}>
               <LockWheelPicker
                 label="Trends"
                 options={TIME_RANGES}
@@ -350,14 +351,18 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 style={{ width: '240px', flexShrink: 0 }}
               />
             </div>
+          )}
+        </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: allWeightCount >= 2 && allBfCount >= 2
-                ? 'repeat(2, minmax(0, 1fr))'
-                : '1fr',
-              gap: '12px',
-            }}>
+        {/* Weight & Body Fat Trend Cards (shown once >= 2 logs exist for a metric) */}
+        {(allWeightCount >= 2 || allBfCount >= 2) && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: allWeightCount >= 2 && allBfCount >= 2
+              ? 'repeat(2, minmax(0, 1fr))'
+              : '1fr',
+            gap: '12px',
+          }}>
               {allWeightCount >= 2 && (
                 <div className="metric-summary-card">
                   <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
@@ -398,7 +403,6 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                   )}
                 </div>
               )}
-            </div>
           </div>
         )}
 
