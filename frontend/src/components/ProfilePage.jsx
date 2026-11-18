@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import {
   CIRCUMFERENCE_FIELDS,
@@ -47,6 +47,48 @@ const inputStyle = {
   fontVariantNumeric: 'tabular-nums',
   outline: 'none',
 };
+
+function FormattedDateInput({ value, max, dateFormat, onChange, ariaLabel, style }) {
+  return (
+    <div
+      style={{
+        ...inputStyle,
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px',
+        cursor: 'pointer',
+        ...style,
+      }}
+    >
+      <span>{value ? formatDisplayDate(value, dateFormat) : '—'}</span>
+      <Calendar size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+      <input
+        type="date"
+        value={value}
+        max={max}
+        aria-label={ariaLabel}
+        onChange={onChange}
+        onClick={(e) => {
+          try {
+            e.currentTarget.showPicker?.();
+          } catch {
+            // Ignore browsers where showPicker is restricted
+          }
+        }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          cursor: 'pointer',
+        }}
+      />
+    </div>
+  );
+}
 
 export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/yyyy', onBack }) {
   const [visible, setVisible] = useState(false);
@@ -252,13 +294,13 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               Profile
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <input
-                type="date"
-                max={todayStr}
-                aria-label="Log date"
-                style={{ ...inputStyle, width: 'auto', padding: '6px 10px', fontSize: '0.8rem' }}
+              <FormattedDateInput
                 value={logDate}
+                max={todayStr}
+                dateFormat={dateFormat}
+                ariaLabel="Log date"
                 onChange={(e) => setLogDate(e.target.value || todayStr)}
+                style={{ width: 'auto', padding: '6px 10px', fontSize: '0.8rem' }}
               />
               <button
                 type="button"
@@ -352,10 +394,11 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               <span className="profile-stat-label">
                 Birth Date{age !== null ? ` · ${age} yrs` : ''}
               </span>
-              <input
-                type="date"
-                style={inputStyle}
+              <FormattedDateInput
                 value={current.birthDate || ''}
+                max={todayStr}
+                dateFormat={dateFormat}
+                ariaLabel="Birth Date"
                 onChange={(e) => updateCurrent('birthDate', e.target.value)}
               />
             </label>
