@@ -340,6 +340,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <LockWheelPicker
+                label="Trends"
                 options={TIME_RANGES}
                 value={timeRange}
                 onChange={setTimeRange}
