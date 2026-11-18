@@ -338,9 +338,8 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         {/* Weight & Body Fat Trend Cards (shown once >= 2 logs exist for a metric) */}
         {(allWeightCount >= 2 || allBfCount >= 2) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
               <LockWheelPicker
-                label="Range"
                 options={TIME_RANGES}
                 value={timeRange}
                 onChange={setTimeRange}
