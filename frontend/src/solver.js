@@ -193,27 +193,35 @@ export class WorkoutSolver {
             throw new RangeError('Exercise database cannot be empty');
         }
 
-        if (this.config.days < 1) {
+        if (!Number.isFinite(this.config.days) || this.config.days < 1) {
             throw new RangeError(`days must be >= 1, got ${this.config.days}`);
         }
-        if (this.config.min_ex < 1 || this.config.max_ex < this.config.min_ex) {
+        if (!Number.isFinite(this.config.min_ex) || !Number.isFinite(this.config.max_ex) || this.config.min_ex < 1 || this.config.max_ex < this.config.min_ex) {
             throw new RangeError(`Invalid min_ex/max_ex: ${this.config.min_ex}, ${this.config.max_ex}`);
         }
-        if (this.config.min_sets < 1 || this.config.max_sets < this.config.min_sets) {
+        if (!Number.isFinite(this.config.min_sets) || !Number.isFinite(this.config.max_sets) || this.config.min_sets < 1 || this.config.max_sets < this.config.min_sets) {
             throw new RangeError(`Invalid min_sets/max_sets: ${this.config.min_sets}, ${this.config.max_sets}`);
         }
-        if (this.config.min_reps < 1 || this.config.max_reps < this.config.min_reps) {
+        if (!Number.isFinite(this.config.min_reps) || !Number.isFinite(this.config.max_reps) || this.config.min_reps < 1 || this.config.max_reps < this.config.min_reps) {
             throw new RangeError(`Invalid min_reps/max_reps: ${this.config.min_reps}, ${this.config.max_reps}`);
         }
 
         if (this.config.iterations !== undefined) {
-            this.config.iterations = Math.min(Math.max(0, this.config.iterations), 100000);
+            const rawIter = Number(this.config.iterations);
+            this.config.iterations = Number.isFinite(rawIter) ? Math.min(Math.max(0, Math.floor(rawIter)), 100000) : 10000;
         }
 
         this.resolution = 50;
 
+        // Deduplicate by exercise name (keeping last definition) so ex_curves lookups stay consistent
+        const seenNames = new Map();
+        for (const ex of db) {
+            seenNames.set(ex.name, ex);
+        }
+        const uniqueDb = Array.from(seenNames.values());
+
         // Clone exercises and enforce partition-of-unity on muscles_distr without mutating caller DB
-        this.db = db.map(ex => {
+        this.db = uniqueDb.map(ex => {
             const fatigue = Number(ex.fatigue ?? 5.0);
             const loadCoeff = Number(ex.load_coeff ?? 0.5);
             const loadMult = Number(ex.load_multiplier ?? 1.0);
@@ -314,9 +322,13 @@ export class WorkoutSolver {
                 if (!Number.isFinite(m_val) || m_val <= 0) continue;
                 const macroSubs = subs_dict[macro];
                 if (macroSubs && Object.keys(macroSubs).length > 0) {
-                    const subSum = Object.values(macroSubs).reduce((acc, v) => acc + Math.max(0.0, Number(v) || 0.0), 0.0);
+                    const subSum = Object.values(macroSubs).reduce((acc, v) => {
+                        const n = Number(v);
+                        return acc + (Number.isFinite(n) && n > 0 ? n : 0.0);
+                    }, 0.0);
                     for (const sub in macroSubs) {
-                        const s_val = Math.max(0.0, Number(macroSubs[sub]) || 0.0);
+                        const n = Number(macroSubs[sub]);
+                        const s_val = Number.isFinite(n) && n > 0 ? n : 0.0;
                         this.target_sub_vol[sub] = subSum > 0.0 ? (m_val / 100.0) * (s_val / subSum) : 0.0;
                     }
                 } else {
@@ -599,12 +611,19 @@ export class WorkoutSolver {
         // 3. Distribution Error
         let E_distr = 0.0;
         
-        if (totalSubVol > 0 && hasTargetDistr) {
-            for (const m of this.distr_muscles) {
-                const targetPct = this.target_sub_vol[m] || 0.0;
-                const actualPct = (subVols[m] || 0.0) / totalSubVol;
-                const dDiff = actualPct - targetPct;
-                E_distr += dDiff * dDiff;
+        if (hasTargetDistr) {
+            if (totalSubVol > 0) {
+                for (const m of this.distr_muscles) {
+                    const targetPct = this.target_sub_vol[m] || 0.0;
+                    const actualPct = (subVols[m] || 0.0) / totalSubVol;
+                    const dDiff = actualPct - targetPct;
+                    E_distr += dDiff * dDiff;
+                }
+            } else {
+                for (const m of this.distr_muscles) {
+                    const targetPct = this.target_sub_vol[m] || 0.0;
+                    E_distr += targetPct * targetPct;
+                }
             }
             E_distr *= 0.5;
         }
@@ -771,7 +790,8 @@ export class WorkoutSolver {
      * over ``calibration_steps`` random states (empirical sample mean, guarded at ``1e-6``).
      */
     calibrate() {
-        const steps = this.config.calibration_steps ?? 500;
+        const rawSteps = Number(this.config.calibration_steps ?? 500);
+        const steps = Number.isFinite(rawSteps) ? Math.min(Math.max(0, Math.floor(rawSteps)), 5000) : 500;
         if (steps <= 0) {
             this.scales = {};
             return;
@@ -804,16 +824,23 @@ export class WorkoutSolver {
      * by `coolingRate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
      * is applied and the new state is evaluated.
      */
-    async solve(iterations = null, initialTemp = 50.0, coolingRate = null, progressCallback = null) {
-        const effectiveIterations = Math.min(
-            Math.max(0, iterations ?? this.config.iterations ?? 10000),
-            100000
-        );
+    async solve(iterations = null, initialTemp = 50.0, coolingRate = null, progressCallback = null, shouldCancel = null) {
+        const rawIter = Number(iterations ?? this.config.iterations ?? 10000);
+        const effectiveIterations = Number.isFinite(rawIter)
+            ? Math.min(Math.max(0, Math.floor(rawIter)), 100000)
+            : 10000;
+        const safeInitialTemp = (Number.isFinite(initialTemp) && initialTemp > 0) ? initialTemp : 50.0;
         if (coolingRate === null || coolingRate === undefined) {
-            coolingRate = effectiveIterations > 0 ? Math.pow(0.01 / initialTemp, 1.0 / effectiveIterations) : 0.995;
+            coolingRate = effectiveIterations > 0 ? Math.pow(0.01 / safeInitialTemp, 1.0 / effectiveIterations) : 0.995;
+        } else if (!Number.isFinite(coolingRate) || coolingRate <= 0) {
+            coolingRate = 0.995;
         }
 
         this.calibrate();
+
+        if (shouldCancel?.()) {
+            return { bestState: null, bestCost: Infinity, cancelled: true };
+        }
 
         let currentState = this.generateRandomState();
         let currentCost = this.evaluateWorkout(currentState);
@@ -821,7 +848,7 @@ export class WorkoutSolver {
         let bestState = currentState;
         let bestCost = currentCost;
 
-        let T = initialTemp;
+        let T = safeInitialTemp;
 
         for (let i = 0; i < effectiveIterations; i++) {
             const neighbor = this.mutateWorkout(currentState);
@@ -845,6 +872,9 @@ export class WorkoutSolver {
             T *= coolingRate;
 
             if (i % 500 === 0) {
+                if (shouldCancel?.()) {
+                    return { bestState, bestCost, cancelled: true };
+                }
                 if (progressCallback) {
                     progressCallback({
                         iteration: i,
@@ -855,6 +885,9 @@ export class WorkoutSolver {
                     });
                 }
                 await new Promise(resolve => setTimeout(resolve, 0));
+                if (shouldCancel?.()) {
+                    return { bestState, bestCost, cancelled: true };
+                }
             }
         }
 

@@ -79,6 +79,7 @@ export function loadProfile() {
       if (legacyVal !== undefined) {
         if (saved[field.leftKey] === undefined) current[field.leftKey] = legacyVal;
         if (saved[field.rightKey] === undefined) current[field.rightKey] = legacyVal;
+        delete current[field.key];
       }
     }
 
@@ -104,20 +105,28 @@ export function loadProfile() {
 }
 
 export function getLimbAverage(current, field) {
-  if (!field.bilateral) return Number(current?.[field.key] || 0);
-  const l = Number(current?.[field.leftKey] || 0);
-  const r = Number(current?.[field.rightKey] || 0);
+  if (!field.bilateral) return safePositive(current?.[field.key]);
+  const l = safePositive(current?.[field.leftKey]);
+  const r = safePositive(current?.[field.rightKey]);
   if (l > 0 && r > 0) return (l + r) / 2;
   return l || r || 0;
 }
 
 export function calcAge(birthDateStr, refDate = new Date()) {
   if (!birthDateStr || typeof birthDateStr !== 'string') return null;
-  const parts = birthDateStr.split('-').map(Number);
-  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-  const [y, m, d] = parts;
+  const rawParts = birthDateStr.split('-');
+  if (rawParts.length !== 3 || rawParts.some((p) => !/^\d+$/.test(p))) return null;
+  const [y, m, d] = rawParts.map(Number);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
   const dob = new Date(y, m - 1, d);
-  if (Number.isNaN(dob.getTime())) return null;
+  if (
+    Number.isNaN(dob.getTime()) ||
+    dob.getFullYear() !== y ||
+    dob.getMonth() !== m - 1 ||
+    dob.getDate() !== d
+  ) {
+    return null;
+  }
 
   let age = refDate.getFullYear() - y;
   const monthDiff = refDate.getMonth() - (m - 1);
@@ -245,7 +254,26 @@ export function computeRadarAxes(current, compare = null) {
     ? calcFFMI(compare?.weight ?? current?.weight, cmpH, compare?.bodyFat ?? current?.bodyFat).normalizedFfmi
     : null;
 
-  const ratio = (obj, key, heightVal) => safePositive(obj?.[key]) / heightVal;
+  const armField = CIRCUMFERENCE_FIELDS.find((f) => f.key === 'arm');
+  const thighField = CIRCUMFERENCE_FIELDS.find((f) => f.key === 'thigh');
+  const getMeasure = (obj, key) => {
+    if (!obj) return 0;
+    if (key === 'arm' && armField) {
+      const avg = getLimbAverage(obj, armField);
+      return avg > 0 ? avg : safePositive(obj.arm);
+    }
+    if (key === 'thigh' && thighField) {
+      const avg = getLimbAverage(obj, thighField);
+      return avg > 0 ? avg : safePositive(obj.thigh);
+    }
+    return safePositive(obj[key]);
+  };
+  const ratio = (obj, key, heightVal) => getMeasure(obj, key) / heightVal;
+  const waistScore = (obj, heightVal) => {
+    const w = getMeasure(obj, 'waist');
+    if (w <= 0) return 20;
+    return scaleLinear(0.58 - w / heightVal, 0.02, 0.17);
+  };
 
   return [
     {
@@ -253,8 +281,8 @@ export function computeRadarAxes(current, compare = null) {
       label: 'SHOULDERS',
       scoreA: scaleLinear(ratio(current, 'shoulders', h), 0.58, 0.75),
       scoreB: hasCompare ? scaleLinear(ratio(compare, 'shoulders', cmpH), 0.58, 0.75) : null,
-      rawA: safePositive(current?.shoulders),
-      rawB: hasCompare ? safePositive(compare?.shoulders) : null,
+      rawA: getMeasure(current, 'shoulders'),
+      rawB: hasCompare ? getMeasure(compare, 'shoulders') : null,
       unit: 'cm',
     },
     {
@@ -262,8 +290,8 @@ export function computeRadarAxes(current, compare = null) {
       label: 'CHEST',
       scoreA: scaleLinear(ratio(current, 'chest', h), 0.50, 0.66),
       scoreB: hasCompare ? scaleLinear(ratio(compare, 'chest', cmpH), 0.50, 0.66) : null,
-      rawA: safePositive(current?.chest),
-      rawB: hasCompare ? safePositive(compare?.chest) : null,
+      rawA: getMeasure(current, 'chest'),
+      rawB: hasCompare ? getMeasure(compare, 'chest') : null,
       unit: 'cm',
     },
     {
@@ -271,18 +299,18 @@ export function computeRadarAxes(current, compare = null) {
       label: 'ARMS',
       scoreA: scaleLinear(ratio(current, 'arm', h), 0.175, 0.255),
       scoreB: hasCompare ? scaleLinear(ratio(compare, 'arm', cmpH), 0.175, 0.255) : null,
-      rawA: safePositive(current?.arm),
-      rawB: hasCompare ? safePositive(compare?.arm) : null,
+      rawA: getMeasure(current, 'arm'),
+      rawB: hasCompare ? getMeasure(compare, 'arm') : null,
       unit: 'cm',
     },
     {
       key: 'waist',
       label: 'WAIST',
       // Lower waist-to-height ratio yields a higher conditioning score
-      scoreA: scaleLinear(0.58 - ratio(current, 'waist', h), 0.02, 0.17),
-      scoreB: hasCompare ? scaleLinear(0.58 - ratio(compare, 'waist', cmpH), 0.02, 0.17) : null,
-      rawA: safePositive(current?.waist),
-      rawB: hasCompare ? safePositive(compare?.waist) : null,
+      scoreA: waistScore(current, h),
+      scoreB: hasCompare ? waistScore(compare, cmpH) : null,
+      rawA: getMeasure(current, 'waist'),
+      rawB: hasCompare ? getMeasure(compare, 'waist') : null,
       unit: 'cm',
     },
     {
@@ -290,8 +318,8 @@ export function computeRadarAxes(current, compare = null) {
       label: 'THIGHS',
       scoreA: scaleLinear(ratio(current, 'thigh', h), 0.275, 0.375),
       scoreB: hasCompare ? scaleLinear(ratio(compare, 'thigh', cmpH), 0.275, 0.375) : null,
-      rawA: safePositive(current?.thigh),
-      rawB: hasCompare ? safePositive(compare?.thigh) : null,
+      rawA: getMeasure(current, 'thigh'),
+      rawB: hasCompare ? getMeasure(compare, 'thigh') : null,
       unit: 'cm',
     },
     {

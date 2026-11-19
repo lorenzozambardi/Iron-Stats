@@ -90,6 +90,14 @@ export const MUSCLES = {
   "Neck Flexors": "Neck", "Neck Extensors": "Neck",
 };
 
+function parseStrictFloat(val) {
+  if (typeof val !== 'string') return NaN;
+  const trimmed = val.trim();
+  if (!trimmed) return NaN;
+  const num = Number(trimmed);
+  return Number.isFinite(num) ? num : NaN;
+}
+
 // Parse overrides from program markdown and clone/modify exercises list
 export function getExercisesWithOverrides(logText, globalExercises) {
   if (!logText || !logText.toLowerCase().includes('override:')) return globalExercises;
@@ -128,16 +136,16 @@ export function getExercisesWithOverrides(logText, globalExercises) {
             const val = part.substring(eqIdx + 1).trim();
             
             if (key === 'fatigue') {
-              const parsedVal = parseFloat(val);
+              const parsedVal = parseStrictFloat(val);
               if (Number.isFinite(parsedVal) && parsedVal >= 0.0) exObj.fatigue = parsedVal;
             } else if (key === 'load_coeff') {
-              const parsedVal = parseFloat(val);
+              const parsedVal = parseStrictFloat(val);
               if (Number.isFinite(parsedVal) && parsedVal >= 0.0) exObj.load_coeff = parsedVal;
             } else if (key === 'load_multiplier') {
-              const parsedVal = parseFloat(val);
+              const parsedVal = parseStrictFloat(val);
               if (Number.isFinite(parsedVal) && parsedVal > 0.0) exObj.load_multiplier = parsedVal;
             } else if (key === 'load_offset') {
-              const parsedVal = parseFloat(val);
+              const parsedVal = parseStrictFloat(val);
               if (Number.isFinite(parsedVal)) exObj.load_offset = parsedVal;
             } else if (key === 'is_isolation') {
               exObj.is_isolation = val.toLowerCase() === 'true' || val === '1';
@@ -321,6 +329,13 @@ const HARD_MAP = {
 };
 
 const SORTED_HARD_MAP_KEYS = Object.keys(HARD_MAP).sort((a, b) => b.length - a.length);
+const HARD_MAP_PATTERNS = SORTED_HARD_MAP_KEYS.map((key) => {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return {
+    key,
+    regex: new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i')
+  };
+});
 
 export function matchExercise(rawName, exercises) {
   const namePart = rawName.split('|')[0];
@@ -332,26 +347,31 @@ export function matchExercise(rawName, exercises) {
     }
   }
 
-  for (const key of SORTED_HARD_MAP_KEYS) {
-    if (rawLower.includes(key)) {
-      const target = exercises.find(e => e.name === HARD_MAP[key]);
-      if (target) return target;
-    }
-  }
+  const cleanRegex = /(?:\b\d+s\b|\b\d+'\d*"|\b\d+"|\b(?:ultime|mezze|reps?|fermo|su|cheattate|dds|ds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|pause|down|up|cheated|machine|contraction)\b|(?<!\p{L})giù(?!\p{L}))/giu;
+  const rawClean = namePart
+    .replace(cleanRegex, '')
+    .replace(/\|/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .trim();
 
-  const cleanRegex = /(?:\d+s|\d+"|\d+'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|reps|pause|\bdown\b|up|cheated|machine|contraction)/gi;
-  const rawClean = namePart.replace(cleanRegex, '').replace(/\|/g, '').toLowerCase().trim();
-
-  // Try exact match
+  // Try exact match after cleaning noise tags (before HARD_MAP so e.g. "Stiff Leg Deadlift 2s" or "Flat Barbell Bench 2s" resolves accurately)
   for (const ex of exercises) {
     if (ex.name.toLowerCase() === rawClean) {
       return ex;
     }
   }
 
-  // Check hard map
-  for (const key of SORTED_HARD_MAP_KEYS) {
-    if (rawClean.includes(key)) {
+  // Word-boundary HARD_MAP match on rawLower, then rawClean
+  for (const { key, regex } of HARD_MAP_PATTERNS) {
+    if (regex.test(rawLower)) {
+      const target = exercises.find(e => e.name === HARD_MAP[key]);
+      if (target) return target;
+    }
+  }
+
+  for (const { key, regex } of HARD_MAP_PATTERNS) {
+    if (regex.test(rawClean)) {
       const target = exercises.find(e => e.name === HARD_MAP[key]);
       if (target) return target;
     }
@@ -374,11 +394,30 @@ export function matchExercise(rawName, exercises) {
 }
 
 export function parseRestTime(line) {
-  const match = line.match(/\|\s*(?:(\d+)')?(?:(\d+)")?\s*(?:\||$)/);
-  if (match && (match[1] || match[2])) {
-    const m = match[1] ? parseInt(match[1], 10) : 0;
-    const s = match[2] ? parseInt(match[2], 10) : 0;
-    return m * 60 + s;
+  const parts = line.split('|');
+  if (parts.length < 2) return 120;
+  const restPattern = /^(?:(\d+)'\s*)?(?:(\d+)")?$/;
+  const trySegment = (seg) => {
+    const trimmed = seg.trim();
+    if (!trimmed) return null;
+    const match = trimmed.match(restPattern);
+    if (match && (match[1] || match[2])) {
+      const m = match[1] ? parseInt(match[1], 10) : 0;
+      const s = match[2] ? parseInt(match[2], 10) : 0;
+      return m * 60 + s;
+    }
+    return null;
+  };
+
+  const firstCol = parts[1].trim();
+  if (firstCol) {
+    const parsed = trySegment(firstCol);
+    return parsed !== null ? parsed : 120;
+  }
+
+  for (let i = 2; i < parts.length; i++) {
+    const parsed = trySegment(parts[i]);
+    if (parsed !== null) return parsed;
   }
   return 120;
 }
@@ -387,7 +426,10 @@ function parseRepToken(repStr, loads, dropsetId = null) {
   const setsOut = [];
   const repParts = repStr.split('/');
   for (let i = 0; i < repParts.length; i++) {
-    const rp = repParts[i].trim();
+    const rp = repParts[i]
+      .trim()
+      .replace(/\s*([+@])\s*/g, '$1')
+      .replace(/\s*\(\s*(\d+)\s*\)/g, '($1)');
     if (!rp) continue;
     const load = i < loads.length ? loads[i] : loads[loads.length - 1];
     
@@ -396,15 +438,16 @@ function parseRepToken(repStr, loads, dropsetId = null) {
     // Group 2: assisted reps
     // Group 3: partial reps
     // Group 4: RPE
-    const match = rp.match(/^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?/);
+    const match = rp.match(/^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?$/);
     if (match) {
       let base = parseInt(match[1], 10);
-      const assisted = match[2] ? parseInt(match[2], 10) : 0;
+      const rawAssisted = match[2] ? parseInt(match[2], 10) : 0;
+      const assisted = Math.min(rawAssisted, base);
       const partial = match[3] ? parseInt(match[3], 10) : 0;
       const rpe = match[4] ? Math.min(10.0, Math.max(0.0, parseFloat(match[4]))) : 9.0;
       
       if (assisted > 0) {
-        base = Math.max(0, base - assisted);
+        base = base - assisted;
       }
       
       // Calculate effective reps taking RPE, partials, and assisted reps into account
@@ -510,11 +553,13 @@ export function computeEffectiveTut(tuts, baseReps, rpe) {
   const fullEff = Math.floor(effBase);
   const fracEff = effBase - fullEff;
   const startIndex = Math.max(0, baseReps - fullEff);
-  let baseTut = tuts.slice(startIndex, baseReps).reduce((sum, val) => sum + val, 0);
-  if (fracEff > 0 && startIndex > 0) {
+  const boundedEnd = Math.min(baseReps, tuts.length);
+  const boundedStart = Math.min(startIndex, boundedEnd);
+  let baseTut = tuts.slice(boundedStart, boundedEnd).reduce((sum, val) => sum + val, 0);
+  if (fracEff > 0 && startIndex > 0 && startIndex - 1 < tuts.length) {
     baseTut += fracEff * tuts[startIndex - 1];
   }
-  const extendedTut = tuts.slice(baseReps).reduce((sum, val) => sum + val, 0);
+  const extendedTut = tuts.slice(boundedEnd).reduce((sum, val) => sum + val, 0);
   return baseTut + extendedTut;
 }
 
@@ -565,6 +610,15 @@ export function calculateSetFatigue(baseReps, assistedReps, partialReps, rpe, co
 }
 
 
+function parseLoadSpec(loadStr) {
+  const trimmed = loadStr.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.includes('/') ? trimmed.split('/') : [trimmed];
+  const parsed = parts.map(p => parseStrictFloat(p));
+  if (parsed.length === 0 || !parsed.every(Number.isFinite)) return null;
+  return parsed;
+}
+
 export function parseLine(line, lineIndex = 0) {
   let cleanLine = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
   if (!cleanLine) return [];
@@ -574,31 +628,52 @@ export function parseLine(line, lineIndex = 0) {
 
   const tokens = cleanLine.split(',').map(t => t.trim()).filter(Boolean);
   let currentLoads = [0.0];
+  let seqLoads = null;
+  let seqLoadIdx = 0;
   const parsedSets = [];
 
   for (const token of tokens) {
-    const hasSlash = token.includes('/');
-    const dsId = hasSlash ? nextDropsetId() : null;
-
     if (token.includes('..')) {
       const subparts = token.split('..');
       const repStr = subparts[subparts.length - 1].trim();
-      const loadStr = subparts.length > 2
-        ? subparts.slice(0, -1).join('/').trim()
-        : subparts[0].trim();
-      if (loadStr) {
-        const parsedLoads = loadStr.includes('/')
-          ? loadStr.split('/').filter(Boolean).map(Number)
-          : [parseFloat(loadStr)];
-        if (parsedLoads.length > 0 && parsedLoads.every(Number.isFinite)) {
+      const hasSlash = repStr.includes('/');
+      const dsId = hasSlash ? nextDropsetId() : null;
+
+      if (subparts.length > 2) {
+        const loadStr = subparts.slice(0, -1).join('/').trim();
+        const parsedLoads = parseLoadSpec(loadStr);
+        if (parsedLoads) {
+          if (hasSlash) {
+            currentLoads = parsedLoads;
+            seqLoads = null;
+          } else {
+            seqLoads = parsedLoads;
+            seqLoadIdx = 0;
+            currentLoads = [seqLoads[0]];
+          }
+        }
+      } else {
+        seqLoads = null;
+        const loadStr = subparts[0].trim();
+        const parsedLoads = parseLoadSpec(loadStr);
+        if (parsedLoads) {
           currentLoads = parsedLoads;
         }
       }
+
       if (repStr) {
-        parsedSets.push(...parseRepToken(repStr, currentLoads, dsId));
+        const loadsForToken = (seqLoads && !hasSlash)
+          ? [seqLoads[Math.min(seqLoadIdx++, seqLoads.length - 1)]]
+          : currentLoads;
+        parsedSets.push(...parseRepToken(repStr, loadsForToken, dsId));
       }
     } else {
-      parsedSets.push(...parseRepToken(token, currentLoads, dsId));
+      const hasSlash = token.includes('/');
+      const dsId = hasSlash ? nextDropsetId() : null;
+      const loadsForToken = (seqLoads && !hasSlash)
+        ? [seqLoads[Math.min(seqLoadIdx++, seqLoads.length - 1)]]
+        : currentLoads;
+      parsedSets.push(...parseRepToken(token, loadsForToken, dsId));
     }
   }
   return parsedSets;
@@ -610,7 +685,7 @@ export function parseLine(line, lineIndex = 0) {
  * - Exercise overrides (`override: ...`)
  * - Session numbers (`# 1`)
  * - Exercise headers (`Lat Machine | 2' | 1-0-2-0`)
- * - Sets and loads (`90..10.8+2`)
+ * - Sets and loads (`90.. 10+2, 8@8.5`)
  * And calculates TUT and effective reps for each parsed set.
  */
 export function parseLogbook(logText, exercises) {
@@ -661,43 +736,49 @@ export function parseLogbook(logText, exercises) {
         inDatesBlock = false;
       }
 
-      // Check if it's a rep/set log line (contains load.. or starts with optional 'old ' prefix + rep/set syntax)
+      // Check if it's a rep/set log line (contains load.. or rep/set syntax with optional 'old ' prefixes)
+      const lineNoOld = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
       const isLogLine = !line.includes('|') && (
-        /(?:^|\s)-?[\d./]+\s*\.\./.test(line) ||
-        /^(?:old\s+)*[\d().+/@,\s]+$/i.test(line)
+        /(?:^|\s)-?[\d.]+(?:\/-?[\d.]+)*\s*\.\./.test(lineNoOld) ||
+        (lineNoOld.length > 0 && /\d/.test(lineNoOld) && /^[\d().+/@,\s]+$/.test(lineNoOld))
       );
 
       if (isLogLine) {
         if (currentExercise) {
           let parsedSets = parseLine(line, i);
           
-          // Carry forward load if empty (e.g. line is just reps but load exists from prev week)
+          // Carry forward load if empty (e.g. line is just loads.. and reps exist from prev week)
           if (parsedSets.length === 0 && line.includes('..') && currentExercise.weeks.length > 0) {
             const cleanCf = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
             const cfSubparts = cleanCf.split('..');
             const loadStr = cfSubparts.length > 2
               ? cfSubparts.slice(0, -1).join('/').trim()
               : cfSubparts[0].trim();
-            if (loadStr) {
-              const loads = loadStr.includes('/') 
-                ? loadStr.split('/').filter(Boolean).map(Number) 
-                : [parseFloat(loadStr)];
-              if (loads.length > 0 && loads.every(Number.isFinite)) {
-                const prevSets = currentExercise.weeks[currentExercise.weeks.length - 1].sets;
-                parsedSets = prevSets.map((s, idx) => {
-                  const load = idx < loads.length ? loads[idx] : loads[loads.length - 1];
-                  const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
-                  const effectiveReps = effBase + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
-                  const totalReps = s.base_reps + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
-                  return {
-                    ...s,
-                    load,
-                    effectiveReps,
-                    totalReps,
-                    fatigue: s.fatigue
-                  };
-                });
-              }
+            const loads = parseLoadSpec(loadStr);
+            if (loads) {
+              const prevSets = currentExercise.weeks[currentExercise.weeks.length - 1].sets;
+              const dsDropCounters = new Map();
+              let nonDsIdx = 0;
+              parsedSets = prevSets.map((s) => {
+                let loadIdx;
+                if (s.dropsetId) {
+                  loadIdx = dsDropCounters.get(s.dropsetId) || 0;
+                  dsDropCounters.set(s.dropsetId, loadIdx + 1);
+                } else {
+                  loadIdx = nonDsIdx++;
+                }
+                const load = loadIdx < loads.length ? loads[loadIdx] : loads[loads.length - 1];
+                const effBase = Math.min(s.base_reps, Math.max(0, s.rpe - 4.0));
+                const effectiveReps = effBase + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
+                const totalReps = s.base_reps + (s.assisted_reps * COEFF_ASSISTED) + (s.partial_reps * COEFF_PARTIAL);
+                return {
+                  ...s,
+                  load,
+                  effectiveReps,
+                  totalReps,
+                  fatigue: s.fatigue
+                };
+              });
             }
           }
 
@@ -764,6 +845,8 @@ export function parseLogbook(logText, exercises) {
           };
           workoutData.push(currentExercise);
           currentWeek = 1;
+        } else if (line.includes('|')) {
+          currentExercise = null;
         }
       }
     } catch (e) {

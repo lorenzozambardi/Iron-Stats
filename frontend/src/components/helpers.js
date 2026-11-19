@@ -113,9 +113,10 @@ export const solveBezierY = (targetX, x0, y0, x1, y1, x2, y2, x3, y3) => {
 };
 
 export const getBezierCurveData = (musclesDistrList, resolution = 50) => {
+  const safeRes = Number.isFinite(resolution) && resolution >= 1 ? Math.floor(resolution) : 50;
   const data = [];
-  for (let i = 0; i <= resolution; i++) {
-    data.push({ x: i / resolution });
+  for (let i = 0; i <= safeRes; i++) {
+    data.push({ x: i / safeRes });
   }
 
   musclesDistrList.forEach((m) => {
@@ -127,18 +128,19 @@ export const getBezierCurveData = (musclesDistrList, resolution = 50) => {
     const y2 = m.y2 ?? 1.0;
     const x3 = m.x3 ?? 1.0;
     const y3 = m.y3 ?? 1.0;
-    const magnitude = parseFloat(m.percentage) / 100.0;
+    const parsedPct = parseFloat(m.percentage);
+    const magnitude = Number.isFinite(parsedPct) ? Math.max(0, parsedPct) / 100.0 : 0.0;
     
     const rawY = [];
     let maxY = 0;
-    for (let i = 0; i <= resolution; i++) {
-      const x = i / resolution;
+    for (let i = 0; i <= safeRes; i++) {
+      const x = i / safeRes;
       const y = solveBezierY(x, x0, y0, x1, y1, x2, y2, x3, y3);
       rawY.push(y);
       if (y > maxY) maxY = y;
     }
     
-    for (let i = 0; i <= resolution; i++) {
+    for (let i = 0; i <= safeRes; i++) {
       if (maxY > 0) {
         data[i][m.name] = (rawY[i] / maxY) * magnitude;
       } else {
@@ -218,6 +220,9 @@ export const getMinMax = (values, compareValues, hasA, hasB) => {
       if (v < min) min = v;
       if (v > max) max = v;
     }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: 0, range: 0 };
   }
   return { min, max, range: max - min };
 };

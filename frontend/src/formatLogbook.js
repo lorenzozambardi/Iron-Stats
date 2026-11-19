@@ -7,7 +7,7 @@ import { isDateLine, isDatesHeader } from './parser';
  */
 export const formatLogbookSpaces = (text) => {
   if (typeof text !== 'string' || text.length === 0) {
-    return text || '';
+    return '';
   }
 
   const normalizedNewlines = text.includes('\r') ? text.replace(/\r\n?/g, '\n') : text;
