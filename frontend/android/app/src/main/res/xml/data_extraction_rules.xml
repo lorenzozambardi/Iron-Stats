@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="iron_stats_secure_prefs.xml" />
+        <exclude domain="file" path="analytics/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="iron_stats_secure_prefs.xml" />
+        <exclude domain="file" path="analytics/" />
+    </device-transfer>
+</data-extraction-rules>

@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         SplashScreen.installSplashScreen(this);
         registerPlugin(FolderPickerPlugin.class);
         registerPlugin(StopwatchPlugin.class);
+        registerPlugin(SecureStorePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

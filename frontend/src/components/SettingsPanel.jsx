@@ -10,6 +10,7 @@ import {
   Check
 } from 'lucide-react';
 import { DATE_FORMATS } from '../profileUtils';
+import { AnalyticsSettingsSection } from '../analytics/ui/AnalyticsSettingsSection';
 
 const resolveColor = (value, list, colorKey = 'color') => {
   if (!value) return '#000000';
@@ -351,6 +352,9 @@ export const SettingsPanel = memo(({
           </div>
         </div>
       )}
+
+      {/* AI Analytics Section */}
+      <AnalyticsSettingsSection />
 
       {/* Appearance Section */}
       <div className="settings-section">
