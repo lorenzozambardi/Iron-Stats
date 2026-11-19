@@ -259,6 +259,16 @@ export default function SmartAnalyticsPage({
           <div className="sa-run-actions">
             <button
               type="button"
+              className="sa-pill-btn"
+              disabled={!dataset}
+              onClick={runOfflineScan}
+              title="Run deterministic local bottlenecks & correlation scan without calling DeepSeek"
+            >
+              <Cpu size={14} /> Local Signals (Offline)
+            </button>
+
+            <button
+              type="button"
               className="sa-run-primary-btn"
               disabled={!canRun}
               onClick={() => handleTriggerRun(false)}
@@ -266,16 +276,6 @@ export default function SmartAnalyticsPage({
             >
               <Play size={15} />
               <span>{runState === 'running' ? 'Running Analysis…' : `Run ${activePreset.label} Analysis`}</span>
-            </button>
-
-            <button
-              type="button"
-              className="sa-pill-btn"
-              disabled={!dataset}
-              onClick={runOfflineScan}
-              title="Run deterministic local bottlenecks & correlation scan without calling DeepSeek"
-            >
-              <Cpu size={14} /> Local Signals (Offline)
             </button>
           </div>
         </section>

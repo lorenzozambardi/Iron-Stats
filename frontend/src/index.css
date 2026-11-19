@@ -4554,9 +4554,9 @@ input::-webkit-list-button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 10px 22px;
   min-height: 44px;
-  border-radius: 12px;
+  border-radius: 99px;
   border: none;
   background: var(--accent-primary);
   color: #fff;
