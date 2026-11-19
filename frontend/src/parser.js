@@ -1,6 +1,51 @@
 const COEFF_ASSISTED = 0.5;
 const COEFF_PARTIAL = 0.33;
 
+export function isDatesHeader(line) {
+  return typeof line === 'string' && /^dates:\s*$/i.test(line.trim());
+}
+
+/**
+ * Parses DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD into ISO YYYY-MM-DD.
+ * Returns null for invalid dates or '-' placeholder.
+ */
+export function parseDateTokenToISO(raw) {
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!s || s === '-') return null;
+
+  let y;
+  let m;
+  let d;
+  const dmy = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  const ymd = s.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+  if (dmy) {
+    d = parseInt(dmy[1], 10);
+    m = parseInt(dmy[2], 10);
+    y = parseInt(dmy[3], 10);
+  } else if (ymd) {
+    y = parseInt(ymd[1], 10);
+    m = parseInt(ymd[2], 10);
+    d = parseInt(ymd[3], 10);
+  } else {
+    return null;
+  }
+
+  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2150) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+    return null;
+  }
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+export function isDateLine(line) {
+  if (typeof line !== 'string') return false;
+  const s = line.trim();
+  if (s === '-') return true;
+  return parseDateTokenToISO(s) !== null;
+}
+
 export const MUSCLES = {
   // --- Chest ---
   "Clavicular Head": "Chest", "Sternal Head": "Chest", "Costal Head": "Chest",
@@ -572,9 +617,11 @@ export function parseLogbook(logText, exercises) {
   const lines = logText.split('\n');
   const localExercises = getExercisesWithOverrides(logText, exercises);
   const workoutData = [];
+  const sessionDates = new Map();
   let currentExercise = null;
   let currentWeek = 1;
   let currentSession = 0;
+  let inDatesBlock = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -587,11 +634,31 @@ export function parseLogbook(logText, exercises) {
         if (match) {
           currentSession = parseInt(match[0], 10);
         }
+        inDatesBlock = false;
+        currentExercise = null;
         continue;
       }
 
       if (line.toLowerCase().startsWith('override:')) {
+        inDatesBlock = false;
         continue;
+      }
+
+      if (isDatesHeader(line)) {
+        inDatesBlock = true;
+        currentExercise = null;
+        if (!sessionDates.has(currentSession)) {
+          sessionDates.set(currentSession, []);
+        }
+        continue;
+      }
+
+      if (inDatesBlock) {
+        if (isDateLine(line)) {
+          sessionDates.get(currentSession).push(parseDateTokenToISO(line));
+          continue;
+        }
+        inDatesBlock = false;
       }
 
       // Check if it's a rep/set log line (contains '..' or starts with optional 'old ' prefix + rep/set syntax)
@@ -666,8 +733,12 @@ export function parseLogbook(logText, exercises) {
             };
           });
 
+          const datesForSession = sessionDates.get(currentSession) || [];
+          const microcycleDate = datesForSession[currentWeek - 1] ?? null;
+
           currentExercise.weeks.push({
             week_num: currentWeek,
+            date: microcycleDate,
             sets: parsedSets,
             raw_line: line,
             lineIndex: i

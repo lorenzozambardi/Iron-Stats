@@ -1,4 +1,5 @@
 import { isSetLine } from './components/customFoldService';
+import { isDateLine, isDatesHeader } from './parser';
 
 /**
  * Normalizes horizontal whitespace in a logbook markdown string.
@@ -20,6 +21,10 @@ export const formatLogbookSpaces = (text) => {
     if (line.length > 0) {
       if (line.startsWith('#')) {
         line = line.replace(/^(#+)\s*(?=\S)/, '$1 ');
+      } else if (isDatesHeader(line)) {
+        line = 'Dates:';
+      } else if (isDateLine(line)) {
+        // Keep date lines untouched
       } else if (/^override:/i.test(line)) {
         line = line
           .replace(/^override:\s*/i, 'override: ')

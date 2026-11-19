@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { MUSCLES } from '../parser';
+import { MUSCLES, isDateLine, isDatesHeader } from '../parser';
 
 function parseSetLineToSets(line) {
   if (!line || !line.trim()) return [];
@@ -14,6 +14,7 @@ function parseLogbookToStructure(text) {
   const sessions = [];
   let currentSession = null;
   let currentExercise = null;
+  let inDatesBlock = false;
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i];
@@ -24,16 +25,32 @@ function parseLogbookToStructure(text) {
     if (line.startsWith('#')) {
       currentSession = {
         title: line,
+        dates: [],
         exercises: []
       };
       sessions.push(currentSession);
       currentExercise = null;
+      inDatesBlock = false;
       continue;
     }
 
     if (!currentSession) {
-      currentSession = { title: '# 1', exercises: [] };
+      currentSession = { title: '# 1', dates: [], exercises: [] };
       sessions.push(currentSession);
+    }
+
+    if (isDatesHeader(line)) {
+      inDatesBlock = true;
+      currentExercise = null;
+      continue;
+    }
+
+    if (inDatesBlock) {
+      if (isDateLine(line)) {
+        currentSession.dates.push(line);
+        continue;
+      }
+      inDatesBlock = false;
     }
 
     const isSetLine = line.includes('..') || /^[old\s]*[\d().+/@,\s]+$/i.test(line);
@@ -81,6 +98,9 @@ function parseLogbookToStructure(text) {
 function serializeStructureToText(sessions) {
   return sessions.map(sess => {
     let sStr = (sess.title || '').startsWith('#') ? sess.title : `# ${sess.title || ''}`;
+    if (Array.isArray(sess.dates) && sess.dates.length > 0) {
+      sStr += `\nDates:\n${sess.dates.join('\n')}`;
+    }
     const exStrs = sess.exercises.map(ex => {
       let header = ex.name;
       if (ex.rest) header += ` | ${ex.rest}`;

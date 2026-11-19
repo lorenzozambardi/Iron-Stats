@@ -5,6 +5,8 @@ import { foldGutter } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
 import { customFoldService } from './customFoldService';
+import { resolveImmediateSnippet } from './editorSnippets';
+import { isDateLine, isDatesHeader } from '../parser';
 import { fuzzyScore } from './helpers';
 
 const editorTheme = EditorView.theme({
@@ -178,6 +180,10 @@ export default function FoldableEditor({
             textBefore.includes('|') ||
             trimmedBefore.startsWith('#') ||
             trimmedBefore.toLowerCase().startsWith('override:') ||
+            isDatesHeader(trimmedBefore) ||
+            isDateLine(trimmedBefore) ||
+            trimmedBefore === 'date' ||
+            trimmedBefore === 'eq' ||
             /^\d/.test(trimmedBefore)
           ) {
             return null;
@@ -224,6 +230,32 @@ export default function FoldableEditor({
         const head = update.state.selection.main.head;
         const line = update.state.doc.lineAt(head);
         onCursorLineChangeRef.current(line.number - 1);
+      }
+
+      if (
+        update.docChanged &&
+        !isSyncingExternalRef.current &&
+        update.transactions.some((tr) => tr.isUserEvent('input.type'))
+      ) {
+        const head = update.state.selection.main.head;
+        const line = update.state.doc.lineAt(head);
+        const cursorCol = head - line.from;
+        const docLines = update.state.doc.toString().split('\n');
+        const expansion = resolveImmediateSnippet({
+          lineText: line.text,
+          cursorCol,
+          docLines,
+          lineIndex: line.number - 1,
+        });
+        if (expansion) {
+          const from = line.from + expansion.replaceFromCol;
+          const to = line.from + expansion.replaceToCol;
+          const nextCursor = from + expansion.insert.length;
+          update.view.dispatch({
+            changes: { from, to, insert: expansion.insert },
+            selection: { anchor: nextCursor, head: nextCursor },
+          });
+        }
       }
     })
   ], [exerciseCompletion]);
