@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { ShieldAlert, X } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
 export function ConsentModal({ anonymize, onToggleAnonymize, onAccept, onClose }) {
   return createPortal(
@@ -10,8 +10,8 @@ export function ConsentModal({ anonymize, onToggleAnonymize, onAccept, onClose }
             <ShieldAlert size={18} style={{ color: 'var(--accent-primary)' }} />
             <div className="sa-drawer-title">Before Running Smart Analytics</div>
           </div>
-          <button type="button" className="sa-icon-btn" onClick={onClose} aria-label="Close consent dialog">
-            <X size={18} />
+          <button type="button" className="sa-drawer-close-btn" onClick={onClose} aria-label="Close consent dialog">
+            ×
           </button>
         </div>
 

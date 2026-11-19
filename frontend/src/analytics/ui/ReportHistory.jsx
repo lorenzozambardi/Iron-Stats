@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X, Trash2, Clock } from 'lucide-react';
+import { Trash2, Clock } from 'lucide-react';
 import { formatDisplayDate } from '../../profileUtils.js';
 
 export function ReportHistory({ reports, activeReportId, currentFingerprint, dateFormat, onSelect, onDelete, onClose }) {
@@ -11,8 +11,8 @@ export function ReportHistory({ reports, activeReportId, currentFingerprint, dat
             <Clock size={16} style={{ color: 'var(--accent-primary)' }} />
             <div className="sa-drawer-title">Saved Reports ({reports.length})</div>
           </div>
-          <button type="button" className="sa-icon-btn" onClick={onClose} aria-label="Close history">
-            <X size={18} />
+          <button type="button" className="sa-drawer-close-btn" onClick={onClose} aria-label="Close history">
+            ×
           </button>
         </div>
 

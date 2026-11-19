@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X, AlertTriangle, Database } from 'lucide-react';
+import { AlertTriangle, Database } from 'lucide-react';
 import { describeToolCallHuman } from '../tools/registry.js';
 import { formatLedgerValue } from '../grounding/evidenceLedger.js';
 
@@ -57,8 +57,8 @@ export function EvidenceDrawer({ entry, onClose }) {
               </div>
             </div>
           </div>
-          <button type="button" className="sa-icon-btn" onClick={onClose} aria-label="Close evidence drawer">
-            <X size={18} />
+          <button type="button" className="sa-drawer-close-btn" onClick={onClose} aria-label="Close evidence drawer">
+            ×
           </button>
         </div>
 

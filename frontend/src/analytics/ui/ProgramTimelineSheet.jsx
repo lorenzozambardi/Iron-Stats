@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 
 export function ProgramTimelineSheet({ macrocycles, programMeta, onSave, onClose }) {
   const [rows, setRows] = useState(() =>
@@ -59,8 +59,8 @@ export function ProgramTimelineSheet({ macrocycles, programMeta, onSave, onClose
               Reorder macrocycles, exclude variants, or set fallback start dates & microcycle lengths (used when session Dates: blocks aren&apos;t present).
             </div>
           </div>
-          <button type="button" className="sa-icon-btn" onClick={onClose} aria-label="Close timeline editor">
-            <X size={18} />
+          <button type="button" className="sa-drawer-close-btn" onClick={onClose} aria-label="Close timeline editor">
+            ×
           </button>
         </div>
 
