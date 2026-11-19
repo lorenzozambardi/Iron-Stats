@@ -213,13 +213,41 @@ function getExerciseProgressionHandler(dataset, args, ledger) {
   const field = measureMap[measure];
   if (!field) return { error: `Invalid measure "${measure}".`, validValues: Object.keys(measureMap) };
 
-  const rows = dataset.exerciseMicrocycles
+  const rawRows = dataset.exerciseMicrocycles
     .filter((em) => em.exerciseName === exercise && (!macroId || em.macrocycleId === macroId))
-    .filter((em) => Number.isFinite(em[field]))
-    .sort((a, b) => a.timelineIndex - b.timelineIndex);
+    .filter((em) => Number.isFinite(em[field]));
+
+  // Aggregate by (macrocycleId, microcycle) so lifts done in multiple sessions per microcycle
+  // produce one microcycle-grain observation (matching seriesResolver.js).
+  const byMc = new Map();
+  for (const r of rawRows) {
+    const key = `${r.macrocycleId}|${r.microcycle}`;
+    const existing = byMc.get(key);
+    if (!existing) {
+      byMc.set(key, {
+        ...r,
+        setsSum: r.sets,
+        sfrs: Number.isFinite(r.sfr) ? [r.sfr] : [],
+        valAgg: r[field],
+        anyHighRep: r.highRepWarning,
+      });
+    } else {
+      existing.setsSum += r.sets;
+      if (Number.isFinite(r.sfr)) existing.sfrs.push(r.sfr);
+      existing.anyHighRep = existing.anyHighRep || r.highRepWarning;
+      if (measure === 'volumeLoad') {
+        existing.valAgg += r[field];
+      } else if (r[field] > existing.valAgg) {
+        existing.valAgg = r[field];
+        existing.topSetLoad = r.topSetLoad;
+        existing.repsAtTopLoad = r.repsAtTopLoad;
+      }
+    }
+  }
+  const rows = Array.from(byMc.values()).sort((a, b) => a.timelineIndex - b.timelineIndex);
 
   if (rows.length < 3) {
-    return makeUnavailable('get_exercise_progression', args, `Only ${rows.length} microcycle exposures for "${exercise}" (need >= 3).`, ledger);
+    return makeUnavailable('get_exercise_progression', args, `Only ${rows.length} microcycles for "${exercise}" (need >= 3).`, ledger);
   }
 
   const series = rows.map((r, idx) => ({
@@ -227,13 +255,13 @@ function getExerciseProgressionHandler(dataset, args, ledger) {
     timelineIndex: r.timelineIndex,
     label: `${r.macrocycleId} MC${r.microcycle}`,
     date: r.date || r.windowStart || null,
-    y: r[field],
+    y: r.valAgg,
     macrocycleId: r.macrocycleId,
     microcycle: r.microcycle,
     topSetLoad: r.topSetLoad,
     repsAtTopLoad: r.repsAtTopLoad,
-    sets: r.sets,
-    sfr: r.sfr,
+    sets: r.setsSum,
+    sfr: r.sfrs.length > 0 ? mean(r.sfrs) : null,
   }));
 
   const xs = series.map((p) => p.x);
@@ -770,12 +798,34 @@ function rankBottlenecksHandler(dataset, args, ledger) {
   for (const em of dataset.exerciseMicrocycles) {
     if (macroId && em.macrocycleId !== macroId) continue;
     if (!Number.isFinite(em.e1rm)) continue;
-    if (!byEx.has(em.exerciseName)) byEx.set(em.exerciseName, []);
-    byEx.get(em.exerciseName).push(em);
+    if (!byEx.has(em.exerciseName)) byEx.set(em.exerciseName, new Map());
+    const mcMap = byEx.get(em.exerciseName);
+    const key = `${em.macrocycleId}|${em.microcycle}`;
+    const existing = mcMap.get(key);
+    if (!existing) {
+      mcMap.set(key, {
+        timelineIndex: em.timelineIndex,
+        e1rm: em.e1rm,
+        sfrs: Number.isFinite(em.sfr) ? [em.sfr] : [],
+        fatigue: em.fatigue,
+        isIsolation: em.isIsolation,
+      });
+    } else {
+      if (em.e1rm > existing.e1rm) existing.e1rm = em.e1rm;
+      if (Number.isFinite(em.sfr)) existing.sfrs.push(em.sfr);
+      existing.fatigue += em.fatigue;
+    }
   }
 
-  for (const [exName, rows] of byEx.entries()) {
-    rows.sort((a, b) => a.timelineIndex - b.timelineIndex);
+  const byExRows = new Map();
+  for (const [exName, mcMap] of byEx.entries()) {
+    const rows = Array.from(mcMap.values())
+      .map((r) => ({ ...r, sfr: r.sfrs.length > 0 ? mean(r.sfrs) : null }))
+      .sort((a, b) => a.timelineIndex - b.timelineIndex);
+    byExRows.set(exName, rows);
+  }
+
+  for (const [exName, rows] of byExRows.entries()) {
     if (rows.length < 4) continue;
     const xs = rows.map((_, i) => i + 1);
     const ys = rows.map((r) => r.e1rm);
@@ -800,7 +850,7 @@ function rankBottlenecksHandler(dataset, args, ledger) {
   const compoundSfrs = [];
   const isoSfrs = [];
   const exSfrRows = [];
-  for (const [exName, rows] of byEx.entries()) {
+  for (const [exName, rows] of byExRows.entries()) {
     const sfrs = rows.map((r) => r.sfr).filter(Number.isFinite);
     if (sfrs.length < 3) continue;
     const m = mean(sfrs);
