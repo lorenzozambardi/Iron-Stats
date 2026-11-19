@@ -3,7 +3,9 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
+const SmartAnalyticsPage = React.lazy(() => import('../../analytics/ui/SmartAnalyticsPage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
+import SmartAnalyticsPreviewCard from '../../analytics/ui/SmartAnalyticsPreviewCard';
 import { MetricSparkline, TrendBadge } from '../Sparkline';
 import { loadProfile, saveProfile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
@@ -421,6 +423,9 @@ const DashboardTab = ({
   setSelectedMetricDetail,
   profileOpen,
   setProfileOpen,
+  analyticsOpen,
+  setAnalyticsOpen,
+  onOpenSettings,
   dateFormat,
 }) => {
   const isDashboardActive = isMobile || activeTab === 'dashboard';
@@ -1145,6 +1150,13 @@ const DashboardTab = ({
                     onOpen={() => setProfileOpen(true)}
                   />
 
+                  {/* ── Full-Width Smart Analytics Preview Card ── */}
+                  <SmartAnalyticsPreviewCard
+                    onOpen={() => setAnalyticsOpen(true)}
+                    programsCount={programs.length}
+                    dateFormat={dateFormat}
+                  />
+
                   {/* ── Summary Cards ── */}
                   {compareMode && compareProgram && !compareLoading ? (
                     <>
@@ -1414,6 +1426,21 @@ const DashboardTab = ({
                 setProfile={setProfile}
                 dateFormat={dateFormat}
                 onBack={() => setProfileOpen(false)}
+              />
+            </React.Suspense>
+          )}
+
+          {/* Smart Analytics Overlay */}
+          {analyticsOpen && (
+            <React.Suspense fallback={<div className="loading-spinner">Loading Smart Analytics...</div>}>
+              <SmartAnalyticsPage
+                isMobile={isMobile}
+                exercisesDb={exercisesDb}
+                profile={profile}
+                programs={programs}
+                dateFormat={dateFormat}
+                onOpenSettings={onOpenSettings}
+                onBack={() => setAnalyticsOpen(false)}
               />
             </React.Suspense>
           )}

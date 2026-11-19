@@ -94,6 +94,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [showDesktopSettings, setShowDesktopSettings] = useState(false);
@@ -551,7 +552,8 @@ export default function App() {
   useEffect(() => {
     let backListener;
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-      if (profileOpen) window.dispatchEvent(new Event('close-profile-page'));
+      if (analyticsOpen) window.dispatchEvent(new Event('close-analytics-page'));
+      else if (profileOpen) window.dispatchEvent(new Event('close-profile-page'));
       else if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
       else if (showNewProgramModal) setShowNewProgramModal(false);
       else if (showExerciseModal) setShowExerciseModal(false);
@@ -569,7 +571,7 @@ export default function App() {
     return () => {
       if (backListener) backListener.remove();
     };
-  }, [profileOpen, selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
+  }, [analyticsOpen, profileOpen, selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
 
   // Load initial data
   useEffect(() => {
@@ -1441,6 +1443,9 @@ export default function App() {
           setSelectedMetricDetail={setSelectedMetricDetail}
           profileOpen={profileOpen}
           setProfileOpen={setProfileOpen}
+          analyticsOpen={analyticsOpen}
+          setAnalyticsOpen={setAnalyticsOpen}
+          onOpenSettings={() => (isMobile ? setShowMobileSettings(true) : setShowDesktopSettings(true))}
           dateFormat={dateFormat}
         />
         {/* TAB CONTENT: EXERCISE DATABASE */}
