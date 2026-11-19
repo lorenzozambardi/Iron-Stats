@@ -354,6 +354,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
       let base = parseInt(match[1], 10);
       const assisted = match[2] ? parseInt(match[2], 10) : 0;
       const partial = match[3] ? parseInt(match[3], 10) : 0;
+      const rpeLogged = Boolean(match[4]);
       const rpe = match[4] ? Math.min(10.0, Math.max(0.0, parseFloat(match[4]))) : 9.0;
       
       if (assisted > 0) {
@@ -371,6 +372,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
         assisted_reps: assisted,
         partial_reps: partial,
         rpe,
+        rpeLogged,
         effectiveReps,
         totalReps,
         ...(dropsetId ? { dropsetId } : {})

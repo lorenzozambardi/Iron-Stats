@@ -145,6 +145,15 @@ export default defineConfig({
       }
     }
   ],
+  server: {
+    proxy: {
+      '/__deepseek': {
+        target: 'https://api.deepseek.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/__deepseek/, ''),
+      },
+    },
+  },
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {
