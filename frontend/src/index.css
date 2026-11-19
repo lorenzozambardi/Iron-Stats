@@ -4304,27 +4304,21 @@ input::-webkit-list-button {
   background: var(--bg-primary);
   z-index: 10000;
   overflow-y: auto;
-  padding: max(64px, env(safe-area-inset-top) + 48px) 16px max(80px, env(safe-area-inset-bottom) + 48px) 16px;
+  padding: 80px 16px 80px 16px;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .sa-close-btn {
-  position: fixed;
-  top: max(16px, env(safe-area-inset-top) + 8px);
-  right: 18px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border-color);
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
   color: var(--text-primary);
-  font-size: 1.7rem;
+  font-size: 2rem;
   line-height: 1;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10002;
+  padding: 0;
 }
 
 .sa-page-container {
