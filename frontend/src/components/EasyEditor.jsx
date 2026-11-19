@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MUSCLES, isDateLine, isDatesHeader } from '../parser';
+import { formatTodayDDMMYYYY } from './editorSnippets';
 
 function parseSetLineToSets(line) {
   if (!line || !line.trim()) return [];
@@ -53,7 +54,10 @@ function parseLogbookToStructure(text) {
       inDatesBlock = false;
     }
 
-    const isSetLine = line.includes('..') || /^[old\s]*[\d().+/@,\s]+$/i.test(line);
+    const isSetLine = !line.includes('|') && (
+      /(?:^|\s)-?[\d./]+\s*\.\./.test(line) ||
+      /^(?:old\s+)?[\d().+/@,\s]+$/i.test(line)
+    );
 
     if (!isSetLine && line.length > 0 && !line.toLowerCase().startsWith('override:')) {
       const parts = line.split('|').map(p => p.trim());
@@ -95,11 +99,14 @@ function parseLogbookToStructure(text) {
   return sessions;
 }
 
-function serializeStructureToText(sessions) {
-  return sessions.map(sess => {
+function serializeStructureToText(sessions, overrides = []) {
+  const body = sessions.map(sess => {
     let sStr = (sess.title || '').startsWith('#') ? sess.title : `# ${sess.title || ''}`;
-    if (Array.isArray(sess.dates) && sess.dates.length > 0) {
-      sStr += `\nDates:\n${sess.dates.join('\n')}`;
+    const validDates = Array.isArray(sess.dates)
+      ? sess.dates.map(d => (d || '').trim()).filter(Boolean)
+      : [];
+    if (validDates.length > 0) {
+      sStr += `\nDates:\n${validDates.join('\n')}`;
     }
     const exStrs = sess.exercises.map(ex => {
       let header = ex.name;
@@ -111,6 +118,8 @@ function serializeStructureToText(sessions) {
     });
     return [sStr, ...exStrs].join('\n\n');
   }).join('\n\n');
+  if (overrides.length === 0) return body;
+  return body ? `${overrides.join('\n')}\n\n${body}` : overrides.join('\n');
 }
 
 function parseSetDisplayValues(stVal) {
@@ -241,10 +250,18 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
     setSessions(parseLogbookToStructure(logbookText));
   }, [logbookText]);
 
+  const overrideLines = useMemo(() => {
+    if (!logbookText) return [];
+    return logbookText
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.toLowerCase().startsWith('override:'));
+  }, [logbookText]);
+
   const triggerChange = (newSessions) => {
     setSessions(newSessions);
     isInternalChange.current = true;
-    const newText = serializeStructureToText(newSessions);
+    const newText = serializeStructureToText(newSessions, overrideLines);
     onChange(newText);
   };
 
@@ -259,10 +276,34 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
 
   const insertSessionAtIndex = (targetIndex) => {
     const nextNum = sessions.length + 1;
-    const newSess = { title: `# ${nextNum}`, exercises: [] };
+    const newSess = { title: `# ${nextNum}`, dates: [], exercises: [] };
     const newSessions = [...sessions];
     newSessions.splice(targetIndex, 0, newSess);
     triggerChange(newSessions);
+  };
+
+  const addSessionDate = (sIdx) => {
+    const updated = sessions.map((s, idx) =>
+      idx === sIdx ? { ...s, dates: [...(s.dates || []), formatTodayDDMMYYYY()] } : s
+    );
+    triggerChange(updated);
+  };
+
+  const updateSessionDate = (sIdx, dIdx, newVal) => {
+    const updated = sessions.map((s, idx) => {
+      if (idx !== sIdx) return s;
+      const nextDates = [...(s.dates || [])];
+      nextDates[dIdx] = newVal;
+      return { ...s, dates: nextDates };
+    });
+    triggerChange(updated);
+  };
+
+  const deleteSessionDate = (sIdx, dIdx) => {
+    const updated = sessions.map((s, idx) =>
+      idx === sIdx ? { ...s, dates: (s.dates || []).filter((_, i) => i !== dIdx) } : s
+    );
+    triggerChange(updated);
   };
 
   const deleteSession = (sIdx) => {
@@ -335,7 +376,7 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
   };
 
   const deleteWeek = (sIdx, eIdx, wIdx) => {
-    if (window.confirm(`Are you sure you want to delete Week ${wIdx + 1}?`)) {
+    if (window.confirm(`Are you sure you want to delete m${wIdx + 1}?`)) {
       const updated = sessions.map((s, idx) => {
         if (idx === sIdx) {
           const updatedExs = s.exercises.map((ex, exIdx) => {
@@ -594,6 +635,22 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
 
             <button
               type="button"
+              onClick={() => addSessionDate(sIdx)}
+              title="Add Session Date"
+              style={{
+                ...sessionPillBtnStyle,
+                height: '26px',
+                padding: '0 9px',
+                fontSize: '0.68rem',
+                background: 'var(--bg-primary)',
+                boxShadow: 'none',
+              }}
+            >
+              <Calendar size={12} /> + Date
+            </button>
+
+            <button
+              type="button"
               onClick={() => deleteSession(sIdx)}
               title="Delete Session"
               style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
@@ -601,6 +658,62 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
               <Trash2 size={15} />
             </button>
           </div>
+
+          {/* Session Dates Bar */}
+          {Array.isArray(sess.dates) && sess.dates.length > 0 && (
+            <div
+              style={{
+                ...dashboardCardStyle,
+                padding: '10px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ ...metaLabelStyle, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <Calendar size={11} /> Dates (DD-MM-YYYY)
+                </span>
+                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                  {sess.dates.length} {sess.dates.length === 1 ? 'cycle' : 'cycles'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {sess.dates.map((dateVal, dIdx) => (
+                  <div
+                    key={dIdx}
+                    style={{
+                      ...metaCellStyle,
+                      height: '30px',
+                      padding: '0 6px 0 8px',
+                      gap: '5px',
+                      flex: '0 1 148px',
+                    }}
+                  >
+                    <span style={{ ...metaLabelStyle, textTransform: 'none', color: 'var(--accent-primary)' }}>m{dIdx + 1}</span>
+                    <input
+                      value={dateVal}
+                      onChange={(e) => updateSessionDate(sIdx, dIdx, e.target.value)}
+                      placeholder="DD-MM-YYYY"
+                      style={{
+                        ...metaInputStyle,
+                        fontSize: '0.75rem',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => deleteSessionDate(sIdx, dIdx)}
+                      title={`Remove m${dIdx + 1} date`}
+                      style={{ ...iconButtonStyle(20), color: 'rgba(239, 68, 68, 0.65)' }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Exercise Cards */}
           {sess.exercises.map((ex, eIdx) => {
@@ -721,12 +834,11 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
                             style={{
                               fontSize: '0.68rem',
                               fontWeight: 700,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em',
+                              letterSpacing: '0.04em',
                               color: 'var(--accent-secondary)',
                             }}
                           >
-                            WEEK {wIdx + 1}
+                            m{wIdx + 1}
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <button
@@ -757,7 +869,7 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
                             <button
                               type="button"
                               onClick={() => deleteWeek(sIdx, eIdx, wIdx)}
-                              title="Delete Week"
+                              title="Delete Microcycle"
                               style={{ ...iconButtonStyle(22), color: 'rgba(239, 68, 68, 0.7)' }}
                             >
                               <Trash2 size={13} />
@@ -841,11 +953,11 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
                   </div>
                 )}
 
-                {/* Exercise Footer: + Add Week */}
+                {/* Exercise Footer: + Add Microcycle */}
                 <button
                   type="button"
                   onClick={() => addWeek(sIdx, eIdx)}
-                  title="Add Week"
+                  title="Add Microcycle"
                   style={{
                     height: '28px',
                     borderRadius: '8px',
@@ -866,7 +978,7 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
                     WebkitAppearance: 'none',
                   }}
                 >
-                  <Plus size={13} /> Add Week
+                  <Plus size={13} /> Add Microcycle
                 </button>
               </div>
             );

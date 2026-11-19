@@ -22,7 +22,7 @@ const CURVE_OPTIONS = [
   { id: 'linear', label: 'Linear Decreasing' }
 ];
 
-export default function GeneratorConfig({ isMobile }) {
+export default function GeneratorConfig({ isMobile, onProgramCreated }) {
   // ===== HOOKS — must be called unconditionally before any early return =====
   const [markdownContent, setMarkdownContent] = useState('');
 
@@ -163,6 +163,7 @@ export default function GeneratorConfig({ isMobile }) {
       };
 
       const exRes = await fetch('/api/exercises');
+      if (!exRes.ok) throw new Error('Failed to load exercises database');
       const exercises = await exRes.json();
 
       // Allow the browser to render the "loading" state
@@ -212,7 +213,7 @@ export default function GeneratorConfig({ isMobile }) {
 
     let markdown = '';
     generatedResult.days.forEach((day, idx) => {
-      markdown += `# ${idx + 1}\n`;
+      markdown += `# ${idx + 1}\nDates:\n\n`;
       day.forEach(ex => {
         markdown += `${ex.exercise} | ${ex.rest} |\n`;
         const setsStr = ex.sets.map(s => {
@@ -236,6 +237,7 @@ export default function GeneratorConfig({ isMobile }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      onProgramCreated?.(data.name);
       alert("Program saved successfully! You can now find it in the Logbook.");
     } catch (err) {
       alert("Error during saving: " + err.message);
@@ -243,7 +245,8 @@ export default function GeneratorConfig({ isMobile }) {
   };
 
   const handleWeightChange = (key, val) => {
-    setWeights(prev => ({ ...prev, [key]: parseFloat(val) || 0 }));
+    const parsed = parseFloat(val);
+    setWeights(prev => ({ ...prev, [key]: Number.isFinite(parsed) ? parsed : 0 }));
   };
 
   const handleVolumeChange = (type, macro, sub, val) => {

@@ -60,8 +60,9 @@ const BezierEditor = ({ value, onChange }) => {
     e.stopPropagation();
     
     const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
-    const y = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
+    const x = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+    const y = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+    if (x === undefined || y === undefined) return;
     
     const svgX = x - rect.left;
     const svgY = y - rect.top;

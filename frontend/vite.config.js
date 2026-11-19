@@ -20,7 +20,7 @@ export default defineConfig({
 
           if (urlObj.pathname === '/api/logbook') {
             const programName = urlObj.searchParams.get('program') || 'S1M3';
-            const cleanProgramName = programName.replace(/[^a-zA-Z0-9_-]/g, '');
+            const cleanProgramName = programName.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
             const logbookPath = path.resolve(examplesDir, `${cleanProgramName}.md`);
 
             if (req.method === 'GET') {
@@ -56,7 +56,7 @@ export default defineConfig({
                 const programs = files
                   .filter(file => file.endsWith('.md'))
                   .map(file => path.basename(file, '.md'))
-                  .filter(name => /^[a-zA-Z0-9_-]+$/.test(name));
+                  .filter(name => /^[a-zA-Z0-9_\- ()]+$/.test(name));
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(programs));
@@ -71,7 +71,7 @@ export default defineConfig({
               req.on('end', () => {
                 try {
                   const data = JSON.parse(body);
-                  const name = data.name ? data.name.replace(/[^a-zA-Z0-9_-]/g, '') : '';
+                  const name = data.name ? data.name.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim() : '';
                   if (!name) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Invalid program name' }));
@@ -85,7 +85,7 @@ export default defineConfig({
                   }
                   
                   // Template from request or default
-                  const fileContent = data.content || `# 1\nLat machine | 3' |\n90..9+2.7+2\n`;
+                  const fileContent = data.content || `# 1\nDates:\n\nLat machine | 3' |\n90.. 9+2, 7+2\n`;
                   fs.writeFileSync(newPath, fileContent, 'utf-8');
                   
                   res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -145,15 +145,6 @@ export default defineConfig({
       }
     }
   ],
-  server: {
-    proxy: {
-      '/__deepseek': {
-        target: 'https://api.deepseek.com',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/__deepseek/, ''),
-      },
-    },
-  },
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {

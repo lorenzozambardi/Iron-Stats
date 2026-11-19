@@ -94,7 +94,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   const [showDesktopSettings, setShowDesktopSettings] = useState(false);
@@ -171,9 +170,23 @@ export default function App() {
   const textHistoryTimeoutRef = useRef(null);
 
   const historyIndexRef = useRef(0);
+  const resetTextHistory = useCallback((initialText) => {
+    if (textHistoryTimeoutRef.current) clearTimeout(textHistoryTimeoutRef.current);
+    textHistoryRef.current = [initialText];
+    historyIndexRef.current = 0;
+    setHistoryIndex(0);
+    setHistoryLength(1);
+  }, []);
+
   useEffect(() => {
     historyIndexRef.current = historyIndex;
   }, [historyIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (textHistoryTimeoutRef.current) clearTimeout(textHistoryTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
      if (isUndoRedoAction.current) {
@@ -552,8 +565,7 @@ export default function App() {
   useEffect(() => {
     let backListener;
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-      if (analyticsOpen) window.dispatchEvent(new Event('close-analytics-page'));
-      else if (profileOpen) window.dispatchEvent(new Event('close-profile-page'));
+      if (profileOpen) window.dispatchEvent(new Event('close-profile-page'));
       else if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
       else if (showNewProgramModal) setShowNewProgramModal(false);
       else if (showExerciseModal) setShowExerciseModal(false);
@@ -571,7 +583,7 @@ export default function App() {
     return () => {
       if (backListener) backListener.remove();
     };
-  }, [analyticsOpen, profileOpen, selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
+  }, [profileOpen, selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
 
   // Load initial data
   useEffect(() => {
@@ -608,6 +620,7 @@ export default function App() {
         return res.text();
       })
       .then(text => {
+        resetTextHistory(text);
         setLogbookText(text);
         setDebouncedLogbookText(text);
         setSyncStatus('saved');
@@ -616,7 +629,7 @@ export default function App() {
         setSyncStatus('error');
         setSyncError(err.message);
       });
-  }, []);
+  }, [resetTextHistory]);
 
   // Parse logbook text whenever it changes or the exercises DB updates
   const workoutData = useMemo(() => {
@@ -672,6 +685,7 @@ export default function App() {
         return res.text();
       })
       .then(text => {
+        resetTextHistory(text);
         setLogbookText(text);
         setDebouncedLogbookText(text);
         setCurrentProgram(progName);
@@ -696,7 +710,7 @@ export default function App() {
 
   // Create a new program in the backend
   const handleCreateProgram = () => {
-    const cleanName = newProgramName.replace(/[^a-zA-Z0-9_-]/g, '').trim();
+    const cleanName = newProgramName.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
     if (!cleanName) {
       setNewProgramError('Please enter a valid program name.');
       return;
@@ -705,6 +719,11 @@ export default function App() {
     if (programs.includes(cleanName)) {
       setNewProgramError('A program with this name already exists.');
       return;
+    }
+
+    if (syncStatus === 'syncing' && saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveLogbookContent(logbookText, currentProgram);
     }
 
     fetch('/api/programs', {
@@ -734,6 +753,7 @@ export default function App() {
   const handleOpenAddExercise = useCallback(() => {
     setEditingExercise(null);
     setEditingOriginalName('');
+    setEditingCurveIndex(null);
     setExerciseForm({
       name: '',
       fatigue: 5.0,
@@ -750,6 +770,20 @@ export default function App() {
   const handleOpenEditExercise = useCallback((ex) => {
     setEditingExercise(ex);
     setEditingOriginalName(ex.name);
+    setEditingCurveIndex(null);
+    const entries = Object.entries(ex.muscles_distr);
+    const rawPcts = entries.map(([, p]) => (typeof p === 'number' ? p : (p.magnitude || 0)) * 100);
+    const floored = rawPcts.map(v => Math.floor(v));
+    const sumRaw = rawPcts.reduce((a, b) => a + b, 0);
+    if (Math.abs(sumRaw - 100) < 0.5 && entries.length > 0) {
+      let rem = 100 - floored.reduce((a, b) => a + b, 0);
+      const order = rawPcts
+        .map((v, idx) => ({ idx, frac: v - floored[idx] }))
+        .sort((a, b) => b.frac - a.frac);
+      for (let i = 0; i < rem && i < order.length; i++) {
+        floored[order[i].idx] += 1;
+      }
+    }
     setExerciseForm({
       name: ex.name,
       fatigue: ex.fatigue,
@@ -757,9 +791,9 @@ export default function App() {
       load_multiplier: ex.load_multiplier !== undefined ? ex.load_multiplier : 1.0,
       load_offset: ex.load_offset !== undefined ? ex.load_offset : 0.0,
       is_isolation: !!ex.is_isolation,
-      muscles: Object.entries(ex.muscles_distr).map(([m, p]) => ({
+      muscles: entries.map(([m, p], idx) => ({
         name: m,
-        percentage: typeof p === 'number' ? Math.round(p * 100) : Math.round((p.magnitude || 0) * 100),
+        percentage: Math.abs(sumRaw - 100) < 0.5 ? floored[idx] : Math.round(rawPcts[idx]),
         x0: typeof p === 'number' ? 0.0 : (p.x0 ?? 0.0),
         y0: typeof p === 'number' ? 1.0 : (p.y0 ?? 1.0),
         x1: typeof p === 'number' ? 0.33 : (p.x1 ?? 0.33),
@@ -1389,6 +1423,11 @@ export default function App() {
                         onChange={(newText) => {
                           setLogbookText(newText);
                           setDebouncedLogbookText(newText);
+                          setSyncStatus('syncing');
+                          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                          saveTimeoutRef.current = setTimeout(() => {
+                            saveLogbookContent(newText, currentProgram);
+                          }, 1500);
                         }}
                         exercisesDb={exercisesDb}
                       />
@@ -1420,6 +1459,7 @@ export default function App() {
                       activeExerciseStartLine={activeExerciseStartLine}
                       activeWeekLineIndex={activeWeekLineIndex}
                       editorMode={editorMode}
+                      dateFormat={dateFormat}
                     />
                   </div>
                 </div>
@@ -1443,9 +1483,6 @@ export default function App() {
           setSelectedMetricDetail={setSelectedMetricDetail}
           profileOpen={profileOpen}
           setProfileOpen={setProfileOpen}
-          analyticsOpen={analyticsOpen}
-          setAnalyticsOpen={setAnalyticsOpen}
-          onOpenSettings={() => (isMobile ? setShowMobileSettings(true) : setShowDesktopSettings(true))}
           dateFormat={dateFormat}
         />
         {/* TAB CONTENT: EXERCISE DATABASE */}
@@ -1463,7 +1500,12 @@ export default function App() {
           {(isMobile || activeTab === 'generator') && (
           <div className="tab-workspace-flat" style={{ height: 'calc(100vh - 80px)', padding: '20px' }}>
             <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--text-muted)' }}>Loading Generator...</div>}>
-              <GeneratorConfig isMobile={isMobile} />
+              <GeneratorConfig
+                isMobile={isMobile}
+                onProgramCreated={(name) => {
+                  setPrograms(prev => (prev.includes(name) ? prev : [...prev, name]));
+                }}
+              />
             </Suspense>
           </div>
           )}
@@ -1517,31 +1559,33 @@ export default function App() {
       )}
 
       {/* Exercise CRUD Modal Dialog */}
-      <Suspense fallback={null}>
-        <ExerciseModal
-          showExerciseModal={showExerciseModal}
-          setShowExerciseModal={setShowExerciseModal}
-          editingExercise={editingExercise}
-          handleDeleteExercise={handleDeleteExercise}
-          exerciseForm={exerciseForm}
-          setExerciseForm={setExerciseForm}
-          exerciseError={exerciseError}
-          setExerciseError={setExerciseError}
-          isMobile={isMobile}
-          tensionSliderPos={tensionSliderPos}
-          setTensionSliderPos={setTensionSliderPos}
-          editingCurveIndex={editingCurveIndex}
-          setEditingCurveIndex={setEditingCurveIndex}
-          muscleSearch={muscleSearch}
-          setMuscleSearch={setMuscleSearch}
-          currentHasOverride={currentHasOverride}
-          handleRemoveOverride={handleRemoveOverride}
-          handleSaveExerciseForProgramOnly={handleSaveExerciseForProgramOnly}
-          handleSaveExercise={handleSaveExercise}
-          currentProgram={currentProgram}
-          chartColors={CHART_COLORS}
-        />
-      </Suspense>
+      {showExerciseModal && (
+        <Suspense fallback={null}>
+          <ExerciseModal
+            showExerciseModal={showExerciseModal}
+            setShowExerciseModal={setShowExerciseModal}
+            editingExercise={editingExercise}
+            handleDeleteExercise={handleDeleteExercise}
+            exerciseForm={exerciseForm}
+            setExerciseForm={setExerciseForm}
+            exerciseError={exerciseError}
+            setExerciseError={setExerciseError}
+            isMobile={isMobile}
+            tensionSliderPos={tensionSliderPos}
+            setTensionSliderPos={setTensionSliderPos}
+            editingCurveIndex={editingCurveIndex}
+            setEditingCurveIndex={setEditingCurveIndex}
+            muscleSearch={muscleSearch}
+            setMuscleSearch={setMuscleSearch}
+            currentHasOverride={currentHasOverride}
+            handleRemoveOverride={handleRemoveOverride}
+            handleSaveExerciseForProgramOnly={handleSaveExerciseForProgramOnly}
+            handleSaveExercise={handleSaveExercise}
+            currentProgram={currentProgram}
+            chartColors={CHART_COLORS}
+          />
+        </Suspense>
+      )}
 
       {/* Mobile Bottom Navigation Bar */}
       {(!isMobile || !showMobileSettings) && (

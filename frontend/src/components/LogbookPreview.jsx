@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MUSCLES } from '../parser';
+import { formatDisplayDate } from '../profileUtils';
 import { formatRestTime, groupSets } from './helpers';
 
-function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode }) {
+function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIndex, editorMode, dateFormat = 'dd/mm/yyyy' }) {
   const scrollAnimRef = useRef(null);
-  const [expandedExerciseName, setExpandedExerciseName] = useState(null);
+  const [expandedExerciseKey, setExpandedExerciseKey] = useState(null);
 
   useEffect(() => {
     if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
@@ -80,7 +81,13 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
       const qualifyingMuscles = Object.entries(muscleEffReps)
         .filter(([, reps]) => reps >= 10).map(([main]) => main).sort();
 
-      return { sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles };
+      const sessionDateList = Array.from(
+        new Set(exercises.flatMap(e => e.weeks.map(w => w.date).filter(Boolean)))
+      ).sort();
+      const firstDate = sessionDateList.length > 0 ? sessionDateList[0] : null;
+      const lastDate = sessionDateList.length > 0 ? sessionDateList[sessionDateList.length - 1] : null;
+
+      return { sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles, firstDate, lastDate };
     });
   }, [workoutData]);
 
@@ -94,15 +101,23 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
 
   return (
     <div className="logbook-preview-content">
-      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles }) => {
+      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles, firstDate, lastDate }) => {
+        const dateRangeLabel = firstDate
+          ? (firstDate === lastDate
+              ? formatDisplayDate(firstDate, dateFormat)
+              : `${formatDisplayDate(firstDate, dateFormat)} – ${formatDisplayDate(lastDate, dateFormat)}`)
+          : null;
         return (
           <div key={sessNum} className="preview-session-group">
             <div className="preview-session-header-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span className="preview-session-eyebrow">Session {sessNum}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  {dateRangeLabel && (
+                    <span className="preview-session-pill">{dateRangeLabel}</span>
+                  )}
                   <span className="preview-session-pill">{exercises.length} ex</span>
-                  <span className="preview-session-pill">{totalEffReps.toFixed(0)} eff. reps · W{latestWeek}</span>
+                  <span className="preview-session-pill">{totalEffReps.toFixed(0)} eff. reps · m{latestWeek}</span>
                 </div>
               </div>
               {qualifyingMuscles.length > 0 && (
@@ -123,7 +138,8 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
               const primaryMuscleLabel = primaryMuscleKey
                 ? (MUSCLES[primaryMuscleKey] || primaryMuscleKey)
                 : null;
-              const isExpanded = editorMode === 'preview' && ex.exercise_obj && expandedExerciseName === ex.exercise_obj.name;
+              const exKey = ex.startLine ?? `${sessNum}_${exIdx}`;
+              const isExpanded = editorMode === 'preview' && ex.exercise_obj && expandedExerciseKey === exKey;
 
               return (
                 <div 
@@ -133,7 +149,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                   style={{ cursor: (editorMode === 'preview' && ex.exercise_obj) ? 'pointer' : 'default' }}
                   onClick={() => {
                     if (editorMode === 'preview' && ex.exercise_obj) {
-                      setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
+                      setExpandedExerciseKey(expandedExerciseKey === exKey ? null : exKey);
                     }
                   }}
                 >
@@ -156,13 +172,13 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                         )}
                         {editorMode === 'preview' && ex.exercise_obj && (
                           <span 
-                            className={`badge info-btn ${expandedExerciseName === ex.exercise_obj.name ? 'active' : ''}`} 
+                            className={`badge info-btn ${isExpanded ? 'active' : ''}`} 
                             onClick={(e) => {
                               e.stopPropagation();
-                              setExpandedExerciseName(expandedExerciseName === ex.exercise_obj.name ? null : ex.exercise_obj.name);
+                              setExpandedExerciseKey(expandedExerciseKey === exKey ? null : exKey);
                             }}
                           >
-                            {expandedExerciseName === ex.exercise_obj.name ? 'Hide Info' : 'Info'}
+                            {isExpanded ? 'Hide Info' : 'Info'}
                           </span>
                         )}
                       </div>
@@ -225,7 +241,12 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                       return (
                         <div key={wk.week_num} className={`preview-week-column ${isWeekActive ? 'active' : ''}`}>
                           <div className="preview-week-header">
-                            <span>W{wk.week_num}</span>
+                            <span className="preview-week-label">
+                              <span>m{wk.week_num}</span>
+                              {wk.date && (
+                                <span className="preview-week-date">{formatDisplayDate(wk.date, dateFormat)}</span>
+                              )}
+                            </span>
                             <span className="preview-week-count">
                               {wk.sets.length} {wk.sets.length === 1 ? 'set' : 'sets'}
                             </span>

@@ -3,9 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
-const SmartAnalyticsPage = React.lazy(() => import('../../analytics/ui/SmartAnalyticsPage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
-import SmartAnalyticsPreviewCard from '../../analytics/ui/SmartAnalyticsPreviewCard';
 import { MetricSparkline, TrendBadge } from '../Sparkline';
 import { loadProfile, saveProfile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
@@ -30,11 +28,75 @@ const isWeekInRange = (weekNum, fromVal, toVal) => {
 
 const formatWeekRangeLabel = (fromVal, toVal) => {
   if (fromVal !== 'all' && toVal !== 'all') {
-    return fromVal === toVal ? `W${fromVal}` : `W${fromVal}–W${toVal}`;
+    return fromVal === toVal ? `m${fromVal}` : `m${fromVal}–m${toVal}`;
   }
-  if (fromVal !== 'all') return `W${fromVal}+`;
-  if (toVal !== 'all') return `≤W${toVal}`;
+  if (fromVal !== 'all') return `m${fromVal}+`;
+  if (toVal !== 'all') return `≤m${toVal}`;
   return null;
+};
+
+const getNumericVal = (item) => (typeof item === 'number' ? item : item?.v ?? 0);
+
+const isoDateToUtcMs = (iso) => {
+  if (typeof iso !== 'string') return null;
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const ms = Date.UTC(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10));
+  return Number.isFinite(ms) ? ms : null;
+};
+
+const buildTimeSeries = (rows, metricKey) => {
+  if (!rows || rows.length === 0) return [];
+  const datedIdx = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (Number.isFinite(rows[i].timestamp)) datedIdx.push(i);
+  }
+  if (datedIdx.length < 2) {
+    return rows.map((m) => m[metricKey] || 0);
+  }
+
+  const resolvedTs = rows.map((m) => (Number.isFinite(m.timestamp) ? m.timestamp : null));
+  const firstIdx = datedIdx[0];
+  const lastIdx = datedIdx[datedIdx.length - 1];
+  const avgStep = (resolvedTs[lastIdx] - resolvedTs[firstIdx]) / (lastIdx - firstIdx);
+
+  if (!Number.isFinite(avgStep) || avgStep <= 0) {
+    return rows.map((m) => m[metricKey] || 0);
+  }
+
+  // Linearly interpolate interior gaps and extrapolate leading/trailing gaps
+  for (let p = 0; p < datedIdx.length - 1; p++) {
+    const a = datedIdx[p];
+    const b = datedIdx[p + 1];
+    if (b - a > 1) {
+      const step = (resolvedTs[b] - resolvedTs[a]) / (b - a);
+      for (let i = a + 1; i < b; i++) {
+        resolvedTs[i] = resolvedTs[a] + step * (i - a);
+      }
+    }
+  }
+  for (let i = firstIdx - 1; i >= 0; i--) {
+    resolvedTs[i] = resolvedTs[firstIdx] - avgStep * (firstIdx - i);
+  }
+  for (let i = lastIdx + 1; i < rows.length; i++) {
+    resolvedTs[i] = resolvedTs[lastIdx] + avgStep * (i - lastIdx);
+  }
+
+  const t0 = resolvedTs[0];
+  let tMin = Infinity;
+  let tMax = -Infinity;
+  for (let i = 0; i < resolvedTs.length; i++) {
+    if (resolvedTs[i] < tMin) tMin = resolvedTs[i];
+    if (resolvedTs[i] > tMax) tMax = resolvedTs[i];
+  }
+  if (!(tMax > tMin)) {
+    return rows.map((m) => m[metricKey] || 0);
+  }
+
+  return rows.map((m, i) => ({
+    v: m[metricKey] || 0,
+    t: resolvedTs[i] - t0,
+  }));
 };
 
 const CardModeToggle = React.memo(({ cardId, mode, onToggle }) => {
@@ -97,8 +159,8 @@ const MetricBarSparkline = React.memo(({ values, compareValues, color, compareCo
 
   const bars = [];
   for (let i = 0; i < len; i++) {
-    const vA = hasA && i < values.length ? values[i] : 0;
-    const vB = hasB && i < compareValues.length ? compareValues[i] : 0;
+    const vA = hasA && i < values.length ? getNumericVal(values[i]) : 0;
+    const vB = hasB && i < compareValues.length ? getNumericVal(compareValues[i]) : 0;
     const hA = barHeight(vA);
     const hB = barHeight(vB);
     bars.push(
@@ -393,11 +455,34 @@ const round1 = (n) => parseFloat(n.toFixed(1));
 const buildWeeklyMetricsRows = (filteredData, targetSession, weeksList, targetMacro, targetSub, suffix = '') => {
   if (!weeksList || weeksList.length === 0) return [];
   const buckets = calculateMetricsByWeek(filteredData, targetSession, weeksList, targetMacro, targetSub);
+
+  // Compute midpoint UTC timestamp per microcycle from dated sessions
+  const weekDateBounds = new Map();
+  for (let i = 0; i < filteredData.length; i++) {
+    const wEx = filteredData[i];
+    if (targetSession !== null && wEx.session !== targetSession) continue;
+    for (let j = 0; j < wEx.weeks.length; j++) {
+      const w = wEx.weeks[j];
+      const ms = isoDateToUtcMs(w.date);
+      if (ms === null) continue;
+      const cur = weekDateBounds.get(w.week_num);
+      if (!cur) {
+        weekDateBounds.set(w.week_num, { min: ms, max: ms });
+      } else {
+        if (ms < cur.min) cur.min = ms;
+        if (ms > cur.max) cur.max = ms;
+      }
+    }
+  }
+
   return weeksList.map(week => {
     const b = buckets.get(week);
+    const bounds = weekDateBounds.get(week);
+    const timestamp = bounds ? (bounds.min + bounds.max) / 2 : null;
     return {
       weekNum: week,
-      week: `W${week}`,
+      week: `m${week}`,
+      timestamp,
       [`Volume${suffix}`]: round1(b.volume),
       [`Tonnage${suffix}`]: round1(b.tonnage),
       [`EffectiveTonnage${suffix}`]: round1(b.effectiveTonnage),
@@ -423,9 +508,6 @@ const DashboardTab = ({
   setSelectedMetricDetail,
   profileOpen,
   setProfileOpen,
-  analyticsOpen,
-  setAnalyticsOpen,
-  onOpenSettings,
   dateFormat,
 }) => {
   const isDashboardActive = isMobile || activeTab === 'dashboard';
@@ -514,7 +596,10 @@ const DashboardTab = ({
     compareAbortRef.current = controller;
     setCompareLoading(true);
     fetch(`/api/logbook?program=${progName}`, { signal: controller.signal })
-      .then(res => res.text())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load ${progName}.md`);
+        return res.text();
+      })
       .then(text => {
         if (controller.signal.aborted) return;
         const parsed = parseLogbook(text, exercisesDb);
@@ -755,7 +840,7 @@ const DashboardTab = ({
           : `${ex.name}_${subMuscle}_${distr}`;
         const normCurve = getCachedNormalizedCurve(cacheKey, distr);
 
-        const totalWithPartial = sumBase + sumPartial;
+        const totalWithPartial = sumBase + sumPartial * 0.33;
         for (let i = 0; i <= partialCutoffIdx; i++) {
           data[i][targetMuscle] += normCurve[i] * totalWithPartial;
         }
@@ -774,10 +859,10 @@ const DashboardTab = ({
     return data;
   }, [isDashboardActive, exerciseWeekRepTotals, activeWeeksList, deferredMacro, displayMuscleData]);
 
-  // Overall totals (filtered; in compare mode, uses each selection's last full week so programs of different lengths compare fairly)
+  // Overall totals (filtered; in compare mode, uses each selection's last full microcycle so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
     const rows = compareMode && lastFullWeekA !== null
-      ? metricsByWeek.filter(m => m.week === `W${lastFullWeekA}`)
+      ? metricsByWeek.filter(m => m.week === `m${lastFullWeekA}`)
       : metricsByWeek;
     const agg = (fn) => parseFloat(rows.reduce((acc, m) => acc + fn(m), 0).toFixed(1));
     return {
@@ -796,7 +881,7 @@ const DashboardTab = ({
 
   const compareTotals = useMemo(() => {
     const rows = lastFullWeekB !== null
-      ? compareMetricsByWeek.filter(m => m.week === `W${lastFullWeekB}`)
+      ? compareMetricsByWeek.filter(m => m.week === `m${lastFullWeekB}`)
       : compareMetricsByWeek;
     const agg = (fn) => parseFloat(rows.reduce((acc, m) => acc + fn(m), 0).toFixed(1));
     return {
@@ -821,7 +906,7 @@ const DashboardTab = ({
   const sparkSeriesA = useMemo(() => {
     const keys = ['Volume', 'EffectiveRepsCustom', 'Tonnage', 'EffectiveTonnage', 'WeightedTonnage', 'EffectiveWeightedTonnage', 'Tut', 'EffectiveTut', 'Sets', 'Fatigue'];
     const map = {};
-    keys.forEach(k => { map[k] = metricsByWeek.map(m => m[k] || 0); });
+    keys.forEach(k => { map[k] = buildTimeSeries(metricsByWeek, k); });
     return map;
   }, [metricsByWeek]);
 
@@ -829,7 +914,7 @@ const DashboardTab = ({
     if (!compareMode) return {};
     const keys = ['Volume', 'EffectiveRepsCustom', 'Tonnage', 'EffectiveTonnage', 'WeightedTonnage', 'EffectiveWeightedTonnage', 'Tut', 'EffectiveTut', 'Sets', 'Fatigue'];
     const map = {};
-    keys.forEach(k => { map[k] = compareMetricsByWeek.map(m => m[`${k}_B`] || 0); });
+    keys.forEach(k => { map[k] = buildTimeSeries(compareMetricsByWeek, `${k}_B`); });
     return map;
   }, [compareMode, compareMetricsByWeek]);
 
@@ -1038,7 +1123,7 @@ const DashboardTab = ({
                               itemWidth={38}
                             />
                             <DualWeekSlider
-                              label="Weeks"
+                              label="Microcycles"
                               weeks={dashWeeksList}
                               fromVal={dashFilterWeekFrom}
                               toVal={dashFilterWeekTo}
@@ -1063,7 +1148,7 @@ const DashboardTab = ({
                               itemWidth={38}
                             />
                             <DualWeekSlider
-                              label="Weeks"
+                              label="Microcycles"
                               weeks={cmpWeeksList}
                               fromVal={cmpFilterWeekFrom}
                               toVal={cmpFilterWeekTo}
@@ -1120,7 +1205,7 @@ const DashboardTab = ({
                           />
                         )}
                         <DualWeekSlider
-                          label="Weeks"
+                          label="Microcycles"
                           weeks={dashWeeksList}
                           fromVal={dashFilterWeekFrom}
                           toVal={dashFilterWeekTo}
@@ -1150,13 +1235,6 @@ const DashboardTab = ({
                     onOpen={() => setProfileOpen(true)}
                   />
 
-                  {/* ── Full-Width Smart Analytics Preview Card ── */}
-                  <SmartAnalyticsPreviewCard
-                    onOpen={() => setAnalyticsOpen(true)}
-                    programsCount={programs.length}
-                    dateFormat={dateFormat}
-                  />
-
                   {/* ── Summary Cards ── */}
                   {compareMode && compareProgram && !compareLoading ? (
                     <>
@@ -1172,7 +1250,7 @@ const DashboardTab = ({
                             {currentProgram === compareProgram ? `${currentProgram} (A)` : currentProgram}
                           </span>
                           <span style={{ marginLeft: 'auto', fontSize: '0.72rem', opacity: 0.85, flexShrink: 0 }}>
-                            {lastFullWeekA !== null ? `W${lastFullWeekA}` : '—'}
+                            {lastFullWeekA !== null ? `m${lastFullWeekA}` : '—'}
                           </span>
                         </div>
                         <div style={{
@@ -1186,7 +1264,7 @@ const DashboardTab = ({
                             {currentProgram === compareProgram ? `${compareProgram} (B)` : compareProgram}
                           </span>
                           <span style={{ marginLeft: 'auto', fontSize: '0.72rem', opacity: 0.85, flexShrink: 0 }}>
-                            {lastFullWeekB !== null ? `W${lastFullWeekB}` : '—'}
+                            {lastFullWeekB !== null ? `m${lastFullWeekB}` : '—'}
                           </span>
                         </div>
                       </div>
@@ -1426,21 +1504,6 @@ const DashboardTab = ({
                 setProfile={setProfile}
                 dateFormat={dateFormat}
                 onBack={() => setProfileOpen(false)}
-              />
-            </React.Suspense>
-          )}
-
-          {/* Smart Analytics Overlay */}
-          {analyticsOpen && (
-            <React.Suspense fallback={<div className="loading-spinner">Loading Smart Analytics...</div>}>
-              <SmartAnalyticsPage
-                isMobile={isMobile}
-                exercisesDb={exercisesDb}
-                profile={profile}
-                programs={programs}
-                dateFormat={dateFormat}
-                onOpenSettings={onOpenSettings}
-                onBack={() => setAnalyticsOpen(false)}
               />
             </React.Suspense>
           )}

@@ -111,9 +111,12 @@ window.fetch = async (input, init) => {
     if (method === 'GET') {
       try {
         if (!isCustom) {
-          // ALWAYS return fresh default exercises when using the default preset.
-          const defaultStr = JSON.stringify(defaultExercises);
-          return new Response(defaultStr, { status: 200, headers: { 'Content-Type': 'application/json' } });
+          try {
+            const res = await Filesystem.readFile({ path: filePath('exercises_v6.json'), directory: dir, encoding: Encoding.UTF8 });
+            return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
+          } catch {
+            return new Response(JSON.stringify(defaultExercises), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
         }
 
         // Only read from file if it is a custom program
@@ -161,9 +164,12 @@ window.fetch = async (input, init) => {
     } else if (method === 'POST') {
       try {
         const data     = JSON.parse(init.body);
-        const name     = data.name.replace(/[^a-zA-Z0-9_\- ()]/g, '');
+        const name     = (data.name || '').replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
+        if (!name) {
+          return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
         const filename = `${name}.md`;
-        const template = `# 1\nLat machine | 3' |\n90..9+2.7+2\n`;
+        const fileContent = data.content || `# 1\nDates:\n\nLat machine | 3' |\n90.. 9+2, 7+2\n`;
 
         if (isCustom) {
           // Check if it already exists
@@ -173,14 +179,14 @@ window.fetch = async (input, init) => {
               return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
             }
           } catch { /* ignore */ }
-          await FolderPicker.writeFile({ uri: safUri, filename, data: template });
+          await FolderPicker.writeFile({ uri: safUri, filename, data: fileContent });
         } else {
           const fullPath = filePath(filename);
           try {
             await Filesystem.stat({ path: fullPath, directory: dir });
             return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
           } catch { /* ignore */ }
-          await Filesystem.writeFile({ path: fullPath, data: template, directory: dir, encoding: Encoding.UTF8 });
+          await Filesystem.writeFile({ path: fullPath, data: fileContent, directory: dir, encoding: Encoding.UTF8 });
         }
         return new Response(JSON.stringify({ success: true, name }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
