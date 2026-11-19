@@ -21,4 +21,13 @@ export default defineConfig([
       'no-unused-vars': ['error', { destructuredArrayIgnorePattern: '^_' }],
     },
   },
+  {
+    files: ['vite.config.js', 'vitest.config.js', 'eslint.config.js', 'src/__tests__/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
 ])

@@ -19,8 +19,14 @@ export default defineConfig({
           const examplesDir = path.resolve(__dirname, '../logbooks');
 
           if (urlObj.pathname === '/api/logbook') {
-            const programName = urlObj.searchParams.get('program') || 'S1M3';
+            const rawProgram = urlObj.searchParams.get('program');
+            const programName = rawProgram === null ? 'S1M3' : rawProgram;
             const cleanProgramName = programName.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
+            if (!cleanProgramName) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Invalid program name' }));
+              return;
+            }
             const logbookPath = path.resolve(examplesDir, `${cleanProgramName}.md`);
 
             if (req.method === 'GET') {

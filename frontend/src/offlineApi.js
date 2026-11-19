@@ -16,7 +16,8 @@ const FolderPicker = registerPlugin('FolderPicker');
 
 export function getStorageConfig() {
   const dirType        = localStorage.getItem('logbook_directory_type')    || 'documents';
-  const subfolder      = localStorage.getItem('logbook_subfolder')         || 'Iron Stats';
+  const rawSubfolder   = localStorage.getItem('logbook_subfolder');
+  const subfolder      = rawSubfolder === null ? 'Iron Stats' : rawSubfolder;
   const safUri         = localStorage.getItem('logbook_saf_uri')           || null;
   const safDisplayName = localStorage.getItem('logbook_saf_display_name') || safUri;
   const dir            = dirType === 'documents' ? Directory.Documents : Directory.Data;
@@ -49,6 +50,7 @@ function filePath(filename) {
 }
 
 async function ensureDefaults() {
+  if (!Capacitor.isNativePlatform()) return;
   const { dirType, dir, subfolder } = getStorageConfig();
 
   // Never auto-seed in custom (SAF) mode — the user chose an existing folder
@@ -66,14 +68,32 @@ async function ensureDefaults() {
     await Filesystem.stat({ path: defaultFile, directory: dir });
   } catch {
     try {
-      await Filesystem.writeFile({ path: defaultFile, data: defaultLogbook, directory: dir, encoding: Encoding.UTF8 });
+      await Filesystem.writeFile({ path: defaultFile, data: defaultLogbook, directory: dir, encoding: Encoding.UTF8, recursive: true });
     } catch (writeErr) {
       console.warn('Could not seed default logbook:', writeErr);
     }
   }
 }
 
-ensureDefaults();
+const defaultsReadyPromise = ensureDefaults();
+
+async function readRequestBodyText(input, init) {
+  if (init?.body !== undefined && init?.body !== null) {
+    return typeof init.body === 'string' ? init.body : String(init.body);
+  }
+  if (input instanceof Request) {
+    return input.clone().text();
+  }
+  return '';
+}
+
+function sanitizeLogbookName(rawName) {
+  const trimmed = (rawName || '').trim();
+  if (!trimmed || trimmed === '.' || trimmed === '..' || /[/\\]/.test(trimmed) || trimmed.includes('..')) {
+    return '';
+  }
+  return trimmed;
+}
 
 // ─── Fetch Interceptor ─────────────────────────────────────────────────────────
 
@@ -86,8 +106,11 @@ window.fetch = async (input, init) => {
   if (!urlStr.includes('/api/')) return originalFetch(input, init);
   if (!Capacitor.isNativePlatform()) return originalFetch(input, init);
 
+  await defaultsReadyPromise;
+
   const urlObj  = new URL(urlStr, 'http://localhost');
-  const method  = init?.method || 'GET';
+  const rawMethod = init?.method || (input instanceof Request ? input.method : 'GET');
+  const method  = String(rawMethod).toUpperCase();
   const { dirType, dir, safUri } = getStorageConfig();
   const isCustom = dirType === 'custom' && safUri;
 
@@ -97,7 +120,7 @@ window.fetch = async (input, init) => {
         if (isCustom) {
           await FolderPicker.writeFile({ uri: safUri, filename: 'exercises_v6.json', data: JSON.stringify(defaultExercises) });
         } else {
-          await Filesystem.writeFile({ path: filePath('exercises_v6.json'), data: JSON.stringify(defaultExercises), directory: dir, encoding: Encoding.UTF8 });
+          await Filesystem.writeFile({ path: filePath('exercises_v6.json'), data: JSON.stringify(defaultExercises), directory: dir, encoding: Encoding.UTF8, recursive: true });
         }
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
@@ -110,31 +133,34 @@ window.fetch = async (input, init) => {
   if (urlObj.pathname === '/api/exercises') {
     if (method === 'GET') {
       try {
-        if (!isCustom) {
-          try {
-            const res = await Filesystem.readFile({ path: filePath('exercises_v6.json'), directory: dir, encoding: Encoding.UTF8 });
-            return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
-          } catch {
-            return new Response(JSON.stringify(defaultExercises), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
+        const res = isCustom
+          ? await FolderPicker.readFile({ uri: safUri, filename: 'exercises_v6.json' })
+          : await Filesystem.readFile({ path: filePath('exercises_v6.json'), directory: dir, encoding: Encoding.UTF8 });
+        const raw = typeof res?.data === 'string' ? res.data : '';
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+          throw new TypeError('Stored exercises_v6.json is not an array');
         }
-
-        // Only read from file if it is a custom program
-        const res = await FolderPicker.readFile({ uri: safUri, filename: 'exercises_v6.json' });
-        return new Response(res.data, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return new Response(raw, { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch {
         return new Response(JSON.stringify(defaultExercises), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
     } else if (method === 'POST') {
       try {
+        const bodyText = await readRequestBodyText(input, init);
+        const parsed = JSON.parse(bodyText);
+        if (!Array.isArray(parsed)) {
+          return new Response(JSON.stringify({ error: 'Exercises payload must be a JSON array' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
         if (isCustom) {
-          await FolderPicker.writeFile({ uri: safUri, filename: 'exercises_v6.json', data: init.body });
+          await FolderPicker.writeFile({ uri: safUri, filename: 'exercises_v6.json', data: bodyText });
         } else {
-          await Filesystem.writeFile({ path: filePath('exercises_v6.json'), data: init.body, directory: dir, encoding: Encoding.UTF8 });
+          await Filesystem.writeFile({ path: filePath('exercises_v6.json'), data: bodyText, directory: dir, encoding: Encoding.UTF8, recursive: true });
         }
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        const status = e instanceof SyntaxError ? 400 : 500;
+        return new Response(JSON.stringify({ error: e.message }), { status, headers: { 'Content-Type': 'application/json' } });
       }
     }
   }
@@ -147,15 +173,17 @@ window.fetch = async (input, init) => {
         if (isCustom) {
           const res = await FolderPicker.listDirectory({ uri: safUri });
           names = (res.files || [])
-            .filter(n => n.endsWith('.md'))
-            .map(n => n.replace('.md', ''));
+            .filter(n => typeof n === 'string' && n.endsWith('.md'))
+            .map(n => n.replace(/\.md$/, ''))
+            .filter(n => sanitizeLogbookName(n).length > 0);
         } else {
           const { subfolder } = getStorageConfig();
           const res = await Filesystem.readdir({ path: subfolder || '', directory: dir });
           names = res.files
             .map(f => f.name)
-            .filter(n => n.endsWith('.md'))
-            .map(n => n.replace('.md', ''));
+            .filter(n => typeof n === 'string' && n.endsWith('.md'))
+            .map(n => n.replace(/\.md$/, ''))
+            .filter(n => sanitizeLogbookName(n).length > 0);
         }
         return new Response(JSON.stringify(names), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch {
@@ -163,7 +191,8 @@ window.fetch = async (input, init) => {
       }
     } else if (method === 'POST') {
       try {
-        const data     = JSON.parse(init.body);
+        const bodyText = await readRequestBodyText(input, init);
+        const data     = JSON.parse(bodyText);
         const name     = (data.name || '').replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
         if (!name) {
           return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -186,7 +215,7 @@ window.fetch = async (input, init) => {
             await Filesystem.stat({ path: fullPath, directory: dir });
             return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
           } catch { /* ignore */ }
-          await Filesystem.writeFile({ path: fullPath, data: fileContent, directory: dir, encoding: Encoding.UTF8 });
+          await Filesystem.writeFile({ path: fullPath, data: fileContent, directory: dir, encoding: Encoding.UTF8, recursive: true });
         }
         return new Response(JSON.stringify({ success: true, name }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
@@ -197,8 +226,12 @@ window.fetch = async (input, init) => {
 
   // ── /api/logbook ───────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/logbook') {
-    const programName = urlObj.searchParams.get('program') || 'S1M3';
-    const cleanName   = programName.replace(/[^a-zA-Z0-9_\- ()]/g, '');
+    const rawProgram = urlObj.searchParams.get('program');
+    const programName = rawProgram === null ? 'S1M3' : rawProgram;
+    const cleanName   = sanitizeLogbookName(programName);
+    if (!cleanName) {
+      return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
     const filename    = `${cleanName}.md`;
 
     if (method === 'GET') {
@@ -215,10 +248,11 @@ window.fetch = async (input, init) => {
       }
     } else if (method === 'POST') {
       try {
+        const bodyText = await readRequestBodyText(input, init);
         if (isCustom) {
-          await FolderPicker.writeFile({ uri: safUri, filename, data: init.body });
+          await FolderPicker.writeFile({ uri: safUri, filename, data: bodyText });
         } else {
-          await Filesystem.writeFile({ path: filePath(filename), data: init.body, directory: dir, encoding: Encoding.UTF8 });
+          await Filesystem.writeFile({ path: filePath(filename), data: bodyText, directory: dir, encoding: Encoding.UTF8, recursive: true });
         }
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       } catch (e) {
