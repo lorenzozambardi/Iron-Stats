@@ -89,12 +89,12 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
 
   const handlePointerDown = (e) => {
     if (count <= 1) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       active: true,
       startX: e.clientX,
       startVirtual: virtualRef.current,
-      moved: false
+      moved: false,
+      pointerId: e.pointerId
     };
     setIsDragging(true);
   };
@@ -104,7 +104,19 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
   const handlePointerMove = (e) => {
     if (!dragRef.current.active) return;
     const dx = e.clientX - dragRef.current.startX;
-    if (Math.abs(dx) > 4) dragRef.current.moved = true;
+    if (Math.abs(dx) > 4) {
+      if (!dragRef.current.moved) {
+        dragRef.current.moved = true;
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) {
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // Ignore capture errors on synthetic/cancelled pointers
+          }
+        }
+      }
+    }
+    if (!dragRef.current.moved) return;
     const rawNext = dragRef.current.startVirtual - dx / dragStepPx;
     const nextV = circular ? rawNext : Math.max(-0.25, Math.min(count - 0.75, rawNext));
     virtualRef.current = nextV;
@@ -113,12 +125,13 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
 
   const handlePointerUp = (e) => {
     if (!dragRef.current.active) return;
+    const didMove = dragRef.current.moved;
     dragRef.current.active = false;
     setIsDragging(false);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
-    if (dragRef.current.moved) {
+    if (didMove) {
       commitStep(virtualRef.current);
     }
   };
@@ -254,7 +267,7 @@ export const DualWeekSlider = ({
   fromVal,
   toVal,
   onChange,
-  label = 'Weeks',
+  label = 'Microcycles',
   accentColor = 'var(--accent-primary)'
 }) => {
   const trackRef = useRef(null);
@@ -371,12 +384,12 @@ export const DualWeekSlider = ({
   const leftPct = maxIdx > 0 ? (fromIdx / maxIdx) * 100 : 0;
   const rightPct = maxIdx > 0 ? (toIdx / maxIdx) * 100 : 100;
   const rangeText = weeks.length === 1
-    ? `W${weeks[0]}`
+    ? `m${weeks[0]}`
     : isAll
-      ? `All (W${weeks[0]}–W${weeks[maxIdx]})`
+      ? `All (m${weeks[0]}–m${weeks[maxIdx]})`
       : fromIdx === toIdx
-        ? `W${weeks[fromIdx]}`
-        : `W${weeks[fromIdx]}–W${weeks[toIdx]}`;
+        ? `m${weeks[fromIdx]}`
+        : `m${weeks[fromIdx]}–m${weeks[toIdx]}`;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>

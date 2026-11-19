@@ -43,4 +43,32 @@ describe('formatLogbookSpaces', () => {
     const clean = '# 1\n\nBench | 2\'\n80.. 8, 8\n';
     expect(formatLogbookSpaces(clean)).toBe(clean);
   });
+
+  it('normalizes Dates: headers and preserves DD-MM-YYYY date lines', () => {
+    const input = [
+      '# 1',
+      '  dates:   ',
+      '  05-01-2026  ',
+      '12-01-2026',
+      '-',
+      '',
+      '# 2',
+      'Dates: ',
+      '08-01-2026',
+    ].join('\n');
+
+    const expected = [
+      '# 1',
+      'Dates:',
+      '05-01-2026',
+      '12-01-2026',
+      '-',
+      '',
+      '# 2',
+      'Dates:',
+      '08-01-2026',
+    ].join('\n');
+
+    expect(formatLogbookSpaces(input)).toBe(expected);
+  });
 });

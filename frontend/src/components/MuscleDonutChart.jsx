@@ -122,6 +122,19 @@ const resolveLabelCollisions = (items, minGap = 28) => {
   return sorted;
 };
 
+const describeFullAnnulus = (cx, cy, rIn, rOut) => {
+  return [
+    `M ${(cx).toFixed(2)} ${(cy - rOut).toFixed(2)}`,
+    `A ${rOut} ${rOut} 0 1 1 ${(cx).toFixed(2)} ${(cy + rOut).toFixed(2)}`,
+    `A ${rOut} ${rOut} 0 1 1 ${(cx).toFixed(2)} ${(cy - rOut).toFixed(2)}`,
+    'Z',
+    `M ${(cx).toFixed(2)} ${(cy - rIn).toFixed(2)}`,
+    `A ${rIn} ${rIn} 0 1 0 ${(cx).toFixed(2)} ${(cy + rIn).toFixed(2)}`,
+    `A ${rIn} ${rIn} 0 1 0 ${(cx).toFixed(2)} ${(cy - rIn).toFixed(2)}`,
+    'Z',
+  ].join(' ');
+};
+
 const SingleDonut = ({
   data,
   colorMap,
@@ -132,7 +145,7 @@ const SingleDonut = ({
   headerLabel,
   dotColor,
 }) => {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const [hoveredName, setHoveredName] = useState(null);
 
   const cx = 195;
   const cy = 152;
@@ -148,12 +161,16 @@ const SingleDonut = ({
 
     const padAngle = valid.length > 1 ? 0.055 : 0;
     const totalPad = padAngle * valid.length;
-    const availableAngle = Math.PI * 2 - totalPad;
+    const availableAngle = Math.max(0.01, Math.PI * 2 - totalPad);
+    const minSweep = valid.length > 1 ? Math.min(0.02, availableAngle / valid.length) : availableAngle;
+    const rawSweeps = valid.map((item) => Math.max(minSweep, (item.value / sum) * availableAngle));
+    const sweepSum = rawSweeps.reduce((acc, s) => acc + s, 0);
+    const sweepScale = sweepSum > availableAngle ? availableAngle / sweepSum : 1;
 
     let currentAngle = -Math.PI / 2;
     const rawSlices = valid.map((item, idx) => {
       const share = item.value / sum;
-      const sweep = Math.max(0.02, share * availableAngle);
+      const sweep = rawSweeps[idx] * sweepScale;
       const startAngle = currentAngle;
       const endAngle = currentAngle + sweep;
       const midAngle = (startAngle + endAngle) / 2;
@@ -192,7 +209,9 @@ const SingleDonut = ({
         labelWidth,
         textAnchor,
         side: cos >= 0 ? 'right' : 'left',
-        path: describeRoundedArc(cx, cy, rIn, rOut, startAngle, endAngle, 8),
+        path: valid.length === 1
+          ? describeFullAnnulus(cx, cy, rIn, rOut)
+          : describeRoundedArc(cx, cy, rIn, rOut, startAngle, endAngle, 8),
       };
     });
 
@@ -253,7 +272,7 @@ const SingleDonut = ({
     return { slices: finalSlices, total: sum };
   }, [data, colorMap]);
 
-  const activeSlice = hoveredIdx !== null ? slices[hoveredIdx] : null;
+  const activeSlice = hoveredName !== null ? (slices.find((s) => s.name === hoveredName) || null) : null;
 
   if (slices.length === 0) {
     return (
@@ -290,12 +309,12 @@ const SingleDonut = ({
           overflow: 'visible',
           userSelect: 'none',
         }}
-        onMouseLeave={() => setHoveredIdx(null)}
+        onMouseLeave={() => setHoveredName(null)}
       >
         <g>
           {slices.map((s) => {
-            const isHovered = hoveredIdx === s.idx;
-            const isDimmed = hoveredIdx !== null && !isHovered;
+            const isHovered = activeSlice?.name === s.name;
+            const isDimmed = activeSlice !== null && !isHovered;
             return (
               <g
                 key={s.name}
@@ -306,12 +325,13 @@ const SingleDonut = ({
                   transformOrigin: `${cx}px ${cy}px`,
                   transition: 'opacity 0.18s ease, transform 0.18s ease',
                 }}
-                onMouseEnter={() => setHoveredIdx(s.idx)}
-                onClick={() => setHoveredIdx(isHovered ? null : s.idx)}
+                onMouseEnter={() => setHoveredName(s.name)}
+                onClick={() => setHoveredName(isHovered ? null : s.name)}
               >
                 <path
                   d={s.path}
                   fill={s.color}
+                  fillRule="evenodd"
                   style={{
                     filter: isHovered ? `drop-shadow(0 0 10px ${s.color}66)` : 'none',
                   }}
@@ -338,8 +358,8 @@ const SingleDonut = ({
         {/* Outside Category + Quantity Labels */}
         <g style={{ pointerEvents: 'none' }}>
           {slices.map((s) => {
-            const isHovered = hoveredIdx === s.idx;
-            const isDimmed = hoveredIdx !== null && !isHovered;
+            const isHovered = activeSlice?.name === s.name;
+            const isDimmed = activeSlice !== null && !isHovered;
             const formattedVal = s.value.toLocaleString(undefined, { maximumFractionDigits: 1 });
             return (
               <g
@@ -379,7 +399,7 @@ const SingleDonut = ({
         {/* Center Readout */}
         <g
           style={{ cursor: activeSlice ? 'pointer' : 'default' }}
-          onClick={() => setHoveredIdx(null)}
+          onClick={() => setHoveredName(null)}
         >
           {activeSlice ? (
             <>
@@ -457,7 +477,7 @@ const MuscleDonutChart = ({
   metric,
   isMobile,
 }) => {
-  const isComparing = Boolean(compareData && compareData.length > 0);
+  const isComparing = compareData !== null && compareData !== undefined;
 
   const colorMap = useMemo(() => {
     const map = new Map();
@@ -503,10 +523,10 @@ const MuscleDonutChart = ({
 
   const baseA = currentProgram === compareProgram ? `${currentProgram} (Selection A)` : currentProgram;
   const baseB = currentProgram === compareProgram ? `${compareProgram} (Selection B)` : compareProgram;
-  const labelA = weekA !== null ? `${baseA} · W${weekA}` : baseA;
-  const labelB = weekB !== null ? `${baseB} · W${weekB}` : baseB;
-  const subLabelA = weekA !== null ? `W${weekA} ${metricUnitLabel}` : metricUnitLabel;
-  const subLabelB = weekB !== null ? `W${weekB} ${metricUnitLabel}` : metricUnitLabel;
+  const labelA = weekA !== null ? `${baseA} · m${weekA}` : baseA;
+  const labelB = weekB !== null ? `${baseB} · m${weekB}` : baseB;
+  const subLabelA = weekA !== null ? `m${weekA} ${metricUnitLabel}` : metricUnitLabel;
+  const subLabelB = weekB !== null ? `m${weekB} ${metricUnitLabel}` : metricUnitLabel;
 
   return (
     <div

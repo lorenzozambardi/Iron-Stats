@@ -196,9 +196,61 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     }
   }, [activeTab, isMobile, calculateElapsed, calculateSessionElapsed, startLoop, startSessionLoop, stopLoop, stopSessionLoop, updateDisplay, updateSessionDisplay]);
 
-  // Initial load: sync with native plugin or localStorage
+  const latestTabStateRef = useRef({
+    activeTab,
+    isMobile,
+    startLoop,
+    stopLoop,
+    startSessionLoop,
+    updateDisplay,
+    updateSessionDisplay,
+    calculateElapsed,
+    calculateSessionElapsed,
+  });
   useEffect(() => {
+    latestTabStateRef.current = {
+      activeTab,
+      isMobile,
+      startLoop,
+      stopLoop,
+      startSessionLoop,
+      updateDisplay,
+      updateSessionDisplay,
+      calculateElapsed,
+      calculateSessionElapsed,
+    };
+  }, [activeTab, isMobile, startLoop, stopLoop, startSessionLoop, updateDisplay, updateSessionDisplay, calculateElapsed, calculateSessionElapsed]);
+
+  // Initial load & native/visibility listener registration (mount-only to prevent re-init on tab switches)
+  useEffect(() => {
+    let cancelled = false;
     const isNative = Capacitor.isNativePlatform();
+    const isCurrentlyVisible = () => {
+      const { isMobile: mob, activeTab: tab } = latestTabStateRef.current;
+      return mob ? isVisibleRef.current : (tab === 'stopwatch');
+    };
+
+    const loadFromLocalStorage = () => {
+      const storedRunning = localStorage.getItem(STORAGE_KEYS.RUNNING) === 'true';
+      const storedStartTime = parseInt(localStorage.getItem(STORAGE_KEYS.START_TIME) || '0', 10);
+      const storedAccumulated = parseInt(localStorage.getItem(STORAGE_KEYS.ACCUMULATED) || '0', 10);
+
+      accumulatedRef.current = storedAccumulated;
+      startTimeRef.current = storedStartTime;
+      setRunningState(storedRunning);
+
+      if (storedRunning && storedStartTime > 0) {
+        const cur = storedAccumulated + Math.max(0, Date.now() - storedStartTime);
+        setTime(cur);
+        latestTabStateRef.current.updateDisplay(cur);
+        if (isCurrentlyVisible()) {
+          latestTabStateRef.current.startLoop();
+        }
+      } else {
+        setTime(storedAccumulated);
+        latestTabStateRef.current.updateDisplay(storedAccumulated);
+      }
+    };
 
     // Always restore session timer from localStorage
     const storedSessionRunning = localStorage.getItem(SESSION_STORAGE_KEYS.RUNNING) === 'true';
@@ -212,15 +264,16 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     if (storedSessionRunning && storedSessionStart > 0) {
       const curSession = storedSessionAccumulated + Math.max(0, Date.now() - storedSessionStart);
       setSessionTime(curSession);
-      updateSessionDisplay(curSession);
-      if (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch')) {
-        startSessionLoop();
+      latestTabStateRef.current.updateSessionDisplay(curSession);
+      if (isCurrentlyVisible()) {
+        latestTabStateRef.current.startSessionLoop();
       }
     } else {
       setSessionTime(storedSessionAccumulated);
-      updateSessionDisplay(storedSessionAccumulated);
+      latestTabStateRef.current.updateSessionDisplay(storedSessionAccumulated);
     }
 
+    let listenerHandle = null;
     if (isNative) {
       // Request notification permission on Android 13+
       if (Stopwatch.requestNotificationPermission) {
@@ -235,133 +288,95 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       // Query native state
       Stopwatch.getState()
         .then((state) => {
-          if (state) {
-            const running = !!state.isRunning;
-            accumulatedRef.current = state.accumulatedTime || 0;
-            startTimeRef.current = state.startTime || 0;
-            setRunningState(running);
-            const t = state.time || 0;
-            setTime(t);
-            updateDisplay(t);
-            if (running && (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch'))) {
-              startLoop();
-            }
+          if (cancelled || !state) return;
+          const running = !!state.isRunning;
+          accumulatedRef.current = state.accumulatedTime || 0;
+          startTimeRef.current = state.startTime || 0;
+          setRunningState(running);
+          const t = state.time || 0;
+          setTime(t);
+          latestTabStateRef.current.updateDisplay(t);
+          if (running && isCurrentlyVisible()) {
+            latestTabStateRef.current.startLoop();
           }
         })
         .catch(() => {
-          loadFromLocalStorage();
+          if (!cancelled) loadFromLocalStorage();
         });
 
       // Listen for notification action events (Pause / Resume / Reset)
-      let listenerHandle = null;
       Stopwatch.addListener('stopwatchChange', (data) => {
-        if (data) {
-          const running = !!data.isRunning;
-          accumulatedRef.current = data.accumulatedTime || 0;
-          startTimeRef.current = data.startTime || 0;
-          setRunningState(running);
+        if (cancelled || !data) return;
+        const running = !!data.isRunning;
+        const acc = data.accumulatedTime || 0;
+        const st = data.startTime || 0;
+        accumulatedRef.current = acc;
+        startTimeRef.current = st;
+        setRunningState(running);
 
-          if (!running) {
-            localStorage.setItem(STORAGE_KEYS.ACCUMULATED, (data.accumulatedTime || 0).toString());
-            localStorage.setItem(STORAGE_KEYS.START_TIME, '0');
-          } else {
-            localStorage.setItem(STORAGE_KEYS.START_TIME, (data.startTime || 0).toString());
-            localStorage.setItem(STORAGE_KEYS.ACCUMULATED, (data.accumulatedTime || 0).toString());
-          }
+        if (!running) {
+          localStorage.setItem(STORAGE_KEYS.ACCUMULATED, acc.toString());
+          localStorage.setItem(STORAGE_KEYS.START_TIME, '0');
+        } else {
+          localStorage.setItem(STORAGE_KEYS.START_TIME, st.toString());
+          localStorage.setItem(STORAGE_KEYS.ACCUMULATED, acc.toString());
+        }
 
-          const currentElapsed = data.time != null
-            ? data.time
-            : (running && data.startTime > 0
-                ? (data.accumulatedTime + Math.max(0, Date.now() - data.startTime))
-                : data.accumulatedTime);
-          setTime(currentElapsed);
-          updateDisplay(currentElapsed);
-          if (running && (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch'))) {
-            startLoop();
-          } else {
-            stopLoop();
-          }
+        const currentElapsed = data.time != null
+          ? data.time
+          : (running && st > 0 ? (acc + Math.max(0, Date.now() - st)) : acc);
+        setTime(currentElapsed);
+        latestTabStateRef.current.updateDisplay(currentElapsed);
+        if (running && isCurrentlyVisible()) {
+          latestTabStateRef.current.startLoop();
+        } else {
+          latestTabStateRef.current.stopLoop();
         }
       }).then((handle) => {
-        listenerHandle = handle;
-      });
-
-      return () => {
-        if (listenerHandle && listenerHandle.remove) {
-          listenerHandle.remove();
+        if (cancelled) {
+          handle?.remove?.();
+        } else {
+          listenerHandle = handle;
         }
-      };
+      });
     } else {
       loadFromLocalStorage();
     }
 
-    function loadFromLocalStorage() {
-      const storedRunning = localStorage.getItem(STORAGE_KEYS.RUNNING) === 'true';
-      const storedStartTime = parseInt(localStorage.getItem(STORAGE_KEYS.START_TIME) || '0', 10);
-      const storedAccumulated = parseInt(localStorage.getItem(STORAGE_KEYS.ACCUMULATED) || '0', 10);
-
-      accumulatedRef.current = storedAccumulated;
-      startTimeRef.current = storedStartTime;
-      setRunningState(storedRunning);
-
-      if (storedRunning && storedStartTime > 0) {
-        const cur = storedAccumulated + Math.max(0, Date.now() - storedStartTime);
-        setTime(cur);
-        updateDisplay(cur);
-        if (isMobile ? isVisibleRef.current : (activeTab === 'stopwatch')) {
-          startLoop();
-        }
-      } else {
-        setTime(storedAccumulated);
-        updateDisplay(storedAccumulated);
-      }
-    }
-  }, [activeTab, isMobile, startLoop, startSessionLoop, stopLoop, updateDisplay, updateSessionDisplay]);
-
-  // Cleanup intervals/frames on unmount
-  useEffect(() => {
-    return () => {
-      stopLoop();
-      stopSessionLoop();
-    };
-  }, [stopLoop, stopSessionLoop]);
-
-  // When app returns to foreground / visibility change, resync display immediately
-  useEffect(() => {
     const resync = () => {
-      const isVisible = isMobile ? isVisibleRef.current : (activeTab === 'stopwatch');
+      if (cancelled) return;
+      const isVisible = isCurrentlyVisible();
 
-      const s = calculateSessionElapsed();
+      const s = latestTabStateRef.current.calculateSessionElapsed();
       setSessionTime(s);
-      updateSessionDisplay(s);
+      latestTabStateRef.current.updateSessionDisplay(s);
       if (isSessionRunningRef.current && isVisible) {
-        startSessionLoop();
+        latestTabStateRef.current.startSessionLoop();
       }
 
-      const isNative = Capacitor.isNativePlatform();
       if (isNative) {
         Stopwatch.getState().then((state) => {
-          if (state) {
-            const running = !!state.isRunning;
-            accumulatedRef.current = state.accumulatedTime || 0;
-            startTimeRef.current = state.startTime || 0;
-            setRunningState(running);
-            const t = state.time || 0;
-            setTime(t);
-            updateDisplay(t);
-            if (running && isVisible) {
-              startLoop();
-            }
+          if (cancelled || !state) return;
+          const running = !!state.isRunning;
+          accumulatedRef.current = state.accumulatedTime || 0;
+          startTimeRef.current = state.startTime || 0;
+          setRunningState(running);
+          const t = state.time || 0;
+          setTime(t);
+          latestTabStateRef.current.updateDisplay(t);
+          if (running && isVisible) {
+            latestTabStateRef.current.startLoop();
           }
         }).catch(() => {
-          const t = calculateElapsed();
+          if (cancelled) return;
+          const t = latestTabStateRef.current.calculateElapsed();
           setTime(t);
-          updateDisplay(t);
+          latestTabStateRef.current.updateDisplay(t);
         });
       } else {
-        const t = calculateElapsed();
+        const t = latestTabStateRef.current.calculateElapsed();
         setTime(t);
-        updateDisplay(t);
+        latestTabStateRef.current.updateDisplay(t);
       }
     };
 
@@ -379,16 +394,28 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         resync();
       }
     }).then((handle) => {
-      appStateHandle = handle;
+      if (cancelled) {
+        handle?.remove?.();
+      } else {
+        appStateHandle = handle;
+      }
     });
 
     return () => {
+      cancelled = true;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (appStateHandle && appStateHandle.remove) {
-        appStateHandle.remove();
-      }
+      if (listenerHandle?.remove) listenerHandle.remove();
+      if (appStateHandle?.remove) appStateHandle.remove();
     };
-  }, [activeTab, calculateElapsed, calculateSessionElapsed, isMobile, startLoop, startSessionLoop, updateDisplay, updateSessionDisplay]);
+  }, []);
+
+  // Cleanup intervals/frames on unmount
+  useEffect(() => {
+    return () => {
+      stopLoop();
+      stopSessionLoop();
+    };
+  }, [stopLoop, stopSessionLoop]);
 
   const startSessionTimer = (now = Date.now()) => {
     sessionStartTimeRef.current = now;
@@ -401,7 +428,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
   const handleSessionStartStop = () => {
     if (isSessionRunning) {
       const now = Date.now();
-      const currentElapsed = sessionAccumulatedRef.current + (sessionStartTimeRef.current > 0 ? (now - sessionStartTimeRef.current) : 0);
+      const currentElapsed = sessionAccumulatedRef.current + (sessionStartTimeRef.current > 0 ? Math.max(0, now - sessionStartTimeRef.current) : 0);
       sessionAccumulatedRef.current = currentElapsed;
       sessionStartTimeRef.current = 0;
       setSessionRunningState(false);
@@ -433,7 +460,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     if (isRunning) {
       // Pause
       const now = Date.now();
-      const currentElapsed = accumulatedRef.current + (startTimeRef.current > 0 ? (now - startTimeRef.current) : 0);
+      const currentElapsed = accumulatedRef.current + (startTimeRef.current > 0 ? Math.max(0, now - startTimeRef.current) : 0);
       accumulatedRef.current = currentElapsed;
       startTimeRef.current = 0;
       setRunningState(false);

@@ -8,7 +8,7 @@ export const TrendBadge = React.memo(({ values, invertColor = false }) => {
   const first = getVal(values[0]);
   const last = getVal(values[values.length - 1]);
   if (first === 0) return null;
-  const pct = ((last - first) / first) * 100;
+  const pct = ((last - first) / Math.abs(first)) * 100;
   const pos = pct >= 0;
   const isGood = invertColor ? !pos : pos;
   return (
@@ -19,7 +19,9 @@ export const TrendBadge = React.memo(({ values, invertColor = false }) => {
 });
 
 const buildSparklinePath = (vals, w, h, padY, min, range) => {
-  const hasTimestamps = typeof vals[0] === 'object' && vals[0] !== null && Number.isFinite(vals[0].t);
+  const hasTimestamps =
+    vals.length >= 2 &&
+    vals.every((item) => typeof item === 'object' && item !== null && Number.isFinite(item.t));
   let tMin = 0;
   let tRange = 0;
   if (hasTimestamps) {

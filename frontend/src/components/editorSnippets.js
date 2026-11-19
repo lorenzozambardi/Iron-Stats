@@ -15,7 +15,7 @@ export function formatTodayDDMMYYYY(now = new Date()) {
 }
 
 /**
- * Walks upward from lineIndex - 1 to find the previous microcycle set line
+ * Walks upward from currentLineIndex - 1 to find the previous microcycle set line
  * belonging to the same exercise block. Returns null if none exists.
  */
 export function findPreviousMicrocycleLine(docLines, currentLineIndex) {

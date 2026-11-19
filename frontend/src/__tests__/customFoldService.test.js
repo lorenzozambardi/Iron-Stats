@@ -11,6 +11,37 @@ describe('customFoldService', () => {
     expect(isSetLine('old 80..10')).toBe(true);
     expect(isSetLine('Lat Machine | 3\'')).toBe(false);
     expect(isSetLine('# 1')).toBe(false);
+    expect(isSetLine('Dates:')).toBe(false);
+    expect(isSetLine('19-11-2026')).toBe(false);
+    expect(isSetLine('-')).toBe(false);
+  });
+
+  it('folds Dates: blocks independently without capturing exercises', () => {
+    const text = [
+      '# 1',
+      'Dates:',
+      '05-01-2026',
+      '12-01-2026',
+      '',
+      'Lat Machine | 3\'',
+      '90.. 10'
+    ].join('\n');
+
+    const state = EditorState.create({
+      doc: text,
+      extensions: [customFoldService]
+    });
+
+    const datesLine = state.doc.line(2);
+    const foldRange = foldable(state, datesLine.from, datesLine.to);
+    expect(foldRange).not.toBeNull();
+    const lastDateLine = state.doc.line(4);
+    expect(foldRange.from).toBe(datesLine.to);
+    expect(foldRange.to).toBe(lastDateLine.to);
+
+    // Date lines themselves are not foldable
+    const dateLine = state.doc.line(3);
+    expect(foldable(state, dateLine.from, dateLine.to)).toBeNull();
   });
 
   it('folds markdown day headers correctly', () => {

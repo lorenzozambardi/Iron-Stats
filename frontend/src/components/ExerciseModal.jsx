@@ -247,7 +247,7 @@ export const ExerciseModal = ({
                             WebkitBackdropFilter: 'blur(16px)',
                           }}
                           labelFormatter={(l) => `ROM: ${(l * 100).toFixed(0)}%`}
-                          formatter={(val) => [(val * 100).toFixed(1) + '%', 'Tension']}
+                          formatter={(val, name) => [(val * 100).toFixed(1) + '%', name]}
                         />
                       )}
                       {isMobile && (

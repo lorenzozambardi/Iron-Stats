@@ -49,12 +49,9 @@ const DatabaseTab = React.memo(({
     const lines = overrideLinesText.split('\n');
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.toLowerCase().startsWith('override: ')) {
-        const parts = trimmed.split('|');
-        if (parts.length >= 2) {
-          const exName = parts[0].substring(10).trim().toLowerCase();
-          overrides.add(exName);
-        }
+      const match = trimmed.match(/^override:\s*([^|]+)\|/i);
+      if (match) {
+        overrides.add(match[1].trim().toLowerCase());
       }
     }
     return overrides;

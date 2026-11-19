@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  isDatesHeader,
+  parseDateTokenToISO,
+  isDateLine,
   parseRestTime,
   parseTempoFromLine,
   parseLine,
@@ -232,6 +235,53 @@ Pulley | 2' | 1-0-2-0
       const chestOnly = calculateMetricsByWeek(workoutData, 1, weeks, 'Chest', null);
       const expectedChestW1 = calculateMetrics(workoutData, 1, 1, 'Chest', null);
       expect(chestOnly.get(1).tonnage).toBeCloseTo(expectedChestW1.reduce((s, d) => s + d.tonnage, 0), 6);
+    });
+
+    it('parses per-session Dates: blocks and attaches ISO dates to matching microcycles', () => {
+      expect(isDatesHeader('Dates:')).toBe(true);
+      expect(isDatesHeader('Dates:  ')).toBe(true);
+      expect(isDatesHeader('dates:')).toBe(true);
+      expect(isDatesHeader('Dates: 01-01-2026')).toBe(false);
+
+      expect(parseDateTokenToISO('19-11-2026')).toBe('2026-11-19');
+      expect(parseDateTokenToISO('05/01/2026')).toBe('2026-01-05');
+      expect(parseDateTokenToISO('2026-01-05')).toBe('2026-01-05');
+      expect(parseDateTokenToISO('-')).toBeNull();
+      expect(parseDateTokenToISO('32-01-2026')).toBeNull();
+      expect(parseDateTokenToISO('29-02-2025')).toBeNull();
+
+      expect(isDateLine('19-11-2026')).toBe(true);
+      expect(isDateLine('-')).toBe(true);
+      expect(isDateLine('90.. 10, 8')).toBe(false);
+
+      const log = `# 1
+Dates: 
+05-01-2026
+12-01-2026
+19-01-2026
+
+Lat Machine | 3' | 1-0-2-0
+90.. 10, 8
+90.. 11, 9
+95.. 10, 8
+
+# 2
+Dates:
+08-01-2026
+-
+22-01-2026
+
+Flat Barbell Bench | 3' | 1-0-2-0
+100.. 8, 7
+100.. 9, 7
+102.5.. 8, 7`;
+
+      const workoutData = parseLogbook(log, mockExercises);
+      expect(workoutData.length).toBe(2);
+      expect(workoutData[0].session).toBe(1);
+      expect(workoutData[0].weeks.map((w) => w.date)).toEqual(['2026-01-05', '2026-01-12', '2026-01-19']);
+      expect(workoutData[1].session).toBe(2);
+      expect(workoutData[1].weeks.map((w) => w.date)).toEqual(['2026-01-08', null, '2026-01-22']);
     });
   });
 });

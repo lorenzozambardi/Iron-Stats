@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Latex, MathBlock } from './MathComponents';
 
 const dashboardCardStyle = {
@@ -259,24 +260,35 @@ export default function MetricDetailsPage({ metric, onBack }) {
 
   // Fade in/out animation — matches settings popup
   const [visible, setVisible] = useState(false);
+  const closeTimeoutRef = useRef(null);
+
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    };
   }, []);
+
+  const handleClose = useCallback(() => {
+    setVisible(false);
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      closeTimeoutRef.current = null;
+      onBack();
+    }, 200); // match CSS transition duration
+  }, [onBack]);
 
   useEffect(() => {
     const handleHardwareBack = () => {
-      setVisible(false);
-      setTimeout(() => onBack(), 200);
+      handleClose();
     };
     window.addEventListener('close-metric-detail', handleHardwareBack);
     return () => window.removeEventListener('close-metric-detail', handleHardwareBack);
-  }, [onBack]);
-
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(() => onBack(), 200); // match CSS transition duration
-  };
+  }, [handleClose]);
 
   const activeMetric = metric || lastValidMetric;
 
@@ -504,9 +516,9 @@ export default function MetricDetailsPage({ metric, onBack }) {
   };
 
   const data = getMetricData();
-  if (!data) return <div>Metric not found</div>;
+  if (!data) return null;
 
-  return (
+  const overlay = (
     <div style={{
       position: 'fixed',
       top: 0,
@@ -676,5 +688,7 @@ export default function MetricDetailsPage({ metric, onBack }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 };
 
