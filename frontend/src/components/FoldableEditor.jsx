@@ -2,6 +2,7 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
+import { Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
 import { customFoldService } from './customFoldService';
@@ -163,6 +164,8 @@ export default function FoldableEditor({
   onChangeRef.current = onChange;
 
   const editorViewRef = useRef(null);
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
   const lastEmittedValueRef = useRef(value);
   const pendingLocalValuesRef = useRef([]);
   const isSyncingExternalRef = useRef(false);
@@ -180,6 +183,7 @@ export default function FoldableEditor({
             textBefore.includes('|') ||
             trimmedBefore.startsWith('#') ||
             trimmedBefore.toLowerCase().startsWith('override:') ||
+            trimmedBefore.toLowerCase().startsWith('dates:') ||
             isDatesHeader(trimmedBefore) ||
             isDateLine(trimmedBefore) ||
             trimmedBefore === 'date' ||
@@ -235,6 +239,7 @@ export default function FoldableEditor({
       if (
         update.docChanged &&
         !isSyncingExternalRef.current &&
+        update.state.selection.main.empty &&
         update.transactions.some((tr) => tr.isUserEvent('input.type'))
       ) {
         const head = update.state.selection.main.head;
@@ -271,9 +276,46 @@ export default function FoldableEditor({
     }
   }, []);
 
+  const syncExternalDoc = useCallback((view, targetValue) => {
+    const currentDoc = view.state.doc.toString();
+    if (currentDoc === targetValue) return;
+    const change = computeMinimalChange(currentDoc, targetValue);
+    const isFullReplacement = change.from === 0 && change.to === currentDoc.length && currentDoc.length > 0 && targetValue.length > 0;
+    const { anchor, head } = view.state.selection.main;
+    const delta = change.insert.length - (change.to - change.from);
+    const mapPos = (pos) => {
+      if (pos <= change.from) return pos;
+      if (pos >= change.to) return pos + delta;
+      return Math.min(pos, change.from + change.insert.length);
+    };
+    const nextSelection = isFullReplacement
+      ? { anchor: 0, head: 0 }
+      : {
+          anchor: Math.max(0, Math.min(mapPos(anchor), targetValue.length)),
+          head: Math.max(0, Math.min(mapPos(head), targetValue.length))
+        };
+
+    isSyncingExternalRef.current = true;
+    try {
+      view.dispatch({
+        changes: change,
+        selection: nextSelection,
+        annotations: Transaction.addToHistory.of(false)
+      });
+    } finally {
+      isSyncingExternalRef.current = false;
+    }
+  }, []);
+
   const handleCreateEditor = useCallback((view) => {
     editorViewRef.current = view;
-  }, []);
+    const targetValue = latestValueRef.current;
+    if (view.state.doc.toString() !== targetValue) {
+      pendingLocalValuesRef.current = [];
+      lastEmittedValueRef.current = targetValue;
+      syncExternalDoc(view, targetValue);
+    }
+  }, [syncExternalDoc]);
 
   // Only sync external value changes (program switch, undo/redo, modal edits, save-time formatting) into CodeMirror.
   // Never echo back stale intermediate keystrokes, and apply minimal diffs with mapped selection to prevent cursor resets.
@@ -294,35 +336,8 @@ export default function FoldableEditor({
     lastEmittedValueRef.current = value;
     const view = editorViewRef.current;
     if (!view) return;
-    const currentDoc = view.state.doc.toString();
-    if (currentDoc !== value) {
-      const change = computeMinimalChange(currentDoc, value);
-      const isFullReplacement = change.from === 0 && change.to === currentDoc.length && currentDoc.length > 0 && value.length > 0;
-      const { anchor, head } = view.state.selection.main;
-      const delta = change.insert.length - (change.to - change.from);
-      const mapPos = (pos) => {
-        if (pos <= change.from) return pos;
-        if (pos >= change.to) return pos + delta;
-        return Math.min(pos, change.from + change.insert.length);
-      };
-      const nextSelection = isFullReplacement
-        ? { anchor: 0, head: 0 }
-        : {
-            anchor: Math.max(0, Math.min(mapPos(anchor), value.length)),
-            head: Math.max(0, Math.min(mapPos(head), value.length))
-          };
-
-      isSyncingExternalRef.current = true;
-      try {
-        view.dispatch({
-          changes: change,
-          selection: nextSelection
-        });
-      } finally {
-        isSyncingExternalRef.current = false;
-      }
-    }
-  }, [value]);
+    syncExternalDoc(view, value);
+  }, [value, syncExternalDoc]);
 
   return (
     <div className="foldable-editor-root">

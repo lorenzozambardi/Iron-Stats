@@ -5,8 +5,10 @@ export const isSetLine = (str) => {
   if (!str) return false;
   const trimmed = str.trim();
   if (isDateLine(trimmed) || trimmed.includes('|')) return false;
-  if (/(?:^|\s)-?[\d./]+\s*\.\./.test(trimmed)) return true;
-  return /^(?:old\s+)?[\d().+/@,\s]+$/i.test(trimmed);
+  const noOld = trimmed.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
+  if (!noOld || !/\d/.test(noOld)) return false;
+  if (/(?:^|\s)-?[\d.]+(?:\/-?[\d.]+)*\s*\.\./.test(noOld)) return true;
+  return /^[\d().+/@,\s]+$/.test(noOld);
 };
 
 export const customFoldService = foldService.of((state, lineStart) => {
@@ -77,8 +79,7 @@ export const customFoldService = foldService.of((state, lineStart) => {
 
       if (
         nextTrim.length > 0 &&
-        !nextTrim.toLowerCase().startsWith('override:') &&
-        !isSetLine(nextTrim)
+        (nextTrim.toLowerCase().startsWith('override:') || !isSetLine(nextTrim))
       ) {
         break;
       }

@@ -1,4 +1,4 @@
-import { memo, startTransition, useEffect, useOptimistic, useRef, useState } from 'react';
+import { memo, startTransition, useEffect, useLayoutEffect, useOptimistic, useRef, useState } from 'react';
 import {
   FolderOpen,
   ChevronDown,
@@ -10,7 +10,6 @@ import {
   Check
 } from 'lucide-react';
 import { DATE_FORMATS } from '../profileUtils';
-import { AnalyticsSettingsSection } from '../analytics/ui/AnalyticsSettingsSection';
 
 const resolveColor = (value, list, colorKey = 'color') => {
   if (!value) return '#000000';
@@ -64,10 +63,12 @@ export const SettingsPanel = memo(({
   setDateFormat,
 }) => {
   const [openColorSlot, setOpenColorSlot] = useState(null);
+  const [hexDrafts, setHexDrafts] = useState({});
   const [optimisticEditorType, setOptimisticEditorType] = useOptimistic(editorType);
   const [isStorageOpen, setIsStorageOpen] = useState(false);
   const [storageHeight, setStorageHeight] = useState(0);
   const storageContentRef = useRef(null);
+  const drawerOwnerTokenRef = useRef({});
 
   const handleEditorTypeChange = (nextType) => {
     if (nextType === optimisticEditorType) return;
@@ -83,16 +84,35 @@ export const SettingsPanel = memo(({
 
   useEffect(() => {
     if (!storageDrawerRef) return;
-    storageDrawerRef.current = {
-      isOpen: isStorageOpen,
-      close: () => setIsStorageOpen(false)
+    const owner = drawerOwnerTokenRef.current;
+    if (isStorageOpen) {
+      storageDrawerRef.current = {
+        owner,
+        isOpen: true,
+        close: () => setIsStorageOpen(false)
+      };
+    } else if (storageDrawerRef.current?.owner === owner) {
+      storageDrawerRef.current = { owner: null, isOpen: false, close: null };
+    }
+    return () => {
+      if (storageDrawerRef.current?.owner === owner) {
+        storageDrawerRef.current = { owner: null, isOpen: false, close: null };
+      }
     };
   }, [storageDrawerRef, isStorageOpen]);
 
+  useLayoutEffect(() => {
+    const el = storageContentRef.current;
+    if (!el || !isStorageOpen) return;
+    const measure = () => setStorageHeight(el.scrollHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isStorageOpen, storagePickError]);
+
   const toggleStorageDrawer = () => {
-    if (!isStorageOpen && storageContentRef.current) {
-      setStorageHeight(storageContentRef.current.scrollHeight);
-    }
     setIsStorageOpen(prev => !prev);
   };
 
@@ -213,9 +233,12 @@ export const SettingsPanel = memo(({
             {(() => {
               const cfg = getStorageConfig();
               const isCustom = cfg.dirType === 'custom' && cfg.safUri;
-              const resolvedHeight = isStorageOpen
-                ? (storageContentRef.current?.scrollHeight || storageHeight || 220)
-                : 0;
+              const currentPathLabel = isCustom
+                ? cfg.safDisplayName
+                : (cfg.dirType === 'data'
+                  ? `Private/${cfg.subfolder || '(root)'}`
+                  : `Documents/${cfg.subfolder || '(root)'}`);
+              const resolvedHeight = isStorageOpen ? (storageHeight || 220) : 0;
               return (
                 <div
                   className={`settings-storage-collapse${isStorageOpen ? ' open' : ''}`}
@@ -231,7 +254,7 @@ export const SettingsPanel = memo(({
                         <div className="settings-storage-current-info">
                           <span className="settings-storage-sublabel">Current</span>
                           <span className={`settings-storage-path${isCustom ? ' custom' : ''}`}>
-                            {isCustom ? cfg.safDisplayName : `Documents/${cfg.subfolder}`}
+                            {currentPathLabel}
                           </span>
                         </div>
                         <div className="settings-storage-current-actions">
@@ -353,9 +376,6 @@ export const SettingsPanel = memo(({
         </div>
       )}
 
-      {/* AI Analytics Section */}
-      <AnalyticsSettingsSection />
-
       {/* Appearance Section */}
       <div className="settings-section">
         <div className="settings-section-label">Appearance</div>
@@ -398,7 +418,14 @@ export const SettingsPanel = memo(({
                           <button
                             key={item.id}
                             type="button"
-                            onClick={() => row.onChange(item.id)}
+                            onClick={() => {
+                              setHexDrafts(prev => {
+                                const next = { ...prev };
+                                delete next[row.id];
+                                return next;
+                              });
+                              row.onChange(item.id);
+                            }}
                             className={`settings-swatch-btn${row.isDark ? ' dark' : ''}${selected ? ' selected' : ''}`}
                             style={{ background: swatchColor }}
                             title={item.label}
@@ -422,8 +449,21 @@ export const SettingsPanel = memo(({
                           <input
                             type="text"
                             className="settings-hex-input"
-                            value={isHexValue ? row.value.substring(1) : ''}
-                            onChange={(e) => row.onChange('#' + e.target.value.replace(/[^0-9a-fA-F]/g, ''))}
+                            value={hexDrafts[row.id] !== undefined ? hexDrafts[row.id] : (isHexValue ? row.value.substring(1) : '')}
+                            onChange={(e) => {
+                              const clean = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+                              setHexDrafts(prev => ({ ...prev, [row.id]: clean }));
+                              if (clean.length === 3 || clean.length === 6) {
+                                row.onChange('#' + clean);
+                              }
+                            }}
+                            onBlur={() => {
+                              setHexDrafts(prev => {
+                                const next = { ...prev };
+                                delete next[row.id];
+                                return next;
+                              });
+                            }}
                             placeholder="000000"
                             maxLength={6}
                             aria-label={`${row.label} hex color`}

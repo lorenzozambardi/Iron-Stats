@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
 
 const BezierEditor = ({ value, onChange }) => {
   // value is { y0, x1, y1, x2, y2, y3 }
+  const gradientId = useId();
   const svgRef = useRef(null);
+  const activePointerIdRef = useRef(null);
   const [dragging, setDragging] = useState(null); // 'p0', 'p1', 'p2', 'p3'
 
   const paddingX = 20;
@@ -13,14 +15,14 @@ const BezierEditor = ({ value, onChange }) => {
   const toSvgX = useCallback((x) => paddingX + x * innerWidth, [paddingX, innerWidth]);
   const toSvgY = useCallback((y) => paddingY + innerHeight - (y * innerHeight), [paddingY, innerHeight]);
 
-  const fromSvgX = (svgX) => Math.max(0, Math.min(1, (svgX - paddingX) / innerWidth));
-  const fromSvgY = (svgY) => Math.max(0, Math.min(1, (paddingY + innerHeight - svgY) / innerHeight));
+  const fromSvgX = useCallback((svgX) => Math.max(0, Math.min(1, (svgX - paddingX) / innerWidth)), [paddingX, innerWidth]);
+  const fromSvgY = useCallback((svgY) => Math.max(0, Math.min(1, (paddingY + innerHeight - svgY) / innerHeight)), [paddingY, innerHeight]);
 
   const handleSvgPointerDown = (e) => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || activePointerIdRef.current !== null) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
-    const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
     if (clientX === undefined || clientY === undefined) return;
     const svgX = clientX - rect.left;
     const svgY = clientY - rect.top;
@@ -47,6 +49,7 @@ const BezierEditor = ({ value, onChange }) => {
     if (nearest) {
       e.preventDefault();
       e.stopPropagation();
+      activePointerIdRef.current = e.pointerId;
       setDragging(nearest);
     }
   };
@@ -54,71 +57,75 @@ const BezierEditor = ({ value, onChange }) => {
   const valueRef = useRef(value);
   useEffect(() => { valueRef.current = value; }, [value]);
 
-  const handlePointerMove = (e) => {
-    if (!dragging || !svgRef.current) return;
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
-    const y = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
-    if (x === undefined || y === undefined) return;
-    
-    const svgX = x - rect.left;
-    const svgY = y - rect.top;
-    
-    const newX = fromSvgX(svgX);
-    const newY = fromSvgY(svgY);
-    
-    const currentVal = valueRef.current;
-    const p0 = { x: currentVal.x0 ?? 0, y: currentVal.y0 ?? 1 };
-    const p1 = { x: currentVal.x1 ?? 0.33, y: currentVal.y1 ?? 1 };
-    const p2 = { x: currentVal.x2 ?? 0.66, y: currentVal.y2 ?? 1 };
-    const p3 = { x: currentVal.x3 ?? 1, y: currentVal.y3 ?? 1 };
-    
-    const nextVal = { ...currentVal };
-    
-    const eps = 0.01;
-    if (dragging === 'p0') {
-      nextVal.x0 = Math.min(newX, p3.x - 3 * eps);
-      nextVal.y0 = newY;
-      nextVal.x1 = Math.min(p3.x - 2 * eps, Math.max(p1.x, nextVal.x0 + eps));
-      nextVal.x2 = Math.min(p3.x - eps, Math.max(p2.x, nextVal.x1 + eps));
-    } else if (dragging === 'p3') {
-      nextVal.x3 = Math.max(newX, p0.x + 3 * eps);
-      nextVal.y3 = newY;
-      nextVal.x2 = Math.max(p0.x + 2 * eps, Math.min(p2.x, nextVal.x3 - eps));
-      nextVal.x1 = Math.max(p0.x + eps, Math.min(p1.x, nextVal.x2 - eps));
-    } else if (dragging === 'p1') {
-      nextVal.x1 = Math.max(p0.x + eps, Math.min(newX, p2.x - eps));
-      nextVal.y1 = newY;
-    } else if (dragging === 'p2') {
-      nextVal.x2 = Math.max(p1.x + eps, Math.min(newX, p3.x - eps));
-      nextVal.y2 = newY;
-    }
-    
-    onChange(nextVal);
-  };
-
-  const handlePointerUp = () => {
-    setDragging(null);
-  };
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   useEffect(() => {
-    if (dragging) {
-      window.addEventListener('pointermove', handlePointerMove, { passive: false });
-      window.addEventListener('pointerup', handlePointerUp);
-      window.addEventListener('touchmove', handlePointerMove, { passive: false });
-      window.addEventListener('touchend', handlePointerUp);
-      return () => {
-        window.removeEventListener('pointermove', handlePointerMove);
-        window.removeEventListener('pointerup', handlePointerUp);
-        window.removeEventListener('touchmove', handlePointerMove);
-        window.removeEventListener('touchend', handlePointerUp);
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragging]);
+    if (!dragging) return;
+
+    const handlePointerMove = (e) => {
+      if (!svgRef.current) return;
+      if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = svgRef.current.getBoundingClientRect();
+      const x = e.clientX;
+      const y = e.clientY;
+      if (x === undefined || y === undefined) return;
+
+      const svgX = x - rect.left;
+      const svgY = y - rect.top;
+
+      const newX = fromSvgX(svgX);
+      const newY = fromSvgY(svgY);
+
+      const currentVal = valueRef.current;
+      const cp0 = { x: currentVal.x0 ?? 0, y: currentVal.y0 ?? 1 };
+      const cp1 = { x: currentVal.x1 ?? 0.33, y: currentVal.y1 ?? 1 };
+      const cp2 = { x: currentVal.x2 ?? 0.66, y: currentVal.y2 ?? 1 };
+      const cp3 = { x: currentVal.x3 ?? 1, y: currentVal.y3 ?? 1 };
+
+      const nextVal = { ...currentVal };
+
+      const eps = 0.01;
+      if (dragging === 'p0') {
+        nextVal.x0 = Math.min(newX, cp3.x - 3 * eps);
+        nextVal.y0 = newY;
+        nextVal.x1 = Math.min(cp3.x - 2 * eps, Math.max(cp1.x, nextVal.x0 + eps));
+        nextVal.x2 = Math.min(cp3.x - eps, Math.max(cp2.x, nextVal.x1 + eps));
+      } else if (dragging === 'p3') {
+        nextVal.x3 = Math.max(newX, cp0.x + 3 * eps);
+        nextVal.y3 = newY;
+        nextVal.x2 = Math.max(cp0.x + 2 * eps, Math.min(cp2.x, nextVal.x3 - eps));
+        nextVal.x1 = Math.max(cp0.x + eps, Math.min(cp1.x, nextVal.x2 - eps));
+      } else if (dragging === 'p1') {
+        nextVal.x1 = Math.max(cp0.x + eps, Math.min(newX, cp2.x - eps));
+        nextVal.y1 = newY;
+      } else if (dragging === 'p2') {
+        nextVal.x2 = Math.max(cp1.x + eps, Math.min(newX, cp3.x - eps));
+        nextVal.y2 = newY;
+      }
+
+      valueRef.current = nextVal;
+      onChangeRef.current?.(nextVal);
+    };
+
+    const handlePointerEnd = (e) => {
+      if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+      activePointerIdRef.current = null;
+      setDragging(null);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+    };
+  }, [dragging, fromSvgX, fromSvgY]);
 
   const { p0, p1, p2, p3 } = useMemo(() => ({
     p0: { x: value.x0 ?? 0, y: value.y0 ?? 1 },
@@ -191,7 +198,7 @@ const BezierEditor = ({ value, onChange }) => {
         onPointerDown={handleSvgPointerDown}
       >
         <defs>
-          <linearGradient id="curveGradient" x1="0" y1="0" x2="300" y2="0" gradientUnits="userSpaceOnUse">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="300" y2="0" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="var(--color-volume)" />
             <stop offset="100%" stopColor="var(--color-tonnage)" />
           </linearGradient>
@@ -211,7 +218,7 @@ const BezierEditor = ({ value, onChange }) => {
         <path d={pathD} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
         
         {/* Normalized Curve */}
-        <path d={normalizedPathD} fill="none" stroke="url(#curveGradient)" strokeWidth="4" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px rgba(99,102,241,0.3))' }} />
+        <path d={normalizedPathD} fill="none" stroke={`url(#${gradientId})`} strokeWidth="4" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px rgba(99,102,241,0.3))' }} />
         
         {/* Control points (Maniglie blu) */}
         <g style={{ cursor: 'grab' }}>

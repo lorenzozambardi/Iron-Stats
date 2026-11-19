@@ -56,8 +56,11 @@ const APP_PALETTES = [
   { id: 'slate', color: '#64748b', glow: 'rgba(100, 116, 139, 0.25)', label: 'Slate' }
 ];
 
+const isValidHexColor = (val) => typeof val === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(val);
+
 const hexToRgba = (hex, alpha) => {
   let r = 0, g = 0, b = 0;
+  if (!isValidHexColor(hex)) return `rgba(0, 0, 0, ${alpha})`;
   if (hex.length === 4) {
     r = parseInt(hex[1] + hex[1], 16);
     g = parseInt(hex[2] + hex[2], 16);
@@ -126,31 +129,40 @@ export default function App() {
     }
     
     let primaryBg = '#000000';
-    if (bgPalette.startsWith('#')) primaryBg = bgPalette;
-    else {
+    let validBg = false;
+    if (isValidHexColor(bgPalette)) {
+      primaryBg = bgPalette;
+      validBg = true;
+    } else {
       const b = BG_PALETTES.find(x => x.id === bgPalette);
-      if (b) primaryBg = b.primary;
+      if (b) {
+        primaryBg = b.primary;
+        validBg = true;
+      }
     }
     root.style.setProperty('--bg-primary', primaryBg);
-    localStorage.setItem('bg-palette', bgPalette);
+    if (validBg) localStorage.setItem('bg-palette', bgPalette);
 
     let secBg = '#111111', secGlass = 'rgba(17,17,17,0.6)', secGlassActive = 'rgba(17,17,17,0.85)';
-    if (secPalette.startsWith('#')) {
+    let validSec = false;
+    if (isValidHexColor(secPalette)) {
       secBg = secPalette;
       secGlass = hexToRgba(secPalette, 0.6);
       secGlassActive = hexToRgba(secPalette, 0.85);
+      validSec = true;
     } else {
       const s = SEC_PALETTES.find(x => x.id === secPalette);
       if (s) {
         secBg = s.color;
         secGlass = s.glass;
         secGlassActive = s.glassActive;
+        validSec = true;
       }
     }
     root.style.setProperty('--bg-secondary', secBg);
     root.style.setProperty('--bg-glass', secGlass);
     root.style.setProperty('--bg-glass-active', secGlassActive);
-    localStorage.setItem('sec-palette', secPalette);
+    if (validSec) localStorage.setItem('sec-palette', secPalette);
 
     // Apply secondary accent color
     const sp = APP_PALETTES.find(x => x.id === secAccentPalette);
@@ -167,11 +179,21 @@ export default function App() {
   const [historyLength, setHistoryLength] = useState(1);
   const textHistoryRef = useRef(['']);
   const isUndoRedoAction = useRef(false);
+  const skipNextHistoryPushRef = useRef(false);
   const textHistoryTimeoutRef = useRef(null);
+  const logbookTextRef = useRef(logbookText);
+  const scheduleSaveRef = useRef(null);
+
+  useEffect(() => {
+    logbookTextRef.current = logbookText;
+  }, [logbookText]);
 
   const historyIndexRef = useRef(0);
   const resetTextHistory = useCallback((initialText) => {
-    if (textHistoryTimeoutRef.current) clearTimeout(textHistoryTimeoutRef.current);
+    if (textHistoryTimeoutRef.current) {
+      clearTimeout(textHistoryTimeoutRef.current);
+      textHistoryTimeoutRef.current = null;
+    }
     textHistoryRef.current = [initialText];
     historyIndexRef.current = 0;
     setHistoryIndex(0);
@@ -189,13 +211,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+     if (textHistoryTimeoutRef.current) {
+        clearTimeout(textHistoryTimeoutRef.current);
+        textHistoryTimeoutRef.current = null;
+     }
      if (isUndoRedoAction.current) {
         isUndoRedoAction.current = false;
         return;
      }
+     if (skipNextHistoryPushRef.current) {
+        skipNextHistoryPushRef.current = false;
+        if (textHistoryRef.current.length > 0) {
+          textHistoryRef.current[historyIndexRef.current] = logbookText;
+        }
+        return;
+     }
      
-     if (textHistoryTimeoutRef.current) clearTimeout(textHistoryTimeoutRef.current);
      textHistoryTimeoutRef.current = setTimeout(() => {
+         textHistoryTimeoutRef.current = null;
          const currentIdx = historyIndexRef.current;
          if (currentIdx < textHistoryRef.current.length - 1) {
             textHistoryRef.current = textHistoryRef.current.slice(0, currentIdx + 1);
@@ -214,19 +247,39 @@ export default function App() {
   }, [logbookText]);
 
   const handleUndo = useCallback(() => {
+     if (textHistoryTimeoutRef.current) {
+        clearTimeout(textHistoryTimeoutRef.current);
+        textHistoryTimeoutRef.current = null;
+     }
      if (historyIndex > 0) {
-        isUndoRedoAction.current = true;
         const newIndex = historyIndex - 1;
-        setLogbookText(textHistoryRef.current[newIndex]);
+        const targetText = textHistoryRef.current[newIndex];
+        if (targetText !== logbookTextRef.current) {
+          isUndoRedoAction.current = true;
+          setLogbookText(targetText);
+          setDebouncedLogbookText(targetText);
+          scheduleSaveRef.current?.(targetText);
+        }
+        historyIndexRef.current = newIndex;
         setHistoryIndex(newIndex);
      }
   }, [historyIndex]);
 
   const handleRedo = useCallback(() => {
+     if (textHistoryTimeoutRef.current) {
+        clearTimeout(textHistoryTimeoutRef.current);
+        textHistoryTimeoutRef.current = null;
+     }
      if (historyIndex < textHistoryRef.current.length - 1) {
-        isUndoRedoAction.current = true;
         const newIndex = historyIndex + 1;
-        setLogbookText(textHistoryRef.current[newIndex]);
+        const targetText = textHistoryRef.current[newIndex];
+        if (targetText !== logbookTextRef.current) {
+          isUndoRedoAction.current = true;
+          setLogbookText(targetText);
+          setDebouncedLogbookText(targetText);
+          scheduleSaveRef.current?.(targetText);
+        }
+        historyIndexRef.current = newIndex;
         setHistoryIndex(newIndex);
      }
   }, [historyIndex]);
@@ -260,7 +313,11 @@ export default function App() {
       }
     };
 
-    const handleFocus = () => setTimeout(updateKeyboardState, 50);
+    let focusTimer = null;
+    const handleFocus = () => {
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(updateKeyboardState, 50);
+    };
 
     document.addEventListener('focusin', handleFocus);
     document.addEventListener('focusout', handleFocus);
@@ -271,6 +328,7 @@ export default function App() {
     }
 
     return () => {
+      if (focusTimer) clearTimeout(focusTimer);
       document.removeEventListener('focusin', handleFocus);
       document.removeEventListener('focusout', handleFocus);
       if (window.visualViewport) {
@@ -293,21 +351,30 @@ export default function App() {
   const scrollTimeoutRef = useRef(null);
   const isScrollingToTab = useRef(false);
   const scrollTabTimeout = useRef(null);
+  const scrollTabStateTimeoutRef = useRef(null);
   const isTouchingRef = useRef(false);
-  const hasMountedRef = useRef(false);
+  const prevIsMobileRef = useRef(null);
 
-  // Sync initial scroll position on mount for mobile
   useEffect(() => {
-    if (hasMountedRef.current) return;
-    hasMountedRef.current = true;
-    if (swipeContainerRef.current && window.innerWidth <= 768) {
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      if (scrollTabTimeout.current) clearTimeout(scrollTabTimeout.current);
+      if (scrollTabStateTimeoutRef.current) clearTimeout(scrollTabStateTimeoutRef.current);
+    };
+  }, []);
+
+  // Sync scroll position on mount for mobile and whenever crossing desktop -> mobile breakpoint
+  useEffect(() => {
+    const crossedIntoMobile = isMobile && prevIsMobileRef.current !== true;
+    prevIsMobileRef.current = isMobile;
+    if (crossedIntoMobile && swipeContainerRef.current) {
       const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
-      const index = tabOrder.indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab);
-      if (index > 0) {
+      const index = tabOrder.indexOf(activeTab);
+      if (index >= 0) {
         swipeContainerRef.current.scrollTo({ left: index * swipeContainerRef.current.clientWidth, behavior: 'instant' });
       }
     }
-  }, [activeTab]);
+  }, [isMobile, activeTab]);
 
   const syncCurrentTab = useCallback(() => {
     if (isTouchingRef.current || !swipeContainerRef.current) return;
@@ -319,23 +386,28 @@ export default function App() {
     const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
     if (index >= 0 && index < tabOrder.length) {
       const currentTab = tabOrder[index];
-      if (activeTab !== currentTab && activeTab !== 'metric-details') {
+      if (activeTab !== currentTab) {
         setActiveTab(currentTab);
-      } else if (activeTab === 'metric-details' && currentTab !== 'dashboard') {
-        setActiveTab(currentTab);
+      }
+      if (selectedMetricDetail && currentTab !== 'dashboard') {
         setSelectedMetricDetail(null);
       }
     }
-  }, [activeTab]);
+  }, [activeTab, selectedMetricDetail]);
 
-  const handleTouchStart = useCallback(() => {
+  const handleTouchStart = useCallback((e) => {
     isTouchingRef.current = true;
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
-    // Dismiss virtual keyboard if user touches to scroll or swipe
-    if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== document.body) {
-      document.activeElement.blur();
+    // Dismiss virtual keyboard only when touching outside inputs / editors
+    const active = document.activeElement;
+    const target = e.target;
+    const isInteractiveTarget = target && typeof target.closest === 'function' && Boolean(
+      target.closest('input, textarea, select, [contenteditable="true"], .cm-editor')
+    );
+    if (!isInteractiveTarget && active && typeof active.blur === 'function' && active !== document.body && (!target || !active.contains(target))) {
+      active.blur();
     }
   }, []);
 
@@ -402,9 +474,7 @@ export default function App() {
 
     if (swipeContainerRef.current) {
       const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
-      // If we go to metric-details, scroll to dashboard
-      const targetName = tabName === 'metric-details' ? 'dashboard' : tabName;
-      const index = tabOrder.indexOf(targetName);
+      const index = tabOrder.indexOf(tabName);
       if (index !== -1) {
         // We use behavior: 'auto' to jump instantly
         isScrollingToTab.current = true;
@@ -439,7 +509,9 @@ export default function App() {
         }
         
         // Defer the heavy React state update so it doesn't block the browser from painting the jump
-        setTimeout(() => {
+        if (scrollTabStateTimeoutRef.current) clearTimeout(scrollTabStateTimeoutRef.current);
+        scrollTabStateTimeoutRef.current = setTimeout(() => {
+          scrollTabStateTimeoutRef.current = null;
           setActiveTab(tabName);
         }, 0);
       }
@@ -454,11 +526,12 @@ export default function App() {
     storageDrawerRef.current.close?.();
   };
   const initCfg = getStorageConfig();
-  const [pendingDirType, setPendingDirType] = useState(initCfg.dirType);
+  const [pendingDirType, setPendingDirType] = useState(initCfg.dirType === 'custom' ? 'documents' : initCfg.dirType);
   const [pendingSubfolder, setPendingSubfolder] = useState(initCfg.subfolder);
 
   const applyStorageConfig = () => {
-    setStorageConfig(pendingDirType, pendingSubfolder);
+    const resolvedDirType = pendingDirType === 'custom' ? 'documents' : pendingDirType;
+    setStorageConfig(resolvedDirType, pendingSubfolder);
     window.location.reload();
   };
 
@@ -524,11 +597,18 @@ export default function App() {
 
   // Programs State
   const [currentProgram, setCurrentProgram] = useState(() => localStorage.getItem('lastSelectedProgram') || 'S1M3');
+  const currentProgramRef = useRef(currentProgram);
+  useEffect(() => {
+    currentProgramRef.current = currentProgram;
+  }, [currentProgram]);
   const [programs, setPrograms] = useState(['S1M3']);
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [newProgramError, setNewProgramError] = useState('');
-  const [editorMode, setEditorMode] = useState(window.innerWidth <= 768 ? 'edit' : 'split'); // 'edit', 'preview', 'split'
+  const [editorMode, setEditorMode] = useState(() => {
+    const savedEditorType = localStorage.getItem('editor-type') || 'manual';
+    return (window.innerWidth <= 768 || savedEditorType === 'easy') ? 'edit' : 'split';
+  }); // 'edit', 'preview', 'split'
 
   // Exercise CRUD State
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -550,8 +630,9 @@ export default function App() {
   const currentHasOverride = useMemo(() => {
     if (!editingOriginalName) return false;
     return logbookText.split('\n').some(line => {
-      if (!line.toLowerCase().startsWith('override:')) return false;
-      const match = line.match(/^override:\s*([^|]+)\|/i);
+      const trimmed = line.trim();
+      if (!trimmed.toLowerCase().startsWith('override:')) return false;
+      const match = trimmed.match(/^override:\s*([^|]+)\|/i);
       if (!match) return false;
       return match[1].trim().toLowerCase() === editingOriginalName.toLowerCase();
     });
@@ -560,10 +641,22 @@ export default function App() {
   // UI Status State
   const [syncStatus, setSyncStatus] = useState('saved'); // 'saved', 'syncing', 'error'
   const [syncError, setSyncError] = useState('');
+  const [syncErrorKind, setSyncErrorKind] = useState('save'); // 'bootstrap' | 'load' | 'save'
   const saveTimeoutRef = useRef(null); // useRef instead of useState to avoid re-render on debounce
+  const loadRequestIdRef = useRef(0);
 
   useEffect(() => {
-    let backListener;
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let backListener = null;
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
       if (profileOpen) window.dispatchEvent(new Event('close-profile-page'));
       else if (selectedMetricDetail) window.dispatchEvent(new Event('close-metric-detail'));
@@ -577,59 +670,83 @@ export default function App() {
       else if (canGoBack) window.history.back();
       else CapacitorApp.exitApp();
     }).then(listener => {
-      backListener = listener;
+      if (cancelled) {
+        listener.remove();
+      } else {
+        backListener = listener;
+      }
     });
 
     return () => {
+      cancelled = true;
       if (backListener) backListener.remove();
     };
   }, [profileOpen, selectedMetricDetail, showNewProgramModal, showExerciseModal, showMobileSettings]);
 
-  // Load initial data
-  useEffect(() => {
-    // Fetch exercises first, then programs, then active program
-    fetch('/api/exercises')
+  const loadInitialData = useCallback((markSyncing = false) => {
+    const reqId = ++loadRequestIdRef.current;
+    let resolvedProg = localStorage.getItem('lastSelectedProgram') || 'S1M3';
+
+    Promise.resolve()
+      .then(() => {
+        if (markSyncing && reqId === loadRequestIdRef.current) {
+          setSyncStatus('syncing');
+          setSyncError('');
+        }
+        return fetch('/api/exercises');
+      })
       .then(res => {
         if (!res.ok) throw new Error('Failed to load exercises database');
         return res.json();
       })
       .then(exs => {
+        if (reqId !== loadRequestIdRef.current) return null;
         setExercisesDb(exs);
         return fetch('/api/programs');
       })
       .then(res => {
+        if (!res || reqId !== loadRequestIdRef.current) return null;
         if (!res.ok) throw new Error('Failed to load programs list');
         return res.json();
       })
       .then(progs => {
-        if (progs && progs.length > 0) {
+        if (!progs || reqId !== loadRequestIdRef.current) return null;
+        if (progs.length > 0) {
           setPrograms(progs);
           const savedProg = localStorage.getItem('lastSelectedProgram');
-          const defaultProg = savedProg && progs.includes(savedProg)
+          resolvedProg = savedProg && progs.includes(savedProg)
             ? savedProg
             : (progs.includes('S1M3') ? 'S1M3' : progs[0]);
-          setCurrentProgram(defaultProg);
-          return fetch(`/api/logbook?program=${defaultProg}`);
-        } else {
-          const defaultProg = localStorage.getItem('lastSelectedProgram') || 'S1M3';
-          return fetch(`/api/logbook?program=${defaultProg}`);
         }
+        return fetch(`/api/logbook?program=${encodeURIComponent(resolvedProg)}`);
       })
       .then(res => {
+        if (!res || reqId !== loadRequestIdRef.current) return null;
         if (!res.ok) throw new Error('Failed to load logbook');
         return res.text();
       })
       .then(text => {
+        if (text === null || reqId !== loadRequestIdRef.current) return;
+        currentProgramRef.current = resolvedProg;
+        setCurrentProgram(resolvedProg);
         resetTextHistory(text);
         setLogbookText(text);
         setDebouncedLogbookText(text);
         setSyncStatus('saved');
+        setSyncError('');
       })
       .catch(err => {
+        if (reqId !== loadRequestIdRef.current) return;
+        setSyncErrorKind('bootstrap');
         setSyncStatus('error');
         setSyncError(err.message);
       });
   }, [resetTextHistory]);
+
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   // Parse logbook text whenever it changes or the exercises DB updates
   const workoutData = useMemo(() => {
@@ -678,13 +795,16 @@ export default function App() {
 
   // Load a program's markdown content dynamically
   const loadProgram = (progName) => {
+    const reqId = ++loadRequestIdRef.current;
     setSyncStatus('syncing');
-    fetch(`/api/logbook?program=${progName}`)
+    fetch(`/api/logbook?program=${encodeURIComponent(progName)}`)
       .then(res => {
         if (!res.ok) throw new Error(`Failed to load ${progName}.md`);
         return res.text();
       })
       .then(text => {
+        if (reqId !== loadRequestIdRef.current) return;
+        currentProgramRef.current = progName;
         resetTextHistory(text);
         setLogbookText(text);
         setDebouncedLogbookText(text);
@@ -694,22 +814,25 @@ export default function App() {
         setSyncError('');
       })
       .catch(err => {
+        if (reqId !== loadRequestIdRef.current) return;
+        setSyncErrorKind('load');
         setSyncStatus('error');
         setSyncError(err.message);
       });
   };
 
   // Handle program switching with auto-flush
-  const handleProgramChange = (progName) => {
-    if (syncStatus === 'syncing' && saveTimeoutRef.current) {
+  const handleProgramChange = async (progName) => {
+    if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
-      saveLogbookContent(logbookText, currentProgram);
+      saveTimeoutRef.current = null;
+      await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
     }
     loadProgram(progName);
   };
 
   // Create a new program in the backend
-  const handleCreateProgram = () => {
+  const handleCreateProgram = async () => {
     const cleanName = newProgramName.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
     if (!cleanName) {
       setNewProgramError('Please enter a valid program name.');
@@ -721,9 +844,10 @@ export default function App() {
       return;
     }
 
-    if (syncStatus === 'syncing' && saveTimeoutRef.current) {
+    if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
-      saveLogbookContent(logbookText, currentProgram);
+      saveTimeoutRef.current = null;
+      await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
     }
 
     fetch('/api/programs', {
@@ -739,7 +863,6 @@ export default function App() {
       })
       .then((data) => {
         setPrograms(prev => [...prev, data.name]);
-        setCurrentProgram(data.name);
         setShowNewProgramModal(false);
         setNewProgramName('');
         loadProgram(data.name);
@@ -754,6 +877,7 @@ export default function App() {
     setEditingExercise(null);
     setEditingOriginalName('');
     setEditingCurveIndex(null);
+    setMuscleSearch('');
     setExerciseForm({
       name: '',
       fatigue: 5.0,
@@ -771,6 +895,7 @@ export default function App() {
     setEditingExercise(ex);
     setEditingOriginalName(ex.name);
     setEditingCurveIndex(null);
+    setMuscleSearch('');
     const entries = Object.entries(ex.muscles_distr);
     const rawPcts = entries.map(([, p]) => (typeof p === 'number' ? p : (p.magnitude || 0)) * 100);
     const floored = rawPcts.map(v => Math.floor(v));
@@ -916,7 +1041,8 @@ export default function App() {
     if (!savedExercise) return;
 
     let updatedList = [];
-    if (editingOriginalName) {
+    const existsInGlobalDb = editingOriginalName && exercisesDb.some(ex => ex.name === editingOriginalName);
+    if (existsInGlobalDb) {
       updatedList = exercisesDb.map(ex => ex.name === editingOriginalName ? savedExercise : ex);
     } else {
       updatedList = [...exercisesDb, savedExercise];
@@ -941,6 +1067,7 @@ export default function App() {
         setSyncError('');
       })
       .catch(err => {
+        setSyncErrorKind('save');
         setSyncStatus('error');
         setSyncError(err.message);
         setExerciseError(err.message);
@@ -952,7 +1079,31 @@ export default function App() {
       return;
     }
 
+    const existsInGlobal = exercisesDb.some(ex => ex.name === exerciseName);
     const updatedList = exercisesDb.filter(ex => ex.name !== exerciseName);
+
+    const removeOverrideLineIfPresent = () => {
+      const lines = logbookTextRef.current.split('\n');
+      const filtered = lines.filter(line => {
+        const trimmed = line.trim();
+        if (!trimmed.toLowerCase().startsWith('override:')) return true;
+        const match = trimmed.match(/^override:\s*([^|]+)\|/i);
+        if (!match) return true;
+        return match[1].trim().toLowerCase() !== exerciseName.toLowerCase();
+      });
+      if (filtered.length !== lines.length) {
+        const newText = filtered.join('\n');
+        setLogbookText(newText);
+        setDebouncedLogbookText(newText);
+        saveLogbookContent(newText, currentProgramRef.current);
+      }
+    };
+
+    if (!existsInGlobal) {
+      removeOverrideLineIfPresent();
+      setShowExerciseModal(false);
+      return;
+    }
 
     setSyncStatus('syncing');
     fetch('/api/exercises', {
@@ -968,11 +1119,13 @@ export default function App() {
       })
       .then(() => {
         setExercisesDb(updatedList);
+        removeOverrideLineIfPresent();
         setShowExerciseModal(false);
         setSyncStatus('saved');
         setSyncError('');
       })
       .catch(err => {
+        setSyncErrorKind('save');
         setSyncStatus('error');
         setSyncError(err.message);
       });
@@ -1010,8 +1163,9 @@ export default function App() {
     const lines = logbookText.split('\n');
     const searchName = editingOriginalName || name;
     const existingIdx = lines.findIndex(line => {
-      if (!line.toLowerCase().startsWith('override:')) return false;
-      const match = line.match(/^override:\s*([^|]+)\|/i);
+      const trimmed = line.trim();
+      if (!trimmed.toLowerCase().startsWith('override:')) return false;
+      const match = trimmed.match(/^override:\s*([^|]+)\|/i);
       if (!match) return false;
       return match[1].trim().toLowerCase() === searchName.toLowerCase();
     });
@@ -1023,7 +1177,7 @@ export default function App() {
     } else {
       let insertIdx = 0;
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].toLowerCase().startsWith('override:')) {
+        if (lines[i].trim().toLowerCase().startsWith('override:')) {
           insertIdx = i + 1;
         } else {
           break;
@@ -1034,7 +1188,8 @@ export default function App() {
     }
 
     setLogbookText(newText);
-    saveLogbookContent(newText);
+    setDebouncedLogbookText(newText);
+    saveLogbookContent(newText, currentProgramRef.current);
     setShowExerciseModal(false);
   };
 
@@ -1044,8 +1199,9 @@ export default function App() {
 
     const lines = logbookText.split('\n');
     const existingIdx = lines.findIndex(line => {
-      if (!line.toLowerCase().startsWith('override:')) return false;
-      const match = line.match(/^override:\s*([^|]+)\|/i);
+      const trimmed = line.trim();
+      if (!trimmed.toLowerCase().startsWith('override:')) return false;
+      const match = trimmed.match(/^override:\s*([^|]+)\|/i);
       if (!match) return false;
       return match[1].trim().toLowerCase() === searchName.toLowerCase();
     });
@@ -1054,20 +1210,26 @@ export default function App() {
       lines.splice(existingIdx, 1);
       const newText = lines.join('\n');
       setLogbookText(newText);
-      saveLogbookContent(newText);
+      setDebouncedLogbookText(newText);
+      saveLogbookContent(newText, currentProgramRef.current);
     }
     setShowExerciseModal(false);
   };
 
 
   // Handle manual / debounced auto-saving to [program].md
-  const saveLogbookContent = (newText, progName = currentProgram) => {
+  const saveLogbookContent = useCallback((newText, progName = currentProgramRef.current) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     const formattedText = formatLogbookSpaces(newText);
-    if (formattedText !== newText && progName === currentProgram) {
+    if (formattedText !== newText && progName === currentProgramRef.current) {
+      skipNextHistoryPushRef.current = true;
       setLogbookText(formattedText);
     }
     setSyncStatus('syncing');
-    fetch(`/api/logbook?program=${progName}`, {
+    return fetch(`/api/logbook?program=${encodeURIComponent(progName)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: formattedText
@@ -1081,10 +1243,25 @@ export default function App() {
         setSyncError('');
       })
       .catch(err => {
+        setSyncErrorKind('save');
         setSyncStatus('error');
         setSyncError(`Failed to save: ${err.message}`);
       });
-  };
+  }, []);
+
+  const scheduleDebouncedSave = useCallback((textToSave) => {
+    const progAtEdit = currentProgramRef.current;
+    setSyncStatus('syncing');
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null;
+      saveLogbookContent(textToSave, progAtEdit);
+    }, 1500);
+  }, [saveLogbookContent]);
+
+  useEffect(() => {
+    scheduleSaveRef.current = scheduleDebouncedSave;
+  }, [scheduleDebouncedSave]);
 
   return (
     <div className="app-container">
@@ -1304,7 +1481,15 @@ export default function App() {
             <AlertCircle size={16} />
             <span>{syncError}</span>
           </div>
-          <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => saveLogbookContent(logbookText)}>
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '4px 8px' }}
+            onClick={() => {
+              if (syncErrorKind === 'bootstrap') loadInitialData(true);
+              else if (syncErrorKind === 'load') loadProgram(currentProgramRef.current);
+              else saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
+            }}
+          >
             <RotateCcw size={12} /> Retry
           </button>
         </div>
@@ -1423,24 +1608,17 @@ export default function App() {
                         onChange={(newText) => {
                           setLogbookText(newText);
                           setDebouncedLogbookText(newText);
-                          setSyncStatus('syncing');
-                          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                          saveTimeoutRef.current = setTimeout(() => {
-                            saveLogbookContent(newText, currentProgram);
-                          }, 1500);
+                          scheduleDebouncedSave(newText);
                         }}
-                        exercisesDb={exercisesDb}
+                        exercisesDb={activeExercises}
                       />
                     ) : (
                       <FoldableEditor
+                        key={currentProgram}
                         value={logbookText}
                         onChange={(newText) => {
                           setLogbookText(newText);
-                          setSyncStatus('syncing');
-                          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                          saveTimeoutRef.current = setTimeout(() => {
-                            saveLogbookContent(newText, currentProgram);
-                          }, 1500);
+                          scheduleDebouncedSave(newText);
                         }}
                         exercisesDb={activeExercises}
                         onCursorLineChange={(editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
@@ -1477,7 +1655,6 @@ export default function App() {
           workoutData={workoutData}
           currentProgram={currentProgram}
           programs={programs}
-          activeExercises={activeExercises}
           exercisesDb={exercisesDb}
           selectedMetricDetail={selectedMetricDetail}
           setSelectedMetricDetail={setSelectedMetricDetail}
@@ -1588,12 +1765,12 @@ export default function App() {
       )}
 
       {/* Mobile Bottom Navigation Bar */}
-      {(!isMobile || !showMobileSettings) && (
+      {!showMobileSettings && (
         <div className="mobile-bottom-nav">
         <div 
           className="mobile-bottom-nav-indicator" 
           ref={bottomNavIndicatorRef}
-          style={{ transform: `translateX(${['stopwatch', 'editor', 'dashboard', 'db', 'generator'].indexOf(activeTab === 'metric-details' ? 'dashboard' : activeTab) * 52}px)` }} 
+          style={{ transform: `translateX(${['stopwatch', 'editor', 'dashboard', 'db', 'generator'].indexOf(activeTab) * 52}px)` }} 
         />
         <button 
           className={`bottom-nav-btn ${activeTab === 'stopwatch' ? 'active' : ''}`}
