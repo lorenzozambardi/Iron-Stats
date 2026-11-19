@@ -1,3 +1,4 @@
+import datetime
 import json
 import math
 import re
@@ -53,6 +54,49 @@ RE_OVERRIDE = re.compile(r"^override:\s*([^|]+)\|\s*(.*)$", re.IGNORECASE)
 RE_DIGITS = re.compile(r"\d+")
 # Matches general log lines containing sets, weights, and dropsets (e.g. "90/80.. 10, 8")
 RE_LOG_LINE_LONG = re.compile(r"^[\d\.\(\)\+\/@,\s]+$", re.IGNORECASE)
+RE_LOG_LINE_LOAD = re.compile(r"(?:^|\s)-?[\d./]+\s*\.\.")
+RE_DATES_HEADER = re.compile(r"^dates:\s*$", re.IGNORECASE)
+RE_DATE_DMY = re.compile(r"^(\d{2})[-/](\d{2})[-/](\d{4})$")
+RE_DATE_YMD = re.compile(r"^(\d{4})[-/](\d{2})[-/](\d{2})$")
+
+
+def is_dates_header(line: str) -> bool:
+    return isinstance(line, str) and bool(RE_DATES_HEADER.match(line.strip()))
+
+
+def parse_date_token_to_iso(raw: str) -> str | None:
+    """Parses DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD into ISO YYYY-MM-DD."""
+    if not isinstance(raw, str):
+        return None
+    s = raw.strip()
+    if not s or s == "-":
+        return None
+
+    dmy = RE_DATE_DMY.match(s)
+    ymd = RE_DATE_YMD.match(s)
+    if dmy:
+        d, m, y = int(dmy.group(1)), int(dmy.group(2)), int(dmy.group(3))
+    elif ymd:
+        y, m, d = int(ymd.group(1)), int(ymd.group(2)), int(ymd.group(3))
+    else:
+        return None
+
+    if y < 1900 or y > 2150:
+        return None
+    try:
+        dt = datetime.date(y, m, d)
+    except ValueError:
+        return None
+    return dt.isoformat()
+
+
+def is_date_line(line: str) -> bool:
+    if not isinstance(line, str):
+        return False
+    s = line.strip()
+    if s == "-":
+        return True
+    return parse_date_token_to_iso(s) is not None
 
 
 def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
@@ -70,7 +114,9 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
 
     for key in SORTED_HARD_MAP_KEYS:
         if key in raw_lower:
-            return next((e for e in exercises if e.name == HARD_MAP[key]), None)
+            target = next((e for e in exercises if e.name == HARD_MAP[key]), None)
+            if target is not None:
+                return target
 
     raw_clean = RE_CLEAN_EXERCISE.sub("", name_part).lower().strip()
 
@@ -80,7 +126,9 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
 
     for key in SORTED_HARD_MAP_KEYS:
         if key in raw_clean:
-            return next((e for e in exercises if e.name == HARD_MAP[key]), None)
+            target = next((e for e in exercises if e.name == HARD_MAP[key]), None)
+            if target is not None:
+                return target
 
     # Fallback to fuzzy matching
     best_match = None
@@ -179,11 +227,14 @@ def parse_line(line: str, line_index: int = 0) -> list[SetData]:
                 else subparts[0].strip()
             )
             if load_str:
-                parsed_loads = (
-                    [float(x) for x in load_str.split("/") if x]
-                    if "/" in load_str
-                    else [float(load_str)]
-                )
+                try:
+                    parsed_loads = (
+                        [float(x) for x in load_str.split("/") if x]
+                        if "/" in load_str
+                        else [float(load_str)]
+                    )
+                except ValueError:
+                    parsed_loads = []
                 if parsed_loads and all(math.isfinite(x) for x in parsed_loads):
                     current_loads = parsed_loads
             if rep_str:
@@ -291,7 +342,9 @@ def analyze_workout_log(
                                 )
 
     workout_data = []
+    session_dates: dict[int, list[str | None]] = {}
     current_exercise, current_week, current_session = None, 1, 0
+    in_dates_block = False
 
     for i, line in enumerate(lines):
         line = line.strip()
@@ -302,12 +355,30 @@ def analyze_workout_log(
                 match = RE_DIGITS.search(line)
                 if match:
                     current_session = int(match.group())
+                in_dates_block = False
+                current_exercise = None
                 continue
             if line.lower().startswith("override:"):
+                in_dates_block = False
                 continue
 
-            if ".." in line or RE_LOG_LINE_LONG.match(
-                RE_OLD_PREFIX.sub("", line).replace(" ", "").strip()
+            if is_dates_header(line):
+                in_dates_block = True
+                current_exercise = None
+                session_dates.setdefault(current_session, [])
+                continue
+
+            if in_dates_block:
+                if is_date_line(line):
+                    session_dates[current_session].append(parse_date_token_to_iso(line))
+                    continue
+                in_dates_block = False
+
+            if "|" not in line and (
+                RE_LOG_LINE_LOAD.search(line)
+                or RE_LOG_LINE_LONG.match(
+                    RE_OLD_PREFIX.sub("", line).replace(" ", "").strip()
+                )
             ):
                 if current_exercise:
                     parsed_sets = parse_line(line, i)
@@ -320,7 +391,10 @@ def analyze_workout_log(
                             else cf_subparts[0].strip()
                         )
                         if load_str:
-                            loads = [float(x) for x in load_str.split("/") if x]
+                            try:
+                                loads = [float(x) for x in load_str.split("/") if x]
+                            except ValueError:
+                                loads = []
                             if loads and all(math.isfinite(x) for x in loads):
                                 prev_sets = current_exercise.weeks[-1].sets
                                 parsed_sets = [
@@ -392,4 +466,14 @@ def analyze_workout_log(
                     current_week = 1
         except Exception as err:  # noqa: BLE001
             sys.stderr.write(f"Error parsing: '{line}' | {err}\n")
+
+    for w_ex in workout_data:
+        dates_for_session = session_dates.get(w_ex.session)
+        if not dates_for_session:
+            continue
+        for wk in w_ex.weeks:
+            idx = wk.week_num - 1
+            if 0 <= idx < len(dates_for_session):
+                wk.date = dates_for_session[idx]
+
     return workout_data

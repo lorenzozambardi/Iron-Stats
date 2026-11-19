@@ -286,7 +286,7 @@ const HARD_MAP = {
   "extra": "Shoulder Extra-Rotations", "extra rotazioni": "Shoulder Extra-Rotations",
 
   // --- LEGS ---
-  "squat": "Squat", "back squat": "Squat",
+  "squat": "Barbell Squat", "back squat": "Barbell Squat",
   "pressa": "Leg Press 45", "leg press": "Leg Press 45", "pressa 45": "Leg Press 45",
   "hack squat": "Hack Squat", "hack": "Hack Squat",
   "sissy": "Sissy Squat", "sissy squat": "Sissy Squat",
@@ -334,7 +334,8 @@ export function matchExercise(rawName, exercises) {
 
   for (const key of SORTED_HARD_MAP_KEYS) {
     if (rawLower.includes(key)) {
-      return exercises.find(e => e.name === HARD_MAP[key]) || null;
+      const target = exercises.find(e => e.name === HARD_MAP[key]);
+      if (target) return target;
     }
   }
 
@@ -351,7 +352,8 @@ export function matchExercise(rawName, exercises) {
   // Check hard map
   for (const key of SORTED_HARD_MAP_KEYS) {
     if (rawClean.includes(key)) {
-      return exercises.find(e => e.name === HARD_MAP[key]) || null;
+      const target = exercises.find(e => e.name === HARD_MAP[key]);
+      if (target) return target;
     }
   }
 
@@ -399,7 +401,6 @@ function parseRepToken(repStr, loads, dropsetId = null) {
       let base = parseInt(match[1], 10);
       const assisted = match[2] ? parseInt(match[2], 10) : 0;
       const partial = match[3] ? parseInt(match[3], 10) : 0;
-      const rpeLogged = Boolean(match[4]);
       const rpe = match[4] ? Math.min(10.0, Math.max(0.0, parseFloat(match[4]))) : 9.0;
       
       if (assisted > 0) {
@@ -417,7 +418,6 @@ function parseRepToken(repStr, loads, dropsetId = null) {
         assisted_reps: assisted,
         partial_reps: partial,
         rpe,
-        rpeLogged,
         effectiveReps,
         totalReps,
         ...(dropsetId ? { dropsetId } : {})
@@ -661,8 +661,11 @@ export function parseLogbook(logText, exercises) {
         inDatesBlock = false;
       }
 
-      // Check if it's a rep/set log line (contains '..' or starts with optional 'old ' prefix + rep/set syntax)
-      const isLogLine = line.includes('..') || /^(?:old\s+)*[\d().+/@,\s]+$/i.test(line);
+      // Check if it's a rep/set log line (contains load.. or starts with optional 'old ' prefix + rep/set syntax)
+      const isLogLine = !line.includes('|') && (
+        /(?:^|\s)-?[\d./]+\s*\.\./.test(line) ||
+        /^(?:old\s+)*[\d().+/@,\s]+$/i.test(line)
+      );
 
       if (isLogLine) {
         if (currentExercise) {
@@ -733,12 +736,9 @@ export function parseLogbook(logText, exercises) {
             };
           });
 
-          const datesForSession = sessionDates.get(currentSession) || [];
-          const microcycleDate = datesForSession[currentWeek - 1] ?? null;
-
           currentExercise.weeks.push({
             week_num: currentWeek,
-            date: microcycleDate,
+            date: null,
             sets: parsedSets,
             raw_line: line,
             lineIndex: i
@@ -770,6 +770,15 @@ export function parseLogbook(logText, exercises) {
       console.error(`Error parsing line: "${line}"`, e);
     }
   }
+
+  for (const ex of workoutData) {
+    const datesForSession = sessionDates.get(ex.session);
+    if (!datesForSession || datesForSession.length === 0) continue;
+    for (const wk of ex.weeks) {
+      wk.date = datesForSession[wk.week_num - 1] ?? null;
+    }
+  }
+
   return workoutData;
 }
 

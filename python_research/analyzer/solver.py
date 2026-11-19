@@ -173,6 +173,8 @@ class WorkoutSolver:
         if self.config.min_reps < 1 or self.config.max_reps < self.config.min_reps:
             raise ValueError(f"Invalid min_reps/max_reps: {self.config.min_reps}, {self.config.max_reps}")
         self.db = exercises_list
+        if not self.db:
+            raise ValueError("Exercise database cannot be empty")
         self.resolution = 50
         self.max_ex_fatigue = max(10.0, max((ex.fatigue for ex in self.db), default=10.0))
         
@@ -623,7 +625,7 @@ class WorkoutSolver:
                     best_cost = neighbor_cost
             else:
                 delta = neighbor_cost - current_cost
-                if random.random() < math.exp(-delta / T):
+                if T > 0.0 and random.random() < math.exp(-delta / T):
                     current_state = neighbor
                     current_cost = neighbor_cost
                     

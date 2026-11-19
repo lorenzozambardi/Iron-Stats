@@ -188,7 +188,7 @@ def test_rep_clamp_fractional_tut_and_fatigue_ordering() -> None:
     m9 = calculate_metrics(analyze_workout_log(log_9, exercises_list))[0]
     assert m8["Eff TUT"] < m85["Eff TUT"] < m9["Eff TUT"]
 
-    squat = next(e for e in exercises_list if e.name == "Squat")
+    squat = next(e for e in exercises_list if e.name == "Barbell Squat")
     lr = next(e for e in exercises_list if e.name == "LR")
     f_squat = calculate_set_fatigue(10, 0, 0, 9.0, 1.0, 0.0, 2.0, 0.0, squat.fatigue, squat.load_coeff)
     f_lr = calculate_set_fatigue(10, 0, 0, 9.0, 1.0, 0.0, 2.0, 0.0, lr.fatigue, lr.load_coeff)
@@ -507,4 +507,33 @@ def test_exact_dyadic_root_override_finiteness_and_carry_forward() -> None:
     assert len(parsed[0].weeks) == 3
     assert parsed[0].weeks[1].sets[0].load == 12.0
     assert parsed[0].weeks[2].sets[0].load == 14.0
+
+
+def test_session_dates_blocks_parsing() -> None:
+    log_with_dates = (
+        "# 1\n"
+        "Dates: \n"
+        "05-01-2026\n"
+        "12-01-2026\n"
+        "\n"
+        "LR | 2'\n"
+        "10.. 10\n"
+        "12.. 10\n"
+        "\n"
+        "# 2\n"
+        "Dates:\n"
+        "08-01-2026\n"
+        "-\n"
+        "22-01-2026\n"
+        "\n"
+        "LR | 2'\n"
+        "10.. 10\n"
+        "10.. 11\n"
+        "12.. 10\n"
+    )
+    parsed = analyze_workout_log(log_with_dates, exercises_list)
+    assert len(parsed) == 2
+    assert [w.date for w in parsed[0].weeks] == ["2026-01-05", "2026-01-12"]
+    assert [w.date for w in parsed[1].weeks] == ["2026-01-08", None, "2026-01-22"]
+
 

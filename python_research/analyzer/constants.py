@@ -176,8 +176,8 @@ HARD_MAP = {
     "extra": "Shoulder Extra-Rotations",
     "extra rotazioni": "Shoulder Extra-Rotations",
     # --- LEGS ---
-    "squat": "Squat",
-    "back squat": "Squat",
+    "squat": "Barbell Squat",
+    "back squat": "Barbell Squat",
     "pressa": "Leg Press 45",
     "leg press": "Leg Press 45",
     "pressa 45": "Leg Press 45",

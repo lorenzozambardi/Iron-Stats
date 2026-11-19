@@ -1,5 +1,5 @@
 import defaultExercises from './defaultExercises.json';
-import { bezierArea, bezierPartialFraction, solveBezierY } from './components/helpers';
+import { bezierArea, bezierPartialFraction, solveBezierY, validateBezierProfile } from './components/helpers';
 import { MUSCLES } from './parser';
 
 const COEFF_PARTIAL = 0.33;
@@ -156,6 +156,20 @@ function randomChoice(arr) {
 // --- MAIN SOLVER ---
 export class WorkoutSolver {
     constructor(config, db = defaultExercises) {
+        const defaultWeights = {
+            curve: 0.30,
+            vol: 0.15,
+            ton: 0.10,
+            tut: 0.10,
+            distr: 0.15,
+            variety: 0.10,
+            balance: 0.10
+        };
+        const defaultTargetRatios = {
+            vol: 0.70,
+            ton: 0.70,
+            tut: 0.74
+        };
         this.config = {
             days: 4,
             min_sets: 2,
@@ -165,24 +179,19 @@ export class WorkoutSolver {
             min_ex: 4,
             max_ex: 8,
             calibration_steps: 500,
-            weights: {
-                curve: 0.30,
-                vol: 0.15,
-                ton: 0.10,
-                tut: 0.10,
-                distr: 0.15,
-                variety: 0.10,
-                balance: 0.10
-            },
-            target_ratios: {
-                vol: 0.70,
-                ton: 0.70,
-                tut: 0.74
-            },
             muscle_targets: {},
-            volume_dist: { macros: {}, subs: {} },
-            ...config
+            ...config,
+            weights: { ...defaultWeights, ...(config?.weights || {}) },
+            target_ratios: { ...defaultTargetRatios, ...(config?.target_ratios || {}) },
+            volume_dist: {
+                macros: { ...(config?.volume_dist?.macros || {}) },
+                subs: { ...(config?.volume_dist?.subs || {}) }
+            }
         };
+
+        if (!Array.isArray(db) || db.length === 0) {
+            throw new RangeError('Exercise database cannot be empty');
+        }
 
         if (this.config.days < 1) {
             throw new RangeError(`days must be >= 1, got ${this.config.days}`);
@@ -237,16 +246,25 @@ export class WorkoutSolver {
                     if (!Number.isFinite(mag) || mag < 0.0) {
                         throw new RangeError(`Invalid Bezier magnitude: ${mag}`);
                     }
+                    const x0 = Number(entry.x0 ?? 0.0);
+                    const y0 = Number(entry.y0 ?? 1.0);
+                    const x1 = Number(entry.x1 ?? 0.33);
+                    const y1 = Number(entry.y1 ?? 1.0);
+                    const x2 = Number(entry.x2 ?? 0.66);
+                    const y2 = Number(entry.y2 ?? 1.0);
+                    const x3 = Number(entry.x3 ?? 1.0);
+                    const y3 = Number(entry.y3 ?? 1.0);
+                    validateBezierProfile(x0, y0, x1, y1, x2, y2, x3, y3, mag);
                     clonedDistr[m] = {
                         ...entry,
-                        x0: Number(entry.x0 ?? 0.0),
-                        y0: Number(entry.y0 ?? 1.0),
-                        x1: Number(entry.x1 ?? 0.33),
-                        y1: Number(entry.y1 ?? 1.0),
-                        x2: Number(entry.x2 ?? 0.66),
-                        y2: Number(entry.y2 ?? 1.0),
-                        x3: Number(entry.x3 ?? 1.0),
-                        y3: Number(entry.y3 ?? 1.0),
+                        x0,
+                        y0,
+                        x1,
+                        y1,
+                        x2,
+                        y2,
+                        x3,
+                        y3,
                         magnitude: mag
                     };
                     totalMag += mag;
@@ -292,8 +310,8 @@ export class WorkoutSolver {
         const subs_dict = this.config.volume_dist.subs || {};
         if (this.config.volume_dist.macros) {
             for (const macro in this.config.volume_dist.macros) {
-                const m_val = this.config.volume_dist.macros[macro];
-                if (m_val <= 0) continue;
+                const m_val = Number(this.config.volume_dist.macros[macro]);
+                if (!Number.isFinite(m_val) || m_val <= 0) continue;
                 const macroSubs = subs_dict[macro];
                 if (macroSubs && Object.keys(macroSubs).length > 0) {
                     const subSum = Object.values(macroSubs).reduce((acc, v) => acc + Math.max(0.0, Number(v) || 0.0), 0.0);
@@ -818,7 +836,7 @@ export class WorkoutSolver {
                 }
             } else {
                 const delta = neighborCost - currentCost;
-                if (Math.random() < Math.exp(-delta / T)) {
+                if (T > 0 && Math.random() < Math.exp(-delta / T)) {
                     currentState = neighbor;
                     currentCost = neighborCost;
                 }

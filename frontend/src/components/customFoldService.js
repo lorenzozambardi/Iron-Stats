@@ -4,9 +4,9 @@ import { isDateLine, isDatesHeader } from '../parser';
 export const isSetLine = (str) => {
   if (!str) return false;
   const trimmed = str.trim();
-  if (isDateLine(trimmed)) return false;
-  if (trimmed.includes('..')) return true;
-  return /^(?:old\s+)?[\d().+/@,\s-]+$/i.test(trimmed);
+  if (isDateLine(trimmed) || trimmed.includes('|')) return false;
+  if (/(?:^|\s)-?[\d./]+\s*\.\./.test(trimmed)) return true;
+  return /^(?:old\s+)?[\d().+/@,\s]+$/i.test(trimmed);
 };
 
 export const customFoldService = foldService.of((state, lineStart) => {
