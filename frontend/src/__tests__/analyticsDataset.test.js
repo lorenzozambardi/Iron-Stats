@@ -53,7 +53,7 @@ describe('analytics/dataset', () => {
 
     expect(ds.capabilities.ready).toBe(true);
     expect(ds.capabilities.canAnalyzeProgression).toBe(true);
-    expect(ds.capabilities.canCrossProgram).toBe(true);
+    expect(ds.capabilities.canCrossMacrocycle).toBe(true);
     expect(ds.snapshot.isDefaultUnverified).toBe(true);
     expect(ds.qualityFlags.some((f) => f.code === 'profile_defaults_unverified')).toBe(true);
 
@@ -65,10 +65,10 @@ describe('analytics/dataset', () => {
     const refFatigue = refRows.reduce((s, r) => s + r.fatigue, 0);
     const refEffReps = refRows.reduce((s, r) => s + r.effectiveReps, 0);
 
-    const dsWeeks = ds.programWeeks.filter((w) => w.programId === 'S3M3');
-    const dsTonnage = dsWeeks.reduce((s, w) => s + w.tonnage, 0);
-    const dsFatigue = dsWeeks.reduce((s, w) => s + w.fatigue, 0);
-    const dsEffReps = dsWeeks.reduce((s, w) => s + w.effectiveReps, 0);
+    const dsMcs = ds.microcycles.filter((m) => m.macrocycleId === 'S3M3');
+    const dsTonnage = dsMcs.reduce((s, m) => s + m.tonnage, 0);
+    const dsFatigue = dsMcs.reduce((s, m) => s + m.fatigue, 0);
+    const dsEffReps = dsMcs.reduce((s, m) => s + m.effectiveReps, 0);
 
     expect(dsTonnage).toBeCloseTo(refTonnage, 4);
     expect(dsFatigue).toBeCloseTo(refFatigue, 4);
@@ -102,27 +102,27 @@ describe('analytics/dataset', () => {
     const ds = buildAnalyticsDataset({
       loadedPrograms: loaded,
       profile: customProfile,
-      savedProgramMeta: { S3M3: { startDate: '2026-01-05' } },
+      savedProgramMeta: { S3M3: { startDate: '2026-01-05', microcycleDays: 7 } },
     });
 
     expect(ds.snapshot.isDefaultUnverified).toBe(false);
     expect(ds.capabilities.canJoinBodyComp).toBe(true);
-    expect(ds.capabilities.overlappingBodyWeeks).toBeGreaterThanOrEqual(6);
+    expect(ds.capabilities.overlappingBodyMicrocycles).toBeGreaterThanOrEqual(6);
     expect(ds.capabilities.dateAlignment).toBe('approximate');
-    expect(ds.programWeeks[0].bodyWeight).toBeCloseTo(80.0, 2);
-    expect(ds.programWeeks[0].leanMass).toBeCloseTo(80.0 * 0.87, 2);
+    expect(ds.microcycles[0].bodyWeight).toBeCloseTo(80.0, 2);
+    expect(ds.microcycles[0].leanMass).toBeCloseTo(80.0 * 0.87, 2);
 
-    // Exclude program removes it from programWeeks and changes fingerprint
+    // Exclude macrocycle removes it from microcycles and changes fingerprint
     const dsExcl = buildAnalyticsDataset({
       loadedPrograms: loaded,
       profile: customProfile,
       savedProgramMeta: { S3M3: { startDate: '2026-01-05', excluded: true } },
     });
-    expect(dsExcl.programWeeks.length).toBe(0);
+    expect(dsExcl.microcycles.length).toBe(0);
     expect(dsExcl.fingerprint).not.toBe(ds.fingerprint);
 
     const diff = diffDatasetSummaries(dsExcl.summary, ds.summary);
-    expect(diff.some((d) => d.includes('New program S3M3'))).toBe(true);
+    expect(diff.some((d) => d.includes('New macrocycle S3M3'))).toBe(true);
   });
 
   it('blocks sparse datasets with clear reasons', () => {

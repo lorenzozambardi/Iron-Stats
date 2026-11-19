@@ -35,8 +35,8 @@ export function hashString(str) {
 }
 
 export function computeDatasetFingerprint({
-  programs = [],
-  programWeeks = [],
+  macrocycles = [],
+  microcycles = [],
   setsCount = 0,
   body = [],
   snapshot = {},
@@ -47,18 +47,19 @@ export function computeDatasetFingerprint({
 }) {
   const payload = {
     v: { skillVersion, toolsVersion, schemaVersion },
-    programs: programs.map((p) => ({
+    macrocycles: macrocycles.map((p) => ({
       id: p.id,
       order: p.order,
       excluded: p.excluded,
       startDate: p.startDate,
-      nWeeks: p.nWeeks,
+      microcycleDays: p.microcycleDays,
+      nMicrocycles: p.nMicrocycles,
       nSets: p.nSets,
       totalTonnage: p.totalTonnage,
       totalFatigue: p.totalFatigue,
       rpeLoggedFraction: p.rpeLoggedFraction,
     })),
-    programWeeks: programWeeks.map((w) => [w.programId, w.week, w.sets, w.tonnage, w.effectiveReps, w.fatigue]),
+    microcycles: microcycles.map((m) => [m.macrocycleId, m.microcycle, m.sets, m.tonnage, m.effectiveReps, m.fatigue]),
     setsCount,
     body: body.map((b) => [b.date, b.weight, b.bodyFat]),
     snapshot: snapshot.isDefaultUnverified ? null : {
@@ -70,7 +71,7 @@ export function computeDatasetFingerprint({
       chest: snapshot.chest,
       avgSteps: snapshot.avgSteps,
     },
-    meta: programMeta.map((m) => [m.id, m.order, m.startDate, m.excluded, m.variantOf]),
+    meta: programMeta.map((m) => [m.id, m.order, m.startDate, m.microcycleDays, m.excluded, m.variantOf]),
   };
   return hashString(canonicalStringify(payload));
 }
@@ -79,20 +80,20 @@ export function diffDatasetSummaries(prevSummary, curSummary) {
   if (!prevSummary || !curSummary) return [];
   const changes = [];
 
-  const prevProgs = new Map((prevSummary.programWeeksByProgram || []).map((p) => [p.id, p.nWeeks]));
-  const curProgs = new Map((curSummary.programWeeksByProgram || []).map((p) => [p.id, p.nWeeks]));
+  const prevMacros = new Map((prevSummary.microcyclesByMacrocycle || []).map((p) => [p.id, p.nMicrocycles]));
+  const curMacros = new Map((curSummary.microcyclesByMacrocycle || []).map((p) => [p.id, p.nMicrocycles]));
 
-  for (const [id, curW] of curProgs.entries()) {
-    if (!prevProgs.has(id)) {
-      changes.push(`New program ${id} (${curW} weeks)`);
+  for (const [id, curM] of curMacros.entries()) {
+    if (!prevMacros.has(id)) {
+      changes.push(`New macrocycle ${id} (${curM} microcycles)`);
     } else {
-      const diff = curW - prevProgs.get(id);
-      if (diff > 0) changes.push(`+${diff} week${diff === 1 ? '' : 's'} in ${id}`);
-      else if (diff < 0) changes.push(`${diff} week${diff === -1 ? '' : 's'} in ${id}`);
+      const diff = curM - prevMacros.get(id);
+      if (diff > 0) changes.push(`+${diff} microcycle${diff === 1 ? '' : 's'} in ${id}`);
+      else if (diff < 0) changes.push(`${diff} microcycle${diff === -1 ? '' : 's'} in ${id}`);
     }
   }
-  for (const id of prevProgs.keys()) {
-    if (!curProgs.has(id)) changes.push(`Removed/excluded ${id}`);
+  for (const id of prevMacros.keys()) {
+    if (!curMacros.has(id)) changes.push(`Removed/excluded ${id}`);
   }
 
   const weightDiff = (curSummary.nWeightLogs || 0) - (prevSummary.nWeightLogs || 0);

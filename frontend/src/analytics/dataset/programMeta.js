@@ -69,6 +69,7 @@ export function inferProgramMetadata(programIds) {
       label: p.id,
       order: idx,
       startDate: null,
+      microcycleDays: 7,
       excluded: false,
       variantOf: variantTarget,
       isFailedBlock: p.isFailedBlock,
@@ -82,6 +83,11 @@ export function mergeProgramMeta(programIds, savedMeta = {}) {
   const merged = programIds.map((id) => {
     const base = inferred[id];
     const saved = savedMeta && savedMeta[id] ? savedMeta[id] : {};
+    const parsedDays = Number(saved.microcycleDays);
+    const microcycleDays =
+      Number.isFinite(parsedDays) && parsedDays >= 2 && parsedDays <= 28
+        ? Math.round(parsedDays)
+        : base.microcycleDays;
     return {
       id,
       label: typeof saved.label === 'string' && saved.label.trim() ? saved.label.trim() : base.label,
@@ -89,6 +95,7 @@ export function mergeProgramMeta(programIds, savedMeta = {}) {
       startDate: typeof saved.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved.startDate)
         ? saved.startDate
         : null,
+      microcycleDays,
       excluded: Boolean(saved.excluded),
       variantOf: saved.variantOf !== undefined ? saved.variantOf : base.variantOf,
       isFailedBlock: saved.isFailedBlock !== undefined ? Boolean(saved.isFailedBlock) : base.isFailedBlock,

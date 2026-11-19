@@ -3,7 +3,7 @@
  * plus parser.js (getExercisesWithOverrides, matchExercise, parseLogbook).
  */
 
-import { getExercisesWithOverrides, matchExercise, parseLogbook } from '../../parser.js';
+import { getExercisesWithOverrides, isDateLine, isDatesHeader, matchExercise, parseLogbook } from '../../parser.js';
 
 export function parseLogbookWithWarnings(logText, exercisesDb) {
   const text = typeof logText === 'string' ? logText : '';
@@ -12,9 +12,22 @@ export function parseLogbookWithWarnings(logText, exercisesDb) {
   const parseWarnings = [];
 
   const lines = text.split('\n');
+  let inDatesBlock = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line || line.startsWith('#') || line.toLowerCase().startsWith('override:')) continue;
+    if (!line) continue;
+    if (line.startsWith('#') || line.toLowerCase().startsWith('override:')) {
+      inDatesBlock = false;
+      continue;
+    }
+    if (isDatesHeader(line)) {
+      inDatesBlock = true;
+      continue;
+    }
+    if (inDatesBlock) {
+      if (isDateLine(line)) continue;
+      inDatesBlock = false;
+    }
     const isLogLine = line.includes('..') || /^(?:old\s+)*[\d().+/@,\s]+$/i.test(line);
     if (isLogLine) continue;
     const matched = matchExercise(line, localExercises);

@@ -1,5 +1,6 @@
 /**
  * Builds the normalized, queryable analytics dataset from Iron Stats logbooks and athlete profile.
+ * Domain model: each .md logbook file is a macrocycle; each log line under an exercise is a microcycle.
  * Uses parser.js (calculateMetrics, MUSCLES) and profileUtils.js as the single source of truth.
  */
 
@@ -22,11 +23,11 @@ import {
 import { computeSFR, computeSetE1RM } from '../stats/strength.js';
 import { mean } from '../stats/descriptive.js';
 import { mergeProgramMeta } from './programMeta.js';
-import { alignProgramWeeks, buildBodySeries } from './timeline.js';
+import { alignMacrocycleMicrocycles, buildBodySeries } from './timeline.js';
 import { computeDatasetFingerprint } from './fingerprint.js';
 
 export const METRIC_CATALOG = {
-  sets: { key: 'sets', label: 'Sets', unit: 'sets', description: 'Distribution-weighted working sets' },
+  sets: { key: 'sets', label: 'Sets', unit: 'sets', description: 'Distribution-weighted working sets per microcycle' },
   volume: { key: 'volume', label: 'Total Reps', unit: 'reps', description: 'Total repetitions (base + 0.5*assisted + 0.33*partial)' },
   effectiveReps: { key: 'effectiveReps', label: 'Effective Reps', unit: 'reps', description: 'HTMU-recruiting reps (RPE > 4 threshold + assisted/partial discounts)', rpeDependent: true },
   tonnage: { key: 'tonnage', label: 'Tonnage', unit: 'kg', description: 'Actual load * total reps' },
@@ -37,7 +38,7 @@ export const METRIC_CATALOG = {
   totalTut: { key: 'totalTut', label: 'Total TUT', unit: 's', description: 'Total dynamic time under tension (seconds)', rpeDependent: true },
   effectiveTut: { key: 'effectiveTut', label: 'Effective TUT', unit: 's', description: 'Time under tension on HTMU-recruiting reps (seconds)', rpeDependent: true },
   e1rm: { key: 'e1rm', label: 'Estimated 1RM', unit: 'kg', description: 'Best set estimated 1RM (Epley, RPE-adjusted when logged)' },
-  topSetLoad: { key: 'topSetLoad', label: 'Top Set Load', unit: 'kg', description: 'Heaviest actual load lifted in the week' },
+  topSetLoad: { key: 'topSetLoad', label: 'Top Set Load', unit: 'kg', description: 'Heaviest actual load lifted in the microcycle' },
   sfr: { key: 'sfr', label: 'Stimulus-to-Fatigue Ratio', unit: 'reps/au', description: 'Effective reps divided by CNS fatigue', rpeDependent: true },
   intensityTechShare: { key: 'intensityTechShare', label: 'Intensity Technique Share', unit: 'ratio', description: 'Fraction of sets using partials, assisted reps, or dropsets' },
   meanRestSec: { key: 'meanRestSec', label: 'Mean Rest', unit: 's', description: 'Average prescribed rest interval between sets (seconds)' },
@@ -114,15 +115,15 @@ export function buildAnalyticsDataset({
   const metaById = new Map(mergedMeta.map((m) => [m.id, m]));
   const loadedById = new Map(loadedPrograms.map((p) => [p.id, p]));
 
-  const programs = [];
+  const macrocycles = [];
   const sets = [];
-  const exerciseWeeks = [];
-  const muscleWeeks = [];
-  const rawProgramWeeks = [];
+  const exerciseMicrocycles = [];
+  const muscleMicrocycles = [];
+  const rawMicrocycles = [];
   const bwProxy = [];
 
   const exerciseSet = new Set();
-  const macroSet = new Set();
+  const macroMuscleSet = new Set();
   const subMuscleSet = new Set();
   const sessionSet = new Set();
 
@@ -139,53 +140,54 @@ export function buildAnalyticsDataset({
     totalParseWarnings += parseWarnings.length;
 
     const sessions = new Set();
-    const weeksInProg = new Set();
-    let progSets = 0;
-    let progRpeLogged = 0;
-    let progTonnage = 0;
-    let progFatigue = 0;
+    const mcsInMacro = new Set();
+    let macroSets = 0;
+    let macroRpeLogged = 0;
+    let macroTonnage = 0;
+    let macroFatigue = 0;
 
     for (const wEx of workoutData) {
       sessions.add(wEx.session);
-      for (const wData of wEx.weeks) {
-        weeksInProg.add(wData.week_num);
-        for (const s of wData.sets) {
-          progSets += 1;
-          if (s.rpeLogged) progRpeLogged += 1;
+      for (const mcData of wEx.weeks) {
+        mcsInMacro.add(mcData.week_num);
+        for (const s of mcData.sets) {
+          macroSets += 1;
+          if (s.rpeLogged) macroRpeLogged += 1;
         }
       }
     }
 
-    const progMetricsAll = calculateMetrics(workoutData, null, null, null, null);
-    for (const row of progMetricsAll) {
-      progTonnage += row.tonnage;
-      progFatigue += row.fatigue;
+    const macroMetricsAll = calculateMetrics(workoutData, null, null, null, null);
+    for (const row of macroMetricsAll) {
+      macroTonnage += row.tonnage;
+      macroFatigue += row.fatigue;
     }
 
-    const progRecord = {
+    const macroRecord = {
       id: meta.id,
       label: meta.label,
       order: meta.order,
       startDate: meta.startDate,
+      microcycleDays: meta.microcycleDays,
       excluded: meta.excluded,
       variantOf: meta.variantOf,
       isFailedBlock: meta.isFailedBlock,
       nSessions: sessions.size,
-      nWeeks: weeksInProg.size,
+      nMicrocycles: mcsInMacro.size,
       nExercises: workoutData.length,
-      nSets: progSets,
-      totalTonnage: progTonnage,
-      totalFatigue: progFatigue,
-      rpeLoggedFraction: progSets > 0 ? progRpeLogged / progSets : 0,
+      nSets: macroSets,
+      totalTonnage: macroTonnage,
+      totalFatigue: macroFatigue,
+      rpeLoggedFraction: macroSets > 0 ? macroRpeLogged / macroSets : 0,
       parseWarningsCount: parseWarnings.length,
     };
-    programs.push(progRecord);
+    macrocycles.push(macroRecord);
 
     if (meta.excluded) continue;
 
-    const weekBucket = new Map();
-    const muscleWeekBucket = new Map();
-    const bwWeekBucket = new Map();
+    const mcBucket = new Map();
+    const muscleMcBucket = new Map();
+    const bwMcBucket = new Map();
 
     for (const wEx of workoutData) {
       const ex = wEx.exercise_obj;
@@ -196,7 +198,7 @@ export function buildAnalyticsDataset({
       const isBw = isBodyweightExercise(wEx);
 
       // Reuse calculateMetrics directly per WorkoutExercise as single source of truth
-      const exWeekMetrics = new Map(
+      const exMcMetrics = new Map(
         calculateMetrics([wEx], null, null, null, null).map((m) => [m.week, m])
       );
 
@@ -205,27 +207,27 @@ export function buildAnalyticsDataset({
         .filter((e) => e.mag > 0);
       for (const me of musclesEntries) {
         subMuscleSet.add(me.sub);
-        macroSet.add(me.macro);
+        macroMuscleSet.add(me.macro);
       }
 
-      for (const wData of wEx.weeks) {
-        const week = wData.week_num;
+      for (const mcData of wEx.weeks) {
+        const mcNum = mcData.week_num;
         let bestE1rm = null;
         let bestRawE1rm = null;
         let highRepWarning = false;
         let topSetLoad = 0;
         let repsAtTopLoad = 0;
         let techSets = 0;
-        let wRpeLogged = 0;
+        let mcRpeLogged = 0;
 
-        for (let setIdx = 0; setIdx < wData.sets.length; setIdx++) {
-          const s = wData.sets[setIdx];
+        for (let setIdx = 0; setIdx < mcData.sets.length; setIdx++) {
+          const s = mcData.sets[setIdx];
           const actualLoad = s.load * ex.load_multiplier + ex.load_offset;
           const rpeLogged = Boolean(s.rpeLogged);
           const hasTech = Boolean(s.partial_reps > 0 || s.assisted_reps > 0 || s.dropsetId);
           if (hasTech) techSets += 1;
           if (rpeLogged) {
-            wRpeLogged += 1;
+            mcRpeLogged += 1;
             rpeLoggedCount += 1;
           }
           totalSetsCount += 1;
@@ -242,15 +244,16 @@ export function buildAnalyticsDataset({
           }
 
           if (isBw && s.load >= 35 && s.load <= 200) {
-            if (!bwWeekBucket.has(week)) bwWeekBucket.set(week, []);
-            bwWeekBucket.get(week).push(s.load);
+            if (!bwMcBucket.has(mcNum)) bwMcBucket.set(mcNum, []);
+            bwMcBucket.get(mcNum).push(s.load);
           }
 
           sets.push({
-            programId: meta.id,
-            programOrder: meta.order,
+            macrocycleId: meta.id,
+            macrocycleOrder: meta.order,
             session: wEx.session,
-            week,
+            microcycle: mcNum,
+            date: mcData.date || null,
             exerciseName: exName,
             isIsolation: Boolean(ex.is_isolation),
             isBodyweight: isBw,
@@ -272,19 +275,20 @@ export function buildAnalyticsDataset({
             effectiveReps: s.effectiveReps,
             totalReps: s.totalReps,
             e1rm: e1.e1rm,
-            rawLine: wData.raw_line,
+            rawLine: mcData.raw_line,
           });
         }
 
-        const agg = exWeekMetrics.get(week);
+        const agg = exMcMetrics.get(mcNum);
         if (!agg) continue;
 
-        const nSetsWeek = wData.sets.length;
-        const exWeekRow = {
-          programId: meta.id,
-          programOrder: meta.order,
+        const nSetsMc = mcData.sets.length;
+        exerciseMicrocycles.push({
+          macrocycleId: meta.id,
+          macrocycleOrder: meta.order,
           session: wEx.session,
-          week,
+          microcycle: mcNum,
+          date: mcData.date || null,
           exerciseName: exName,
           isIsolation: Boolean(ex.is_isolation),
           isBodyweight: isBw,
@@ -304,18 +308,17 @@ export function buildAnalyticsDataset({
           topSetLoad,
           repsAtTopLoad,
           sfr: computeSFR(agg.effectiveReps, agg.fatigue),
-          intensityTechShare: nSetsWeek > 0 ? techSets / nSetsWeek : 0,
+          intensityTechShare: nSetsMc > 0 ? techSets / nSetsMc : 0,
           meanRestSec: wEx.rest_seconds,
-          rpeLoggedFraction: nSetsWeek > 0 ? wRpeLogged / nSetsWeek : 0,
-        };
-        exerciseWeeks.push(exWeekRow);
+          rpeLoggedFraction: nSetsMc > 0 ? mcRpeLogged / nSetsMc : 0,
+        });
 
-        // Accumulate program-week totals
-        if (!weekBucket.has(week)) {
-          weekBucket.set(week, {
-            programId: meta.id,
-            programOrder: meta.order,
-            week,
+        if (!mcBucket.has(mcNum)) {
+          mcBucket.set(mcNum, {
+            macrocycleId: meta.id,
+            macrocycleOrder: meta.order,
+            microcycle: mcNum,
+            sessionDates: new Set(),
             sets: 0,
             volume: 0,
             effectiveReps: 0,
@@ -330,28 +333,28 @@ export function buildAnalyticsDataset({
             restValues: [],
           });
         }
-        const pw = weekBucket.get(week);
-        pw.sets += agg.sets;
-        pw.volume += agg.volume;
-        pw.effectiveReps += agg.effectiveReps;
-        pw.tonnage += agg.tonnage;
-        pw.effectiveTonnage += agg.effectiveTonnage;
-        pw.weightedTonnage += agg.weightedTonnage;
-        pw.effectiveWeightedTonnage += agg.effectiveWeightedTonnage;
-        pw.fatigue += agg.fatigue;
-        pw.totalTut += agg.totalTut;
-        pw.effectiveTut += agg.effectiveTut;
-        pw.techSets += techSets;
-        pw.restValues.push(wEx.rest_seconds);
+        const mcb = mcBucket.get(mcNum);
+        if (mcData.date) mcb.sessionDates.add(mcData.date);
+        mcb.sets += agg.sets;
+        mcb.volume += agg.volume;
+        mcb.effectiveReps += agg.effectiveReps;
+        mcb.tonnage += agg.tonnage;
+        mcb.effectiveTonnage += agg.effectiveTonnage;
+        mcb.weightedTonnage += agg.weightedTonnage;
+        mcb.effectiveWeightedTonnage += agg.effectiveWeightedTonnage;
+        mcb.fatigue += agg.fatigue;
+        mcb.totalTut += agg.totalTut;
+        mcb.effectiveTut += agg.effectiveTut;
+        mcb.techSets += techSets;
+        mcb.restValues.push(wEx.rest_seconds);
 
-        // Accumulate muscle-week breakdown
         for (const me of musclesEntries) {
-          const mwKey = `${week}|${me.sub}`;
-          if (!muscleWeekBucket.has(mwKey)) {
-            muscleWeekBucket.set(mwKey, {
-              programId: meta.id,
-              programOrder: meta.order,
-              week,
+          const mmKey = `${mcNum}|${me.sub}`;
+          if (!muscleMcBucket.has(mmKey)) {
+            muscleMcBucket.set(mmKey, {
+              macrocycleId: meta.id,
+              macrocycleOrder: meta.order,
+              microcycle: mcNum,
               subMuscle: me.sub,
               macro: me.macro,
               sets: 0,
@@ -366,84 +369,95 @@ export function buildAnalyticsDataset({
               effectiveTut: 0,
             });
           }
-          const mw = muscleWeekBucket.get(mwKey);
-          mw.sets += agg.sets * me.mag;
-          mw.volume += agg.volume * me.mag;
-          mw.effectiveReps += agg.effectiveReps * me.mag;
-          mw.tonnage += agg.tonnage * me.mag;
-          mw.effectiveTonnage += agg.effectiveTonnage * me.mag;
-          mw.weightedTonnage += agg.weightedTonnage * me.mag;
-          mw.effectiveWeightedTonnage += agg.effectiveWeightedTonnage * me.mag;
-          mw.fatigue += agg.fatigue * me.mag;
-          mw.totalTut += agg.totalTut * me.mag;
-          mw.effectiveTut += agg.effectiveTut * me.mag;
+          const mm = muscleMcBucket.get(mmKey);
+          mm.sets += agg.sets * me.mag;
+          mm.volume += agg.volume * me.mag;
+          mm.effectiveReps += agg.effectiveReps * me.mag;
+          mm.tonnage += agg.tonnage * me.mag;
+          mm.effectiveTonnage += agg.effectiveTonnage * me.mag;
+          mm.weightedTonnage += agg.weightedTonnage * me.mag;
+          mm.effectiveWeightedTonnage += agg.effectiveWeightedTonnage * me.mag;
+          mm.fatigue += agg.fatigue * me.mag;
+          mm.totalTut += agg.totalTut * me.mag;
+          mm.effectiveTut += agg.effectiveTut * me.mag;
         }
       }
     }
 
-    const sortedWeeks = Array.from(weekBucket.keys()).sort((a, b) => a - b);
-    for (const wk of sortedWeeks) {
-      const pw = weekBucket.get(wk);
-      rawProgramWeeks.push({
-        programId: pw.programId,
-        programOrder: pw.programOrder,
-        week: pw.week,
-        sets: pw.sets,
-        volume: pw.volume,
-        effectiveReps: pw.effectiveReps,
-        tonnage: pw.tonnage,
-        effectiveTonnage: pw.effectiveTonnage,
-        weightedTonnage: pw.weightedTonnage,
-        effectiveWeightedTonnage: pw.effectiveWeightedTonnage,
-        fatigue: pw.fatigue,
-        totalTut: pw.totalTut,
-        effectiveTut: pw.effectiveTut,
-        sfr: computeSFR(pw.effectiveReps, pw.fatigue),
-        intensityTechShare: pw.sets > 0 ? pw.techSets / pw.sets : 0,
-        meanRestSec: pw.restValues.length > 0 ? mean(pw.restValues) : null,
-        bwProxy: bwWeekBucket.has(wk) ? mean(bwWeekBucket.get(wk)) : null,
+    const sortedMcs = Array.from(mcBucket.keys()).sort((a, b) => a - b);
+    for (const mcNum of sortedMcs) {
+      const mcb = mcBucket.get(mcNum);
+      rawMicrocycles.push({
+        macrocycleId: mcb.macrocycleId,
+        macrocycleOrder: mcb.macrocycleOrder,
+        microcycle: mcb.microcycle,
+        sessionDates: Array.from(mcb.sessionDates).sort(),
+        sets: mcb.sets,
+        volume: mcb.volume,
+        effectiveReps: mcb.effectiveReps,
+        tonnage: mcb.tonnage,
+        effectiveTonnage: mcb.effectiveTonnage,
+        weightedTonnage: mcb.weightedTonnage,
+        effectiveWeightedTonnage: mcb.effectiveWeightedTonnage,
+        fatigue: mcb.fatigue,
+        totalTut: mcb.totalTut,
+        effectiveTut: mcb.effectiveTut,
+        sfr: computeSFR(mcb.effectiveReps, mcb.fatigue),
+        intensityTechShare: mcb.sets > 0 ? mcb.techSets / mcb.sets : 0,
+        meanRestSec: mcb.restValues.length > 0 ? mean(mcb.restValues) : null,
+        bwProxy: bwMcBucket.has(mcNum) ? mean(bwMcBucket.get(mcNum)) : null,
       });
-      if (bwWeekBucket.has(wk)) {
+      if (bwMcBucket.has(mcNum)) {
         bwProxy.push({
-          programId: meta.id,
-          programOrder: meta.order,
-          week: wk,
-          weightKg: mean(bwWeekBucket.get(wk)),
-          nSamples: bwWeekBucket.get(wk).length,
+          macrocycleId: meta.id,
+          macrocycleOrder: meta.order,
+          microcycle: mcNum,
+          weightKg: mean(bwMcBucket.get(mcNum)),
+          nSamples: bwMcBucket.get(mcNum).length,
         });
       }
     }
 
-    for (const mw of muscleWeekBucket.values()) {
-      muscleWeeks.push({ ...mw, sfr: computeSFR(mw.effectiveReps, mw.fatigue) });
+    for (const mm of muscleMcBucket.values()) {
+      muscleMicrocycles.push({ ...mm, sfr: computeSFR(mm.effectiveReps, mm.fatigue) });
     }
   }
 
-  const { daily: body, weekly: bodyWeekly } = buildBodySeries(profile?.logs || []);
-  const { programWeeks, overlappingBodyWeeks, datedWeeks } = alignProgramWeeks(rawProgramWeeks, metaById, bodyWeekly);
+  const { daily: body, periodBuckets: bodyPeriods } = buildBodySeries(profile?.logs || []);
+  const { microcycles, overlappingBodyMicrocycles, datedMicrocycles, exactDatedMicrocycles } = alignMacrocycleMicrocycles(
+    rawMicrocycles,
+    metaById,
+    body
+  );
 
-  // Propagate timelineIndex to exerciseWeeks, muscleWeeks, and bwProxy
-  const timelineLookup = new Map(programWeeks.map((pw) => [`${pw.programId}|${pw.week}`, pw]));
-  for (const row of exerciseWeeks) {
-    const pw = timelineLookup.get(`${row.programId}|${row.week}`);
-    row.timelineIndex = pw ? pw.timelineIndex : null;
-    row.approxDate = pw ? pw.approxDate : null;
-    row.isoWeek = pw ? pw.isoWeek : null;
+  const overallDateAlignment =
+    exactDatedMicrocycles > 0 && exactDatedMicrocycles === datedMicrocycles
+      ? 'exact'
+      : datedMicrocycles > 0
+        ? 'approximate'
+        : 'none';
+
+  const timelineLookup = new Map(microcycles.map((mc) => [`${mc.macrocycleId}|${mc.microcycle}`, mc]));
+  for (const row of exerciseMicrocycles) {
+    const mc = timelineLookup.get(`${row.macrocycleId}|${row.microcycle}`);
+    row.timelineIndex = mc ? mc.timelineIndex : null;
+    row.windowStart = mc ? mc.windowStart : null;
+    row.windowEnd = mc ? mc.windowEnd : null;
   }
-  for (const row of muscleWeeks) {
-    const pw = timelineLookup.get(`${row.programId}|${row.week}`);
-    row.timelineIndex = pw ? pw.timelineIndex : null;
-    row.approxDate = pw ? pw.approxDate : null;
-    row.isoWeek = pw ? pw.isoWeek : null;
+  for (const row of muscleMicrocycles) {
+    const mc = timelineLookup.get(`${row.macrocycleId}|${row.microcycle}`);
+    row.timelineIndex = mc ? mc.timelineIndex : null;
+    row.windowStart = mc ? mc.windowStart : null;
+    row.windowEnd = mc ? mc.windowEnd : null;
   }
   for (const row of bwProxy) {
-    const pw = timelineLookup.get(`${row.programId}|${row.week}`);
-    row.timelineIndex = pw ? pw.timelineIndex : null;
+    const mc = timelineLookup.get(`${row.macrocycleId}|${row.microcycle}`);
+    row.timelineIndex = mc ? mc.timelineIndex : null;
   }
 
   const snapshot = buildSnapshot(profile);
-  const includedPrograms = programs.filter((p) => !p.excluded);
-  const totalWeeks = programWeeks.length;
+  const includedMacrocycles = macrocycles.filter((p) => !p.excluded);
+  const totalMicrocycles = microcycles.length;
   const rpeLoggedFraction = totalSetsCount > 0 ? rpeLoggedCount / totalSetsCount : 0;
   let rpeQuality = 'assumed';
   if (rpeLoggedFraction >= 0.8) rpeQuality = 'logged';
@@ -463,17 +477,23 @@ export function buildAnalyticsDataset({
       message: `${Math.round(rpeLoggedFraction * 100)}% of sets have explicit @RPE; remaining sets default to 9.0.`,
     });
   }
-  if (datedWeeks === 0) {
+  if (datedMicrocycles === 0) {
     qualityFlags.push({
-      code: 'no_program_dates',
+      code: 'no_macrocycle_dates',
       severity: 'info',
-      message: 'No program start dates configured. Training weeks are indexed sequentially; body-composition logs cannot be date-joined.',
+      message: 'No Dates: blocks or macrocycle start dates found. Training microcycles are indexed sequentially; dated body-composition logs cannot be date-joined.',
+    });
+  } else if (overallDateAlignment === 'exact') {
+    qualityFlags.push({
+      code: 'exact_session_dates',
+      severity: 'info',
+      message: `Exact session dates parsed from logbook Dates: blocks for ${exactDatedMicrocycles}/${totalMicrocycles} microcycles.`,
     });
   } else {
     qualityFlags.push({
       code: 'approximate_dates',
       severity: 'info',
-      message: `Training dates are approximate (derived from program start dates + 7 days per week) for ${datedWeeks}/${totalWeeks} weeks.`,
+      message: `Microcycle calendar windows are approximate (from macrocycle start date + microcycle length) for ${datedMicrocycles - exactDatedMicrocycles} microcycle(s) and exact for ${exactDatedMicrocycles}.`,
     });
   }
   if (snapshot.isDefaultUnverified) {
@@ -494,41 +514,42 @@ export function buildAnalyticsDataset({
   const nWeightLogs = body.filter((b) => b.weight !== null).length;
   const nBodyFatLogs = body.filter((b) => b.bodyFat !== null).length;
 
-  const canAnalyzeProgression = totalWeeks >= 4 && sets.length >= 12;
-  const canCrossProgram = includedPrograms.filter((p) => p.nWeeks >= 2).length >= 2;
-  const canJoinBodyComp = overlappingBodyWeeks >= 6;
+  const canAnalyzeProgression = totalMicrocycles >= 4 && sets.length >= 12;
+  const canCrossMacrocycle = includedMacrocycles.filter((p) => p.nMicrocycles >= 2).length >= 2;
+  const canJoinBodyComp = overlappingBodyMicrocycles >= 6;
   const canAnalyzeBodyTrend = nWeightLogs >= 4 || nBodyFatLogs >= 4;
   const hasBwProxy = bwProxy.length >= 4;
 
   const blockingReasons = [];
   if (!canAnalyzeProgression && !canAnalyzeBodyTrend) {
-    blockingReasons.push('Need at least 4 training weeks (with 12+ sets) or 4 dated body-composition logs.');
+    blockingReasons.push('Need at least 4 training microcycles (with 12+ sets) or 4 dated body-composition logs.');
   }
 
   const capabilities = {
     ready: canAnalyzeProgression || canAnalyzeBodyTrend,
     canAnalyzeProgression,
-    canCrossProgram,
+    canCrossMacrocycle,
     canJoinBodyComp,
     canAnalyzeBodyTrend,
     hasBwProxy,
     rpeQuality,
     rpeLoggedFraction,
-    dateAlignment: datedWeeks > 0 ? 'approximate' : 'none',
-    overlappingBodyWeeks,
+    dateAlignment: overallDateAlignment,
+    exactDatedMicrocycles,
+    overlappingBodyMicrocycles,
     blockingReasons,
     minN: {
       trend: 4,
       correlation: 8,
       lagged: 10,
-      crossProgram: 2,
+      crossMacrocycle: 2,
       bodyJoin: 6,
     },
   };
 
   const fingerprint = computeDatasetFingerprint({
-    programs,
-    programWeeks,
+    macrocycles,
+    microcycles,
     setsCount: sets.length,
     body,
     snapshot,
@@ -537,35 +558,35 @@ export function buildAnalyticsDataset({
 
   const summary = {
     fingerprint,
-    nProgramsTotal: programs.length,
-    nProgramsIncluded: includedPrograms.length,
-    nWeeks: totalWeeks,
+    nMacrocyclesTotal: macrocycles.length,
+    nMacrocyclesIncluded: includedMacrocycles.length,
+    nMicrocycles: totalMicrocycles,
     nSets: sets.length,
     nExercises: exerciseSet.size,
     nWeightLogs,
     nBodyFatLogs,
-    overlappingBodyWeeks,
+    overlappingBodyMicrocycles,
     rpeQuality,
     rpeLoggedFraction,
-    programWeeksByProgram: includedPrograms.map((p) => ({ id: p.id, nWeeks: p.nWeeks })),
+    microcyclesByMacrocycle: includedMacrocycles.map((p) => ({ id: p.id, nMicrocycles: p.nMicrocycles })),
   };
 
   return {
-    programs,
+    macrocycles,
     programMeta: mergedMeta,
     sets,
-    exerciseWeeks,
-    muscleWeeks,
-    programWeeks,
+    exerciseMicrocycles,
+    muscleMicrocycles,
+    microcycles,
     body,
-    bodyWeekly,
+    bodyPeriods,
     bwProxy,
     snapshot,
     entities: {
-      programs: includedPrograms.map((p) => p.id),
-      allPrograms: programs.map((p) => p.id),
+      macrocycles: includedMacrocycles.map((p) => p.id),
+      allMacrocycles: macrocycles.map((p) => p.id),
       exercises: Array.from(exerciseSet).sort(),
-      macros: Array.from(macroSet).sort(),
+      macros: Array.from(macroMuscleSet).sort(),
       subMuscles: Array.from(subMuscleSet).sort(),
       sessions: Array.from(sessionSet).sort((a, b) => a - b),
     },
