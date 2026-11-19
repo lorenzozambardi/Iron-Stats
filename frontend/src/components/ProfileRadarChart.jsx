@@ -89,7 +89,8 @@ const ProfileRadarChart = React.memo(({
     });
 
     const ptsA = HEX_ANGLES_DEG.map((ang, idx) => {
-      const score = axes[idx]?.scoreA ?? 50;
+      const rawScore = Number(axes[idx]?.scoreA);
+      const score = Number.isFinite(rawScore) ? rawScore : 50;
       const r = maxRadius * (Math.min(100, Math.max(10, score)) / 100);
       return getHexPoint(cx, cy, r, ang);
     });
@@ -97,7 +98,8 @@ const ProfileRadarChart = React.memo(({
     let computedPathB = null;
     if (hasSeriesB) {
       const ptsB = HEX_ANGLES_DEG.map((ang, idx) => {
-        const score = axes[idx]?.scoreB ?? 50;
+        const rawScore = Number(axes[idx]?.scoreB);
+        const score = Number.isFinite(rawScore) ? rawScore : 50;
         const r = maxRadius * (Math.min(100, Math.max(10, score)) / 100);
         return getHexPoint(cx, cy, r, ang);
       });

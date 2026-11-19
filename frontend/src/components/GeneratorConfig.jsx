@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -42,20 +42,39 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
   const [rightTab, setRightTab] = useState('info');
 
   const [weights, setWeights] = useState({
-    curve: 0.0,
-    vol: 0.0,
-    ton: 0.0,
-    tut: 0.0,
-    distr: 0.0,
-    variety: 0.0,
-    balance: 0.0
+    curve: '0',
+    vol: '0',
+    ton: '0',
+    tut: '0',
+    distr: '0',
+    variety: '0',
+    balance: '0'
   });
+  const mountedRef = useRef(true);
+  const runIdRef = useRef(0);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      runIdRef.current += 1;
+    };
+  }, []);
+
+  const parseGlobalInt = (val) => {
+    if (val === '') return '';
+    const parsed = parseInt(val, 10);
+    return Number.isFinite(parsed) ? parsed : '';
+  };
 
   const calculateSoftmax = (wObj) => {
     const keys = Object.keys(wObj);
+    const numericVals = keys.map(k => {
+      const n = parseFloat(wObj[k]);
+      return Number.isFinite(n) ? n : 0;
+    });
     // Numerical stabilization trick for Softmax: subtract maximum to avoid Infinity
-    const maxVal = Math.max(...keys.map(k => wObj[k]));
-    const expValues = keys.map(k => Math.exp(wObj[k] - maxVal));
+    const maxVal = Math.max(...numericVals);
+    const expValues = numericVals.map(v => Math.exp(v - maxVal));
     const sumExp = expValues.reduce((a, b) => a + b, 0);
     const normalized = {};
     keys.forEach((k, i) => {
@@ -133,25 +152,31 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
 
   // ===== EVENT HANDLERS =====
   const handleGenerate = async () => {
+    const currentRunId = ++runIdRef.current;
+    const shouldCancel = () => !mountedRef.current || runIdRef.current !== currentRunId;
 
     setIsGenerating(true);
     setError(null);
     setGeneratedResult(null);
 
     try {
-      const minSets = Math.max(1, Number.isFinite(globalParams.minSets) ? globalParams.minSets : 1);
-      const maxSets = Math.max(minSets, Number.isFinite(globalParams.maxSets) ? globalParams.maxSets : minSets);
-      const minReps = Math.max(1, Number.isFinite(globalParams.minReps) ? globalParams.minReps : 1);
-      const maxReps = Math.max(minReps, Number.isFinite(globalParams.maxReps) ? globalParams.maxReps : minReps);
-      const minEx = Math.max(1, Number.isFinite(globalParams.minEx) ? globalParams.minEx : 1);
-      const maxEx = Math.max(minEx, Number.isFinite(globalParams.maxEx) ? globalParams.maxEx : minEx);
+      const toInt = (v, fallback) => {
+        const n = Number(v);
+        return Number.isFinite(n) && v !== '' ? Math.floor(n) : fallback;
+      };
+      const minSets = Math.max(1, toInt(globalParams.minSets, 1));
+      const maxSets = Math.max(minSets, toInt(globalParams.maxSets, minSets));
+      const minReps = Math.max(1, toInt(globalParams.minReps, 1));
+      const maxReps = Math.max(minReps, toInt(globalParams.maxReps, minReps));
+      const minEx = Math.max(1, toInt(globalParams.minEx, 1));
+      const maxEx = Math.max(minEx, toInt(globalParams.maxEx, minEx));
       const payload = {
-        days: Math.max(1, Number.isFinite(globalParams.days) ? globalParams.days : 4),
+        days: Math.max(1, toInt(globalParams.days, 4)),
         min_sets: minSets, max_sets: maxSets,
         min_reps: minReps, max_reps: maxReps,
         min_ex: minEx, max_ex: maxEx,
-        iterations: Number.isFinite(globalParams.iterations) ? globalParams.iterations : 10000,
-        calibration_steps: Number.isFinite(globalParams.calibrationSteps) ? globalParams.calibrationSteps : 1000,
+        iterations: Math.max(0, toInt(globalParams.iterations, 10000)),
+        calibration_steps: Math.min(5000, Math.max(0, toInt(globalParams.calibrationSteps, 1000))),
         weights: normalizedWeights,
         target_ratios: {
           vol: targets.vol / 100,
@@ -165,12 +190,21 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
       const exRes = await fetch('/api/exercises');
       if (!exRes.ok) throw new Error('Failed to load exercises database');
       const exercises = await exRes.json();
+      if (shouldCancel()) return;
 
       // Allow the browser to render the "loading" state
       await new Promise(resolve => setTimeout(resolve, 50));
+      if (shouldCancel()) return;
 
       const solver = new WorkoutSolver(payload, exercises);
-      const { bestState, bestCost } = await solver.solve(payload.iterations ?? 10000, 50.0);
+      const { bestState, bestCost, cancelled } = await solver.solve(
+        payload.iterations ?? 10000,
+        50.0,
+        null,
+        null,
+        shouldCancel
+      );
+      if (cancelled || shouldCancel() || !bestState) return;
 
       const outDays = [];
       for (const day of bestState.days) {
@@ -201,10 +235,14 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
       setGeneratedResult(data);
       setRightTab('result');
     } catch (err) {
-      console.error(err);
-      setError(err.message);
+      if (!shouldCancel()) {
+        console.error(err);
+        setError(err.message);
+      }
     } finally {
-      setIsGenerating(false);
+      if (!shouldCancel()) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -245,8 +283,7 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
   };
 
   const handleWeightChange = (key, val) => {
-    const parsed = parseFloat(val);
-    setWeights(prev => ({ ...prev, [key]: Number.isFinite(parsed) ? parsed : 0 }));
+    setWeights(prev => ({ ...prev, [key]: val }));
   };
 
   const handleVolumeChange = (type, macro, sub, val) => {
@@ -299,36 +336,36 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Days (D) [3-7]</label>
-              <input type="number" min="3" max="7" value={globalParams.days} onChange={e => setGlobalParams({...globalParams, days: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+              <input type="number" min="3" max="7" value={globalParams.days} onChange={e => setGlobalParams({...globalParams, days: parseGlobalInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Sets (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="number" min="1" value={globalParams.minSets} onChange={e => setGlobalParams({...globalParams, minSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
-                <input type="number" min="1" value={globalParams.maxSets} onChange={e => setGlobalParams({...globalParams, maxSets: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.minSets} onChange={e => setGlobalParams({...globalParams, minSets: parseGlobalInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.maxSets} onChange={e => setGlobalParams({...globalParams, maxSets: parseGlobalInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
               </div>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Reps (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="number" min="1" value={globalParams.minReps} onChange={e => setGlobalParams({...globalParams, minReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
-                <input type="number" min="1" value={globalParams.maxReps} onChange={e => setGlobalParams({...globalParams, maxReps: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.minReps} onChange={e => setGlobalParams({...globalParams, minReps: parseGlobalInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.maxReps} onChange={e => setGlobalParams({...globalParams, maxReps: parseGlobalInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
               </div>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Exercises/Day (Min - Max)</label>
               <div style={{ display: 'flex', gap: '5px' }}>
-                <input type="number" min="1" value={globalParams.minEx} onChange={e => setGlobalParams({...globalParams, minEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
-                <input type="number" min="1" value={globalParams.maxEx} onChange={e => setGlobalParams({...globalParams, maxEx: parseInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.minEx} onChange={e => setGlobalParams({...globalParams, minEx: parseGlobalInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+                <input type="number" min="1" value={globalParams.maxEx} onChange={e => setGlobalParams({...globalParams, maxEx: parseGlobalInt(e.target.value)})} style={{ width: '50%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
               </div>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Iterations (SA)</label>
-              <input type="number" step="1000" min="1000" value={globalParams.iterations} onChange={e => setGlobalParams({...globalParams, iterations: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
+              <input type="number" step="1000" min="1000" value={globalParams.iterations} onChange={e => setGlobalParams({...globalParams, iterations: parseGlobalInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#8e8e8e', marginBottom: '5px' }}>Calibration (Auto-Scale)</label>
-              <input type="number" step="100" min="0" value={globalParams.calibrationSteps} onChange={e => setGlobalParams({...globalParams, calibrationSteps: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} title="Number of random programs to calibrate magnitudes. 0 to disable." />
+              <input type="number" step="100" min="0" max="5000" value={globalParams.calibrationSteps} onChange={e => setGlobalParams({...globalParams, calibrationSteps: parseGlobalInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg-secondary)', border: '1px solid #3a3a3a', color: 'white' }} title="Number of random programs to calibrate magnitudes. 0 to disable." />
             </div>
           </div>
         </div>

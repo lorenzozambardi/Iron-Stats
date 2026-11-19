@@ -253,14 +253,24 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 
-/* Add padding to scrollable containers on desktop so content slides under the absolute header */
+/* Add padding to scrollable containers on desktop so content slides under the absolute header and above the floating bottom nav */
 @media (min-width: 769px) {
   .editor-tab-workspace,
   .tab-workspace-flat,
   .db-tab-workspace,
   .main-content-card > .glass-card-body {
     padding-top: 85px !important;
+    padding-bottom: 100px !important;
   }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }
 
 /* Glass Card */
@@ -408,7 +418,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-color);
   border-radius: var(--button-radius);
   cursor: pointer;
-  transition: background-color , color , border-color , opacity , transform , box-shadow ;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -574,9 +584,14 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-secondary);
 }
 
+.autocomplete-item.active {
+  background: var(--accent-primary);
+  color: white;
+}
+
 @media (hover: hover) and (pointer: fine) {
 
-.autocomplete-item:hover, .autocomplete-item.active {
+.autocomplete-item:hover {
   background: var(--accent-primary);
   color: white;
 }
@@ -619,10 +634,14 @@ h1, h2, h3, h4, h5, h6 {
   transition: transform var(--transition-fast);
 }
 
+.metric-summary-card:focus-within {
+  transform: translateY(-2px);
+  z-index: 20;
+}
+
 @media (hover: hover) and (pointer: fine) {
 
 .metric-summary-card:hover,
-.metric-summary-card:focus-within,
 .metric-summary-card:has(.info-icon-wrapper:hover) {
   transform: translateY(-2px);
   z-index: 20;
@@ -742,7 +761,7 @@ h1, h2, h3, h4, h5, h6 {
 .progress-bar-fill {
   height: 100%;
   border-radius: 99px;
-  transition: width var(--transition-normal) ease;
+  transition: width var(--transition-normal);
 }
 
 /* Exercises Database View */
@@ -1080,7 +1099,7 @@ input::-webkit-list-button {
   border-radius: var(--card-radius);
   padding: 20px;
   cursor: pointer;
-  transition: background-color , color , border-color , opacity , transform , box-shadow ;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1708,7 +1727,7 @@ input::-webkit-list-button {
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   cursor: pointer;
-  transition: background-color , color , border-color , opacity , transform , box-shadow ;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2308,7 +2327,7 @@ input::-webkit-list-button {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    transition: background-color , color , border-color , opacity , transform , box-shadow ;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   }
 
   .mobile-header-editor-controls .mode-toggle-btn.active {
@@ -2497,7 +2516,7 @@ input::-webkit-list-button {
     padding: 6px 10px 6px 10px !important;
     font-size: 0.75rem !important;
     border-radius: 100px !important;
-    background: var(--bg-secondary) !important;
+    background-color: var(--bg-secondary) !important;
   }
   
   /* Plot container scaling */
@@ -3043,12 +3062,18 @@ input::-webkit-list-button {
   color: #10b981;
   border: 1px solid rgba(16, 185, 129, 0.3);
   cursor: pointer;
-  transition: background-color , color , border-color , opacity , transform , box-shadow ;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-save-circle:active {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
 @media (hover: hover) and (pointer: fine) {
 
-.btn-save-circle:hover, .btn-save-circle:active {
+.btn-save-circle:hover {
   background: #10b981;
   color: #fff;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
@@ -3300,18 +3325,6 @@ input::-webkit-list-button {
 .easy-text-block .text-icon {
   color: var(--text-muted);
   margin-top: 2px;
-}
-
-.easy-text-area {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  outline: none;
-  resize: vertical;
-  min-height: 40px;
 }
 
 .easy-add-actions {
@@ -3569,6 +3582,13 @@ input::-webkit-list-button {
   .bottom-nav-btn svg {
     transition: none !important;
   }
+  .mobile-bottom-nav.keyboard-open {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: none !important;
+  }
 }
 
 /* ── Redesigned Settings Panel ── */
@@ -3626,6 +3646,10 @@ input::-webkit-list-button {
 
 .settings-group-row {
   padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .settings-row-label {
@@ -4170,24 +4194,6 @@ input::-webkit-list-button {
   white-space: nowrap;
 }
 
-@media (max-width: 520px) {
-  .profile-preview-card {
-    padding: 14px 16px;
-    gap: 12px;
-  }
-  .profile-stats-row {
-    gap: 4px;
-  }
-  .profile-stat-value {
-    font-size: 0.94rem;
-  }
-  .profile-circ-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 24px;
-    font-size: 0.74rem;
-  }
-}
-
 .profile-stat-label {
   font-size: 0.68rem;
   font-weight: 600;
@@ -4209,6 +4215,24 @@ input::-webkit-list-button {
   font-size: 0.67rem;
   color: var(--text-secondary);
   line-height: 1.2;
+}
+
+@media (max-width: 520px) {
+  .profile-preview-card {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  .profile-stats-row {
+    gap: 4px;
+  }
+  .profile-stat-value {
+    font-size: 0.94rem;
+  }
+  .profile-circ-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 24px;
+    font-size: 0.74rem;
+  }
 }
 
 .profile-circ-section {

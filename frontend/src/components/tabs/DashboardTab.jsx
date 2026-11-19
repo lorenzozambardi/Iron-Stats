@@ -527,14 +527,26 @@ const DashboardTab = ({
   }, []);
 
   // Dashboard filter state
+  const [prevProgram, setPrevProgram] = useState(currentProgram);
   const [dashFilterSession, setDashFilterSession] = useState('all'); // 'all' or session number
   const [dashFilterWeekFrom, setDashFilterWeekFrom] = useState('all'); // 'all' or week number
   const [dashFilterWeekTo, setDashFilterWeekTo] = useState('all');     // 'all' or week number
+  if (currentProgram !== prevProgram) {
+    setPrevProgram(currentProgram);
+    setDashFilterSession('all');
+    setDashFilterWeekFrom('all');
+    setDashFilterWeekTo('all');
+  }
   const [compareMode, setCompareMode] = useState(false);
   const [compareProgram, setCompareProgram] = useState('');
-  const [compareWorkoutData, setCompareWorkoutData] = useState([]);
+  const [compareRawText, setCompareRawText] = useState('');
   const [compareLoading, setCompareLoading] = useState(false);
   const compareAbortRef = useRef(null);
+  const compareWorkoutData = useMemo(() => {
+    if (!compareRawText || !exercisesDb || exercisesDb.length === 0) return [];
+    return parseLogbook(compareRawText, exercisesDb);
+  }, [compareRawText, exercisesDb]);
+  const isCompareActive = compareMode && Boolean(compareProgram);
   // Per-program filters in compare mode
   const [cmpFilterSession, setCmpFilterSession] = useState('all');
   const [cmpFilterWeekFrom, setCmpFilterWeekFrom] = useState('all');
@@ -569,7 +581,7 @@ const DashboardTab = ({
       ro.observe(el);
       return () => ro.disconnect();
     }
-  }, []);
+  }, [isMobile, activeTab]);
 
   useEffect(() => () => {
     if (compareAbortRef.current) compareAbortRef.current.abort();
@@ -588,30 +600,43 @@ const DashboardTab = ({
       compareAbortRef.current = null;
     }
     if (!progName) {
-      setCompareWorkoutData([]);
+      setCompareRawText('');
       setCompareLoading(false);
       return;
     }
     const controller = new AbortController();
     compareAbortRef.current = controller;
     setCompareLoading(true);
-    fetch(`/api/logbook?program=${progName}`, { signal: controller.signal })
+    fetch(`/api/logbook?program=${encodeURIComponent(progName)}`, { signal: controller.signal })
       .then(res => {
         if (!res.ok) throw new Error(`Failed to load ${progName}.md`);
         return res.text();
       })
       .then(text => {
         if (controller.signal.aborted) return;
-        const parsed = parseLogbook(text, exercisesDb);
-        setCompareWorkoutData(parsed);
+        setCompareRawText(text);
         setCompareLoading(false);
       })
       .catch((err) => {
         if (err && err.name === 'AbortError') return;
-        setCompareWorkoutData([]);
+        setCompareRawText('');
         setCompareLoading(false);
       });
-  }, [exercisesDb]);
+  }, []);
+
+  const disableCompareMode = useCallback(() => {
+    if (compareAbortRef.current) {
+      compareAbortRef.current.abort();
+      compareAbortRef.current = null;
+    }
+    setCompareMode(false);
+    setCompareLoading(false);
+    setCompareRawText('');
+    setCompareProgram('');
+    setCmpFilterSession('all');
+    setCmpFilterWeekFrom('all');
+    setCmpFilterWeekTo('all');
+  }, []);
 
   // Derived sessions lists for compare program B
   const compareSessionsList = useMemo(() =>
@@ -732,13 +757,13 @@ const DashboardTab = ({
           deferredMacro,
           deferredSubgroup,
           muscleMetric,
-          compareMode && lastFullWeekA !== null ? lastFullWeekA : undefined
+          isCompareActive && lastFullWeekA !== null ? lastFullWeekA : undefined
         )
       : []),
-    [isDashboardActive, dashFilteredData, activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric, compareMode, lastFullWeekA]
+    [isDashboardActive, dashFilteredData, activeWeeksList, deferredMacro, deferredSubgroup, muscleMetric, isCompareActive, lastFullWeekA]
   );
   const compareMuscleData = useMemo(
-    () => (isDashboardActive && compareMode
+    () => (isDashboardActive && isCompareActive
       ? computeMuscleDistribution(
           cmpFilteredData,
           compareActiveWeeksList,
@@ -748,7 +773,7 @@ const DashboardTab = ({
           lastFullWeekB !== null ? lastFullWeekB : 'all'
         )
       : []),
-    [isDashboardActive, compareMode, cmpFilteredData, compareActiveWeeksList, deferredMacro, deferredSubgroup, muscleMetric, lastFullWeekB]
+    [isDashboardActive, isCompareActive, cmpFilteredData, compareActiveWeeksList, deferredMacro, deferredSubgroup, muscleMetric, lastFullWeekB]
   );
 
   const displayMuscleData = useMemo(() => {
@@ -861,7 +886,7 @@ const DashboardTab = ({
 
   // Overall totals (filtered; in compare mode, uses each selection's last full microcycle so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
-    const rows = compareMode && lastFullWeekA !== null
+    const rows = isCompareActive && lastFullWeekA !== null
       ? metricsByWeek.filter(m => m.week === `m${lastFullWeekA}`)
       : metricsByWeek;
     const agg = (fn) => parseFloat(rows.reduce((acc, m) => acc + fn(m), 0).toFixed(1));
@@ -877,7 +902,7 @@ const DashboardTab = ({
       totalEffectiveTut: agg(m => m.EffectiveTut || 0),
       totalSets: agg(m => m.Sets || 0),
     };
-  }, [metricsByWeek, compareMode, lastFullWeekA]);
+  }, [metricsByWeek, isCompareActive, lastFullWeekA]);
 
   const compareTotals = useMemo(() => {
     const rows = lastFullWeekB !== null
@@ -925,7 +950,7 @@ const DashboardTab = ({
   // Helper: delta label for compare mode
   const delta = (a, b) => {
     if (b === 0) return null;
-    const d = ((a - b) / b) * 100;
+    const d = ((a - b) / Math.abs(b)) * 100;
     return { val: d.toFixed(2), pos: d >= 0 };
   };
 
@@ -973,9 +998,9 @@ const DashboardTab = ({
 
   return (
     <>
-        <div className={`swipe-view ${activeTab === 'dashboard' || activeTab === 'metric-details' ? 'active-desktop' : ''}`} id="view-dashboard">
+        <div className={`swipe-view ${activeTab === 'dashboard' ? 'active-desktop' : ''}`} id="view-dashboard">
           {/* Mobile Floating Filter Pill next to Settings button */}
-          {isMobile && activeTab !== 'metric-details' && (
+          {isMobile && !selectedMetricDetail && (
             <div
               id="mobile-header-dash-controls"
               style={{
@@ -1002,10 +1027,12 @@ const DashboardTab = ({
                 className={`btn ${compareMode ? 'btn-secondary' : ''}`}
                 style={{ padding: '5px 12px', fontSize: '0.75rem', borderRadius: '99px', whiteSpace: 'nowrap', flexShrink: 0 }}
                 onClick={() => {
-                  const next = !compareMode;
-                  setCompareMode(next);
-                  if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }
-                  else if (compareProgram) loadCompareProgram(compareProgram);
+                  if (compareMode) {
+                    disableCompareMode();
+                  } else {
+                    setCompareMode(true);
+                    if (compareProgram) loadCompareProgram(compareProgram);
+                  }
                 }}
               >
                 {compareMode ? 'Compare' : 'Compare Programs'}
@@ -1017,7 +1044,15 @@ const DashboardTab = ({
                     className="select-control"
                     style={{ fontSize: '0.75rem', padding: '5px 10px', flexShrink: 0 }}
                     value={compareProgram}
-                    onChange={e => { setCompareProgram(e.target.value); loadCompareProgram(e.target.value); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setCompareProgram(val);
+                      loadCompareProgram(val);
+                      setCmpFilterSession('all');
+                      setCmpFilterWeekFrom('all');
+                      setCmpFilterWeekTo('all');
+                      if (val) setMobileFiltersOpen(true);
+                    }}
                   >
                     <option value="">— pick program —</option>
                     {programs.map(p => <option key={p} value={p}>{p}</option>)}
@@ -1042,7 +1077,7 @@ const DashboardTab = ({
 
                   {/* ── Dashboard Filter Bar (Desktop always visible; Mobile smoothly expands/collapses) ── */}
                   {(() => {
-                    const isFilterPanelOpen = !isMobile || mobileFiltersOpen || (compareMode && Boolean(compareProgram));
+                    const isFilterPanelOpen = !isMobile || mobileFiltersOpen;
                     return (
                   <div style={{
                     height: !isMobile ? 'auto' : (isFilterPanelOpen ? `${filterHeight}px` : '0px'),
@@ -1069,10 +1104,12 @@ const DashboardTab = ({
                         className={`btn ${compareMode ? 'btn-secondary' : ''}`}
                         style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: '100px' }}
                         onClick={() => {
-                          const next = !compareMode;
-                          setCompareMode(next);
-                          if (!next) { setCompareWorkoutData([]); setCompareProgram(''); setCmpFilterSession('all'); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }
-                          else if (compareProgram) loadCompareProgram(compareProgram);
+                          if (compareMode) {
+                            disableCompareMode();
+                          } else {
+                            setCompareMode(true);
+                            if (compareProgram) loadCompareProgram(compareProgram);
+                          }
                         }}
                       >
                         Compare Programs
@@ -1124,7 +1161,7 @@ const DashboardTab = ({
                             />
                             <DualWeekSlider
                               label="Microcycles"
-                              weeks={dashWeeksList}
+                              weeks={allFullWeeksList}
                               fromVal={dashFilterWeekFrom}
                               toVal={dashFilterWeekTo}
                               onChange={(f, t) => { setDashFilterWeekFrom(f); setDashFilterWeekTo(t); }}
@@ -1149,7 +1186,7 @@ const DashboardTab = ({
                             />
                             <DualWeekSlider
                               label="Microcycles"
-                              weeks={cmpWeeksList}
+                              weeks={allCompareFullWeeksList}
                               fromVal={cmpFilterWeekFrom}
                               toVal={cmpFilterWeekTo}
                               onChange={(f, t) => { setCmpFilterWeekFrom(f); setCmpFilterWeekTo(t); }}
@@ -1206,7 +1243,7 @@ const DashboardTab = ({
                         )}
                         <DualWeekSlider
                           label="Microcycles"
-                          weeks={dashWeeksList}
+                          weeks={allFullWeeksList}
                           fromVal={dashFilterWeekFrom}
                           toVal={dashFilterWeekTo}
                           onChange={(f, t) => { setDashFilterWeekFrom(f); setDashFilterWeekTo(t); }}
@@ -1462,7 +1499,7 @@ const DashboardTab = ({
                       </div>
                       <MuscleDonutChart
                         data={displayMuscleData}
-                        compareData={compareMode ? displayCompareMuscleData : null}
+                        compareData={isCompareActive && !compareLoading ? displayCompareMuscleData : null}
                         currentProgram={currentProgram}
                         compareProgram={compareProgram}
                         weekA={lastFullWeekA}

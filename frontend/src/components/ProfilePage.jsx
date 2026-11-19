@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
@@ -100,42 +100,87 @@ function FormattedDateInput({ value, max, dateFormat, onChange, ariaLabel, style
   );
 }
 
+const formatLocalYMD = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/yyyy', onBack }) {
   const [visible, setVisible] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(null);
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const pendingConfirmRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
+  const todayStr = useMemo(() => formatLocalYMD(), []);
+  const [logDate, setLogDate] = useState(() => formatLocalYMD());
   const [timeRange, setTimeRange] = useState('all');
 
   useEffect(() => {
+    pendingConfirmRef.current = pendingConfirm;
+  }, [pendingConfirm]);
+
+  useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    };
   }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      closeTimeoutRef.current = null;
+      onBack();
+    }, 200);
+  };
 
   useEffect(() => {
     const handleHardwareBack = () => {
+      if (pendingConfirmRef.current) {
+        setPendingConfirm(null);
+        return;
+      }
       setVisible(false);
-      setTimeout(() => onBack(), 200);
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = setTimeout(() => {
+        closeTimeoutRef.current = null;
+        onBack();
+      }, 200);
     };
     window.addEventListener('close-profile-page', handleHardwareBack);
     return () => window.removeEventListener('close-profile-page', handleHardwareBack);
   }, [onBack]);
 
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(() => onBack(), 200);
-  };
-
   const { current, logs = [] } = profile;
 
   const updateCurrent = (key, rawVal) => {
     const isStringField = key === 'birthDate' || key === 'sex';
-    const val = isStringField ? rawVal : parseFloat(rawVal);
+    if (isStringField) {
+      setProfile((prev) => ({
+        ...prev,
+        current: { ...prev.current, [key]: rawVal },
+      }));
+      return;
+    }
+    if (rawVal === '') {
+      setProfile((prev) => ({
+        ...prev,
+        current: { ...prev.current, [key]: '' },
+      }));
+      return;
+    }
+    const val = parseFloat(rawVal);
     setProfile((prev) => ({
       ...prev,
       current: {
         ...prev.current,
-        [key]: isStringField ? rawVal : (Number.isFinite(val) ? val : 0),
+        [key]: Number.isFinite(val) ? val : 0,
       },
     }));
   };
