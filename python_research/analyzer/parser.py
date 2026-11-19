@@ -38,26 +38,32 @@ def get_string_similarity(s1: str, s2: str) -> float:
 # Precompiled regular expressions for performance optimization
 # Matches fluff text in exercise names to be cleaned out (e.g. '10s', 'rep', 'cluster')
 RE_CLEAN_EXERCISE = re.compile(
-    r'(?i)(\d+s|\d+"|\d+\'\d*"|ultime|mezze|rep|fermo|giù|su|cheattate|ds|dds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|reps|pause|\bdown\b|up|cheated|machine|contraction)'
+    r"(?i)(?:\b\d+s\b|\b\d+'\d*\"|\b\d+\"|\b(?:ultime|mezze|reps?|fermo|giù|su|cheattate|dds|ds|macch|fullrom|cluster|set|bw|focus|contrazione|last|half|pause|down|up|cheated|machine|contraction)\b)"
 )
-# Matches rest times in the format | 2' | or | 90" | or | 1'30" |
-RE_REST_TIME = re.compile(r'\|\s*(?:(\d+)\')?(?:(\d+)")?\s*(?:\||$)')
+# Matches rest times in a single pipe-separated segment (e.g. "2'", '90"', "1'30\"", "2' 30\"")
+RE_REST_SEGMENT = re.compile(r"^(?:(\d+)'\s*)?(?:(\d+)\")?$")
 # Matches tempo notations like 1-0-2-0 (concentric-pause-eccentric-pause)
 RE_TEMPO_COMMENT = re.compile(r"\b(\d+)-(\d+)-(\d+)-(\d+)\b")
 # Matches set structures like "10(2)+3@8.5" (10 base reps, 2 assisted, 3 partials, @8.5 RPE)
-RE_REP_TOKEN = re.compile(r"(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?")
+RE_REP_TOKEN = re.compile(r"^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?$")
 RE_OLD_PREFIX = re.compile(r"(?i)(?:\b|(?<=^))old\s+")
-# Matches lines that contain only short numerical sets (e.g. "10, 9, 8")
-RE_LOG_LINE_SHORT = re.compile(r"^[\d\.\(\)\+@,\s]+$")
 # Matches exercise override syntax: "override: Lat Machine | fatigue=6.0 | load_coeff=0.8"
 RE_OVERRIDE = re.compile(r"^override:\s*([^|]+)\|\s*(.*)$", re.IGNORECASE)
 RE_DIGITS = re.compile(r"\d+")
 # Matches general log lines containing sets, weights, and dropsets (e.g. "90/80.. 10, 8")
 RE_LOG_LINE_LONG = re.compile(r"^[\d\.\(\)\+\/@,\s]+$", re.IGNORECASE)
-RE_LOG_LINE_LOAD = re.compile(r"(?:^|\s)-?[\d./]+\s*\.\.")
+RE_LOG_LINE_LOAD = re.compile(r"(?:^|\s)-?[\d.]+(?:/-?[\d.]+)*\s*\.\.")
 RE_DATES_HEADER = re.compile(r"^dates:\s*$", re.IGNORECASE)
 RE_DATE_DMY = re.compile(r"^(\d{2})[-/](\d{2})[-/](\d{4})$")
 RE_DATE_YMD = re.compile(r"^(\d{4})[-/](\d{2})[-/](\d{2})$")
+
+HARD_MAP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    (
+        key,
+        re.compile(rf"(?:^|[^a-z0-9]){re.escape(key)}(?:$|[^a-z0-9])", re.IGNORECASE),
+    )
+    for key in SORTED_HARD_MAP_KEYS
+]
 
 
 def is_dates_header(line: str) -> bool:
@@ -112,20 +118,20 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
         if ex.name.lower() == raw_lower:
             return ex
 
-    for key in SORTED_HARD_MAP_KEYS:
-        if key in raw_lower:
-            target = next((e for e in exercises if e.name == HARD_MAP[key]), None)
-            if target is not None:
-                return target
-
-    raw_clean = RE_CLEAN_EXERCISE.sub("", name_part).lower().strip()
+    raw_clean = re.sub(r"\s+", " ", RE_CLEAN_EXERCISE.sub("", name_part)).lower().strip()
 
     for ex in exercises:
         if ex.name.lower() == raw_clean:
             return ex
 
-    for key in SORTED_HARD_MAP_KEYS:
-        if key in raw_clean:
+    for key, pattern in HARD_MAP_PATTERNS:
+        if pattern.search(raw_lower):
+            target = next((e for e in exercises if e.name == HARD_MAP[key]), None)
+            if target is not None:
+                return target
+
+    for key, pattern in HARD_MAP_PATTERNS:
+        if pattern.search(raw_clean):
             target = next((e for e in exercises if e.name == HARD_MAP[key]), None)
             if target is not None:
                 return target
@@ -145,11 +151,30 @@ def match_exercise(raw_name: str, exercises: list[Exercise]) -> Exercise | None:
 
 
 def parse_rest_time(line: str) -> int:
-    match = RE_REST_TIME.search(line)
-    if match and (match.group(1) or match.group(2)):
-        m = int(match.group(1)) if match.group(1) else 0
-        s = int(match.group(2)) if match.group(2) else 0
-        return m * 60 + s
+    parts = line.split("|")
+    if len(parts) < 2:
+        return 120
+
+    def try_segment(seg: str) -> int | None:
+        trimmed = seg.strip()
+        if not trimmed:
+            return None
+        match = RE_REST_SEGMENT.match(trimmed)
+        if match and (match.group(1) or match.group(2)):
+            m = int(match.group(1)) if match.group(1) else 0
+            s = int(match.group(2)) if match.group(2) else 0
+            return m * 60 + s
+        return None
+
+    first_col = parts[1].strip()
+    if first_col:
+        parsed = try_segment(first_col)
+        return parsed if parsed is not None else 120
+
+    for seg in parts[2:]:
+        parsed = try_segment(seg)
+        if parsed is not None:
+            return parsed
     return 120
 
 
@@ -172,23 +197,46 @@ def parse_tempo_from_line(line: str) -> tuple[float, float, float, float]:
     return parse_tempo_from_comment(comment)
 
 
+def _parse_load_spec(load_str: str) -> list[float] | None:
+    trimmed = load_str.strip()
+    if not trimmed:
+        return None
+    parts = trimmed.split("/") if "/" in trimmed else [trimmed]
+    parsed: list[float] = []
+    for p in parts:
+        pt = p.strip()
+        if not pt:
+            return None
+        try:
+            val = float(pt)
+        except ValueError:
+            return None
+        if not math.isfinite(val):
+            return None
+        parsed.append(val)
+    return parsed if parsed else None
+
+
 def parse_rep_token(
     rep_str: str, loads: list[float], dropset_id: str | None = None
 ) -> list[SetData]:
     sets_out = []
     rep_parts = rep_str.split("/")
     for i, rp in enumerate(rep_parts):
-        if not rp.strip():
+        rp_norm = re.sub(r"\s*([+@])\s*", r"\1", rp.strip())
+        rp_norm = re.sub(r"\s*\(\s*(\d+)\s*\)", r"(\1)", rp_norm)
+        if not rp_norm:
             continue
         load = loads[i] if i < len(loads) else loads[-1]
-        match = RE_REP_TOKEN.match(rp.strip())
+        match = RE_REP_TOKEN.match(rp_norm)
         if match:
             base = int(match.group(1))
-            assisted = int(match.group(2)) if match.group(2) else 0
+            raw_assisted = int(match.group(2)) if match.group(2) else 0
+            assisted = min(raw_assisted, base)
             partial = int(match.group(3)) if match.group(3) else 0
             rpe = min(10.0, max(0.0, float(match.group(4)))) if match.group(4) else 9.0
             if assisted > 0:
-                base = max(0, base - assisted)
+                base = base - assisted
             sets_out.append(
                 SetData(
                     load=load,
@@ -209,38 +257,56 @@ def parse_line(line: str, line_index: int = 0) -> list[SetData]:
 
     tokens = [t.strip() for t in line.split(",") if t.strip()]
     current_loads = [0.0]
+    seq_loads: list[float] | None = None
+    seq_load_idx = 0
     parsed_sets = []
     dropset_counter = 0
 
     for token in tokens:
-        has_slash = "/" in token
-        ds_id = f"ds_{line_index}_{dropset_counter}" if has_slash else None
-        if has_slash:
-            dropset_counter += 1
-
         if ".." in token:
             subparts = token.split("..")
             rep_str = subparts[-1].strip()
-            load_str = (
-                "/".join(subparts[:-1]).strip()
-                if len(subparts) > 2
-                else subparts[0].strip()
-            )
-            if load_str:
-                try:
-                    parsed_loads = (
-                        [float(x) for x in load_str.split("/") if x]
-                        if "/" in load_str
-                        else [float(load_str)]
-                    )
-                except ValueError:
-                    parsed_loads = []
-                if parsed_loads and all(math.isfinite(x) for x in parsed_loads):
+            has_slash = "/" in rep_str
+            ds_id = f"ds_{line_index}_{dropset_counter}" if has_slash else None
+            if has_slash:
+                dropset_counter += 1
+
+            if len(subparts) > 2:
+                load_str = "/".join(subparts[:-1]).strip()
+                parsed_loads = _parse_load_spec(load_str)
+                if parsed_loads:
+                    if has_slash:
+                        current_loads = parsed_loads
+                        seq_loads = None
+                    else:
+                        seq_loads = parsed_loads
+                        seq_load_idx = 0
+                        current_loads = [seq_loads[0]]
+            else:
+                seq_loads = None
+                load_str = subparts[0].strip()
+                parsed_loads = _parse_load_spec(load_str)
+                if parsed_loads:
                     current_loads = parsed_loads
+
             if rep_str:
-                parsed_sets.extend(parse_rep_token(rep_str, current_loads, ds_id))
+                if seq_loads is not None and not has_slash:
+                    loads_for_token = [seq_loads[min(seq_load_idx, len(seq_loads) - 1)]]
+                    seq_load_idx += 1
+                else:
+                    loads_for_token = current_loads
+                parsed_sets.extend(parse_rep_token(rep_str, loads_for_token, ds_id))
         else:
-            parsed_sets.extend(parse_rep_token(token, current_loads, ds_id))
+            has_slash = "/" in token
+            ds_id = f"ds_{line_index}_{dropset_counter}" if has_slash else None
+            if has_slash:
+                dropset_counter += 1
+            if seq_loads is not None and not has_slash:
+                loads_for_token = [seq_loads[min(seq_load_idx, len(seq_loads) - 1)]]
+                seq_load_idx += 1
+            else:
+                loads_for_token = current_loads
+            parsed_sets.extend(parse_rep_token(token, loads_for_token, ds_id))
 
     return parsed_sets
 
@@ -271,9 +337,10 @@ def analyze_workout_log(
             )
         )
 
-    lines = [line.strip() for line in log_text.split("\n") if line.strip()]
+    raw_lines = log_text.split("\n")
 
-    for line in lines:
+    for raw_line in raw_lines:
+        line = raw_line.strip()
         if line.lower().startswith("override:"):
             match = RE_OVERRIDE.match(line)
             if match:
@@ -346,8 +413,8 @@ def analyze_workout_log(
     current_exercise, current_week, current_session = None, 1, 0
     in_dates_block = False
 
-    for i, line in enumerate(lines):
-        line = line.strip()
+    for i, raw_line in enumerate(raw_lines):
+        line = raw_line.strip()
         if not line:
             continue
         try:
@@ -374,10 +441,13 @@ def analyze_workout_log(
                     continue
                 in_dates_block = False
 
+            line_no_old = RE_OLD_PREFIX.sub("", line).strip()
             if "|" not in line and (
-                RE_LOG_LINE_LOAD.search(line)
-                or RE_LOG_LINE_LONG.match(
-                    RE_OLD_PREFIX.sub("", line).replace(" ", "").strip()
+                RE_LOG_LINE_LOAD.search(line_no_old)
+                or (
+                    bool(line_no_old)
+                    and bool(RE_DIGITS.search(line_no_old))
+                    and bool(RE_LOG_LINE_LONG.match(line_no_old))
                 )
             ):
                 if current_exercise:
@@ -390,16 +460,22 @@ def analyze_workout_log(
                             if len(cf_subparts) > 2
                             else cf_subparts[0].strip()
                         )
-                        if load_str:
-                            try:
-                                loads = [float(x) for x in load_str.split("/") if x]
-                            except ValueError:
-                                loads = []
-                            if loads and all(math.isfinite(x) for x in loads):
-                                prev_sets = current_exercise.weeks[-1].sets
-                                parsed_sets = [
+                        loads = _parse_load_spec(load_str)
+                        if loads:
+                            prev_sets = current_exercise.weeks[-1].sets
+                            ds_drop_counters: dict[str, int] = {}
+                            non_ds_idx = 0
+                            carried: list[SetData] = []
+                            for s in prev_sets:
+                                if s.dropset_id:
+                                    load_idx = ds_drop_counters.get(s.dropset_id, 0)
+                                    ds_drop_counters[s.dropset_id] = load_idx + 1
+                                else:
+                                    load_idx = non_ds_idx
+                                    non_ds_idx += 1
+                                carried.append(
                                     SetData(
-                                        load=loads[idx] if idx < len(loads) else loads[-1],
+                                        load=loads[load_idx] if load_idx < len(loads) else loads[-1],
                                         base_reps=s.base_reps,
                                         assisted_reps=s.assisted_reps,
                                         partial_reps=s.partial_reps,
@@ -408,13 +484,13 @@ def analyze_workout_log(
                                         dropset_id=s.dropset_id,
                                         tuts=list(s.tuts),
                                     )
-                                    for idx, s in enumerate(prev_sets)
-                                ]
+                                )
+                            parsed_sets = carried
 
                     for s in parsed_sets:
                         tuts = (
                             s.tuts
-                            if s.tuts
+                            if s.tuts is not None and len(s.tuts) > 0
                             else calculate_set_tuts(
                                 base_reps=s.base_reps,
                                 assisted_reps=s.assisted_reps,
@@ -464,6 +540,8 @@ def analyze_workout_log(
                     )
                     workout_data.append(current_exercise)
                     current_week = 1
+                elif "|" in line:
+                    current_exercise = None
         except Exception as err:  # noqa: BLE001
             sys.stderr.write(f"Error parsing: '{line}' | {err}\n")
 

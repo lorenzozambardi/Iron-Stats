@@ -185,6 +185,11 @@ class BezierProfile:
         return np.array([self.solve_y(float(xv)) * scale for xv in x_grid], dtype=float)
 
 
+def _coerce_bezier_float(mapping: dict[str, Any], key: str, default: float) -> float:
+    raw = mapping.get(key)
+    return float(default if raw is None else raw)
+
+
 def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProfile"]:
     """Convert raw muscle distribution entries to BezierProfile objects and enforce sum == 1.0."""
     if not isinstance(muscles_distr, dict):
@@ -197,15 +202,15 @@ def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProf
             new_distr[m] = BezierProfile(0.0, 1.0, 0.33, 1.0, 0.66, 1.0, 1.0, 1.0, float(val))
         elif isinstance(val, dict):
             new_distr[m] = BezierProfile(
-                float(val.get("x0", 0.0)),
-                float(val.get("y0", 1.0)),
-                float(val.get("x1", 0.33)),
-                float(val.get("y1", 1.0)),
-                float(val.get("x2", 0.66)),
-                float(val.get("y2", 1.0)),
-                float(val.get("x3", 1.0)),
-                float(val.get("y3", 1.0)),
-                float(val.get("magnitude", 0.0)),
+                _coerce_bezier_float(val, "x0", 0.0),
+                _coerce_bezier_float(val, "y0", 1.0),
+                _coerce_bezier_float(val, "x1", 0.33),
+                _coerce_bezier_float(val, "y1", 1.0),
+                _coerce_bezier_float(val, "x2", 0.66),
+                _coerce_bezier_float(val, "y2", 1.0),
+                _coerce_bezier_float(val, "x3", 1.0),
+                _coerce_bezier_float(val, "y3", 1.0),
+                _coerce_bezier_float(val, "magnitude", 0.0),
             )
         elif isinstance(val, BezierProfile):
             new_distr[m] = val
@@ -251,24 +256,40 @@ class Exercise:
 
 
 
+import importlib.resources
 import json
 import os
 
-exercises_list = []
-_data_path = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'src', 'defaultExercises.json')
-if os.path.exists(_data_path):
-    with open(_data_path, 'r', encoding='utf-8') as f:
-        _data = json.load(f)
-        for _ex in _data:
-            exercises_list.append(Exercise(
-                name=_ex['name'],
-                muscles_distr=_ex['muscles_distr'],
-                fatigue=float(_ex['fatigue']),
-                load_coeff=float(_ex['load_coeff']),
-                load_multiplier=float(_ex.get('load_multiplier', 1.0)),
-                load_offset=float(_ex.get('load_offset', 0.0)),
-                is_isolation=bool(_ex.get('is_isolation', False))
-            ))
+exercises_list: list[Exercise] = []
+_repo_data_path = os.path.join(
+    os.path.dirname(__file__), "..", "..", "frontend", "src", "defaultExercises.json"
+)
+_raw_exercises_json: str | None = None
+if os.path.exists(_repo_data_path):
+    with open(_repo_data_path, "r", encoding="utf-8") as f:
+        _raw_exercises_json = f.read()
+else:
+    try:
+        _pkg_file = importlib.resources.files("analyzer").joinpath("defaultExercises.json")
+        if _pkg_file.is_file():
+            _raw_exercises_json = _pkg_file.read_text(encoding="utf-8")
+    except (FileNotFoundError, ModuleNotFoundError, OSError):
+        _raw_exercises_json = None
+
+if _raw_exercises_json is not None:
+    _data = json.loads(_raw_exercises_json)
+    for _ex in _data:
+        exercises_list.append(
+            Exercise(
+                name=_ex["name"],
+                muscles_distr=_ex["muscles_distr"],
+                fatigue=float(_ex["fatigue"]),
+                load_coeff=float(_ex["load_coeff"]),
+                load_multiplier=float(_ex.get("load_multiplier", 1.0)),
+                load_offset=float(_ex.get("load_offset", 0.0)),
+                is_isolation=bool(_ex.get("is_isolation", False)),
+            )
+        )
 
 
 
@@ -319,6 +340,7 @@ class SetData:
 class WeekData:
     week_num: int
     sets: list[SetData] = field(default_factory=list)
+    date: str | None = None
 
 
 @dataclass

@@ -604,6 +604,11 @@ def main() -> None:
 
     apply_style()
     m = load_lr_profile()
+    max_delta = 0.5 * (m["x3"] - m["x0"])
+    if not np.isfinite(args.delta) or args.delta < 0.0 or args.delta >= max_delta:
+        parser.error(
+            f"--delta must satisfy 0 <= delta < {max_delta:.4f} (got {args.delta})"
+        )
     ctrl_pts = np.array(
         [
             [m["x0"], m["y0"]],

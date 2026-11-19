@@ -191,16 +191,30 @@ class WorkoutSolver:
                         lst.append(m)
 
         self.target_sub_vol = {}
-        subs_dict = self.config.volume_dist.get('subs', {})
-        if self.config.volume_dist.get('macros'):
-            for macro, m_val in self.config.volume_dist['macros'].items():
-                if m_val <= 0:
+        vol_dist = self.config.volume_dist if isinstance(self.config.volume_dist, dict) else {}
+        raw_subs = vol_dist.get('subs')
+        subs_dict = raw_subs if isinstance(raw_subs, dict) else {}
+        raw_macros = vol_dist.get('macros')
+        macros_dict = raw_macros if isinstance(raw_macros, dict) else {}
+        if macros_dict:
+            for macro, raw_m_val in macros_dict.items():
+                try:
+                    m_val = float(raw_m_val)
+                except (TypeError, ValueError):
+                    continue
+                if not math.isfinite(m_val) or m_val <= 0.0:
                     continue
                 macro_subs = subs_dict.get(macro)
-                if macro_subs:
-                    sub_sum = sum(max(0.0, float(v)) for v in macro_subs.values())
+                if isinstance(macro_subs, dict) and macro_subs:
+                    clean_subs: dict[str, float] = {}
                     for sub, s_val in macro_subs.items():
-                        val = max(0.0, float(s_val))
+                        try:
+                            fv = float(s_val)
+                        except (TypeError, ValueError):
+                            fv = 0.0
+                        clean_subs[sub] = fv if math.isfinite(fv) and fv > 0.0 else 0.0
+                    sub_sum = sum(clean_subs.values())
+                    for sub, val in clean_subs.items():
                         self.target_sub_vol[sub] = (m_val / 100.0) * (val / sub_sum) if sub_sum > 0.0 else 0.0
                 else:
                     fallback_subs = macro_to_db_subs.get(macro) or macro_to_subs.get(macro, [])
@@ -209,22 +223,28 @@ class WorkoutSolver:
                         for sub in fallback_subs:
                             self.target_sub_vol[sub] = (m_val / 100.0) * share
         total_target = sum(self.target_sub_vol.values())
-        if total_target <= 0.0:
+        if not math.isfinite(total_target) or total_target <= 0.0:
             self.target_sub_vol = {}
         elif abs(total_target - 1.0) > 1e-12:
             self.target_sub_vol = {k: v / total_target for k, v in self.target_sub_vol.items()}
         
         # Precompute target curves per muscle based on config
         self.T_m = {}
-        for m, curve_type in self.config.muscle_targets.items():
-            if m in macro_to_subs or len(subs_dict.get(m, {})) > 0:
+        muscle_targets = self.config.muscle_targets if isinstance(self.config.muscle_targets, dict) else {}
+        for m, curve_type in muscle_targets.items():
+            macro_sub_entry = subs_dict.get(m)
+            has_custom_subs = isinstance(macro_sub_entry, dict) and len(macro_sub_entry) > 0
+            if m in macro_to_subs or has_custom_subs:
                 curve = get_target_curve(curve_type, self.resolution)
                 for sub in macro_to_subs.get(m, []):
                     self.T_m[sub] = curve
-                for sub in subs_dict.get(m, {}):
-                    self.T_m[sub] = curve
-        for m, curve_type in self.config.muscle_targets.items():
-            if m not in macro_to_subs and len(subs_dict.get(m, {})) == 0:
+                if isinstance(macro_sub_entry, dict):
+                    for sub in macro_sub_entry:
+                        self.T_m[sub] = curve
+        for m, curve_type in muscle_targets.items():
+            macro_sub_entry = subs_dict.get(m)
+            has_custom_subs = isinstance(macro_sub_entry, dict) and len(macro_sub_entry) > 0
+            if m not in macro_to_subs and not has_custom_subs:
                 self.T_m[m] = get_target_curve(curve_type, self.resolution)
             
         self.all_submuscles = set()
@@ -397,11 +417,16 @@ class WorkoutSolver:
         
         # 3. Distribution Error
         E_distr = 0.0
-        if total_sub_vol > 0 and self.target_sub_vol:
-            for m in self.distr_muscles:
-                target_pct = self.target_sub_vol.get(m, 0.0)
-                actual_pct = sub_vols.get(m, 0.0) / total_sub_vol
-                E_distr += (actual_pct - target_pct)**2
+        if self.target_sub_vol:
+            if total_sub_vol > 0:
+                for m in self.distr_muscles:
+                    target_pct = self.target_sub_vol.get(m, 0.0)
+                    actual_pct = sub_vols.get(m, 0.0) / total_sub_vol
+                    E_distr += (actual_pct - target_pct)**2
+            else:
+                for m in self.distr_muscles:
+                    target_pct = self.target_sub_vol.get(m, 0.0)
+                    E_distr += target_pct**2
             E_distr /= 2.0 # Max squared L2 distance between two distributions on the simplex is 2.0
                 
         # 5. Variety Error
@@ -596,8 +621,15 @@ class WorkoutSolver:
         is applied and the new state is evaluated.
         """
         iterations = max(0, int(iterations))
+        initial_temp = float(initial_temp)
+        if not math.isfinite(initial_temp) or initial_temp <= 0.0:
+            raise ValueError(f"initial_temp must be finite and > 0, got {initial_temp}")
         if cooling_rate is None:
             cooling_rate = (0.01 / initial_temp) ** (1.0 / iterations) if iterations > 0 else 0.995
+        else:
+            cooling_rate = float(cooling_rate)
+            if not math.isfinite(cooling_rate) or cooling_rate <= 0.0:
+                raise ValueError(f"cooling_rate must be finite and > 0, got {cooling_rate}")
             
         self.calibrate()
         
@@ -650,36 +682,47 @@ if __name__ == "__main__":
         try:
             data = json.loads(args.config)
             
-            # Override config fields if present
-            if 'days' in data: config.days = int(data['days'])
-            if 'minSets' in data: config.min_sets = int(data['minSets'])
-            if 'maxSets' in data: config.max_sets = int(data['maxSets'])
-            if 'minReps' in data: config.min_reps = int(data['minReps'])
-            if 'maxReps' in data: config.max_reps = int(data['maxReps'])
-            if 'minEx' in data: config.min_ex = int(data['minEx'])
-            if 'maxEx' in data: config.max_ex = int(data['maxEx'])
-            if 'iterations' in data: iterations = int(data['iterations'])
-            if 'calibrationSteps' in data: config.calibration_steps = int(data['calibrationSteps'])
-            
-            if 'weights' in data:
-                config.weights['curve'] = float(data['weights'].get('curve', 0.30))
-                config.weights['vol'] = float(data['weights'].get('vol', 0.15))
-                config.weights['ton'] = float(data['weights'].get('ton', 0.10))
-                config.weights['tut'] = float(data['weights'].get('tut', 0.10))
-                config.weights['distr'] = float(data['weights'].get('distr', 0.15))
-                config.weights['variety'] = float(data['weights'].get('variety', 0.10))
-                config.weights['balance'] = float(data['weights'].get('balance', 0.10))
-                
-            if 'ratios' in data:
-                config.target_ratios['vol'] = float(data['ratios'].get('vol', 0.70))
-                config.target_ratios['ton'] = float(data['ratios'].get('ton', 0.70))
-                config.target_ratios['tut'] = float(data['ratios'].get('tut', 0.74))
-                
-            if 'muscleTargets' in data:
-                config.muscle_targets = data['muscleTargets']
-                
-            if 'volumeDist' in data:
-                config.volume_dist = data['volumeDist']
+            # Override config fields if present (accept both camelCase and snake_case)
+            if 'days' in data and data['days'] is not None:
+                config.days = int(data['days'])
+            for key_c, key_s, attr in (
+                ('minSets', 'min_sets', 'min_sets'),
+                ('maxSets', 'max_sets', 'max_sets'),
+                ('minReps', 'min_reps', 'min_reps'),
+                ('maxReps', 'max_reps', 'max_reps'),
+                ('minEx', 'min_ex', 'min_ex'),
+                ('maxEx', 'max_ex', 'max_ex'),
+                ('calibrationSteps', 'calibration_steps', 'calibration_steps'),
+            ):
+                val = data.get(key_c, data.get(key_s))
+                if val is not None:
+                    setattr(config, attr, int(val))
+            if 'iterations' in data and data['iterations'] is not None:
+                iterations = int(data['iterations'])
+
+            if isinstance(data.get('weights'), dict):
+                w = data['weights']
+                config.weights['curve'] = float(w.get('curve', 0.30))
+                config.weights['vol'] = float(w.get('vol', 0.15))
+                config.weights['ton'] = float(w.get('ton', 0.10))
+                config.weights['tut'] = float(w.get('tut', 0.10))
+                config.weights['distr'] = float(w.get('distr', 0.15))
+                config.weights['variety'] = float(w.get('variety', 0.10))
+                config.weights['balance'] = float(w.get('balance', 0.10))
+
+            raw_ratios = data.get('ratios', data.get('target_ratios'))
+            if isinstance(raw_ratios, dict):
+                config.target_ratios['vol'] = float(raw_ratios.get('vol', 0.70))
+                config.target_ratios['ton'] = float(raw_ratios.get('ton', 0.70))
+                config.target_ratios['tut'] = float(raw_ratios.get('tut', 0.74))
+
+            raw_mt = data.get('muscleTargets', data.get('muscle_targets'))
+            if isinstance(raw_mt, dict):
+                config.muscle_targets = raw_mt
+
+            raw_vd = data.get('volumeDist', data.get('volume_dist'))
+            if isinstance(raw_vd, dict):
+                config.volume_dist = raw_vd
                 
         except Exception as e:  # noqa: BLE001
             print(f"Error parsing config JSON: {e}", file=sys.stderr)

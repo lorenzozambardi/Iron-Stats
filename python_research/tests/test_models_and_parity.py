@@ -169,16 +169,23 @@ def test_partition_of_unity_exact_three_way_and_override() -> None:
     bad_log = (
         'override: ThreeWay | muscles_distr={"Clavicular Head":'
         '{"x0":0.5,"y0":1,"x1":0.3,"y1":1,"x2":0.6,"y2":1,"x3":1,"y3":1,"magnitude":1}}\n'
+        "# 1\nThreeWay | 2' |\n50.. 10\n"
     )
     # Non-monotone override is rejected cleanly rather than stored unvalidated
-    analyze_workout_log(bad_log, [ex])
+    parsed_bad = analyze_workout_log(bad_log, [ex])
+    assert len(parsed_bad) == 1
+    assert set(parsed_bad[0].exercise_obj.muscles_distr.keys()) == {
+        "Clavicular Head",
+        "Sternal Head",
+        "Costal Head",
+    }
 
 
 def test_rep_clamp_fractional_tut_and_fatigue_ordering() -> None:
     clamped = parse_rep_token("3(5)", [50.0])
     assert len(clamped) == 1
     assert clamped[0].base_reps == 0
-    assert clamped[0].assisted_reps == 5
+    assert clamped[0].assisted_reps == 3
 
     log_8 = "# 1\nLR | 2' | 1-0-2-0\n10.. 10@8\n"
     log_85 = "# 1\nLR | 2' | 1-0-2-0\n10.. 10@8.5\n"

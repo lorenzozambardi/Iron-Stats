@@ -68,10 +68,12 @@ def compute_effective_tut(
     full_eff = int(eff_base)
     frac = eff_base - full_eff
     start_idx = max(0, base_reps - full_eff)
-    base_tut = float(sum(tuts[start_idx:base_reps]))
-    if frac > 0.0 and start_idx > 0:
+    bounded_end = min(base_reps, len(tuts))
+    bounded_start = min(start_idx, bounded_end)
+    base_tut = float(sum(tuts[bounded_start:bounded_end]))
+    if frac > 0.0 and start_idx > 0 and start_idx - 1 < len(tuts):
         base_tut += frac * float(tuts[start_idx - 1])
-    extended_tut = float(sum(tuts[base_reps:]))
+    extended_tut = float(sum(tuts[bounded_end:]))
     return base_tut + extended_tut
 
 
@@ -247,7 +249,7 @@ def calculate_metrics(
                     elif (s.base_reps + s.assisted_reps + s.partial_reps) > 0:
                         tuts = (
                             s.tuts
-                            if s.tuts
+                            if s.tuts is not None and len(s.tuts) > 0
                             else calculate_set_tuts(
                                 base_reps=s.base_reps,
                                 assisted_reps=s.assisted_reps,

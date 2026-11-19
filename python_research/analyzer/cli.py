@@ -17,7 +17,7 @@ def main():
     args = parser.parse_args()
 
     if args.file:
-        with open(args.file) as f:
+        with open(args.file, encoding="utf-8") as f:
             raw_log = f.read()
     else:
         raw_log = sys.stdin.read() if not sys.stdin.isatty() else ""
