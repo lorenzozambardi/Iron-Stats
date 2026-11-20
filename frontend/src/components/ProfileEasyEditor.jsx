@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus } from 'lucide-react';
 import {
@@ -98,24 +98,43 @@ export default function ProfileEasyEditor({ profile, onChange, dateFormat = 'dd/
   const [logDate, setLogDate] = useState(() => formatLocalYMD());
   const [pendingConfirm, setPendingConfirm] = useState(null);
 
-  const { current, logs = [] } = profile;
+  const { current: savedCurrent, logs = [] } = profile;
+  const [current, setDraftCurrent] = useState(savedCurrent);
+  const prevSavedRef = useRef(savedCurrent);
+
+  useEffect(() => {
+    const prev = prevSavedRef.current;
+    const changedKeys = Object.keys(savedCurrent).filter((k) => savedCurrent[k] !== prev[k]);
+    if (changedKeys.length > 0) {
+      setDraftCurrent((d) => {
+        const updated = { ...d };
+        for (const k of changedKeys) updated[k] = savedCurrent[k];
+        return updated;
+      });
+    }
+    prevSavedRef.current = savedCurrent;
+  }, [savedCurrent]);
+
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
+
+  const SCALAR_KEYS = new Set(['birthDate', 'sex', 'height', 'avgSteps']);
 
   const updateCurrent = (key, rawVal) => {
     const isStringField = key === 'birthDate' || key === 'sex';
+    let nextVal;
     if (isStringField) {
-      onChange({ ...profile, current: { ...current, [key]: rawVal } });
-      return;
+      nextVal = rawVal;
+    } else if (rawVal === '') {
+      nextVal = '';
+    } else {
+      const val = parseFloat(rawVal);
+      nextVal = Number.isFinite(val) ? val : 0;
     }
-    if (rawVal === '') {
-      onChange({ ...profile, current: { ...current, [key]: '' } });
-      return;
+    const nextCurrent = { ...current, [key]: nextVal };
+    setDraftCurrent(nextCurrent);
+    if (SCALAR_KEYS.has(key)) {
+      onChange({ ...profile, current: nextCurrent });
     }
-    const val = parseFloat(rawVal);
-    onChange({
-      ...profile,
-      current: { ...current, [key]: Number.isFinite(val) ? val : 0 },
-    });
   };
 
   const getTypesToLog = (typeOrTypes) => {

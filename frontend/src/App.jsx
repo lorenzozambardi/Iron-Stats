@@ -1610,14 +1610,24 @@ export default function App() {
 
               {/* Mobile Editor Mode Toggles Pill */}
               <div className="mobile-editor-pill-nav" style={{ marginLeft: 0, pointerEvents: 'auto' }}>
-                 <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
-                 <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
-                 <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
-                 {editorType !== 'easy' && (
-                   <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                 {!editingProfileMd && (
+                   <>
+                     <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
+                     <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
+                     <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
+                     {editorType !== 'easy' && (
+                       <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                     )}
+                     <div className="pill-divider"></div>
+                   </>
                  )}
-                 <div className="pill-divider"></div>
-                 <button className="btn-save-circle" onClick={() => saveLogbookContent(logbookText)}><Save size={18} /></button>
+                 <button
+                   className="btn-save-circle"
+                   onClick={() => (editingProfileMd ? saveProfileMdContent(profileMdText) : saveLogbookContent(logbookText))}
+                   title="Save Now"
+                 >
+                   <Save size={18} />
+                 </button>
               </div>
             </div>
           )}
@@ -1625,31 +1635,33 @@ export default function App() {
           {(isMobile || activeTab === 'editor') && (
           <div className="editor-tab-workspace">
             {/* Editor Sub-Header */}
-            <div className="editor-control-bar">
+            <div className="editor-control-bar" style={editingProfileMd ? { justifyContent: 'flex-end' } : undefined}>
               {/* Edit Mode Toggles */}
-              <div className={`editor-mode-toggles mode-${editorMode} ${editorType === 'easy' ? 'easy-toggles' : ''}`}>
-                <div className="editor-mode-indicator"></div>
-                <button 
-                  className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}
-                  onClick={() => setEditorMode('edit')}
-                >
-                  Edit
-                </button>
-                <button 
-                  className={`mode-toggle-btn ${editorMode === 'preview' ? 'active' : ''}`}
-                  onClick={() => setEditorMode('preview')}
-                >
-                  Preview
-                </button>
-                {editorType !== 'easy' && (
+              {!editingProfileMd && (
+                <div className={`editor-mode-toggles mode-${editorMode} ${editorType === 'easy' ? 'easy-toggles' : ''}`}>
+                  <div className="editor-mode-indicator"></div>
                   <button 
-                    className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
-                    onClick={() => setEditorMode('split')}
+                    className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}
+                    onClick={() => setEditorMode('edit')}
                   >
-                    Split View
+                    Edit
                   </button>
-                )}
-              </div>
+                  <button 
+                    className={`mode-toggle-btn ${editorMode === 'preview' ? 'active' : ''}`}
+                    onClick={() => setEditorMode('preview')}
+                  >
+                    Preview
+                  </button>
+                  {editorType !== 'easy' && (
+                    <button 
+                      className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
+                      onClick={() => setEditorMode('split')}
+                    >
+                      Split View
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="editor-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
