@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Latex, MathBlock } from './MathComponents';
-import { MetricSparkline, MetricBarSparkline, TrendBadge } from './Sparkline';
+import { MetricHistogramSparkline, TrendBadge } from './Sparkline';
 import { TensionRomSlider } from './FilterControls';
 
 const METRIC_UNITS = {
@@ -631,29 +631,14 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
               const weeks = Array.isArray(weekNums) && weekNums.length === pts.length
                 ? weekNums
                 : pts.map((_, i) => i + 1);
-              const tMin = pts[0].t;
-              const tMax = pts[pts.length - 1].t;
-              const tRange = tMax - tMin;
-              const targetT = tMin + (sliderPos / 100) * tRange;
-
-              let closestIdx = 0;
-              let minDist = Math.abs(pts[0].t - targetT);
-              for (let i = 1; i < pts.length; i++) {
-                const dist = Math.abs(pts[i].t - targetT);
-                if (dist < minDist) {
-                  minDist = dist;
-                  closestIdx = i;
-                }
-              }
-
-              const isHistogram = activeMetric === 'sets';
-              const activeBarIdx = isHistogram ? closestIdx : null;
+              const n = pts.length;
+              const closestIdx = Math.min(n - 1, Math.max(0, Math.floor((sliderPos / 100) * n)));
               const displayWeek = weeks[closestIdx];
               const displayVal = pts[closestIdx].v;
 
               const unit = METRIC_UNITS[activeMetric] ?? '';
               const formattedVal = displayVal.toLocaleString(undefined, { maximumFractionDigits: 1 });
-              const xPct = tRange > 0 ? sliderPos : 100;
+              const xPct = sliderPos;
 
               return (
                 <div style={dashboardCardStyle}>
@@ -682,37 +667,27 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
                       {formattedVal}{unit}
                     </strong>
                   </div>
-                  {isHistogram ? (
-                    <MetricBarSparkline
+                  <div style={{ position: 'relative' }}>
+                    <MetricHistogramSparkline
                       values={pts}
                       compareValues={comparePts}
                       color={data.color}
+                      gradId={`detail-spark-${activeMetric}`}
                       height={92}
-                      activeIndex={activeBarIdx}
+                      activeIndex={closestIdx}
                     />
-                  ) : (
-                    <div style={{ position: 'relative' }}>
-                      <MetricSparkline
-                        values={pts}
-                        compareValues={comparePts}
-                        color={data.color}
-                        gradId={`detail-spark-${activeMetric}`}
-                        height={92}
-                        linear
-                      />
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          bottom: 0,
-                          left: `${xPct}%`,
-                          borderLeft: '1.5px dashed rgba(255, 255, 255, 0.4)',
-                          pointerEvents: 'none',
-                        }}
-                      />
-                    </div>
-                  )}
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: `${xPct}%`,
+                        borderLeft: '1.5px dashed rgba(255, 255, 255, 0.4)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
                   <TensionRomSlider
                     value={sliderPos}
                     onChange={setSliderPos}

@@ -112,6 +112,103 @@ export const MetricSparkline = React.memo(({ values, compareValues, color, compa
   );
 });
 
+const buildStepPath = (vals, w, h, padY, min, range) => {
+  const n = vals.length;
+  const barW = w / n;
+  const getY = (item) => {
+    const v = getVal(item);
+    return range > 0 ? h - padY - ((v - min) / range) * (h - padY * 2) : h / 2;
+  };
+  const y0 = getY(vals[0]);
+  let path = `M0,${y0.toFixed(1)} L${barW.toFixed(1)},${y0.toFixed(1)}`;
+  for (let i = 1; i < n; i++) {
+    const x0 = i * barW;
+    const x1 = (i + 1) * barW;
+    const y = getY(vals[i]);
+    path += ` L${x0.toFixed(1)},${y.toFixed(1)} L${x1.toFixed(1)},${y.toFixed(1)}`;
+  }
+  return path;
+};
+
+export const MetricHistogramSparkline = React.memo(({
+  values,
+  compareValues,
+  color,
+  compareColor = 'var(--accent-secondary)',
+  gradId,
+  height = 58,
+  activeIndex = null,
+}) => {
+  const hasA = values && values.length >= 2;
+  const hasB = compareValues && compareValues.length >= 2;
+  if (!hasA && !hasB) return null;
+
+  const w = 120;
+  const h = 60;
+  const padY = 2;
+  const { min, range } = getMinMax(values, compareValues, hasA, hasB);
+
+  const linePathA = hasA ? buildStepPath(values, w, h, padY, min, range) : null;
+  const areaPathA = linePathA ? `${linePathA} L${w},${h} L0,${h} Z` : null;
+  const linePathB = hasB ? buildStepPath(compareValues, w, h, padY, min, range) : null;
+
+  let activeRect = null;
+  if (hasA && Number.isInteger(activeIndex) && activeIndex >= 0 && activeIndex < values.length) {
+    const barW = w / values.length;
+    const x = activeIndex * barW;
+    const v = getVal(values[activeIndex]);
+    const y = range > 0 ? h - padY - ((v - min) / range) * (h - padY * 2) : h / 2;
+    activeRect = { x, y, w: barW, h: Math.max(0, h - y) };
+  }
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      style={{ width: '100%', height: `${height}px`, display: 'block', marginTop: '4px', overflow: 'visible' }}
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.26" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {areaPathA && <path d={areaPathA} fill={`url(#${gradId})`} />}
+      {activeRect && (
+        <rect
+          x={activeRect.x.toFixed(2)}
+          y={activeRect.y.toFixed(1)}
+          width={activeRect.w.toFixed(2)}
+          height={activeRect.h.toFixed(1)}
+          fill={color}
+          opacity="0.16"
+        />
+      )}
+      {linePathB && (
+        <path
+          d={linePathB}
+          fill="none"
+          stroke={compareColor}
+          strokeWidth="1.75"
+          strokeDasharray="4 3"
+          strokeLinejoin="miter"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+      {linePathA && (
+        <path
+          d={linePathA}
+          fill="none"
+          stroke={color}
+          strokeWidth="1.75"
+          strokeLinejoin="miter"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+    </svg>
+  );
+});
+
 export const MetricBarSparkline = React.memo(({
   values,
   compareValues,
