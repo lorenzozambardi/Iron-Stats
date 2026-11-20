@@ -277,7 +277,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
       background: 'var(--bg-primary)',
       zIndex: 10000,
       overflowY: 'auto',
-      padding: '24px 16px 64px 16px',
+      padding: '12px 10px 48px 10px',
       opacity: visible ? 1 : 0,
       transform: visible ? 'none' : 'translateY(16px)',
       transition: 'opacity 0.2s ease, transform 0.2s ease',
@@ -287,10 +287,10 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: '22px',
+        gap: '12px',
       }}>
         {/* Header Card */}
-        <div style={{ ...cardStyle, padding: '16px 20px' }}>
+        <div style={{ ...cardStyle, padding: '12px 14px', gap: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
             <h2 style={{
               fontFamily: 'var(--font-display)',
@@ -325,7 +325,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
             <div style={{
               display: 'flex',
               justifyContent: 'center',
-              paddingTop: '12px',
+              paddingTop: '8px',
               borderTop: '1px solid rgba(255, 255, 255, 0.06)',
             }}>
               <LockWheelPicker
