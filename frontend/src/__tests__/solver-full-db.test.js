@@ -77,6 +77,13 @@ describe('WorkoutSolver with full exercise DB', () => {
       }
     }
 
+    // Add missing macro entries first so all macros from muscle_targets are covered
+    for (const macro of Object.keys(config.muscle_targets)) {
+      if (!config.volume_dist.subs[macro]) {
+        config.volume_dist.subs[macro] = {};
+      }
+    }
+
     for (const macro in config.volume_dist.subs) {
       if (!config.volume_dist.subs[macro] || Object.keys(config.volume_dist.subs[macro]).length === 0) {
         const subs = [...(MACRO_TO_SUBS[macro] || [])];
@@ -92,18 +99,11 @@ describe('WorkoutSolver with full exercise DB', () => {
       }
     }
 
-    // Add missing macro entries so all macros from muscle_targets are covered
-    for (const macro of Object.keys(config.muscle_targets)) {
-      if (!config.volume_dist.subs[macro]) {
-        config.volume_dist.subs[macro] = {};
-      }
-    }
-
     const solver = new WorkoutSolver(config, defaultExercises);
     const state = solver.generateRandomState();
     const cost = solver.evaluateWorkout(state);
 
-    expect(typeof cost).toBe('number');
+    expect(Number.isFinite(cost)).toBe(true);
     expect(cost).toBeGreaterThan(0);
   });
 
@@ -150,7 +150,8 @@ describe('WorkoutSolver with full exercise DB', () => {
 
     expect(bestState).toBeDefined();
     expect(bestState.days).toHaveLength(3);
-    expect(typeof bestCost).toBe('number');
+    expect(Number.isFinite(bestCost)).toBe(true);
+    expect(bestCost).toBeGreaterThan(0);
 
     // Verify each day has valid content
     let totalExercises = 0;

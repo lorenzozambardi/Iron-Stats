@@ -63,13 +63,16 @@ describe('parser.js', () => {
   describe('parseRestTime', () => {
     it('parses minutes and seconds', () => {
       expect(parseRestTime("Lat Machine | 2'30\" |")).toBe(150);
+      expect(parseRestTime("Lat Machine | 2' 30\" |")).toBe(150);
       expect(parseRestTime("Lat Machine | 3' |")).toBe(180);
       expect(parseRestTime("Lat Machine | 45\" |")).toBe(45);
+      expect(parseRestTime("Lat Machine | | 90\"")).toBe(90);
     });
 
-    it('falls back to 120s when not specified', () => {
+    it('falls back to 120s when not specified or when rest-like text is in notes column', () => {
       expect(parseRestTime("Lat Machine |")).toBe(120);
       expect(parseRestTime("Lat Machine")).toBe(120);
+      expect(parseRestTime("Lat Machine | notes | 30\"")).toBe(120);
     });
   });
 
@@ -103,7 +106,7 @@ describe('parser.js', () => {
       expect(sets[0].rpe).toBe(9.5);
     });
 
-    it('parses dropset lines with slash / notation', () => {
+    it('parses dropset lines with slash / notation and sequential multi-load .. notation', () => {
       const sets = parseLine('80/60/40..10/8/6');
       expect(sets.length).toBe(3);
       expect(sets[0].load).toBe(80);
@@ -115,6 +118,18 @@ describe('parser.js', () => {
       expect(sets[0].dropsetId).toBeDefined();
       expect(sets[0].dropsetId).toBe(sets[1].dropsetId);
       expect(sets[1].dropsetId).toBe(sets[2].dropsetId);
+
+      // Multi-load sequential notation (35.. 30.. 5, 7)
+      const seqSets = parseLine('35.. 30.. 5, 7');
+      expect(seqSets.map(s => ({ load: s.load, reps: s.base_reps }))).toEqual([
+        { load: 35, reps: 5 },
+        { load: 30, reps: 7 }
+      ]);
+
+      // Slash in load prefix without slash in reps should not tag a single set as a dropset
+      const singleSet = parseLine('80/60.. 10');
+      expect(singleSet).toHaveLength(1);
+      expect(singleSet[0].dropsetId).toBeUndefined();
     });
   });
 
@@ -213,16 +228,18 @@ Flat Barbell Bench | 3' | 1-0-2-0
 105.. 10@9, 8@9.5
 
 # 2
-Pulley | 2' | 1-0-2-0
+Lat Machine | 2' | 1-0-2-0
 60.. 12@8
 65.. 12@8.5`;
 
       const workoutData = parseLogbook(log, mockExercises);
+      expect(workoutData).toHaveLength(2);
       const weeks = [1, 2];
       const byWeek = calculateMetricsByWeek(workoutData, null, weeks, null, null);
 
       for (const w of weeks) {
         const expected = calculateMetrics(workoutData, null, w, null, null);
+        expect(expected).toHaveLength(2);
         const bucket = byWeek.get(w);
         expect(bucket).toBeDefined();
         expect(bucket.volume).toBeCloseTo(expected.reduce((s, d) => s + d.volume, 0), 6);
@@ -235,6 +252,26 @@ Pulley | 2' | 1-0-2-0
       const chestOnly = calculateMetricsByWeek(workoutData, 1, weeks, 'Chest', null);
       const expectedChestW1 = calculateMetrics(workoutData, 1, 1, 'Chest', null);
       expect(chestOnly.get(1).tonnage).toBeCloseTo(expectedChestW1.reduce((s, d) => s + d.tonnage, 0), 6);
+      expect(chestOnly.get(1).tonnage).toBeLessThan(byWeek.get(1).tonnage);
+    });
+
+    it('handles negative dropset loads, multi-dropset carry-forward, inline old prefix, and unmatched pipe headers', () => {
+      const log = `# 1
+Lat Machine | 2' |
+-20/-30.. 10/8, 9/7
+-15/-25..
+10, old 8, 6
+
+Zzqwx Unrecognized Pipe Header | 2' |
+999.. 15, 15`;
+
+      const workoutData = parseLogbook(log, mockExercises);
+      expect(workoutData).toHaveLength(1);
+      // Unmatched pipe header resets currentExercise so 999.. 15, 15 does not corrupt Lat Machine
+      expect(workoutData[0].weeks).toHaveLength(3);
+      expect(workoutData[0].weeks[0].sets.map(s => s.load)).toEqual([-20, -30, -20, -30]);
+      expect(workoutData[0].weeks[1].sets.map(s => s.load)).toEqual([-15, -25, -15, -25]);
+      expect(workoutData[0].weeks[2].sets.map(s => s.base_reps)).toEqual([10, 8, 6]);
     });
 
     it('parses per-session Dates: blocks and attaches ISO dates to matching microcycles', () => {

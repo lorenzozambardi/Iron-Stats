@@ -51,6 +51,12 @@ public class StopwatchPlugin extends Plugin {
         });
     }
 
+    @Override
+    protected void handleOnDestroy() {
+        StopwatchService.setStateListener(null);
+        super.handleOnDestroy();
+    }
+
     private void ensureServiceRunning() {
         Intent intent = new Intent(getContext(), StopwatchService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -114,12 +120,19 @@ public class StopwatchPlugin extends Plugin {
 
     @PluginMethod
     public void pause(PluginCall call) {
-        Intent intent = new Intent(getContext(), StopwatchService.class);
-        intent.setAction(StopwatchService.ACTION_PAUSE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(getContext(), intent);
-        } else {
-            getContext().startService(intent);
+        Context context = getContext();
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
+        long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
+
+        if (isRunning || accumulated > 0) {
+            Intent intent = new Intent(context, StopwatchService.class);
+            intent.setAction(StopwatchService.ACTION_PAUSE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, intent);
+            } else {
+                context.startService(intent);
+            }
         }
 
         JSObject ret = new JSObject();

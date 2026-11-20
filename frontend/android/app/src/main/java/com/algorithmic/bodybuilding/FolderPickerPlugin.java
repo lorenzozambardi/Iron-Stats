@@ -45,10 +45,15 @@ public class FolderPickerPlugin extends Plugin {
             if (treeUri == null) { call.reject("No URI returned"); return; }
 
             // Take persistent permissions so access survives app restarts
-            getContext().getContentResolver().takePersistableUriPermission(
-                treeUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            );
+            try {
+                getContext().getContentResolver().takePersistableUriPermission(
+                    treeUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                );
+            } catch (SecurityException e) {
+                call.reject("Could not persist folder permission: " + e.getMessage());
+                return;
+            }
 
             // Build a human-readable display name from the URI path segment
             // SAF tree URIs look like: content://…/tree/primary%3AMyFolder
@@ -109,10 +114,11 @@ public class FolderPickerPlugin extends Plugin {
             DocumentFile file = dir.findFile(filename);
             if (file == null || !file.exists()) { call.reject("File not found: " + filename); return; }
 
-            InputStream is = getContext().getContentResolver().openInputStream(file.getUri());
-            if (is == null) { call.reject("Could not open file"); return; }
-            byte[] bytes = readStream(is);
-            is.close();
+            byte[] bytes;
+            try (InputStream is = getContext().getContentResolver().openInputStream(file.getUri())) {
+                if (is == null) { call.reject("Could not open file"); return; }
+                bytes = readStream(is);
+            }
 
             JSObject ret = new JSObject();
             ret.put("data", new String(bytes, StandardCharsets.UTF_8));
@@ -140,17 +146,24 @@ public class FolderPickerPlugin extends Plugin {
                 String mimeType = "application/octet-stream";
                 if (filename.endsWith(".json")) {
                     mimeType = "application/json";
+                } else if (filename.endsWith(".md")) {
+                    mimeType = "text/markdown";
+                } else if (filename.endsWith(".txt")) {
+                    mimeType = "text/plain";
                 }
                 file = dir.createFile(mimeType, filename);
+                if (file != null && file.getName() != null && !filename.equals(file.getName())) {
+                    file.renameTo(filename);
+                }
             }
             if (file == null) { call.reject("Failed to create file: " + filename); return; }
 
             // "wt" = write + truncate, so we always overwrite cleanly
-            OutputStream os = getContext().getContentResolver().openOutputStream(file.getUri(), "wt");
-            if (os == null) { call.reject("Could not open output stream"); return; }
-            os.write(data.getBytes(StandardCharsets.UTF_8));
-            os.flush();
-            os.close();
+            try (OutputStream os = getContext().getContentResolver().openOutputStream(file.getUri(), "wt")) {
+                if (os == null) { call.reject("Could not open output stream"); return; }
+                os.write(data.getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            }
 
             JSObject ret = new JSObject();
             ret.put("success", true);

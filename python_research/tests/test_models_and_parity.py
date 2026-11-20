@@ -544,3 +544,44 @@ def test_session_dates_blocks_parsing() -> None:
     assert [w.date for w in parsed[1].weeks] == ["2026-01-08", None, "2026-01-22"]
 
 
+def test_word_boundary_matching_multiload_negative_dropsets_and_packaged_db() -> None:
+    import importlib.resources
+    from pathlib import Path
+
+    from analyzer.parser import parse_line
+
+    # Packaged defaultExercises.json must match frontend/src/defaultExercises.json
+    pkg_json = importlib.resources.files("analyzer").joinpath("defaultExercises.json").read_text(encoding="utf-8")
+    repo_json_path = Path(__file__).resolve().parents[2] / "frontend" / "src" / "defaultExercises.json"
+    assert pkg_json == repo_json_path.read_text(encoding="utf-8")
+
+    # Word-boundary HARD_MAP and clean_regex matching
+    ex1 = match_exercise("Flat Barbell Bench 2s", exercises_list)
+    ex2 = match_exercise("Flat SM Bench 2s", exercises_list)
+    ex3 = match_exercise("Stiff Leg Deadlift 2s", exercises_list)
+    assert ex1 is not None and ex1.name == "Flat Barbell Bench"
+    assert ex2 is not None and ex2.name == "Flat SM Bench"
+    assert ex3 is not None and ex3.name == "Stiff Leg Deadlift"
+
+    # Multi-load sequential .. notation
+    seq = parse_line("35.. 30.. 5, 7")
+    assert [(s.load, s.base_reps) for s in seq] == [(35.0, 5), (30.0, 7)]
+
+    # Negative dropset loads & multi-dropset carry-forward
+    log = (
+        "# 1\n"
+        "Lat Machine | | 90\"\n"
+        "-20/-30.. 10/8, 9/7\n"
+        "-15/-25..\n"
+        "10, old 8, 6\n"
+    )
+    parsed = analyze_workout_log(log, exercises_list)
+    assert len(parsed) == 1
+    assert parsed[0].rest_seconds == 90
+    assert len(parsed[0].weeks) == 3
+    assert [s.load for s in parsed[0].weeks[0].sets] == [-20.0, -30.0, -20.0, -30.0]
+    assert [s.load for s in parsed[0].weeks[1].sets] == [-15.0, -25.0, -15.0, -25.0]
+    assert [s.base_reps for s in parsed[0].weeks[2].sets] == [10, 8, 6]
+
+
+

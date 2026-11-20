@@ -1,5 +1,10 @@
 {
   "appId": "com.algorithmic.bodybuilding",
   "appName": "Iron Stats",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
 }

@@ -52,6 +52,15 @@ describe('profileUtils', () => {
       expect(axis.scoreA).toBeLessThanOrEqual(99);
       expect(axis.scoreB).toBeNull();
     }
+    const armAxis = singleAxes.find((a) => a.key === 'arm');
+    const thighAxis = singleAxes.find((a) => a.key === 'thigh');
+    expect(armAxis.rawA).toBeCloseTo(39.5, 2);
+    expect(armAxis.scoreA).toBeGreaterThan(20);
+    expect(thighAxis.rawA).toBeCloseTo(59.0, 2);
+    expect(thighAxis.scoreA).toBeGreaterThan(20);
+
+    const zeroWaistAxes = computeRadarAxes({ ...DEFAULT_PROFILE.current, waist: 0 });
+    expect(zeroWaistAxes.find((a) => a.key === 'waist').scoreA).toBe(20);
 
     const comparedAxes = computeRadarAxes(DEFAULT_PROFILE.current, DEFAULT_PROFILE.current);
     expect(comparedAxes).toHaveLength(6);
@@ -65,9 +74,14 @@ describe('profileUtils', () => {
     const ref = new Date(2026, 10, 18); // 2026-11-18
     expect(calcAge('1998-01-01', ref)).toBe(28);
     expect(calcAge('1998-12-01', ref)).toBe(27);
+    expect(calcAge('1998-02-31', ref)).toBeNull();
+    expect(calcAge('1998-99-99', ref)).toBeNull();
+    expect(calcAge('1998--', ref)).toBeNull();
 
     const armField = CIRCUMFERENCE_FIELDS.find((f) => f.key === 'arm');
     expect(getLimbAverage({ armLeft: 39, armRight: 40 }, armField)).toBeCloseTo(39.5, 2);
+    expect(getLimbAverage({ armLeft: -5, armRight: 0 }, armField)).toBe(0);
+    expect(getLimbAverage({ chest: 'abc' }, { key: 'chest', bilateral: false })).toBe(0);
 
     expect(formatDisplayDate('2026-11-18', 'dd/mm/yyyy')).toBe('18/11/2026');
     expect(formatDisplayDate('2026-11-18', 'mm/dd/yyyy')).toBe('11/18/2026');

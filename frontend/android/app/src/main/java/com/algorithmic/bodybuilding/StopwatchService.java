@@ -57,7 +57,6 @@ public class StopwatchService extends Service {
                 pauseStopwatch();
             } else if (ACTION_RESET.equals(action)) {
                 resetStopwatch();
-                return START_NOT_STICKY;
             }
         }
 
@@ -65,7 +64,23 @@ public class StopwatchService extends Service {
         boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
         long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
 
-        // If not running and at 0, don't show notification and terminate service
+        // Always satisfy Android 8+ startForegroundService contract before stopping or continuing
+        try {
+            Notification notification = buildNotification();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+        } catch (Exception e) {
+            // Covers SecurityException (missing permission) and ForegroundServiceStartNotAllowedException (API 31+)
+            if (!isRunning && accumulated == 0) {
+                stopSelf();
+                return START_NOT_STICKY;
+            }
+        }
+
+        // If not running and at 0, remove foreground notification and terminate service
         if (!isRunning && accumulated == 0) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE);
@@ -77,18 +92,6 @@ public class StopwatchService extends Service {
             } catch (Exception ignored) {}
             stopSelf();
             return START_NOT_STICKY;
-        }
-
-        // Show persistent foreground notification
-        try {
-            Notification notification = buildNotification();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-            } else {
-                startForeground(NOTIFICATION_ID, notification);
-            }
-        } catch (SecurityException e) {
-            // Handled safely if notification permission is pending
         }
 
         return START_STICKY;
@@ -205,7 +208,7 @@ public class StopwatchService extends Service {
         );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_stopwatch)
             .setContentIntent(contentPendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -234,7 +237,8 @@ public class StopwatchService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
 
-            builder.setUsesChronometer(true)
+            builder.setShowWhen(true)
+                .setUsesChronometer(true)
                 .setChronometerCountDown(false)
                 .setWhen(System.currentTimeMillis() - currentElapsed)
                 .setContentText("Running...")
