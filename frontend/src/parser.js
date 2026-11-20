@@ -438,7 +438,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
     // Group 2: assisted reps
     // Group 3: partial reps
     // Group 4: RPE
-    const match = rp.match(/^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?$/);
+    const match = rp.match(/^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?(?:\s+.*)?$/);
     if (match) {
       let base = parseInt(match[1], 10);
       const rawAssisted = match[2] ? parseInt(match[2], 10) : 0;
