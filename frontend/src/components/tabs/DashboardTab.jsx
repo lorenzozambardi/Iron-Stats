@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
 const DETAIL_TO_SERIES_KEY = {
   'volume': 'Volume',
-  'effective-reps': 'EffectiveRepsCustom',
+  'effective': 'EffectiveRepsCustom',
   'tonnage': 'Tonnage',
   'effective-tonnage': 'EffectiveTonnage',
   'weighted-tonnage': 'WeightedTonnage',
@@ -109,6 +109,7 @@ const buildTimeSeries = (rows, metricKey) => {
   return rows.map((m, i) => ({
     v: m[metricKey] || 0,
     t: resolvedTs[i] - t0,
+    ts: resolvedTs[i],
   }));
 };
 

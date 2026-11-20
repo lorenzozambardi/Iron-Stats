@@ -6,16 +6,11 @@ import { sampleSparklineAtTime } from './helpers';
 import { TensionRomSlider } from './FilterControls';
 import { formatDisplayDate } from '../profileUtils';
 
-const formatLocalYMD = (date = new Date()) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
+const formatUtcYMD = (ms) => new Date(ms).toISOString().slice(0, 10);
 
 const METRIC_UNITS = {
   'volume': ' reps',
-  'effective-reps': ' reps',
+  'effective': ' reps',
   'tonnage': ' kg',
   'effective-tonnage': ' kg',
   'weighted-tonnage': ' kg',
@@ -627,14 +622,17 @@ export default function MetricDetailsPage({ metric, series, compareSeries, dateF
           <>
             {/* Trend Card */}
             {Array.isArray(series) && series.length >= 2 && (() => {
-              const hasTs = typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].t);
-              const pts = hasTs
-                ? series
-                : series.map((v, i) => ({ t: i, v: Number(v) || 0 }));
+              const hasRealTs = typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].ts);
+              const hasRelTs = !hasRealTs && typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].t);
+              const pts = hasRealTs
+                ? series.map((pt) => ({ t: pt.ts, v: pt.v }))
+                : (hasRelTs ? series : series.map((v, i) => ({ t: i, v: Number(v) || 0 })));
               const comparePts = Array.isArray(compareSeries) && compareSeries.length >= 2
-                ? (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].t)
-                  ? compareSeries
-                  : compareSeries.map((v, i) => ({ t: i, v: Number(v) || 0 })))
+                ? (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].ts)
+                  ? compareSeries.map((pt) => ({ t: pt.ts, v: pt.v }))
+                  : (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].t)
+                    ? compareSeries
+                    : compareSeries.map((v, i) => ({ t: i, v: Number(v) || 0 }))))
                 : undefined;
 
               const tMin = pts[0].t;
@@ -643,8 +641,8 @@ export default function MetricDetailsPage({ metric, series, compareSeries, dateF
               const targetT = tMin + (sliderPos / 100) * tRange;
               const sampledVal = sampleSparklineAtTime(pts, targetT);
               const formatTime = (t) => (
-                hasTs
-                  ? formatDisplayDate(formatLocalYMD(new Date(t)), dateFormat)
+                hasRealTs
+                  ? formatDisplayDate(formatUtcYMD(t), dateFormat)
                   : `Week ${Math.round(t) + 1}`
               );
               const unit = METRIC_UNITS[activeMetric] ?? '';
