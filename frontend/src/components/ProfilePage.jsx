@@ -506,7 +506,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 dateFormat={dateFormat}
                 ariaLabel="Log date"
                 onChange={(e) => setLogDate(e.target.value || todayStr)}
-                style={{ width: 'auto', padding: '6px 10px', fontSize: '0.8rem' }}
+                style={{ width: 'auto', padding: '7px 14px', fontSize: '0.78rem', borderRadius: '999px' }}
               />
               <button
                 type="button"
