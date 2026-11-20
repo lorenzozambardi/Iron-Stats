@@ -30,6 +30,7 @@ import DatabaseTab from './components/tabs/DatabaseTab';
 import DashboardTab from './components/tabs/DashboardTab';
 import StopwatchTab from './components/tabs/StopwatchTab';
 import EasyEditor from './components/EasyEditor';
+import ProfileEasyEditor from './components/ProfileEasyEditor';
 import FoldableEditor from './components/FoldableEditor';
 import { formatLogbookSpaces } from './formatLogbook';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -1677,15 +1678,28 @@ export default function App() {
                 <div className="editor-panel">
                   <div className="editor-wrapper">
                     {editingProfileMd ? (
-                      <FoldableEditor
-                        key="__profile_md__"
-                        value={profileMdText}
-                        onChange={(newText) => {
-                          setProfileMdText(newText);
-                          scheduleDebouncedProfileSave(newText);
-                        }}
-                        exercisesDb={activeExercises}
-                      />
+                      editorType === 'easy' ? (
+                        <ProfileEasyEditor
+                          profile={parseProfileMarkdown(profileMdText)}
+                          dateFormat={dateFormat}
+                          onChange={(nextProfile) => {
+                            const nextMd = serializeProfileToMarkdown(nextProfile);
+                            setProfileMdText(nextMd);
+                            scheduleDebouncedProfileSave(nextMd);
+                            window.dispatchEvent(new CustomEvent('profile-updated', { detail: nextProfile }));
+                          }}
+                        />
+                      ) : (
+                        <FoldableEditor
+                          key="__profile_md__"
+                          value={profileMdText}
+                          onChange={(newText) => {
+                            setProfileMdText(newText);
+                            scheduleDebouncedProfileSave(newText);
+                          }}
+                          exercisesDb={activeExercises}
+                        />
+                      )
                     ) : editorType === 'easy' ? (
                       <EasyEditor 
                         logbookText={logbookText}
