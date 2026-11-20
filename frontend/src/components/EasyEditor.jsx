@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef, useMemo } from 'react';
+import { memo, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MUSCLES, isDateLine, isDatesHeader } from '../parser';
 import { formatTodayDDMMYYYY } from './editorSnippets';
@@ -237,9 +237,502 @@ const sessionPillBtnStyle = {
   WebkitAppearance: 'none',
 };
 
+const EasyExerciseCard = memo(function EasyExerciseCard({
+  ex,
+  sIdx,
+  eIdx,
+  muscle,
+  updateExercise,
+  insertExerciseAtIndex,
+  deleteExercise,
+  addWeek,
+  deleteWeek,
+  addSetToWeek,
+  deleteSetFromWeek,
+  updateSetLoadRepsRpe,
+}) {
+  const metaFields = [
+    { key: 'rest', label: 'REST', value: ex.rest, placeholder: "2'" },
+    { key: 'tempo', label: 'TEMPO', value: ex.tempo || '', placeholder: '1-0-2-0' },
+    { key: 'note', label: 'NOTE', value: ex.note || '', placeholder: 'Notes...' },
+  ];
+
+  return (
+    <div
+      className="easy-exercise-card"
+      style={{
+        ...dashboardCardStyle,
+        padding: '12px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+      }}
+    >
+      {/* Header Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {muscle && (
+            <div
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--accent-primary)',
+                marginBottom: '2px',
+              }}
+            >
+              {muscle}
+            </div>
+          )}
+          <input
+            value={ex.name}
+            onChange={(e) => updateExercise(sIdx, eIdx, { name: e.target.value })}
+            list="easy-exercises-db-list"
+            placeholder="Exercise Name"
+            style={{
+              ...bareInputStyle,
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.02rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              width: '100%',
+            }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => insertExerciseAtIndex(sIdx, eIdx + 1)}
+            title="Insert Exercise Below"
+            style={{ ...iconButtonStyle(28), color: 'var(--text-muted)' }}
+          >
+            <Plus size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => deleteExercise(sIdx, eIdx)}
+            title="Delete Exercise"
+            style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Compact Single-Row Metadata Strip (Rest, Tempo, Notes) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '82px 104px minmax(0, 1fr)', gap: '6px' }}>
+        {metaFields.map(({ key, label, value, placeholder }) => (
+          <div key={key} style={metaCellStyle}>
+            <span style={metaLabelStyle}>{label}</span>
+            <input
+              value={value}
+              onChange={(e) => updateExercise(sIdx, eIdx, { [key]: e.target.value })}
+              placeholder={placeholder}
+              style={metaInputStyle}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Weeks & Sets */}
+      {ex.weeks.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {ex.weeks.map((wk, wIdx) => (
+            <div
+              key={wIdx}
+              style={{
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+              }}
+            >
+              {/* Week Header */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  paddingBottom: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    color: 'var(--accent-secondary)',
+                  }}
+                >
+                  m{wIdx + 1}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => addSetToWeek(sIdx, eIdx, wIdx)}
+                    title="Add Set"
+                    style={{
+                      height: '22px',
+                      padding: '0 8px',
+                      borderRadius: '999px',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                    }}
+                  >
+                    <Plus size={11} /> Set
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteWeek(sIdx, eIdx, wIdx)}
+                    title="Delete Microcycle"
+                    style={{ ...iconButtonStyle(22), color: 'rgba(239, 68, 68, 0.7)' }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Set Rows */}
+              {wk.sets.map((stVal, stIdx) => {
+                const { loadVal, repsVal, rpeVal } = parseSetDisplayValues(stVal);
+
+                return (
+                  <div
+                    key={stIdx}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '20px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.85fr) 22px',
+                      gap: '6px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        fontVariantNumeric: 'tabular-nums',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {stIdx + 1}
+                    </span>
+
+                    <div style={setWellStyle}>
+                      <input
+                        value={loadVal}
+                        onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, e.target.value, repsVal, rpeVal)}
+                        placeholder="0"
+                        style={{ ...setInputStyle, textAlign: 'right' }}
+                      />
+                      <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginLeft: '3px', flexShrink: 0 }}>
+                        kg
+                      </span>
+                    </div>
+
+                    <div style={setWellStyle}>
+                      <input
+                        value={repsVal}
+                        onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, e.target.value, rpeVal)}
+                        placeholder="reps"
+                        style={{ ...setInputStyle, textAlign: 'center' }}
+                      />
+                    </div>
+
+                    <div style={{ ...setWellStyle, padding: '0 6px' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--accent-secondary)', fontWeight: 700, flexShrink: 0 }}>
+                        @
+                      </span>
+                      <input
+                        value={rpeVal}
+                        onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, repsVal, e.target.value)}
+                        list="rpe-suggestions-list"
+                        placeholder="RPE"
+                        style={{ ...setInputStyle, textAlign: 'center' }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => deleteSetFromWeek(sIdx, eIdx, wIdx, stIdx)}
+                      title="Delete Set"
+                      style={{ ...iconButtonStyle(22), color: 'var(--text-muted)' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Exercise Footer: + Add Microcycle */}
+      <button
+        type="button"
+        onClick={() => addWeek(sIdx, eIdx)}
+        title="Add Microcycle"
+        style={{
+          height: '28px',
+          borderRadius: '8px',
+          background: 'var(--bg-primary)',
+          border: '1px solid var(--border-color)',
+          color: 'var(--text-secondary)',
+          fontFamily: 'var(--font-sans)',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '4px',
+          alignSelf: 'flex-start',
+          padding: '0 10px',
+          cursor: 'pointer',
+          appearance: 'none',
+          WebkitAppearance: 'none',
+        }}
+      >
+        <Plus size={13} /> Add Microcycle
+      </button>
+    </div>
+  );
+});
+
+const EasySessionGroup = memo(function EasySessionGroup({
+  sess,
+  sIdx,
+  muscleMap,
+  updateSessionTitle,
+  addSessionDate,
+  updateSessionDate,
+  deleteSessionDate,
+  deleteSession,
+  insertExerciseAtIndex,
+  insertSessionAtIndex,
+  updateExercise,
+  deleteExercise,
+  addWeek,
+  deleteWeek,
+  addSetToWeek,
+  deleteSetFromWeek,
+  updateSetLoadRepsRpe,
+}) {
+  return (
+    <div
+      className="easy-session-group"
+      style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+    >
+      {/* Session Header Bar */}
+      <div
+        style={{
+          ...dashboardCardStyle,
+          padding: '10px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: 'var(--accent-primary)',
+              background: 'var(--accent-primary-subtle)',
+              border: '1px solid var(--accent-primary-glow)',
+              padding: '3px 8px',
+              borderRadius: '999px',
+              flexShrink: 0,
+            }}
+          >
+            SESSION
+          </span>
+          <input
+            value={(sess.title || '').replace(/^#+\s*/, '')}
+            onChange={(e) => {
+              const val = e.target.value;
+              const existingHashes = (sess.title || '').match(/^(#+)/)?.[1] || '#';
+              const formatted = val.trim() ? (val.startsWith('#') ? val : `${existingHashes} ${val}`) : `${existingHashes} `;
+              updateSessionTitle(sIdx, formatted);
+            }}
+            style={{
+              ...bareInputStyle,
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              minWidth: 0,
+              flex: 1,
+            }}
+            placeholder="1"
+          />
+          <span
+            style={{
+              fontSize: '0.72rem',
+              color: 'var(--text-muted)',
+              fontWeight: 500,
+              flexShrink: 0,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {sess.exercises.length} {sess.exercises.length === 1 ? 'ex' : 'exs'}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => addSessionDate(sIdx)}
+          title="Add Session Date"
+          style={{
+            ...sessionPillBtnStyle,
+            height: '26px',
+            padding: '0 9px',
+            fontSize: '0.68rem',
+            background: 'var(--bg-primary)',
+            boxShadow: 'none',
+          }}
+        >
+          <Calendar size={12} /> + Date
+        </button>
+
+        <button
+          type="button"
+          onClick={() => deleteSession(sIdx)}
+          title="Delete Session"
+          style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+
+      {/* Session Dates Bar */}
+      {Array.isArray(sess.dates) && sess.dates.length > 0 && (
+        <div
+          style={{
+            ...dashboardCardStyle,
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{ ...metaLabelStyle, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Calendar size={11} /> Dates (DD-MM-YYYY)
+            </span>
+            <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+              {sess.dates.length} {sess.dates.length === 1 ? 'cycle' : 'cycles'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {sess.dates.map((dateVal, dIdx) => (
+              <div
+                key={dIdx}
+                style={{
+                  ...metaCellStyle,
+                  height: '30px',
+                  padding: '0 6px 0 8px',
+                  gap: '5px',
+                  flex: '0 1 148px',
+                }}
+              >
+                <span style={{ ...metaLabelStyle, textTransform: 'none', color: 'var(--accent-primary)' }}>m{dIdx + 1}</span>
+                <input
+                  value={dateVal}
+                  onChange={(e) => updateSessionDate(sIdx, dIdx, e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                  style={{
+                    ...metaInputStyle,
+                    fontSize: '0.75rem',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => deleteSessionDate(sIdx, dIdx)}
+                  title={`Remove m${dIdx + 1} date`}
+                  style={{ ...iconButtonStyle(20), color: 'rgba(239, 68, 68, 0.65)' }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Exercise Cards */}
+      {sess.exercises.map((ex, eIdx) => {
+        const muscle = ex.name ? (muscleMap.get(ex.name.toLowerCase()) || null) : null;
+        return (
+          <EasyExerciseCard
+            key={eIdx}
+            ex={ex}
+            sIdx={sIdx}
+            eIdx={eIdx}
+            muscle={muscle}
+            updateExercise={updateExercise}
+            insertExerciseAtIndex={insertExerciseAtIndex}
+            deleteExercise={deleteExercise}
+            addWeek={addWeek}
+            deleteWeek={deleteWeek}
+            addSetToWeek={addSetToWeek}
+            deleteSetFromWeek={deleteSetFromWeek}
+            updateSetLoadRepsRpe={updateSetLoadRepsRpe}
+          />
+        );
+      })}
+
+      {/* Session Footer: + Exercise / + Session */}
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', paddingTop: '2px' }}>
+        <button
+          type="button"
+          onClick={() => insertExerciseAtIndex(sIdx, sess.exercises.length)}
+          title="Add Exercise"
+          style={sessionPillBtnStyle}
+        >
+          <Plus size={13} /> Exercise
+        </button>
+        <button
+          type="button"
+          onClick={() => insertSessionAtIndex(sIdx + 1)}
+          title="Add Session"
+          style={sessionPillBtnStyle}
+        >
+          <Plus size={13} /> Session
+        </button>
+      </div>
+    </div>
+  );
+});
+
 const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb = [] }) {
   const [sessions, setSessions] = useState(() => parseLogbookToStructure(logbookText));
   const lastEmittedTextRef = useRef(logbookText);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const exercisesDbRef = useRef(exercisesDb);
+  exercisesDbRef.current = exercisesDb;
 
   useEffect(() => {
     if (logbookText === lastEmittedTextRef.current) {
@@ -256,73 +749,88 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
       .map(l => l.trim())
       .filter(l => l.toLowerCase().startsWith('override:'));
   }, [logbookText]);
+  const overrideLinesRef = useRef(overrideLines);
+  overrideLinesRef.current = overrideLines;
 
-  const triggerChange = (newSessions) => {
-    setSessions(newSessions);
-    const newText = serializeStructureToText(newSessions, overrideLines);
-    lastEmittedTextRef.current = newText;
-    onChange(newText);
-  };
+  const commitSessions = useCallback((updater) => {
+    setSessions(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      const newText = serializeStructureToText(next, overrideLinesRef.current);
+      lastEmittedTextRef.current = newText;
+      onChangeRef.current(newText);
+      return next;
+    });
+  }, []);
 
-  const updateSessionTitle = (sIdx, newTitle) => {
-    const updated = sessions.map((s, idx) => idx === sIdx ? { ...s, title: newTitle } : s);
-    triggerChange(updated);
-  };
+  const updateSessionTitle = useCallback((sIdx, newTitle) => {
+    commitSessions(prev => prev.map((s, idx) => idx === sIdx ? { ...s, title: newTitle } : s));
+  }, [commitSessions]);
 
-  const addSession = () => {
-    insertSessionAtIndex(sessions.length);
-  };
-
-  const insertSessionAtIndex = (targetIndex) => {
-    let maxNum = 0;
-    for (const s of sessions) {
-      const m = (s.title || '').match(/\d+/);
-      if (m) {
-        const n = parseInt(m[0], 10);
-        if (n > maxNum) maxNum = n;
+  const insertSessionAtIndex = useCallback((targetIndex) => {
+    commitSessions(prev => {
+      let maxNum = 0;
+      for (const s of prev) {
+        const m = (s.title || '').match(/\d+/);
+        if (m) {
+          const n = parseInt(m[0], 10);
+          if (n > maxNum) maxNum = n;
+        }
       }
-    }
-    const nextNum = Math.max(sessions.length + 1, maxNum + 1);
-    const newSess = { title: `# ${nextNum}`, dates: [], exercises: [] };
-    const newSessions = [...sessions];
-    newSessions.splice(targetIndex, 0, newSess);
-    triggerChange(newSessions);
-  };
+      const nextNum = Math.max(prev.length + 1, maxNum + 1);
+      const newSess = { title: `# ${nextNum}`, dates: [], exercises: [] };
+      const newSessions = [...prev];
+      newSessions.splice(targetIndex, 0, newSess);
+      return newSessions;
+    });
+  }, [commitSessions]);
 
-  const addSessionDate = (sIdx) => {
-    const updated = sessions.map((s, idx) =>
+  const addSession = useCallback(() => {
+    commitSessions(prev => {
+      let maxNum = 0;
+      for (const s of prev) {
+        const m = (s.title || '').match(/\d+/);
+        if (m) {
+          const n = parseInt(m[0], 10);
+          if (n > maxNum) maxNum = n;
+        }
+      }
+      const nextNum = Math.max(prev.length + 1, maxNum + 1);
+      return [...prev, { title: `# ${nextNum}`, dates: [], exercises: [] }];
+    });
+  }, [commitSessions]);
+
+  const addSessionDate = useCallback((sIdx) => {
+    commitSessions(prev => prev.map((s, idx) =>
       idx === sIdx ? { ...s, dates: [...(s.dates || []), formatTodayDDMMYYYY()] } : s
-    );
-    triggerChange(updated);
-  };
+    ));
+  }, [commitSessions]);
 
-  const updateSessionDate = (sIdx, dIdx, newVal) => {
-    const updated = sessions.map((s, idx) => {
+  const updateSessionDate = useCallback((sIdx, dIdx, newVal) => {
+    commitSessions(prev => prev.map((s, idx) => {
       if (idx !== sIdx) return s;
       const nextDates = [...(s.dates || [])];
       nextDates[dIdx] = newVal;
       return { ...s, dates: nextDates };
-    });
-    triggerChange(updated);
-  };
+    }));
+  }, [commitSessions]);
 
-  const deleteSessionDate = (sIdx, dIdx) => {
-    const updated = sessions.map((s, idx) =>
+  const deleteSessionDate = useCallback((sIdx, dIdx) => {
+    commitSessions(prev => prev.map((s, idx) =>
       idx === sIdx ? { ...s, dates: (s.dates || []).filter((_, i) => i !== dIdx) } : s
-    );
-    triggerChange(updated);
-  };
+    ));
+  }, [commitSessions]);
 
-  const deleteSession = (sIdx) => {
-    const sTitle = sessions[sIdx]?.title || 'this session';
-    if (window.confirm(`Are you sure you want to delete "${sTitle}"?`)) {
-      const updated = sessions.filter((_, idx) => idx !== sIdx);
-      triggerChange(updated);
-    }
-  };
+  const deleteSession = useCallback((sIdx) => {
+    commitSessions(prev => {
+      const sTitle = prev[sIdx]?.title || 'this session';
+      if (!window.confirm(`Are you sure you want to delete "${sTitle}"?`)) return prev;
+      return prev.filter((_, idx) => idx !== sIdx);
+    });
+  }, [commitSessions]);
 
-  const insertExerciseAtIndex = (sIdx, targetIndex) => {
-    const defaultName = exercisesDb.length > 0 ? exercisesDb[0].name : 'Exercise';
+  const insertExerciseAtIndex = useCallback((sIdx, targetIndex) => {
+    const db = exercisesDbRef.current;
+    const defaultName = db.length > 0 ? db[0].name : 'Exercise';
     const newEx = {
       name: defaultName,
       rest: "2'",
@@ -330,43 +838,38 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
       note: '',
       weeks: [{ sets: ['35..5', '30..7'] }]
     };
-    const updated = sessions.map((s, idx) => {
+    commitSessions(prev => prev.map((s, idx) => {
       if (idx === sIdx) {
         const newExs = [...s.exercises];
         newExs.splice(targetIndex, 0, newEx);
         return { ...s, exercises: newExs };
       }
       return s;
-    });
-    triggerChange(updated);
-  };
+    }));
+  }, [commitSessions]);
 
-  const updateExercise = (sIdx, eIdx, fields) => {
-    const updated = sessions.map((s, idx) => {
+  const updateExercise = useCallback((sIdx, eIdx, fields) => {
+    commitSessions(prev => prev.map((s, idx) => {
       if (idx === sIdx) {
         const updatedExs = s.exercises.map((ex, exIdx) => exIdx === eIdx ? { ...ex, ...fields } : ex);
         return { ...s, exercises: updatedExs };
       }
       return s;
+    }));
+  }, [commitSessions]);
+
+  const deleteExercise = useCallback((sIdx, eIdx) => {
+    commitSessions(prev => {
+      const exName = prev[sIdx]?.exercises[eIdx]?.name || 'this exercise';
+      if (!window.confirm(`Are you sure you want to delete "${exName}"?`)) return prev;
+      return prev.map((s, idx) =>
+        idx === sIdx ? { ...s, exercises: s.exercises.filter((_, exIdx) => exIdx !== eIdx) } : s
+      );
     });
-    triggerChange(updated);
-  };
+  }, [commitSessions]);
 
-  const deleteExercise = (sIdx, eIdx) => {
-    const exName = sessions[sIdx]?.exercises[eIdx]?.name || 'this exercise';
-    if (window.confirm(`Are you sure you want to delete "${exName}"?`)) {
-      const updated = sessions.map((s, idx) => {
-        if (idx === sIdx) {
-          return { ...s, exercises: s.exercises.filter((_, exIdx) => exIdx !== eIdx) };
-        }
-        return s;
-      });
-      triggerChange(updated);
-    }
-  };
-
-  const addWeek = (sIdx, eIdx) => {
-    const updated = sessions.map((s, idx) => {
+  const addWeek = useCallback((sIdx, eIdx) => {
+    commitSessions(prev => prev.map((s, idx) => {
       if (idx === sIdx) {
         const updatedExs = s.exercises.map((ex, exIdx) => {
           if (exIdx === eIdx) {
@@ -378,30 +881,27 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
         return { ...s, exercises: updatedExs };
       }
       return s;
-    });
-    triggerChange(updated);
-  };
+    }));
+  }, [commitSessions]);
 
-  const deleteWeek = (sIdx, eIdx, wIdx) => {
-    if (window.confirm(`Are you sure you want to delete m${wIdx + 1}?`)) {
-      const updated = sessions.map((s, idx) => {
-        if (idx === sIdx) {
-          const updatedExs = s.exercises.map((ex, exIdx) => {
-            if (exIdx === eIdx) {
-              return { ...ex, weeks: ex.weeks.filter((_, wkIdx) => wkIdx !== wIdx) };
-            }
-            return ex;
-          });
-          return { ...s, exercises: updatedExs };
-        }
-        return s;
-      });
-      triggerChange(updated);
-    }
-  };
+  const deleteWeek = useCallback((sIdx, eIdx, wIdx) => {
+    if (!window.confirm(`Are you sure you want to delete m${wIdx + 1}?`)) return;
+    commitSessions(prev => prev.map((s, idx) => {
+      if (idx === sIdx) {
+        const updatedExs = s.exercises.map((ex, exIdx) => {
+          if (exIdx === eIdx) {
+            return { ...ex, weeks: ex.weeks.filter((_, wkIdx) => wkIdx !== wIdx) };
+          }
+          return ex;
+        });
+        return { ...s, exercises: updatedExs };
+      }
+      return s;
+    }));
+  }, [commitSessions]);
 
-  const addSetToWeek = (sIdx, eIdx, wIdx) => {
-    const updated = sessions.map((s, idx) => {
+  const addSetToWeek = useCallback((sIdx, eIdx, wIdx) => {
+    commitSessions(prev => prev.map((s, idx) => {
       if (idx === sIdx) {
         const updatedExs = s.exercises.map((ex, exIdx) => {
           if (exIdx === eIdx) {
@@ -419,12 +919,21 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
         return { ...s, exercises: updatedExs };
       }
       return s;
-    });
-    triggerChange(updated);
-  };
+    }));
+  }, [commitSessions]);
 
-  const updateSetValue = (sIdx, eIdx, wIdx, stIdx, newVal) => {
-    const updated = sessions.map((s, idx) => {
+  const updateSetLoadRepsRpe = useCallback((sIdx, eIdx, wIdx, stIdx, newLoad, newReps, newRpe) => {
+    const l = (newLoad || '').trim();
+    const r = (newReps || '').trim();
+    const rp = (newRpe || '').trim();
+    let newVal = '';
+    if (l || r || rp) {
+      newVal = l ? (r ? `${l}.. ${r}` : `${l}..`) : r;
+      if (rp) {
+        newVal += `@${rp}`;
+      }
+    }
+    commitSessions(prev => prev.map((s, idx) => {
       if (idx === sIdx) {
         const updatedExs = s.exercises.map((ex, exIdx) => {
           if (exIdx === eIdx) {
@@ -442,49 +951,30 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
         return { ...s, exercises: updatedExs };
       }
       return s;
-    });
-    triggerChange(updated);
-  };
+    }));
+  }, [commitSessions]);
 
-  const updateSetLoadRepsRpe = (sIdx, eIdx, wIdx, stIdx, newLoad, newReps, newRpe) => {
-    const l = (newLoad || '').trim();
-    const r = (newReps || '').trim();
-    const rp = (newRpe || '').trim();
-    
-    if (!l && !r && !rp) {
-      updateSetValue(sIdx, eIdx, wIdx, stIdx, '');
-      return;
-    }
-    let base = l ? (r ? `${l}.. ${r}` : `${l}..`) : r;
-    if (rp) {
-      base += `@${rp}`;
-    }
-    updateSetValue(sIdx, eIdx, wIdx, stIdx, base);
-  };
-
-  const deleteSetFromWeek = (sIdx, eIdx, wIdx, stIdx) => {
-    if (window.confirm(`Are you sure you want to delete Set ${stIdx + 1}?`)) {
-      const updated = sessions.map((s, idx) => {
-        if (idx === sIdx) {
-          const updatedExs = s.exercises.map((ex, exIdx) => {
-            if (exIdx === eIdx) {
-              const updatedWeeks = ex.weeks.map((wk, wkIdx) => {
-                if (wkIdx === wIdx) {
-                  return { ...wk, sets: wk.sets.filter((_, i) => i !== stIdx) };
-                }
-                return wk;
-              });
-              return { ...ex, weeks: updatedWeeks };
-            }
-            return ex;
-          });
-          return { ...s, exercises: updatedExs };
-        }
-        return s;
-      });
-      triggerChange(updated);
-    }
-  };
+  const deleteSetFromWeek = useCallback((sIdx, eIdx, wIdx, stIdx) => {
+    if (!window.confirm(`Are you sure you want to delete Set ${stIdx + 1}?`)) return;
+    commitSessions(prev => prev.map((s, idx) => {
+      if (idx === sIdx) {
+        const updatedExs = s.exercises.map((ex, exIdx) => {
+          if (exIdx === eIdx) {
+            const updatedWeeks = ex.weeks.map((wk, wkIdx) => {
+              if (wkIdx === wIdx) {
+                return { ...wk, sets: wk.sets.filter((_, i) => i !== stIdx) };
+              }
+              return wk;
+            });
+            return { ...ex, weeks: updatedWeeks };
+          }
+          return ex;
+        });
+        return { ...s, exercises: updatedExs };
+      }
+      return s;
+    }));
+  }, [commitSessions]);
 
   const muscleMap = useMemo(() => {
     const map = new Map();
@@ -499,11 +989,6 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
     }
     return map;
   }, [exercisesDb]);
-
-  const getMuscleForExercise = (exName) => {
-    if (!exName) return null;
-    return muscleMap.get(exName.toLowerCase()) || null;
-  };
 
   return (
     <div
@@ -577,441 +1062,26 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
       )}
 
       {sessions.map((sess, sIdx) => (
-        <div
+        <EasySessionGroup
           key={sIdx}
-          className="easy-session-group"
-          style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
-        >
-          {/* Session Header Bar */}
-          <div
-            style={{
-              ...dashboardCardStyle,
-              padding: '10px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  color: 'var(--accent-primary)',
-                  background: 'var(--accent-primary-subtle)',
-                  border: '1px solid var(--accent-primary-glow)',
-                  padding: '3px 8px',
-                  borderRadius: '999px',
-                  flexShrink: 0,
-                }}
-              >
-                SESSION
-              </span>
-              <input
-                value={(sess.title || '').replace(/^#+\s*/, '')}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const existingHashes = (sess.title || '').match(/^(#+)/)?.[1] || '#';
-                  const formatted = val.trim() ? (val.startsWith('#') ? val : `${existingHashes} ${val}`) : `${existingHashes} `;
-                  updateSessionTitle(sIdx, formatted);
-                }}
-                style={{
-                  ...bareInputStyle,
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '1.05rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  minWidth: 0,
-                  flex: 1,
-                }}
-                placeholder="1"
-              />
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  color: 'var(--text-muted)',
-                  fontWeight: 500,
-                  flexShrink: 0,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {sess.exercises.length} {sess.exercises.length === 1 ? 'ex' : 'exs'}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => addSessionDate(sIdx)}
-              title="Add Session Date"
-              style={{
-                ...sessionPillBtnStyle,
-                height: '26px',
-                padding: '0 9px',
-                fontSize: '0.68rem',
-                background: 'var(--bg-primary)',
-                boxShadow: 'none',
-              }}
-            >
-              <Calendar size={12} /> + Date
-            </button>
-
-            <button
-              type="button"
-              onClick={() => deleteSession(sIdx)}
-              title="Delete Session"
-              style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
-            >
-              <Trash2 size={15} />
-            </button>
-          </div>
-
-          {/* Session Dates Bar */}
-          {Array.isArray(sess.dates) && sess.dates.length > 0 && (
-            <div
-              style={{
-                ...dashboardCardStyle,
-                padding: '10px 12px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <span style={{ ...metaLabelStyle, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <Calendar size={11} /> Dates (DD-MM-YYYY)
-                </span>
-                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                  {sess.dates.length} {sess.dates.length === 1 ? 'cycle' : 'cycles'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {sess.dates.map((dateVal, dIdx) => (
-                  <div
-                    key={dIdx}
-                    style={{
-                      ...metaCellStyle,
-                      height: '30px',
-                      padding: '0 6px 0 8px',
-                      gap: '5px',
-                      flex: '0 1 148px',
-                    }}
-                  >
-                    <span style={{ ...metaLabelStyle, textTransform: 'none', color: 'var(--accent-primary)' }}>m{dIdx + 1}</span>
-                    <input
-                      value={dateVal}
-                      onChange={(e) => updateSessionDate(sIdx, dIdx, e.target.value)}
-                      placeholder="DD-MM-YYYY"
-                      style={{
-                        ...metaInputStyle,
-                        fontSize: '0.75rem',
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => deleteSessionDate(sIdx, dIdx)}
-                      title={`Remove m${dIdx + 1} date`}
-                      style={{ ...iconButtonStyle(20), color: 'rgba(239, 68, 68, 0.65)' }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Exercise Cards */}
-          {sess.exercises.map((ex, eIdx) => {
-            const muscle = getMuscleForExercise(ex.name);
-            const metaFields = [
-              { key: 'rest', label: 'REST', value: ex.rest, placeholder: "2'" },
-              { key: 'tempo', label: 'TEMPO', value: ex.tempo || '', placeholder: '1-0-2-0' },
-              { key: 'note', label: 'NOTE', value: ex.note || '', placeholder: 'Notes...' },
-            ];
-
-            return (
-              <div
-                key={eIdx}
-                className="easy-exercise-card"
-                style={{
-                  ...dashboardCardStyle,
-                  padding: '12px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                }}
-              >
-                {/* Header Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {muscle && (
-                      <div
-                        style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          color: 'var(--accent-primary)',
-                          marginBottom: '2px',
-                        }}
-                      >
-                        {muscle}
-                      </div>
-                    )}
-                    <input
-                      value={ex.name}
-                      onChange={(e) => updateExercise(sIdx, eIdx, { name: e.target.value })}
-                      list="easy-exercises-db-list"
-                      placeholder="Exercise Name"
-                      style={{
-                        ...bareInputStyle,
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '1.02rem',
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                        width: '100%',
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => insertExerciseAtIndex(sIdx, eIdx + 1)}
-                      title="Insert Exercise Below"
-                      style={{ ...iconButtonStyle(28), color: 'var(--text-muted)' }}
-                    >
-                      <Plus size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteExercise(sIdx, eIdx)}
-                      title="Delete Exercise"
-                      style={{ ...iconButtonStyle(28), color: 'rgba(239, 68, 68, 0.7)' }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Compact Single-Row Metadata Strip (Rest, Tempo, Notes) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '82px 104px minmax(0, 1fr)', gap: '6px' }}>
-                  {metaFields.map(({ key, label, value, placeholder }) => (
-                    <div key={key} style={metaCellStyle}>
-                      <span style={metaLabelStyle}>{label}</span>
-                      <input
-                        value={value}
-                        onChange={(e) => updateExercise(sIdx, eIdx, { [key]: e.target.value })}
-                        placeholder={placeholder}
-                        style={metaInputStyle}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Weeks & Sets */}
-                {ex.weeks.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {ex.weeks.map((wk, wIdx) => (
-                      <div
-                        key={wIdx}
-                        style={{
-                          background: 'var(--bg-primary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '12px',
-                          padding: '10px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                        }}
-                      >
-                        {/* Week Header */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            borderBottom: '1px solid rgba(255,255,255,0.06)',
-                            paddingBottom: '6px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              letterSpacing: '0.04em',
-                              color: 'var(--accent-secondary)',
-                            }}
-                          >
-                            m{wIdx + 1}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => addSetToWeek(sIdx, eIdx, wIdx)}
-                              title="Add Set"
-                              style={{
-                                height: '22px',
-                                padding: '0 8px',
-                                borderRadius: '999px',
-                                background: 'var(--bg-secondary)',
-                                border: '1px solid var(--border-color)',
-                                color: 'var(--text-primary)',
-                                fontFamily: 'var(--font-sans)',
-                                fontSize: '0.65rem',
-                                fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                appearance: 'none',
-                                WebkitAppearance: 'none',
-                              }}
-                            >
-                              <Plus size={11} /> Set
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteWeek(sIdx, eIdx, wIdx)}
-                              title="Delete Microcycle"
-                              style={{ ...iconButtonStyle(22), color: 'rgba(239, 68, 68, 0.7)' }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Set Rows */}
-                        {wk.sets.map((stVal, stIdx) => {
-                          const { loadVal, repsVal, rpeVal } = parseSetDisplayValues(stVal);
-
-                          return (
-                            <div
-                              key={stIdx}
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: '20px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.85fr) 22px',
-                                gap: '6px',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '0.68rem',
-                                  fontWeight: 600,
-                                  color: 'var(--text-muted)',
-                                  fontVariantNumeric: 'tabular-nums',
-                                  textAlign: 'center',
-                                }}
-                              >
-                                {stIdx + 1}
-                              </span>
-
-                              <div style={setWellStyle}>
-                                <input
-                                  value={loadVal}
-                                  onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, e.target.value, repsVal, rpeVal)}
-                                  placeholder="0"
-                                  style={{ ...setInputStyle, textAlign: 'right' }}
-                                />
-                                <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginLeft: '3px', flexShrink: 0 }}>
-                                  kg
-                                </span>
-                              </div>
-
-                              <div style={setWellStyle}>
-                                <input
-                                  value={repsVal}
-                                  onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, e.target.value, rpeVal)}
-                                  placeholder="reps"
-                                  style={{ ...setInputStyle, textAlign: 'center' }}
-                                />
-                              </div>
-
-                              <div style={{ ...setWellStyle, padding: '0 6px' }}>
-                                <span style={{ fontSize: '0.68rem', color: 'var(--accent-secondary)', fontWeight: 700, flexShrink: 0 }}>
-                                  @
-                                </span>
-                                <input
-                                  value={rpeVal}
-                                  onChange={(e) => updateSetLoadRepsRpe(sIdx, eIdx, wIdx, stIdx, loadVal, repsVal, e.target.value)}
-                                  list="rpe-suggestions-list"
-                                  placeholder="RPE"
-                                  style={{ ...setInputStyle, textAlign: 'center' }}
-                                />
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => deleteSetFromWeek(sIdx, eIdx, wIdx, stIdx)}
-                                title="Delete Set"
-                                style={{ ...iconButtonStyle(22), color: 'var(--text-muted)' }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Exercise Footer: + Add Microcycle */}
-                <button
-                  type="button"
-                  onClick={() => addWeek(sIdx, eIdx)}
-                  title="Add Microcycle"
-                  style={{
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--text-secondary)',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    alignSelf: 'flex-start',
-                    padding: '0 10px',
-                    cursor: 'pointer',
-                    appearance: 'none',
-                    WebkitAppearance: 'none',
-                  }}
-                >
-                  <Plus size={13} /> Add Microcycle
-                </button>
-              </div>
-            );
-          })}
-
-          {/* Session Footer: + Exercise / + Session */}
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', paddingTop: '2px' }}>
-            <button
-              type="button"
-              onClick={() => insertExerciseAtIndex(sIdx, sess.exercises.length)}
-              title="Add Exercise"
-              style={sessionPillBtnStyle}
-            >
-              <Plus size={13} /> Exercise
-            </button>
-            <button
-              type="button"
-              onClick={() => insertSessionAtIndex(sIdx + 1)}
-              title="Add Session"
-              style={sessionPillBtnStyle}
-            >
-              <Plus size={13} /> Session
-            </button>
-          </div>
-        </div>
+          sess={sess}
+          sIdx={sIdx}
+          muscleMap={muscleMap}
+          updateSessionTitle={updateSessionTitle}
+          addSessionDate={addSessionDate}
+          updateSessionDate={updateSessionDate}
+          deleteSessionDate={deleteSessionDate}
+          deleteSession={deleteSession}
+          insertExerciseAtIndex={insertExerciseAtIndex}
+          insertSessionAtIndex={insertSessionAtIndex}
+          updateExercise={updateExercise}
+          deleteExercise={deleteExercise}
+          addWeek={addWeek}
+          deleteWeek={deleteWeek}
+          addSetToWeek={addSetToWeek}
+          deleteSetFromWeek={deleteSetFromWeek}
+          updateSetLoadRepsRpe={updateSetLoadRepsRpe}
+        />
       ))}
     </div>
   );

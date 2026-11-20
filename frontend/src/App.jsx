@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense, startTransition, useOptimistic } from 'react';
 import 'katex/dist/katex.min.css';
 import {
   Save,
@@ -630,6 +630,14 @@ export default function App() {
     const savedEditorType = localStorage.getItem('editor-type') || 'manual';
     return (window.innerWidth <= 768 || savedEditorType === 'easy') ? 'edit' : 'split';
   }); // 'edit', 'preview', 'split'
+  const [optimisticEditorMode, setOptimisticEditorMode] = useOptimistic(editorMode);
+  const handleEditorModeChange = useCallback((nextMode) => {
+    if (nextMode === optimisticEditorMode) return;
+    startTransition(() => {
+      setOptimisticEditorMode(nextMode);
+      setEditorMode(nextMode);
+    });
+  }, [optimisticEditorMode, setOptimisticEditorMode]);
 
   // Exercise CRUD State
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -649,7 +657,7 @@ export default function App() {
   const [tensionSliderPos, setTensionSliderPos] = useState(50); // 0-100 ROM % for mobile scrubber
 
   const currentHasOverride = useMemo(() => {
-    if (!editingOriginalName) return false;
+    if (!showExerciseModal || !editingOriginalName) return false;
     return logbookText.split('\n').some(line => {
       const trimmed = line.trim();
       if (!trimmed.toLowerCase().startsWith('override:')) return false;
@@ -657,7 +665,7 @@ export default function App() {
       if (!match) return false;
       return match[1].trim().toLowerCase() === editingOriginalName.toLowerCase();
     });
-  }, [logbookText, editingOriginalName]);
+  }, [showExerciseModal, logbookText, editingOriginalName]);
 
   // UI Status State
   const [syncStatus, setSyncStatus] = useState('saved'); // 'saved', 'syncing', 'error'
@@ -1399,7 +1407,6 @@ export default function App() {
 
   const handleEasyLogbookChange = useCallback((newText) => {
     setLogbookText(newText);
-    setDebouncedLogbookText(newText);
     scheduleDebouncedSave(newText);
   }, [scheduleDebouncedSave]);
 
@@ -1699,11 +1706,11 @@ export default function App() {
               {/* Mobile Editor Mode Toggles Pill */}
               <div className="mobile-editor-pill-nav" style={{ marginLeft: 0, pointerEvents: 'auto' }}>
                  <div className={`mobile-editor-mode-group ${editingProfileMd ? 'is-collapsed' : ''}`}>
-                   <div className="mobile-editor-mode-indicator" style={{ left: 0, transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
-                   <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
-                   <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
+                   <div className="mobile-editor-mode-indicator" style={{ left: 0, transform: `translateX(${optimisticEditorMode === 'edit' ? 0 : optimisticEditorMode === 'preview' ? 38 : 76}px)` }}></div>
+                   <button className={`mode-pill-btn ${optimisticEditorMode === 'edit' ? 'active' : ''}`} onClick={() => handleEditorModeChange('edit')}><Pencil size={18} /></button>
+                   <button className={`mode-pill-btn ${optimisticEditorMode === 'preview' ? 'active' : ''}`} onClick={() => handleEditorModeChange('preview')}><Eye size={18} /></button>
                    {editorType !== 'easy' && (
-                     <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                     <button className={`mode-pill-btn ${optimisticEditorMode === 'split' ? 'active' : ''}`} onClick={() => handleEditorModeChange('split')}><Columns size={18} /></button>
                    )}
                    <div className="pill-divider"></div>
                  </div>
@@ -1734,24 +1741,24 @@ export default function App() {
             <div className="editor-control-bar" style={editingProfileMd ? { justifyContent: 'flex-end' } : undefined}>
               {/* Edit Mode Toggles */}
               {!editingProfileMd && (
-                <div className={`editor-mode-toggles mode-${editorMode} ${editorType === 'easy' ? 'easy-toggles' : ''}`}>
+                <div className={`editor-mode-toggles mode-${optimisticEditorMode} ${editorType === 'easy' ? 'easy-toggles' : ''}`}>
                   <div className="editor-mode-indicator"></div>
                   <button 
-                    className={`mode-toggle-btn ${editorMode === 'edit' ? 'active' : ''}`}
-                    onClick={() => setEditorMode('edit')}
+                    className={`mode-toggle-btn ${optimisticEditorMode === 'edit' ? 'active' : ''}`}
+                    onClick={() => handleEditorModeChange('edit')}
                   >
                     Edit
                   </button>
                   <button 
-                    className={`mode-toggle-btn ${editorMode === 'preview' ? 'active' : ''}`}
-                    onClick={() => setEditorMode('preview')}
+                    className={`mode-toggle-btn ${optimisticEditorMode === 'preview' ? 'active' : ''}`}
+                    onClick={() => handleEditorModeChange('preview')}
                   >
                     Preview
                   </button>
                   {editorType !== 'easy' && (
                     <button 
-                      className={`mode-toggle-btn ${editorMode === 'split' ? 'active' : ''}`}
-                      onClick={() => setEditorMode('split')}
+                      className={`mode-toggle-btn ${optimisticEditorMode === 'split' ? 'active' : ''}`}
+                      onClick={() => handleEditorModeChange('split')}
                     >
                       Split View
                     </button>
@@ -1812,40 +1819,43 @@ export default function App() {
                       />
                     )
                   )}
-                  <div style={{ height: '100%', display: !editingProfileMd && editorType === 'easy' ? 'block' : 'none' }}>
-                    <EasyEditor 
-                      logbookText={logbookText}
-                      onChange={handleEasyLogbookChange}
-                      exercisesDb={activeExercises}
-                    />
-                  </div>
-                  <div style={{ height: '100%', display: !editingProfileMd && editorType !== 'easy' ? 'block' : 'none' }}>
-                    <FoldableEditor
-                      key={currentProgram}
-                      value={logbookText}
-                      onChange={handleManualLogbookChange}
-                      exercisesDb={activeExercises}
-                      onCursorLineChange={handleCursorLineChange}
-                    />
-                  </div>
+                  {!editingProfileMd && editorType === 'easy' && (
+                    <div style={{ height: '100%' }}>
+                      <EasyEditor 
+                        logbookText={logbookText}
+                        onChange={handleEasyLogbookChange}
+                        exercisesDb={activeExercises}
+                      />
+                    </div>
+                  )}
+                  {editorType !== 'easy' && (
+                    <div style={{ height: '100%', display: !editingProfileMd ? 'block' : 'none' }}>
+                      <FoldableEditor
+                        key={currentProgram}
+                        value={logbookText}
+                        onChange={handleManualLogbookChange}
+                        exercisesDb={activeExercises}
+                        onCursorLineChange={handleCursorLineChange}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Live Preview Column (kept mounted for instant edit/preview switching) */}
-              <div
-                className="preview-panel"
-                style={{ display: (!editingProfileMd && (editorMode === 'preview' || editorMode === 'split')) ? 'flex' : 'none' }}
-              >
-                <div className="preview-container">
-                  <LogbookPreview 
-                    workoutData={workoutData} 
-                    activeExerciseStartLine={activeExerciseStartLine}
-                    activeWeekLineIndex={activeWeekLineIndex}
-                    editorMode={editorMode}
-                    dateFormat={dateFormat}
-                  />
+              {/* Live Preview Column (only rendered when preview or split mode is active) */}
+              {!editingProfileMd && (editorMode === 'preview' || editorMode === 'split') && (
+                <div className="preview-panel" style={{ display: 'flex' }}>
+                  <div className="preview-container">
+                    <LogbookPreview 
+                      workoutData={workoutData} 
+                      activeExerciseStartLine={activeExerciseStartLine}
+                      activeWeekLineIndex={activeWeekLineIndex}
+                      editorMode={editorMode}
+                      dateFormat={dateFormat}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
           </div>

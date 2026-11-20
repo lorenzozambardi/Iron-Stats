@@ -12,89 +12,120 @@ export const isSetLine = (str) => {
   return /^[\d().+/@,\s]+$/.test(noOld);
 };
 
-export const customFoldService = foldService.of((state, lineStart) => {
-  const line = state.doc.lineAt(lineStart);
-  const text = line.text.trim();
-  if (!text) return null;
+const foldRangesCache = new WeakMap();
 
-  // 1. Day / Markdown Header: starts with '#'
-  if (text.startsWith('#')) {
-    const match = text.match(/^(#+)/);
-    const headerLevel = match ? match[1].length : 1;
+const computeFoldMap = (doc) => {
+  const map = new Map();
+  const headerStack = []; // { lineNum, lineTo, level, lastNonEmptyTo }
+  let openDates = null; // { lineNum, lineTo, lastDateTo }
+  let openExercise = null; // { lineNum, lineTo, lastSetTo }
 
-    let lastLine = null;
-    for (let ln = line.number + 1; ln <= state.doc.lines; ln++) {
-      const nextLine = state.doc.line(ln);
-      const nextTrim = nextLine.text.trim();
+  const closeHeadersAtOrAboveLevel = (minLevel) => {
+    while (headerStack.length > 0 && headerStack[headerStack.length - 1].level >= minLevel) {
+      const h = headerStack.pop();
+      if (h.lastNonEmptyTo !== null) {
+        map.set(h.lineNum, { from: h.lineTo, to: h.lastNonEmptyTo });
+      }
+    }
+  };
 
-      if (nextTrim.startsWith('#')) {
-        const nextMatch = nextTrim.match(/^(#+)/);
-        const nextLevel = nextMatch ? nextMatch[1].length : 1;
-        if (nextLevel <= headerLevel) {
-          break;
+  const closeOpenDates = () => {
+    if (openDates) {
+      if (openDates.lastDateTo !== null) {
+        map.set(openDates.lineNum, { from: openDates.lineTo, to: openDates.lastDateTo });
+      }
+      openDates = null;
+    }
+  };
+
+  const closeOpenExercise = () => {
+    if (openExercise) {
+      if (openExercise.lastSetTo !== null) {
+        map.set(openExercise.lineNum, { from: openExercise.lineTo, to: openExercise.lastSetTo });
+      }
+      openExercise = null;
+    }
+  };
+
+  for (let ln = 1; ln <= doc.lines; ln++) {
+    const line = doc.line(ln);
+    const text = line.text.trim();
+    if (!text) continue;
+
+    // 1. Check if an active Dates: block continues or closes
+    if (openDates) {
+      if (isDateLine(text)) {
+        openDates.lastDateTo = line.to;
+        for (let i = 0; i < headerStack.length; i++) {
+          headerStack[i].lastNonEmptyTo = line.to;
         }
+        continue;
       }
-
-      if (nextTrim.length > 0) {
-        lastLine = nextLine;
-      }
+      closeOpenDates();
     }
 
-    if (lastLine && lastLine.number > line.number) {
-      return { from: line.to, to: lastLine.to };
+    // 2. Markdown Header: starts with '#'
+    if (text.startsWith('#')) {
+      closeOpenExercise();
+      const match = text.match(/^(#+)/);
+      const headerLevel = match ? match[1].length : 1;
+      closeHeadersAtOrAboveLevel(headerLevel);
+      for (let i = 0; i < headerStack.length; i++) {
+        headerStack[i].lastNonEmptyTo = line.to;
+      }
+      headerStack.push({ lineNum: ln, lineTo: line.to, level: headerLevel, lastNonEmptyTo: null });
+      continue;
     }
-    return null;
+
+    // Update lastNonEmptyTo for all enclosing headers
+    for (let i = 0; i < headerStack.length; i++) {
+      headerStack[i].lastNonEmptyTo = line.to;
+    }
+
+    // 3. Session Dates Block: "Dates:"
+    if (isDatesHeader(text)) {
+      closeOpenExercise();
+      openDates = { lineNum: ln, lineTo: line.to, lastDateTo: null };
+      continue;
+    }
+
+    // 4. Override or Set line vs Exercise Header
+    const lower = text.toLowerCase();
+    const isOverride = lower.startsWith('override:');
+    if (isOverride) {
+      closeOpenExercise();
+      continue;
+    }
+
+    if (isSetLine(text)) {
+      if (openExercise) {
+        openExercise.lastSetTo = line.to;
+      }
+      continue;
+    }
+
+    // 5. Exercise Header (not '#', not 'override:', not 'Dates:', not a date line, not a set line)
+    if (!isDateLine(text)) {
+      closeOpenExercise();
+      openExercise = { lineNum: ln, lineTo: line.to, lastSetTo: null };
+    } else {
+      closeOpenExercise();
+    }
   }
 
-  // 2. Session Dates Block: "Dates:" followed by date lines
-  if (isDatesHeader(text)) {
-    let lastLine = null;
-    for (let ln = line.number + 1; ln <= state.doc.lines; ln++) {
-      const nextLine = state.doc.line(ln);
-      const nextTrim = nextLine.text.trim();
-      if (!nextTrim) continue;
-      if (!isDateLine(nextTrim)) break;
-      lastLine = nextLine;
-    }
-    if (lastLine && lastLine.number > line.number) {
-      return { from: line.to, to: lastLine.to };
-    }
-    return null;
+  closeOpenDates();
+  closeOpenExercise();
+  closeHeadersAtOrAboveLevel(0);
+
+  return map;
+};
+
+export const customFoldService = foldService.of((state, lineStart) => {
+  let map = foldRangesCache.get(state.doc);
+  if (!map) {
+    map = computeFoldMap(state.doc);
+    foldRangesCache.set(state.doc, map);
   }
-
-  // 3. Exercise Header: not '#', not 'override:', not 'Dates:', not a date line, not a set line
-  const isExerciseHeader =
-    !text.startsWith('#') &&
-    !text.toLowerCase().startsWith('override:') &&
-    !isDatesHeader(text) &&
-    !isDateLine(text) &&
-    !isSetLine(text);
-
-  if (isExerciseHeader) {
-    let lastLine = null;
-    for (let ln = line.number + 1; ln <= state.doc.lines; ln++) {
-      const nextLine = state.doc.line(ln);
-      const nextTrim = nextLine.text.trim();
-
-      if (nextTrim.startsWith('#') || isDatesHeader(nextTrim)) break;
-
-      if (
-        nextTrim.length > 0 &&
-        (nextTrim.toLowerCase().startsWith('override:') || !isSetLine(nextTrim))
-      ) {
-        break;
-      }
-
-      if (nextTrim.length > 0) {
-        lastLine = nextLine;
-      }
-    }
-
-    if (lastLine && lastLine.number > line.number) {
-      return { from: line.to, to: lastLine.to };
-    }
-    return null;
-  }
-
-  return null;
+  const line = state.doc.lineAt(lineStart);
+  return map.get(line.number) || null;
 });

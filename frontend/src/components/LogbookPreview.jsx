@@ -8,42 +8,50 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
   const [expandedExerciseKey, setExpandedExerciseKey] = useState(null);
 
   useEffect(() => {
-    if (activeExerciseStartLine !== null && activeExerciseStartLine !== undefined) {
+    if (activeExerciseStartLine === null || activeExerciseStartLine === undefined) return;
+    let cancelled = false;
+
+    const rafInit = requestAnimationFrame(() => {
+      if (cancelled) return;
       const element = document.getElementById(`preview-ex-${activeExerciseStartLine}`);
-      if (element) {
-        const container = element.closest('.preview-container');
-        if (container) {
-          const elementRect = element.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const offset = editorMode === 'split' ? 12 : 68;
-          const targetY = Math.max(0, container.scrollTop + (elementRect.top - containerRect.top) - offset);
-          
-          if (scrollAnimRef.current) {
-            cancelAnimationFrame(scrollAnimRef.current);
-          }
+      if (!element) return;
+      const container = element.closest('.preview-container');
+      if (!container) return;
 
-          const startY = container.scrollTop;
-          const difference = targetY - startY;
-          const duration = 200; // 200ms is the sweet spot for quintic ease-out
-          const startTime = performance.now();
+      const elementRect = element.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const offset = editorMode === 'split' ? 12 : 68;
+      const targetY = Math.max(0, container.scrollTop + (elementRect.top - containerRect.top) - offset);
 
-          const step = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Cubic Bezier-equivalent curve: easeOutQuint (cubic-bezier(0.23, 1, 0.32, 1))
-            const ease = 1 - Math.pow(1 - progress, 5);
-            container.scrollTop = startY + difference * ease;
-            if (progress < 1) {
-              scrollAnimRef.current = requestAnimationFrame(step);
-            } else {
-              scrollAnimRef.current = null;
-            }
-          };
-          scrollAnimRef.current = requestAnimationFrame(step);
-        }
+      if (scrollAnimRef.current) {
+        cancelAnimationFrame(scrollAnimRef.current);
       }
-    }
+
+      const startY = container.scrollTop;
+      const difference = targetY - startY;
+      if (Math.abs(difference) < 1) return;
+      const duration = 200; // 200ms is the sweet spot for quintic ease-out
+      const startTime = performance.now();
+
+      const step = (currentTime) => {
+        if (cancelled) return;
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Cubic Bezier-equivalent curve: easeOutQuint (cubic-bezier(0.23, 1, 0.32, 1))
+        const ease = 1 - Math.pow(1 - progress, 5);
+        container.scrollTop = startY + difference * ease;
+        if (progress < 1) {
+          scrollAnimRef.current = requestAnimationFrame(step);
+        } else {
+          scrollAnimRef.current = null;
+        }
+      };
+      scrollAnimRef.current = requestAnimationFrame(step);
+    });
+
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafInit);
       if (scrollAnimRef.current) {
         cancelAnimationFrame(scrollAnimRef.current);
       }
@@ -87,7 +95,14 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
       const firstDate = sessionDateList.length > 0 ? sessionDateList[0] : null;
       const lastDate = sessionDateList.length > 0 ? sessionDateList[sessionDateList.length - 1] : null;
 
-      return { sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles, firstDate, lastDate };
+      const groupedWeeksMap = new Map();
+      exercises.forEach(ex => {
+        ex.weeks.forEach(wk => {
+          groupedWeeksMap.set(wk, groupSets(wk.sets));
+        });
+      });
+
+      return { sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles, firstDate, lastDate, groupedWeeksMap };
     });
   }, [workoutData]);
 
@@ -101,7 +116,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
 
   return (
     <div className="logbook-preview-content">
-      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles, firstDate, lastDate }) => {
+      {sessionsWithMeta.map(({ sessNum, exercises, latestWeek, totalEffReps, qualifyingMuscles, firstDate, lastDate, groupedWeeksMap }) => {
         const dateRangeLabel = firstDate
           ? (firstDate === lastDate
               ? formatDisplayDate(firstDate, dateFormat)
@@ -252,7 +267,7 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
                             </span>
                           </div>
                           <div className="preview-sets-list">
-                            {groupSets(wk.sets).map((g, gIdx) => {
+                            {(groupedWeeksMap.get(wk) || []).map((g, gIdx) => {
                               if (g.isDropset) {
                                 return (
                                   <div

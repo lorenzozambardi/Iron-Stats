@@ -555,6 +555,7 @@ const DashboardTab = ({
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
 
   // Deferred filter values keep slider thumbs and lock-wheels at 60fps while heavy charts update smoothly
+  const deferredWorkoutData = useDeferredValue(workoutData);
   const deferredSession = useDeferredValue(dashFilterSession);
   const deferredWeekFrom = useDeferredValue(dashFilterWeekFrom);
   const deferredWeekTo = useDeferredValue(dashFilterWeekTo);
@@ -588,8 +589,8 @@ const DashboardTab = ({
 
   // Calculated Metrics — memoized to avoid recomputing on every render
   const sessionsList = useMemo(
-    () => (isDashboardActive ? Array.from(new Set(workoutData.map(d => d.session))).sort((a, b) => a - b) : []),
-    [isDashboardActive, workoutData]
+    () => (isDashboardActive ? Array.from(new Set(deferredWorkoutData.map(d => d.session))).sort((a, b) => a - b) : []),
+    [isDashboardActive, deferredWorkoutData]
   );
 
   // Helper: load a comparison program and parse it (aborts in-flight requests)
@@ -652,7 +653,7 @@ const DashboardTab = ({
   // Derived: filtered data for the dashboard based on session/muscle selectors
   const dashFilteredData = useMemo(() => {
     if (!isDashboardActive) return [];
-    let data = workoutData;
+    let data = deferredWorkoutData;
     if (deferredSession !== 'all') {
       const sNum = parseInt(deferredSession, 10);
       data = data.filter(d => d.session === sNum);
@@ -666,7 +667,7 @@ const DashboardTab = ({
       });
     }
     return data;
-  }, [isDashboardActive, workoutData, deferredSession, deferredMacro, deferredSubgroup]);
+  }, [isDashboardActive, deferredWorkoutData, deferredSession, deferredMacro, deferredSubgroup]);
 
   // Derived: filtered data for compare program B
   const cmpFilteredData = useMemo(() => {
@@ -700,8 +701,8 @@ const DashboardTab = ({
   const allFullWeeksList = useMemo(() => {
     if (!isDashboardActive) return [];
     const targetSession = deferredSession !== 'all' ? parseInt(deferredSession, 10) : null;
-    return getFullWeeksList(dashWeeksList, targetSession, sessionsList, workoutData);
-  }, [isDashboardActive, dashWeeksList, deferredSession, sessionsList, workoutData]);
+    return getFullWeeksList(dashWeeksList, targetSession, sessionsList, deferredWorkoutData);
+  }, [isDashboardActive, dashWeeksList, deferredSession, sessionsList, deferredWorkoutData]);
 
   const allWeeksMetrics = useMemo(() => {
     if (!isDashboardActive) return [];

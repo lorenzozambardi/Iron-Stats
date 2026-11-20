@@ -1329,7 +1329,6 @@ input::-webkit-list-button {
   min-height: 0;
   min-width: 0;
   max-width: 100%;
-  animation: editorPanelFadeIn 0.1s ease-out;
 }
 
 .preview-container {
@@ -1422,7 +1421,14 @@ input::-webkit-list-button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.easy-exercise-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
 }
 
 .preview-exercise-card.active {
@@ -1524,7 +1530,7 @@ input::-webkit-list-button {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .preview-week-column.active {

@@ -245,21 +245,26 @@ function FoldableEditor({
         const head = update.state.selection.main.head;
         const line = update.state.doc.lineAt(head);
         const cursorCol = head - line.from;
-        const docLines = update.state.doc.toString().split('\n');
-        const expansion = resolveImmediateSnippet({
-          lineText: line.text,
-          cursorCol,
-          docLines,
-          lineIndex: line.number - 1,
-        });
-        if (expansion) {
-          const from = line.from + expansion.replaceFromCol;
-          const to = line.from + expansion.replaceToCol;
-          const nextCursor = from + expansion.insert.length;
-          update.view.dispatch({
-            changes: { from, to, insert: expansion.insert },
-            selection: { anchor: nextCursor, head: nextCursor },
+        const before = line.text.slice(0, cursorCol);
+        const needsDateSnippet = /(?:^|\s)date$/.test(before);
+        const needsEqSnippet = /^\s*eq$/.test(before) && line.text.slice(cursorCol).trim().length === 0;
+        if (needsDateSnippet || needsEqSnippet) {
+          const docLines = needsEqSnippet ? update.state.doc.toString().split('\n') : null;
+          const expansion = resolveImmediateSnippet({
+            lineText: line.text,
+            cursorCol,
+            docLines,
+            lineIndex: line.number - 1,
           });
+          if (expansion) {
+            const from = line.from + expansion.replaceFromCol;
+            const to = line.from + expansion.replaceToCol;
+            const nextCursor = from + expansion.insert.length;
+            update.view.dispatch({
+              changes: { from, to, insert: expansion.insert },
+              selection: { anchor: nextCursor, head: nextCursor },
+            });
+          }
         }
       }
     })
