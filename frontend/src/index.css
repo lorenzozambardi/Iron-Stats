@@ -3039,6 +3039,7 @@ input::-webkit-list-button {
 .mobile-editor-mode-group {
   display: flex;
   align-items: center;
+  gap: 2px;
   position: relative;
   overflow: hidden;
   max-width: 130px;
@@ -3055,6 +3056,7 @@ input::-webkit-list-button {
 .mode-pill-btn {
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
   border-radius: 50%;
   display: flex;
   align-items: center;
