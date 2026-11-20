@@ -76,23 +76,33 @@ public class FolderPickerPlugin extends Plugin {
     @PluginMethod
     public void listDirectory(PluginCall call) {
         String uriStr = call.getString("uri");
+        String subpath = call.getString("subpath");
         if (uriStr == null) { call.reject("No URI provided"); return; }
 
         try {
-            DocumentFile dir = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
-            if (dir == null || !dir.isDirectory()) { call.reject("Invalid directory"); return; }
+            DocumentFile root = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+            if (root == null || !root.isDirectory()) { call.reject("Invalid directory"); return; }
 
+            DocumentFile dir = resolveDirectory(root, subpath, false);
             JSArray files = new JSArray();
-            DocumentFile[] listing = dir.listFiles();
-            if (listing != null) {
-                for (DocumentFile f : listing) {
-                    if (f.isFile() && f.getName() != null) {
-                        files.put(f.getName());
+            JSArray directories = new JSArray();
+            if (dir != null && dir.isDirectory()) {
+                DocumentFile[] listing = dir.listFiles();
+                if (listing != null) {
+                    for (DocumentFile f : listing) {
+                        String name = f.getName();
+                        if (name == null || name.startsWith(".")) continue;
+                        if (f.isDirectory()) {
+                            directories.put(name);
+                        } else if (f.isFile()) {
+                            files.put(name);
+                        }
                     }
                 }
             }
             JSObject ret = new JSObject();
             ret.put("files", files);
+            ret.put("directories", directories);
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("listDirectory failed: " + e.getMessage());
@@ -108,10 +118,15 @@ public class FolderPickerPlugin extends Plugin {
         if (uriStr == null || filename == null) { call.reject("Missing parameters"); return; }
 
         try {
-            DocumentFile dir  = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
-            if (dir == null) { call.reject("Invalid directory"); return; }
+            DocumentFile root = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+            if (root == null) { call.reject("Invalid directory"); return; }
 
-            DocumentFile file = dir.findFile(filename);
+            String[] parts = splitRelativePath(filename);
+            if (parts == null) { call.reject("Invalid path: " + filename); return; }
+            DocumentFile parentDir = resolveDirectorySegments(root, parts, parts.length - 1, false);
+            if (parentDir == null) { call.reject("Directory not found for: " + filename); return; }
+
+            DocumentFile file = parentDir.findFile(parts[parts.length - 1]);
             if (file == null || !file.exists()) { call.reject("File not found: " + filename); return; }
 
             byte[] bytes;
@@ -138,22 +153,28 @@ public class FolderPickerPlugin extends Plugin {
         if (uriStr == null || filename == null || data == null) { call.reject("Missing parameters"); return; }
 
         try {
-            DocumentFile dir = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
-            if (dir == null) { call.reject("Invalid directory"); return; }
+            DocumentFile root = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+            if (root == null) { call.reject("Invalid directory"); return; }
 
-            DocumentFile file = dir.findFile(filename);
+            String[] parts = splitRelativePath(filename);
+            if (parts == null) { call.reject("Invalid path: " + filename); return; }
+            DocumentFile parentDir = resolveDirectorySegments(root, parts, parts.length - 1, true);
+            if (parentDir == null) { call.reject("Failed to resolve directory for: " + filename); return; }
+
+            String leafName = parts[parts.length - 1];
+            DocumentFile file = parentDir.findFile(leafName);
             if (file == null) {
                 String mimeType = "application/octet-stream";
-                if (filename.endsWith(".json")) {
+                if (leafName.endsWith(".json")) {
                     mimeType = "application/json";
-                } else if (filename.endsWith(".md")) {
+                } else if (leafName.endsWith(".md")) {
                     mimeType = "text/markdown";
-                } else if (filename.endsWith(".txt")) {
+                } else if (leafName.endsWith(".txt")) {
                     mimeType = "text/plain";
                 }
-                file = dir.createFile(mimeType, filename);
-                if (file != null && file.getName() != null && !filename.equals(file.getName())) {
-                    file.renameTo(filename);
+                file = parentDir.createFile(mimeType, leafName);
+                if (file != null && file.getName() != null && !leafName.equals(file.getName())) {
+                    file.renameTo(leafName);
                 }
             }
             if (file == null) { call.reject("Failed to create file: " + filename); return; }
@@ -174,6 +195,40 @@ public class FolderPickerPlugin extends Plugin {
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private String[] splitRelativePath(String path) {
+        if (path == null) return null;
+        String[] raw = path.replace('\\', '/').split("/");
+        java.util.List<String> clean = new java.util.ArrayList<>();
+        for (String seg : raw) {
+            if (seg.isEmpty()) continue;
+            if (".".equals(seg) || "..".equals(seg)) return null;
+            clean.add(seg);
+        }
+        return clean.isEmpty() ? null : clean.toArray(new String[0]);
+    }
+
+    private DocumentFile resolveDirectory(DocumentFile root, String subpath, boolean createMissing) {
+        if (subpath == null || subpath.trim().isEmpty()) return root;
+        String[] parts = splitRelativePath(subpath);
+        if (parts == null) return null;
+        return resolveDirectorySegments(root, parts, parts.length, createMissing);
+    }
+
+    private DocumentFile resolveDirectorySegments(DocumentFile root, String[] parts, int count, boolean createMissing) {
+        DocumentFile current = root;
+        for (int i = 0; i < count; i++) {
+            String seg = parts[i];
+            DocumentFile next = current.findFile(seg);
+            if (next == null) {
+                if (!createMissing) return null;
+                next = current.createDirectory(seg);
+            }
+            if (next == null || !next.isDirectory()) return null;
+            current = next;
+        }
+        return current;
+    }
 
     private byte[] readStream(InputStream is) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

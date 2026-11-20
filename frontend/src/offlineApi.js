@@ -111,8 +111,101 @@ window.fetch = async (input, init) => {
   const urlObj  = new URL(urlStr, 'http://localhost');
   const rawMethod = init?.method || (input instanceof Request ? input.method : 'GET');
   const method  = String(rawMethod).toUpperCase();
-  const { dirType, dir, safUri } = getStorageConfig();
+  const { dirType, dir, safUri, subfolder } = getStorageConfig();
   const isCustom = dirType === 'custom' && safUri;
+
+  const listDir = async (subpath = '') => {
+    if (isCustom) {
+      const res = await FolderPicker.listDirectory({ uri: safUri, subpath });
+      return {
+        files: Array.isArray(res?.files) ? res.files : [],
+        directories: Array.isArray(res?.directories) ? res.directories : []
+      };
+    }
+    const targetPath = subpath ? filePath(subpath) : (subfolder || '');
+    const res = await Filesystem.readdir({ path: targetPath, directory: dir });
+    const files = [];
+    const directories = [];
+    for (const entry of (res?.files || [])) {
+      const name = typeof entry === 'string' ? entry : entry?.name;
+      if (!name || name.startsWith('.')) continue;
+      if (entry?.type === 'directory') {
+        directories.push(name);
+      } else {
+        files.push(name);
+      }
+    }
+    return { files, directories };
+  };
+
+  const getAvailableProfiles = async () => {
+    try {
+      const { directories } = await listDir('');
+      return directories.slice().sort((a, b) => a.localeCompare(b));
+    } catch {
+      return [];
+    }
+  };
+
+  const resolveProfileScope = async (rawProfile) => {
+    const profiles = await getAvailableProfiles();
+    const requested = sanitizeLogbookName(rawProfile);
+    const selected = requested && profiles.includes(requested)
+      ? requested
+      : (profiles.includes('Lorenzo') ? 'Lorenzo' : (profiles[0] || ''));
+
+    if (selected) {
+      let hasProgramsSubdir = false;
+      try {
+        const { directories } = await listDir(selected);
+        hasProgramsSubdir = directories.includes('Programs');
+      } catch { /* ignore */ }
+      return {
+        profileName: selected,
+        profilePath: `${selected}/profile.md`,
+        programsDir: hasProgramsSubdir ? `${selected}/Programs` : selected,
+      };
+    }
+
+    let hasProgramsSubdir = false;
+    try {
+      const { directories } = await listDir('');
+      hasProgramsSubdir = directories.includes('Programs');
+    } catch { /* ignore */ }
+    return {
+      profileName: '',
+      profilePath: 'profile.md',
+      programsDir: hasProgramsSubdir ? 'Programs' : '',
+    };
+  };
+
+  const joinRel = (base, leaf) => (base ? `${base}/${leaf}` : leaf);
+
+  const readRelFile = async (relPath) => {
+    if (isCustom) {
+      const res = await FolderPicker.readFile({ uri: safUri, filename: relPath });
+      return res.data;
+    }
+    const res = await Filesystem.readFile({ path: filePath(relPath), directory: dir, encoding: Encoding.UTF8 });
+    return res.data;
+  };
+
+  const writeRelFile = async (relPath, data) => {
+    if (isCustom) {
+      await FolderPicker.writeFile({ uri: safUri, filename: relPath, data });
+    } else {
+      await Filesystem.writeFile({ path: filePath(relPath), data, directory: dir, encoding: Encoding.UTF8, recursive: true });
+    }
+  };
+
+  if (urlObj.pathname === '/api/profiles' && method === 'GET') {
+    try {
+      const profiles = await getAvailableProfiles();
+      return new Response(JSON.stringify(profiles), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
 
   if (urlObj.pathname === '/api/exercises/reset') {
     if (method === 'POST') {
@@ -169,22 +262,12 @@ window.fetch = async (input, init) => {
   if (urlObj.pathname === '/api/programs') {
     if (method === 'GET') {
       try {
-        let names;
-        if (isCustom) {
-          const res = await FolderPicker.listDirectory({ uri: safUri });
-          names = (res.files || [])
-            .filter(n => typeof n === 'string' && n.endsWith('.md') && n.toLowerCase() !== 'profile.md')
-            .map(n => n.replace(/\.md$/, ''))
-            .filter(n => sanitizeLogbookName(n).length > 0);
-        } else {
-          const { subfolder } = getStorageConfig();
-          const res = await Filesystem.readdir({ path: subfolder || '', directory: dir });
-          names = res.files
-            .map(f => f.name)
-            .filter(n => typeof n === 'string' && n.endsWith('.md') && n.toLowerCase() !== 'profile.md')
-            .map(n => n.replace(/\.md$/, ''))
-            .filter(n => sanitizeLogbookName(n).length > 0);
-        }
+        const { programsDir } = await resolveProfileScope(urlObj.searchParams.get('profile'));
+        const res = await listDir(programsDir);
+        const names = (res.files || [])
+          .filter(n => typeof n === 'string' && n.endsWith('.md') && n.toLowerCase() !== 'profile.md')
+          .map(n => n.replace(/\.md$/, ''))
+          .filter(n => sanitizeLogbookName(n).length > 0);
         return new Response(JSON.stringify(names), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch {
         return new Response(JSON.stringify(['S1M3']), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -193,6 +276,7 @@ window.fetch = async (input, init) => {
       try {
         const bodyText = await readRequestBodyText(input, init);
         const data     = JSON.parse(bodyText);
+        const { programsDir } = await resolveProfileScope(data.profile || urlObj.searchParams.get('profile'));
         const name     = (data.name || '').replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
         if (!name) {
           return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -200,23 +284,14 @@ window.fetch = async (input, init) => {
         const filename = `${name}.md`;
         const fileContent = data.content || `# 1\nDates:\n\nLat machine | 3' |\n90.. 9+2, 7+2\n`;
 
-        if (isCustom) {
-          // Check if it already exists
-          try {
-            const listing = await FolderPicker.listDirectory({ uri: safUri });
-            if ((listing.files || []).includes(filename)) {
-              return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
-            }
-          } catch { /* ignore */ }
-          await FolderPicker.writeFile({ uri: safUri, filename, data: fileContent });
-        } else {
-          const fullPath = filePath(filename);
-          try {
-            await Filesystem.stat({ path: fullPath, directory: dir });
+        try {
+          const listing = await listDir(programsDir);
+          if ((listing.files || []).includes(filename)) {
             return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
-          } catch { /* ignore */ }
-          await Filesystem.writeFile({ path: fullPath, data: fileContent, directory: dir, encoding: Encoding.UTF8, recursive: true });
-        }
+          }
+        } catch { /* ignore */ }
+        await writeRelFile(joinRel(programsDir, filename), fileContent);
+
         return new Response(JSON.stringify({ success: true, name }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
@@ -226,34 +301,26 @@ window.fetch = async (input, init) => {
 
   // ── /api/logbook ───────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/logbook') {
+    const { programsDir } = await resolveProfileScope(urlObj.searchParams.get('profile'));
     const rawProgram = urlObj.searchParams.get('program');
     const programName = rawProgram === null ? 'S1M3' : rawProgram;
     const cleanName   = sanitizeLogbookName(programName);
     if (!cleanName) {
       return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
-    const filename    = `${cleanName}.md`;
+    const relPath = joinRel(programsDir, `${cleanName}.md`);
 
     if (method === 'GET') {
       try {
-        if (isCustom) {
-          const res = await FolderPicker.readFile({ uri: safUri, filename });
-          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-        } else {
-          const res = await Filesystem.readFile({ path: filePath(filename), directory: dir, encoding: Encoding.UTF8 });
-          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-        }
+        const data = await readRelFile(relPath);
+        return new Response(data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
       } catch {
-        return new Response(`Logbook file ${filename} not found`, { status: 404 });
+        return new Response(`Logbook file ${cleanName}.md not found`, { status: 404 });
       }
     } else if (method === 'POST') {
       try {
         const bodyText = await readRequestBodyText(input, init);
-        if (isCustom) {
-          await FolderPicker.writeFile({ uri: safUri, filename, data: bodyText });
-        } else {
-          await Filesystem.writeFile({ path: filePath(filename), data: bodyText, directory: dir, encoding: Encoding.UTF8, recursive: true });
-        }
+        await writeRelFile(relPath, bodyText);
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
@@ -263,27 +330,18 @@ window.fetch = async (input, init) => {
 
   // ── /api/profile ───────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/profile') {
-    const filename = 'profile.md';
+    const { profilePath } = await resolveProfileScope(urlObj.searchParams.get('profile'));
     if (method === 'GET') {
       try {
-        if (isCustom) {
-          const res = await FolderPicker.readFile({ uri: safUri, filename });
-          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-        } else {
-          const res = await Filesystem.readFile({ path: filePath(filename), directory: dir, encoding: Encoding.UTF8 });
-          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-        }
+        const data = await readRelFile(profilePath);
+        return new Response(data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
       } catch {
         return new Response('profile.md not found', { status: 404 });
       }
     } else if (method === 'POST') {
       try {
         const bodyText = await readRequestBodyText(input, init);
-        if (isCustom) {
-          await FolderPicker.writeFile({ uri: safUri, filename, data: bodyText });
-        } else {
-          await Filesystem.writeFile({ path: filePath(filename), data: bodyText, directory: dir, encoding: Encoding.UTF8, recursive: true });
-        }
+        await writeRelFile(profilePath, bodyText);
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
