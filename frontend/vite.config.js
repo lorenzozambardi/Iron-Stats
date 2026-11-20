@@ -17,8 +17,12 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           const urlObj = new URL(req.url, 'http://localhost');
           const examplesDir = path.resolve(__dirname, '../logbooks');
+          const lorenzoDir = path.resolve(examplesDir, 'Lorenzo');
+          const lorenzoProgramsDir = path.resolve(lorenzoDir, 'Programs');
           const programsSubdir = path.resolve(examplesDir, 'Programs');
-          const programsDir = fs.existsSync(programsSubdir) ? programsSubdir : examplesDir;
+          const programsDir = fs.existsSync(lorenzoProgramsDir)
+            ? lorenzoProgramsDir
+            : (fs.existsSync(programsSubdir) ? programsSubdir : examplesDir);
 
           if (urlObj.pathname === '/api/logbook') {
             const rawProgram = urlObj.searchParams.get('program');
@@ -58,7 +62,9 @@ export default defineConfig({
           }
 
           if (urlObj.pathname === '/api/profile') {
-            const profilePath = path.resolve(examplesDir, 'profile.md');
+            const profilePath = fs.existsSync(lorenzoDir)
+              ? path.resolve(lorenzoDir, 'profile.md')
+              : path.resolve(examplesDir, 'profile.md');
             if (req.method === 'GET') {
               if (fs.existsSync(profilePath)) {
                 res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
