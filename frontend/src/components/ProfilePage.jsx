@@ -804,21 +804,23 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
                     <span className="profile-stat-label">{field.label} (cm)</span>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      style={{
-                        padding: '3px 8px',
-                        fontSize: '0.68rem',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        flexShrink: 0,
-                      }}
-                      onClick={() => handleLogStat(field.bilateral ? [field.leftKey, field.rightKey] : field.key)}
-                    >
-                      <Plus size={11} /> Log
-                    </button>
+                    {field.bilateral && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '0.68rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          flexShrink: 0,
+                        }}
+                        onClick={() => handleLogStat([field.leftKey, field.rightKey])}
+                      >
+                        <Plus size={11} /> Log
+                      </button>
+                    )}
                   </div>
                   {field.bilateral ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -848,15 +850,32 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                       </label>
                     </div>
                   ) : (
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="10"
-                      max="250"
-                      style={inputStyle}
-                      value={current[field.key] ?? ''}
-                      onChange={(e) => updateCurrent(field.key, e.target.value)}
-                    />
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="10"
+                        max="250"
+                        style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                        value={current[field.key] ?? ''}
+                        onChange={(e) => updateCurrent(field.key, e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{
+                          padding: '7px 14px',
+                          fontSize: '0.78rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          flexShrink: 0,
+                        }}
+                        onClick={() => handleLogStat(field.key)}
+                      >
+                        <Plus size={14} /> Log
+                      </button>
+                    </div>
                   )}
                   {hasAnyCircumferenceLogs && (
                     <div style={{ paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
