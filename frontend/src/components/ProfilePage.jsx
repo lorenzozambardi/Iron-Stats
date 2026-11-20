@@ -277,38 +277,21 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
       background: 'var(--bg-primary)',
       zIndex: 10000,
       overflowY: 'auto',
-      padding: '80px 16px 80px 16px',
+      padding: '24px 16px 64px 16px',
       opacity: visible ? 1 : 0,
       transform: visible ? 'none' : 'translateY(16px)',
       transition: 'opacity 0.2s ease, transform 0.2s ease',
     }}>
-      <button
-        type="button"
-        onClick={handleClose}
-        aria-label="Close profile"
-        style={{
-          position: 'absolute',
-          top: '20px',
-          right: '20px',
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--text-primary)',
-          fontSize: '2rem',
-          cursor: 'pointer',
-          lineHeight: 1,
-        }}
-      >×</button>
-
       <div style={{
         maxWidth: '860px',
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        gap: '22px',
       }}>
         {/* Header Card */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ ...cardStyle, padding: '16px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
             <h2 style={{
               fontFamily: 'var(--font-display)',
               fontSize: '1.5rem',
@@ -319,6 +302,26 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
             }}>
               Profile
             </h2>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close profile"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                color: 'var(--text-secondary)',
+                fontSize: '1.35rem',
+                width: '34px',
+                height: '34px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
+            >×</button>
           </div>
           {hasAnyTrends && (
             <div style={{
@@ -341,66 +344,57 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
           )}
         </div>
 
-        {/* Weight & Body Fat Trend Cards (shown once >= 2 logs exist for a metric) */}
-        {(allWeightCount >= 2 || allBfCount >= 2) && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: allWeightCount >= 2 && allBfCount >= 2
-              ? 'repeat(2, minmax(0, 1fr))'
-              : '1fr',
-            gap: '12px',
-          }}>
+        {/* Body Composition (Weight & Body Fat) */}
+        <section className="profile-section">
+          <h3 style={sectionTitleStyle}>Body Composition</h3>
+          <div className="profile-metric-grid-2">
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
+              <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
               {allWeightCount >= 2 && (
-                <div className="metric-summary-card">
-                  <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
-                  <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
-                  {weightSeries.length >= 2 ? (
-                    <>
-                      <TrendBadge values={weightSeries} />
-                      <MetricSparkline
-                        values={weightSeries}
-                        color="#a3a3a3"
-                        gradId="profile-spark-weight"
-                      />
-                    </>
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Not enough logs in range
-                    </span>
-                  )}
-                </div>
+                weightSeries.length >= 2 ? (
+                  <>
+                    <TrendBadge values={weightSeries} />
+                    <MetricSparkline
+                      values={weightSeries}
+                      color="#a3a3a3"
+                      gradId="profile-spark-weight"
+                    />
+                  </>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Not enough logs in range
+                  </span>
+                )
               )}
+            </div>
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
+              <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
               {allBfCount >= 2 && (
-                <div className="metric-summary-card">
-                  <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
-                  <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
-                  {bodyFatSeries.length >= 2 ? (
-                    <>
-                      <TrendBadge values={bodyFatSeries} invertColor />
-                      <MetricSparkline
-                        values={bodyFatSeries}
-                        color="#a3a3a3"
-                        gradId="profile-spark-bf"
-                      />
-                    </>
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Not enough logs in range
-                    </span>
-                  )}
-                </div>
+                bodyFatSeries.length >= 2 ? (
+                  <>
+                    <TrendBadge values={bodyFatSeries} invertColor />
+                    <MetricSparkline
+                      values={bodyFatSeries}
+                      color="#a3a3a3"
+                      gradId="profile-spark-bf"
+                    />
+                  </>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Not enough logs in range
+                  </span>
+                )
               )}
+            </div>
           </div>
-        )}
+        </section>
 
         {/* Derived Composition */}
-        <div style={cardStyle}>
+        <section className="profile-section">
           <h3 style={sectionTitleStyle}>Derived Metrics</h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: '10px',
-          }}>
+          <div className="profile-metric-grid-2">
             {derivedCards.map((item) => (
               <button
                 key={item.key}
@@ -435,53 +429,45 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* Core Biometrics + Metabolic Estimates */}
-        <div style={cardStyle}>
+        <section className="profile-section">
           <h3 style={sectionTitleStyle}>Core Biometrics &amp; Energy Expenditure</h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '10px',
-          }}>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Age</span>
-              <span className="profile-derived-val">{age !== null ? `${age} yrs` : '—'}</span>
+          <div className="profile-metric-grid-3">
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Age</span>
+              <span className="metric-value">{age !== null ? `${age} yrs` : '—'}</span>
             </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Sex</span>
-              <span className="profile-derived-val">{current.sex || 'M'}</span>
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Sex</span>
+              <span className="metric-value">{current.sex || 'M'}</span>
             </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Height</span>
-              <span className="profile-derived-val">{current.height || 0} cm</span>
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Height</span>
+              <span className="metric-value">{current.height || 0} cm</span>
             </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Avg. Steps / Day</span>
-              <span className="profile-derived-val">{Number(current.avgSteps ?? 8000).toLocaleString()}</span>
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Avg. Steps / Day</span>
+              <span className="metric-value">{Number(current.avgSteps ?? 8000).toLocaleString()}</span>
             </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">BMR (Katch-McArdle)</span>
-              <span className="profile-derived-val">{Math.round(derived.bmr).toLocaleString()} kcal</span>
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>BMR (Katch-McArdle)</span>
+              <span className="metric-value">{Math.round(derived.bmr).toLocaleString()} kcal</span>
             </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Estimated TDEE</span>
-              <span className="profile-derived-val">
+            <div className="metric-summary-card profile-static-card">
+              <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Estimated TDEE</span>
+              <span className="metric-value">
                 {Math.round(derived.tdeeData.tdee).toLocaleString()} kcal
               </span>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Circumferences Mini Graph Cards */}
-        <div style={cardStyle}>
+        <section className="profile-section">
           <h3 style={sectionTitleStyle}>Circumferences (cm)</h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: '10px',
-          }}>
+          <div className="profile-metric-grid-3">
             {CIRCUMFERENCE_FIELDS.map((field) => {
               const singleData = !field.bilateral ? seriesByType[field.key] : null;
               const leftData = field.bilateral ? seriesByType[field.leftKey] : null;
@@ -498,9 +484,9 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                 : `${Number(current[field.key] || 0).toFixed(1)} cm`;
 
               return (
-                <div key={field.key} className="metric-summary-card">
+                <div key={field.key} className="metric-summary-card profile-static-card">
                   <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>{field.label}</span>
-                  <span className="metric-value" style={{ fontSize: field.bilateral ? '1.05rem' : undefined }}>{valText}</span>
+                  <span className="metric-value" style={{ fontSize: field.bilateral ? '1.1rem' : undefined }}>{valText}</span>
                   {hasAnyCircumferenceLogs && (
                     hasInRange ? (
                       <>
@@ -538,7 +524,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               );
             })}
           </div>
-        </div>
+        </section>
       </div>
 
       {selectedMetricDetail && createPortal(

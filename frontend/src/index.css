@@ -4317,5 +4317,39 @@ input::-webkit-list-button {
   line-height: 1.2;
 }
 
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-metric-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-metric-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .profile-metric-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.metric-summary-card.profile-static-card {
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .metric-summary-card.profile-static-card:hover {
+    transform: none;
+  }
+}
+
 
 
