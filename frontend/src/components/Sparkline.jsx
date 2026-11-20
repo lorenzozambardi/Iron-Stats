@@ -18,7 +18,7 @@ export const TrendBadge = React.memo(({ values, invertColor = false }) => {
   );
 });
 
-const buildSparklinePath = (vals, w, h, padY, min, range) => {
+const buildSparklinePath = (vals, w, h, padY, min, range, linear = false) => {
   const hasTimestamps =
     vals.length >= 2 &&
     vals.every((item) => typeof item === 'object' && item !== null && Number.isFinite(item.t));
@@ -48,13 +48,17 @@ const buildSparklinePath = (vals, w, h, padY, min, range) => {
   for (let i = 0; i < pts.length - 1; i++) {
     const [x0, y0] = pts[i];
     const [x1, y1] = pts[i + 1];
-    const cx = (x0 + x1) / 2;
-    linePath += ` C${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+    if (linear) {
+      linePath += ` L${x1.toFixed(1)},${y1.toFixed(1)}`;
+    } else {
+      const cx = (x0 + x1) / 2;
+      linePath += ` C${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+    }
   }
   return linePath;
 };
 
-export const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId, height = 58 }) => {
+export const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId, height = 58, linear = false }) => {
   const hasA = values && values.length >= 2;
   const hasB = compareValues && compareValues.length >= 2;
   if (!hasA && !hasB) return null;
@@ -64,9 +68,9 @@ export const MetricSparkline = React.memo(({ values, compareValues, color, compa
   const padY = 2;
   const { min, range } = getMinMax(values, compareValues, hasA, hasB);
 
-  const linePathA = hasA ? buildSparklinePath(values, w, h, padY, min, range) : null;
+  const linePathA = hasA ? buildSparklinePath(values, w, h, padY, min, range, linear) : null;
   const areaPathA = linePathA ? `${linePathA} L${w},${h} L0,${h} Z` : null;
-  const linePathB = hasB ? buildSparklinePath(compareValues, w, h, padY, min, range) : null;
+  const linePathB = hasB ? buildSparklinePath(compareValues, w, h, padY, min, range, linear) : null;
 
   return (
     <svg

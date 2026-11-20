@@ -636,7 +636,7 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
               const tMax = pts[pts.length - 1].t;
               const tRange = tMax - tMin;
               const targetT = tMin + (sliderPos / 100) * tRange;
-              const sampledVal = sampleSparklineAtTime(pts, targetT);
+              const sampledVal = sampleSparklineAtTime(pts, targetT, true);
 
               let currentWeek = weeks[weeks.length - 1];
               if (targetT <= tMin) {
@@ -708,6 +708,7 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
                         color={data.color}
                         gradId={`detail-spark-${activeMetric}`}
                         height={92}
+                        linear
                       />
                       <div
                         aria-hidden="true"

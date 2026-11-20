@@ -227,7 +227,7 @@ export const getMinMax = (values, compareValues, hasA, hasB) => {
   return { min, max, range: max - min };
 };
 
-export const sampleSparklineAtTime = (pts, targetT) => {
+export const sampleSparklineAtTime = (pts, targetT, linear = false) => {
   if (!pts || pts.length === 0) return 0;
   if (pts.length === 1 || targetT <= pts[0].t) return pts[0].v;
   if (targetT >= pts[pts.length - 1].t) return pts[pts.length - 1].v;
@@ -245,6 +245,9 @@ export const sampleSparklineAtTime = (pts, targetT) => {
   if (dt <= 0) return p1.v;
 
   const targetFrac = (targetT - p0.t) / dt;
+  if (linear) {
+    return p0.v + (p1.v - p0.v) * targetFrac;
+  }
   let lo = 0;
   let hi = 1;
   for (let k = 0; k < 18; k++) {
