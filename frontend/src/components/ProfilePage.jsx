@@ -1165,11 +1165,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               padding: '10px 12px',
               borderRadius: '10px',
               color: 'var(--text-primary)',
-              fontSize: '0.82rem',
               overflowX: 'auto',
               textAlign: 'center',
             }}>
-              <Latex math={selectedMetricDetail.math} />
+              <Latex math={selectedMetricDetail.math} block />
             </div>
           </div>
         </div>,
