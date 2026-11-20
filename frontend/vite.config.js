@@ -17,6 +17,8 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           const urlObj = new URL(req.url, 'http://localhost');
           const examplesDir = path.resolve(__dirname, '../logbooks');
+          const programsSubdir = path.resolve(examplesDir, 'Programs');
+          const programsDir = fs.existsSync(programsSubdir) ? programsSubdir : examplesDir;
 
           if (urlObj.pathname === '/api/logbook') {
             const rawProgram = urlObj.searchParams.get('program');
@@ -27,7 +29,7 @@ export default defineConfig({
               res.end(JSON.stringify({ error: 'Invalid program name' }));
               return;
             }
-            const logbookPath = path.resolve(examplesDir, `${cleanProgramName}.md`);
+            const logbookPath = path.resolve(programsDir, `${cleanProgramName}.md`);
 
             if (req.method === 'GET') {
               if (fs.existsSync(logbookPath)) {
@@ -86,7 +88,7 @@ export default defineConfig({
           if (urlObj.pathname === '/api/programs') {
             if (req.method === 'GET') {
               try {
-                const files = fs.readdirSync(examplesDir);
+                const files = fs.readdirSync(programsDir);
                 const programs = files
                   .filter(file => file.endsWith('.md') && file.toLowerCase() !== 'profile.md')
                   .map(file => path.basename(file, '.md'))
@@ -111,7 +113,7 @@ export default defineConfig({
                     res.end(JSON.stringify({ error: 'Invalid program name' }));
                     return;
                   }
-                  const newPath = path.resolve(examplesDir, `${name}.md`);
+                  const newPath = path.resolve(programsDir, `${name}.md`);
                   if (fs.existsSync(newPath)) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Program already exists' }));
