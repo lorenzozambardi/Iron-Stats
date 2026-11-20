@@ -568,10 +568,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
 
         {/* Derived Composition */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-            <h3 style={sectionTitleStyle}>Derived Metrics</h3>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tap for graph &amp; math</span>
-          </div>
+          <h3 style={sectionTitleStyle}>Derived Metrics</h3>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
