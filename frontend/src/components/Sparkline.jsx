@@ -54,7 +54,7 @@ const buildSparklinePath = (vals, w, h, padY, min, range) => {
   return linePath;
 };
 
-export const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId }) => {
+export const MetricSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)', gradId, height = 58 }) => {
   const hasA = values && values.length >= 2;
   const hasB = compareValues && compareValues.length >= 2;
   if (!hasA && !hasB) return null;
@@ -72,7 +72,7 @@ export const MetricSparkline = React.memo(({ values, compareValues, color, compa
     <svg
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
-      style={{ width: '100%', height: '58px', display: 'block', marginTop: '4px', overflow: 'visible' }}
+      style={{ width: '100%', height: `${height}px`, display: 'block', marginTop: '4px', overflow: 'visible' }}
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">

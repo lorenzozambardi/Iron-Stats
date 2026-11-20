@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { LockWheelPicker } from './FilterControls';
 import { Latex } from './MathComponents';
@@ -1109,46 +1108,20 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               background: 'rgba(255, 255, 255, 0.025)',
               border: '1px solid var(--border-color)',
               borderRadius: '10px',
-              padding: '10px',
+              padding: '12px',
             }}>
               {selectedMetricDetail.series.length >= 2 ? (
-                <div style={{ width: '100%', height: '150px' }}>
-                  <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
-                    <LineChart data={selectedMetricDetail.series} margin={{ top: 6, right: 10, left: -14, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(255, 255, 255, 0.06)" strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="label"
-                        tick={{ fill: '#9ca3af', fontSize: 10 }}
-                        tickLine={false}
-                        axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
-                      />
-                      <YAxis
-                        domain={['auto', 'auto']}
-                        tick={{ fill: '#9ca3af', fontSize: 10 }}
-                        tickLine={false}
-                        axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
-                        width={42}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: 'var(--bg-secondary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                          fontSize: '0.76rem',
-                          color: 'var(--text-primary)',
-                        }}
-                        formatter={(val) => [`${Number(val).toFixed(1)}${selectedMetricDetail.unit}`, selectedMetricDetail.title]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="v"
-                        stroke="#a3a3a3"
-                        strokeWidth={2}
-                        dot={{ r: 2.5, fill: '#a3a3a3' }}
-                        activeDot={{ r: 4.5, fill: '#ffffff' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <MetricSparkline
+                    values={selectedMetricDetail.series}
+                    color="#a3a3a3"
+                    gradId={`profile-spark-derived-${selectedMetricDetail.key}`}
+                    height={92}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span>{selectedMetricDetail.series[0].label}</span>
+                    <span>{selectedMetricDetail.series[selectedMetricDetail.series.length - 1].label}</span>
+                  </div>
                 </div>
               ) : (
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 6px' }}>
