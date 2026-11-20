@@ -197,6 +197,23 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
     };
   }, [current]);
 
+  const derivedCards = useMemo(() => {
+    const rangeDef = TIME_RANGES.find((r) => r.value === timeRange);
+    const cutoff = rangeDef?.days
+      ? Date.parse(`${todayStr}T23:59:59`) - rangeDef.days * 86400000
+      : null;
+    return [
+      { key: 'bmi', label: 'BMI', value: derived.bmi.toFixed(1), invertColor: false },
+      { key: 'ffmi', label: 'Norm. FFMI', value: derived.ffmiData.normalizedFfmi.toFixed(1), invertColor: false },
+      { key: 'lbm', label: 'Lean Mass (LBM)', value: `${derived.lbm.toFixed(1)} kg`, invertColor: false },
+      { key: 'fm', label: 'Fat Mass', value: `${derived.fm.toFixed(1)} kg`, invertColor: true },
+    ].map((item) => {
+      const totalSeries = buildDerivedMetricSeries(logs, current, item.key, null);
+      const rangeSeries = cutoff ? buildDerivedMetricSeries(logs, current, item.key, cutoff) : totalSeries;
+      return { ...item, totalSeries, rangeSeries };
+    });
+  }, [logs, current, derived, timeRange, todayStr]);
+
   const selectedMetricDetail = useMemo(() => {
     if (!selectedDerivedMetric) return null;
     const rangeDef = TIME_RANGES.find((r) => r.value === timeRange);
@@ -385,34 +402,40 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: '10px',
           }}>
-            {[
-              { key: 'bmi', label: 'BMI', value: derived.bmi.toFixed(1) },
-              { key: 'ffmi', label: 'Norm. FFMI', value: derived.ffmiData.normalizedFfmi.toFixed(1) },
-              { key: 'lbm', label: 'Lean Mass (LBM)', value: `${derived.lbm.toFixed(1)} kg` },
-              { key: 'fm', label: 'Fat Mass', value: `${derived.fm.toFixed(1)} kg` },
-            ].map((item) => (
+            {derivedCards.map((item) => (
               <button
                 key={item.key}
                 type="button"
-                className="profile-derived-box"
+                className="metric-summary-card"
                 onClick={() => openDerivedMetric(item.key)}
                 style={{
                   textAlign: 'left',
                   cursor: 'pointer',
                   width: '100%',
                   font: 'inherit',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px',
                 }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span className="profile-stat-label">{item.label}</span>
-                  <span className="profile-derived-val">{item.value}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', width: '100%' }}>
+                  <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+                  <ChevronRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                 </div>
-                <ChevronRight size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <span className="metric-value">{item.value}</span>
+                {item.totalSeries.length >= 2 && (
+                  item.rangeSeries.length >= 2 ? (
+                    <>
+                      <TrendBadge values={item.rangeSeries} invertColor={item.invertColor} />
+                      <MetricSparkline
+                        values={item.rangeSeries}
+                        color="#a3a3a3"
+                        gradId={`profile-spark-derived-card-${item.key}`}
+                      />
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Not enough logs in range
+                    </span>
+                  )
+                )}
               </button>
             ))}
           </div>
