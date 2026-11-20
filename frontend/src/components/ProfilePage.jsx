@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
+import { sampleSparklineAtTime } from './helpers';
 import { LockWheelPicker, TensionRomSlider } from './FilterControls';
 import { Latex } from './MathComponents';
 import {
@@ -110,39 +111,6 @@ const formatLocalYMD = (date = new Date()) => {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
-};
-
-const sampleSparklineAtTime = (pts, targetT) => {
-  if (!pts || pts.length === 0) return 0;
-  if (pts.length === 1 || targetT <= pts[0].t) return pts[0].v;
-  if (targetT >= pts[pts.length - 1].t) return pts[pts.length - 1].v;
-
-  let idx = 0;
-  for (let i = 0; i < pts.length - 1; i++) {
-    if (targetT >= pts[i].t && targetT <= pts[i + 1].t) {
-      idx = i;
-      break;
-    }
-  }
-  const p0 = pts[idx];
-  const p1 = pts[idx + 1];
-  const dt = p1.t - p0.t;
-  if (dt <= 0) return p1.v;
-
-  const targetFrac = (targetT - p0.t) / dt;
-  // Invert the horizontal cubic Bezier x(u) with control points at x = 0.5
-  let lo = 0;
-  let hi = 1;
-  for (let k = 0; k < 18; k++) {
-    const u = (lo + hi) * 0.5;
-    const oneMinusU = 1 - u;
-    const x = 3 * oneMinusU * oneMinusU * u * 0.5 + 3 * oneMinusU * u * u * 0.5 + u * u * u;
-    if (x < targetFrac) lo = u;
-    else hi = u;
-  }
-  const u = (lo + hi) * 0.5;
-  const smoothY = 3 * u * u - 2 * u * u * u;
-  return p0.v + (p1.v - p0.v) * smoothY;
 };
 
 export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/yyyy', onBack }) {

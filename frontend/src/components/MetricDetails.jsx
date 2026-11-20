@@ -1,6 +1,30 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Latex, MathBlock } from './MathComponents';
+import { MetricSparkline, TrendBadge } from './Sparkline';
+import { sampleSparklineAtTime } from './helpers';
+import { TensionRomSlider } from './FilterControls';
+import { formatDisplayDate } from '../profileUtils';
+
+const formatLocalYMD = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const METRIC_UNITS = {
+  'volume': ' reps',
+  'effective-reps': ' reps',
+  'tonnage': ' kg',
+  'effective-tonnage': ' kg',
+  'weighted-tonnage': ' kg',
+  'effective-weighted-tonnage': ' kg',
+  'tut': ' s',
+  'effective-tut': ' s',
+  'sets': ' sets',
+  'fatigue': '',
+};
 
 const dashboardCardStyle = {
   background: 'var(--bg-secondary)',
@@ -249,12 +273,14 @@ const TensionProfileExplainer = () => {
   );
 };
 
-export default function MetricDetailsPage({ metric, onBack }) {
+export default function MetricDetailsPage({ metric, series, compareSeries, dateFormat = 'dd/mm/yyyy', onBack }) {
   const [lastValidMetric, setLastValidMetric] = useState(metric);
+  const [sliderPos, setSliderPos] = useState(100);
   useEffect(() => {
     if (metric) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLastValidMetric(metric);
+      setSliderPos(100);
     }
   }, [metric]);
 
@@ -599,6 +625,92 @@ export default function MetricDetailsPage({ metric, onBack }) {
           data.customRender
         ) : (
           <>
+            {/* Trend Card */}
+            {Array.isArray(series) && series.length >= 2 && (() => {
+              const hasTs = typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].t);
+              const pts = hasTs
+                ? series
+                : series.map((v, i) => ({ t: i, v: Number(v) || 0 }));
+              const comparePts = Array.isArray(compareSeries) && compareSeries.length >= 2
+                ? (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].t)
+                  ? compareSeries
+                  : compareSeries.map((v, i) => ({ t: i, v: Number(v) || 0 })))
+                : undefined;
+
+              const tMin = pts[0].t;
+              const tMax = pts[pts.length - 1].t;
+              const tRange = tMax - tMin;
+              const targetT = tMin + (sliderPos / 100) * tRange;
+              const sampledVal = sampleSparklineAtTime(pts, targetT);
+              const formatTime = (t) => (
+                hasTs
+                  ? formatDisplayDate(formatLocalYMD(new Date(t)), dateFormat)
+                  : `Week ${Math.round(t) + 1}`
+              );
+              const unit = METRIC_UNITS[activeMetric] ?? '';
+              const formattedVal = Number.isInteger(Math.round(sampledVal)) && (activeMetric === 'sets' || activeMetric === 'fatigue')
+                ? Math.round(sampledVal).toLocaleString()
+                : sampledVal.toLocaleString(undefined, { maximumFractionDigits: 1 });
+              const xPct = tRange > 0 ? sliderPos : 100;
+
+              return (
+                <div style={dashboardCardStyle}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={sectionLabelStyle}>Trend</h3>
+                    <TrendBadge values={pts} invertColor={activeMetric === 'fatigue'} />
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.78rem',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      fontWeight: 600,
+                    }}>
+                      {formatTime(targetT)}
+                    </span>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.86rem' }}>
+                      {formattedVal}{unit}
+                    </strong>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <MetricSparkline
+                      values={pts}
+                      compareValues={comparePts}
+                      color={data.color}
+                      gradId={`detail-spark-${activeMetric}`}
+                      height={92}
+                    />
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: `${xPct}%`,
+                        borderLeft: '1.5px dashed rgba(255, 255, 255, 0.4)',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+                  <TensionRomSlider
+                    value={sliderPos}
+                    onChange={setSliderPos}
+                    leftLabel={formatTime(tMin)}
+                    rightLabel={formatTime(tMax)}
+                    ariaLabel="Metric timeline"
+                  />
+                </div>
+              );
+            })()}
+
             {/* Formula Card */}
             <div style={dashboardCardStyle}>
               <h3 style={sectionLabelStyle}>Formula</h3>

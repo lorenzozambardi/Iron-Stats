@@ -1,6 +1,19 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useDeferredValue } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MUSCLES, calculateMetricsByWeek, parseLogbook } from '../../parser';
+const DETAIL_TO_SERIES_KEY = {
+  'volume': 'Volume',
+  'effective-reps': 'EffectiveRepsCustom',
+  'tonnage': 'Tonnage',
+  'effective-tonnage': 'EffectiveTonnage',
+  'weighted-tonnage': 'WeightedTonnage',
+  'effective-weighted-tonnage': 'EffectiveWeightedTonnage',
+  'tut': 'Tut',
+  'effective-tut': 'EffectiveTut',
+  'sets': 'Sets',
+  'fatigue': 'Fatigue',
+};
+
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
@@ -1528,6 +1541,9 @@ const DashboardTab = ({
             <React.Suspense fallback={<div className="loading-spinner">Loading details...</div>}>
               <MetricDetailsPage
                 metric={selectedMetricDetail}
+                series={sparkSeriesA[DETAIL_TO_SERIES_KEY[selectedMetricDetail]]}
+                compareSeries={compareMode ? sparkSeriesB[DETAIL_TO_SERIES_KEY[selectedMetricDetail]] : undefined}
+                dateFormat={dateFormat}
                 onBack={() => setSelectedMetricDetail(null)}
               />
             </React.Suspense>
