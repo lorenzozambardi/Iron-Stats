@@ -65,6 +65,53 @@ export function formatProfileLogValue(type, value) {
   return meta.unit === '%' ? `${num.toFixed(meta.decimals)}%` : `${num.toFixed(meta.decimals)} ${meta.unit}`;
 }
 
+export function buildDerivedMetricSeries(logs, current, metricKey, cutoffTs = null) {
+  if (!Array.isArray(logs) || !current) return [];
+  const relevantTypes = metricKey === 'bmi' ? ['weight'] : ['weight', 'bodyFat'];
+  const byDate = new Map();
+
+  for (const item of logs) {
+    if (!item || !relevantTypes.includes(item.type) || !item.date) continue;
+    const val = Number(item.value);
+    if (!Number.isFinite(val) || val <= 0) continue;
+    const ts = Number.isFinite(item.ts) ? item.ts : (Date.parse(`${item.date}T12:00:00`) || 0);
+    const existing = byDate.get(item.date) || { date: item.date, ts };
+    existing[item.type] = val;
+    if (ts > existing.ts) existing.ts = ts;
+    byDate.set(item.date, existing);
+  }
+
+  const sorted = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date) || a.ts - b.ts);
+  if (sorted.length === 0) return [];
+
+  const heightCm = Number(current.height) || 0;
+  let lastWeight = sorted.find((d) => d.weight !== undefined)?.weight ?? (Number(current.weight) || 0);
+  let lastBf = sorted.find((d) => d.bodyFat !== undefined)?.bodyFat ?? (Number(current.bodyFat) || 0);
+
+  const points = [];
+  for (const entry of sorted) {
+    if (entry.weight !== undefined) lastWeight = entry.weight;
+    if (entry.bodyFat !== undefined) lastBf = entry.bodyFat;
+
+    let value = 0;
+    if (metricKey === 'bmi') {
+      value = calcBMI(lastWeight, heightCm);
+    } else if (metricKey === 'lbm') {
+      value = calcLeanMass(lastWeight, lastBf);
+    } else if (metricKey === 'fm') {
+      value = calcFatMass(lastWeight, lastBf);
+    } else if (metricKey === 'ffmi') {
+      value = calcFFMI(lastWeight, heightCm, lastBf).normalizedFfmi;
+    }
+
+    if (Number.isFinite(value) && value > 0) {
+      points.push({ date: entry.date, t: entry.ts, v: Number(value.toFixed(2)) });
+    }
+  }
+
+  return cutoffTs ? points.filter((p) => p.t >= cutoffTs) : points;
+}
+
 export const DEFAULT_PROFILE = {
   current: {
     birthDate: '1998-01-01',

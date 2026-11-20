@@ -5,6 +5,7 @@ import {
   CIRCUMFERENCE_FIELDS,
   CIRCUMFERENCE_LOG_KEYS,
   PROFILE_LOG_META,
+  buildDerivedMetricSeries,
   loadProfile,
   formatProfileLogValue,
   calcAge,
@@ -126,5 +127,32 @@ describe('profileUtils', () => {
     } finally {
       globalThis.localStorage = origLocalStorage;
     }
+  });
+
+  it('builds chronological derived metric series with carry-forward pairing', () => {
+    const logs = [
+      { id: '1', date: '2026-11-01', ts: 1000, type: 'weight', value: 80 },
+      { id: '2', date: '2026-11-01', ts: 1000, type: 'bodyFat', value: 15 },
+      { id: '3', date: '2026-11-10', ts: 2000, type: 'weight', value: 82 },
+    ];
+    const current = { ...DEFAULT_PROFILE.current, height: 180, weight: 82, bodyFat: 15 };
+
+    const bmiSeries = buildDerivedMetricSeries(logs, current, 'bmi');
+    expect(bmiSeries).toHaveLength(2);
+    expect(bmiSeries[0].v).toBeCloseTo(24.69, 2);
+    expect(bmiSeries[1].v).toBeCloseTo(25.31, 2);
+
+    const lbmSeries = buildDerivedMetricSeries(logs, current, 'lbm');
+    expect(lbmSeries).toHaveLength(2);
+    expect(lbmSeries[0].v).toBeCloseTo(68.0, 2);
+    expect(lbmSeries[1].v).toBeCloseTo(69.7, 2);
+
+    const fmSeries = buildDerivedMetricSeries(logs, current, 'fm');
+    expect(fmSeries[0].v).toBeCloseTo(12.0, 2);
+    expect(fmSeries[1].v).toBeCloseTo(12.3, 2);
+
+    const ffmiSeries = buildDerivedMetricSeries(logs, current, 'ffmi');
+    expect(ffmiSeries[0].v).toBeCloseTo(20.99, 2);
+    expect(ffmiSeries[1].v).toBeCloseTo(21.51, 2);
   });
 });

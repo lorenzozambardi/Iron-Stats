@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { LockWheelPicker } from './FilterControls';
+import { Latex, MathBlock } from './MathComponents';
 import {
   CIRCUMFERENCE_FIELDS,
   CIRCUMFERENCE_LOG_KEYS,
   PROFILE_LOG_META,
+  buildDerivedMetricSeries,
   calcAge,
   calcBMI,
   calcLeanMass,
@@ -16,6 +19,7 @@ import {
   calcTDEEFromSteps,
   formatDisplayDate,
   formatProfileLogValue,
+  getBMICategory,
 } from '../profileUtils';
 
 const cardStyle = {
@@ -114,6 +118,8 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   const [visible, setVisible] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const pendingConfirmRef = useRef(null);
+  const [selectedDerivedMetric, setSelectedDerivedMetric] = useState(null);
+  const selectedDerivedMetricRef = useRef(null);
   const closeTimeoutRef = useRef(null);
   const todayStr = useMemo(() => formatLocalYMD(), []);
   const [logDate, setLogDate] = useState(() => formatLocalYMD());
@@ -123,6 +129,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   useEffect(() => {
     pendingConfirmRef.current = pendingConfirm;
   }, [pendingConfirm]);
+
+  useEffect(() => {
+    selectedDerivedMetricRef.current = selectedDerivedMetric;
+  }, [selectedDerivedMetric]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setVisible(true));
@@ -148,6 +158,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     const handleHardwareBack = () => {
       if (pendingConfirmRef.current) {
         setPendingConfirm(null);
+        return;
+      }
+      if (selectedDerivedMetricRef.current) {
+        setSelectedDerivedMetric(null);
         return;
       }
       setVisible(false);
@@ -353,6 +367,73 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     };
   }, [current]);
 
+  const selectedMetricDetail = useMemo(() => {
+    if (!selectedDerivedMetric) return null;
+    const rangeDef = TIME_RANGES.find((r) => r.value === timeRange);
+    const cutoff = rangeDef?.days
+      ? Date.parse(`${todayStr}T23:59:59`) - rangeDef.days * 86400000
+      : null;
+
+    const series = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, cutoff)
+      .map((pt) => ({ ...pt, label: formatDisplayDate(pt.date, dateFormat) }));
+    const totalCount = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, null).length;
+
+    const w = Number(current.weight) || 0;
+    const hCm = Number(current.height) || 0;
+    const hM = hCm / 100;
+    const bf = Math.min(Math.max(Number(current.bodyFat) || 0, 0), 75);
+
+    const configs = {
+      bmi: {
+        title: 'Body Mass Index (BMI)',
+        valueText: derived.bmi.toFixed(1),
+        badge: getBMICategory(derived.bmi),
+        unit: '',
+        invertColor: false,
+        formula: String.raw`\text{BMI} = \frac{W}{h^2}`,
+        substituted: String.raw`= \frac{${w.toFixed(1)}}{${hM.toFixed(2)}^2} = ${derived.bmi.toFixed(1)}`,
+        note: 'Weight W (kg) divided by height h (m) squared.',
+      },
+      ffmi: {
+        title: 'Normalized FFMI',
+        valueText: derived.ffmiData.normalizedFfmi.toFixed(1),
+        badge: derived.ffmiData.category,
+        unit: '',
+        invertColor: false,
+        formula: String.raw`\text{FFMI}_{\text{norm}} = \frac{\text{LBM}}{h^2} + 6.1(1.8 - h)`,
+        substituted: String.raw`= \frac{${derived.lbm.toFixed(1)}}{${hM.toFixed(2)}^2} + 6.1(1.8 - ${hM.toFixed(2)}) = ${derived.ffmiData.normalizedFfmi.toFixed(1)}`,
+        note: 'Fat-free mass relative to height, normalized to a 1.80 m reference.',
+      },
+      lbm: {
+        title: 'Lean Body Mass (LBM)',
+        valueText: `${derived.lbm.toFixed(1)} kg`,
+        badge: null,
+        unit: ' kg',
+        invertColor: false,
+        formula: String.raw`\text{LBM} = W \cdot \left(1 - \frac{\text{BF}\%}{100}\right)`,
+        substituted: String.raw`= ${w.toFixed(1)} \cdot \left(1 - \frac{${bf.toFixed(1)}}{100}\right) = ${derived.lbm.toFixed(1)}\text{ kg}`,
+        note: 'Total body weight minus estimated fat mass.',
+      },
+      fm: {
+        title: 'Fat Mass',
+        valueText: `${derived.fm.toFixed(1)} kg`,
+        badge: null,
+        unit: ' kg',
+        invertColor: true,
+        formula: String.raw`\text{FM} = W - \text{LBM} = W \cdot \frac{\text{BF}\%}{100}`,
+        substituted: String.raw`= ${w.toFixed(1)} \cdot \frac{${bf.toFixed(1)}}{100} = ${derived.fm.toFixed(1)}\text{ kg}`,
+        note: 'Estimated adipose tissue mass from body weight and body fat percentage.',
+      },
+    };
+
+    return {
+      key: selectedDerivedMetric,
+      ...configs[selectedDerivedMetric],
+      series,
+      totalCount,
+    };
+  }, [selectedDerivedMetric, logs, current, derived, timeRange, todayStr, dateFormat]);
+
   return createPortal(
     <div style={{
       position: 'fixed',
@@ -499,32 +580,37 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
 
         {/* Derived Composition */}
         <div style={cardStyle}>
-          <h3 style={sectionTitleStyle}>Derived Metrics</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <h3 style={sectionTitleStyle}>Derived Metrics</h3>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tap for graph &amp; math</span>
+          </div>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: '10px',
           }}>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">BMI</span>
-              <span className="profile-derived-val">{derived.bmi.toFixed(1)}</span>
-            </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Norm. FFMI</span>
-              <span className="profile-derived-val">
-                {derived.ffmiData.normalizedFfmi.toFixed(1)}
-              </span>
-            </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Lean Mass (LBM)</span>
-              <span className="profile-derived-val">{derived.lbm.toFixed(1)} kg</span>
-            </div>
-            <div className="profile-derived-box">
-              <span className="profile-stat-label">Fat Mass</span>
-              <span className="profile-derived-val">
-                {derived.fm.toFixed(1)} kg
-              </span>
-            </div>
+            {[
+              { key: 'bmi', label: 'BMI', value: derived.bmi.toFixed(1) },
+              { key: 'ffmi', label: 'Norm. FFMI', value: derived.ffmiData.normalizedFfmi.toFixed(1) },
+              { key: 'lbm', label: 'Lean Mass (LBM)', value: `${derived.lbm.toFixed(1)} kg` },
+              { key: 'fm', label: 'Fat Mass', value: `${derived.fm.toFixed(1)} kg` },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="profile-derived-box"
+                onClick={() => setSelectedDerivedMetric(item.key)}
+                style={{
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  width: '100%',
+                  font: 'inherit',
+                }}
+              >
+                <span className="profile-stat-label">{item.label}</span>
+                <span className="profile-derived-val">{item.value}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -950,6 +1036,163 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 {pendingConfirm.confirmLabel}
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {selectedMetricDetail && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="derived-metric-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 10005,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setSelectedDerivedMetric(null)}
+        >
+          <div
+            style={{
+              ...cardStyle,
+              maxWidth: '540px',
+              width: '100%',
+              maxHeight: '90dvh',
+              overflowY: 'auto',
+              gap: '14px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <div>
+                <h3
+                  id="derived-metric-modal-title"
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  {selectedMetricDetail.title}
+                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '1.35rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {selectedMetricDetail.valueText}
+                  </span>
+                  {selectedMetricDetail.badge && (
+                    <span style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)',
+                    }}>
+                      {selectedMetricDetail.badge}
+                    </span>
+                  )}
+                  {selectedMetricDetail.series.length >= 2 && (
+                    <TrendBadge
+                      values={selectedMetricDetail.series}
+                      invertColor={selectedMetricDetail.invertColor}
+                    />
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Close metric details"
+                onClick={() => setSelectedDerivedMetric(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  fontSize: '1.5rem',
+                  lineHeight: 1,
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.025)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '12px',
+            }}>
+              {selectedMetricDetail.series.length >= 2 ? (
+                <div style={{ width: '100%', height: '200px' }}>
+                  <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
+                    <LineChart data={selectedMetricDetail.series} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(255, 255, 255, 0.06)" strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: '#9ca3af', fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
+                      />
+                      <YAxis
+                        domain={['auto', 'auto']}
+                        tick={{ fill: '#9ca3af', fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
+                        width={46}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '10px',
+                          fontSize: '0.8rem',
+                          color: 'var(--text-primary)',
+                        }}
+                        formatter={(val) => [`${Number(val).toFixed(1)}${selectedMetricDetail.unit}`, selectedMetricDetail.title]}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="v"
+                        stroke="#a3a3a3"
+                        strokeWidth={2}
+                        dot={{ r: 3, fill: '#a3a3a3' }}
+                        activeDot={{ r: 5, fill: '#ffffff' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '18px 8px' }}>
+                  {selectedMetricDetail.totalCount >= 2
+                    ? 'Not enough logs in the selected time range.'
+                    : `Log at least 2 ${selectedMetricDetail.key === 'bmi' ? 'Weight' : 'Weight / Body Fat'} entries to plot this graph.`}
+                </p>
+              )}
+            </div>
+
+            <MathBlock>
+              <Latex math={selectedMetricDetail.formula} block />
+              <Latex math={selectedMetricDetail.substituted} block />
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {selectedMetricDetail.note}
+              </p>
+            </MathBlock>
           </div>
         </div>,
         document.body
