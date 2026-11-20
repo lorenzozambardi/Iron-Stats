@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Latex, MathBlock } from './MathComponents';
 import { MetricSparkline, MetricBarSparkline, TrendBadge } from './Sparkline';
-import { sampleSparklineAtTime } from './helpers';
 import { TensionRomSlider } from './FilterControls';
 
 const METRIC_UNITS = {
@@ -636,31 +635,22 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
               const tMax = pts[pts.length - 1].t;
               const tRange = tMax - tMin;
               const targetT = tMin + (sliderPos / 100) * tRange;
-              const sampledVal = sampleSparklineAtTime(pts, targetT, true);
 
-              let currentWeek = weeks[weeks.length - 1];
-              if (targetT <= tMin) {
-                currentWeek = weeks[0];
-              } else if (targetT < tMax) {
-                for (let i = 0; i < pts.length - 1; i++) {
-                  if (targetT >= pts[i].t && targetT <= pts[i + 1].t) {
-                    const dt = pts[i + 1].t - pts[i].t;
-                    const frac = dt > 0 ? (targetT - pts[i].t) / dt : 0;
-                    currentWeek = weeks[i] + (weeks[i + 1] - weeks[i]) * frac;
-                    break;
-                  }
+              let closestIdx = 0;
+              let minDist = Math.abs(pts[0].t - targetT);
+              for (let i = 1; i < pts.length; i++) {
+                const dist = Math.abs(pts[i].t - targetT);
+                if (dist < minDist) {
+                  minDist = dist;
+                  closestIdx = i;
                 }
               }
-              const isHistogram = activeMetric === 'sets';
-              const activeBarIdx = isHistogram
-                ? Math.min(pts.length - 1, Math.max(0, Math.round((sliderPos / 100) * (pts.length - 1))))
-                : null;
-              const displayWeek = isHistogram ? weeks[activeBarIdx] : currentWeek;
-              const displayVal = isHistogram ? pts[activeBarIdx].v : sampledVal;
 
-              const formatMicrocycle = (w) => (
-                Math.abs(w - Math.round(w)) < 0.05 ? `m${Math.round(w)}` : `m${w.toFixed(1)}`
-              );
+              const isHistogram = activeMetric === 'sets';
+              const activeBarIdx = isHistogram ? closestIdx : null;
+              const displayWeek = weeks[closestIdx];
+              const displayVal = pts[closestIdx].v;
+
               const unit = METRIC_UNITS[activeMetric] ?? '';
               const formattedVal = displayVal.toLocaleString(undefined, { maximumFractionDigits: 1 });
               const xPct = tRange > 0 ? sliderPos : 100;
@@ -686,7 +676,7 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
                       color: 'var(--text-secondary)',
                       fontWeight: 600,
                     }}>
-                      {formatMicrocycle(displayWeek)}
+                      {`m${displayWeek}`}
                     </span>
                     <strong style={{ color: 'var(--text-primary)', fontSize: '0.86rem' }}>
                       {formattedVal}{unit}
