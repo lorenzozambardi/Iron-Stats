@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
-import { LockWheelPicker } from './FilterControls';
+import { LockWheelPicker, TensionRomSlider } from './FilterControls';
 import { Latex } from './MathComponents';
 import {
   CIRCUMFERENCE_FIELDS,
@@ -118,6 +118,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   const pendingConfirmRef = useRef(null);
   const [selectedDerivedMetric, setSelectedDerivedMetric] = useState(null);
   const selectedDerivedMetricRef = useRef(null);
+  const [metricSliderPos, setMetricSliderPos] = useState(100);
   const closeTimeoutRef = useRef(null);
   const todayStr = useMemo(() => formatLocalYMD(), []);
   const [logDate, setLogDate] = useState(() => formatLocalYMD());
@@ -585,7 +586,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 key={item.key}
                 type="button"
                 className="profile-derived-box"
-                onClick={() => setSelectedDerivedMetric(item.key)}
+                onClick={() => {
+                  setMetricSliderPos(100);
+                  setSelectedDerivedMetric(item.key);
+                }}
                 style={{
                   textAlign: 'left',
                   cursor: 'pointer',
@@ -1110,20 +1114,75 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               borderRadius: '10px',
               padding: '12px',
             }}>
-              {selectedMetricDetail.series.length >= 2 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <MetricSparkline
-                    values={selectedMetricDetail.series}
-                    color="#a3a3a3"
-                    gradId={`profile-spark-derived-${selectedMetricDetail.key}`}
-                    height={92}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                    <span>{selectedMetricDetail.series[0].label}</span>
-                    <span>{selectedMetricDetail.series[selectedMetricDetail.series.length - 1].label}</span>
+              {selectedMetricDetail.series.length >= 2 ? (() => {
+                const pts = selectedMetricDetail.series;
+                const tMin = pts[0].t;
+                const tMax = pts[pts.length - 1].t;
+                const tRange = tMax - tMin;
+                const targetT = tMin + (metricSliderPos / 100) * tRange;
+                let closestPt = pts[0];
+                let minDist = Math.abs(pts[0].t - targetT);
+                for (let i = 1; i < pts.length; i++) {
+                  const dist = Math.abs(pts[i].t - targetT);
+                  if (dist < minDist) {
+                    minDist = dist;
+                    closestPt = pts[i];
+                  }
+                }
+                const xPct = tRange > 0 ? ((closestPt.t - tMin) / tRange) * 100 : 100;
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.76rem',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                      }}>
+                        {closestPt.label}
+                      </span>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+                        {closestPt.v.toFixed(1)}{selectedMetricDetail.unit}
+                      </strong>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <MetricSparkline
+                        values={pts}
+                        color="#a3a3a3"
+                        gradId={`profile-spark-derived-${selectedMetricDetail.key}`}
+                        height={92}
+                      />
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          left: `${xPct}%`,
+                          borderLeft: '1.5px dashed rgba(255, 255, 255, 0.4)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    </div>
+                    <TensionRomSlider
+                      value={metricSliderPos}
+                      onChange={setMetricSliderPos}
+                      leftLabel={pts[0].label}
+                      rightLabel={pts[pts.length - 1].label}
+                      ariaLabel="Metric timeline"
+                    />
                   </div>
-                </div>
-              ) : (
+                );
+              })() : (
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 6px' }}>
                   {selectedMetricDetail.totalCount >= 2
                     ? 'Not enough logs in the selected time range.'

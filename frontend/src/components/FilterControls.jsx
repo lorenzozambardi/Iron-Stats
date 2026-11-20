@@ -493,7 +493,13 @@ export const DualWeekSlider = ({
 };
 
 /** Pointer-draggable ROM scrubber styled to match DualWeekSlider. */
-export const TensionRomSlider = ({ value, onChange }) => {
+export const TensionRomSlider = ({
+  value,
+  onChange,
+  leftLabel = 'Stretch',
+  rightLabel = 'Contract',
+  ariaLabel = 'Range of motion percentage',
+}) => {
   const trackRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -524,13 +530,15 @@ export const TensionRomSlider = ({ value, onChange }) => {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none' }}>
-        Stretch
-      </span>
+      {leftLabel && (
+        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none', fontVariantNumeric: 'tabular-nums' }}>
+          {leftLabel}
+        </span>
+      )}
       <div
         ref={trackRef}
         role="slider"
-        aria-label="Range of motion percentage"
+        aria-label={ariaLabel}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={value}
@@ -585,9 +593,11 @@ export const TensionRomSlider = ({ value, onChange }) => {
           />
         </div>
       </div>
-      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none' }}>
-        Contract
-      </span>
+      {rightLabel && (
+        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500, userSelect: 'none', fontVariantNumeric: 'tabular-nums' }}>
+          {rightLabel}
+        </span>
+      )}
     </div>
   );
 };
