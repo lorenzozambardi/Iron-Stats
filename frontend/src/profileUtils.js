@@ -383,6 +383,14 @@ export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) 
   return { current: baseCurrent, logs: deduped };
 }
 
+const getLocalTodayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export async function loadProfileFromFile() {
   const local = loadProfile();
   try {
@@ -395,12 +403,27 @@ export async function loadProfileFromFile() {
         return parsed;
       }
     } else if (res.status === 404) {
-      const md = serializeProfileToMarkdown(local);
+      let seedProfile = local;
+      if (!Array.isArray(local.logs) || local.logs.length === 0) {
+        const todayIso = getLocalTodayISO();
+        const ts = Date.parse(`${todayIso}T12:00:00`) || Date.now();
+        const seedLogs = [];
+        for (const key of Object.keys(PROFILE_LOG_META)) {
+          const val = Number(local.current?.[key]);
+          if (Number.isFinite(val) && val > 0) {
+            seedLogs.push({ id: `${ts}-${key}`, date: todayIso, ts, type: key, value: val });
+          }
+        }
+        seedProfile = { ...local, logs: seedLogs };
+        saveProfile(seedProfile);
+      }
+      const md = serializeProfileToMarkdown(seedProfile);
       await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: md,
       }).catch(() => {});
+      return seedProfile;
     }
   } catch {
     // Offline/web fallback uses localStorage
