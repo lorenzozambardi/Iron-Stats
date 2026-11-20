@@ -752,43 +752,44 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               padding: '12px',
             }}>
               {selectedMetricDetail.isBilateral && (
-                <div style={{
-                  display: 'inline-flex',
-                  gap: '4px',
-                  padding: '3px',
-                  marginBottom: '10px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid var(--border-color)',
-                }}>
-                  {[
-                    { id: 'left', label: 'Left' },
-                    { id: 'right', label: 'Right' },
-                  ].map((side) => {
-                    const active = bilateralSide === side.id;
-                    return (
-                      <button
-                        key={side.id}
-                        type="button"
-                        onClick={() => {
-                          setBilateralSide(side.id);
-                          setMetricSliderPos(100);
-                        }}
-                        style={{
-                          padding: '4px 12px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: active ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-                          color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {side.label}
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBilateralSide((prev) => (prev === 'left' ? 'right' : 'left'));
+                      setMetricSliderPos(100);
+                    }}
+                    aria-label={`Switch to ${bilateralSide === 'left' ? 'Right' : 'Left'}`}
+                    title={`Switch to ${bilateralSide === 'left' ? 'Right' : 'Left'}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      padding: '0 8px',
+                      height: '24px',
+                      borderRadius: '999px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-secondary)',
+                      boxShadow: 'var(--card-shadow)',
+                      color: '#ffffff',
+                      fontSize: '0.62rem',
+                      fontWeight: 500,
+                      letterSpacing: '0.03em',
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'background 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    <span style={{ transform: 'translateY(0.5px)' }}>{bilateralSide === 'left' ? 'LEFT' : 'RIGHT'}</span>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                      <path d="M11 2l3 3-3 3" />
+                      <path d="M14 5H3" />
+                      <path d="M5 14l-3-3 3-3" />
+                      <path d="M2 11h11" />
+                    </svg>
+                  </button>
                 </div>
               )}
               {selectedMetricDetail.series.length >= 2 ? (() => {
