@@ -108,4 +108,31 @@ describe('customFoldService', () => {
     const foldRange = foldable(state, line3.from, line3.to);
     expect(foldRange).toBeNull();
   });
+
+  it('folds profile.md metric blocks (value , DD-MM-YYYY)', () => {
+    const text = [
+      'weight',
+      '71.5 , 20-11-2026',
+      '72 , 19-11-2026',
+      'bodyfat',
+      '10.8 , 20-11-2026',
+    ].join('\n');
+
+    const state = EditorState.create({
+      doc: text,
+      extensions: [customFoldService],
+    });
+
+    const weightLine = state.doc.line(1);
+    const weightFold = foldable(state, weightLine.from, weightLine.to);
+    expect(weightFold).not.toBeNull();
+    expect(weightFold.from).toBe(weightLine.to);
+    expect(weightFold.to).toBe(state.doc.line(3).to);
+
+    const bfLine = state.doc.line(4);
+    const bfFold = foldable(state, bfLine.from, bfLine.to);
+    expect(bfFold).not.toBeNull();
+    expect(bfFold.from).toBe(bfLine.to);
+    expect(bfFold.to).toBe(state.doc.line(5).to);
+  });
 });

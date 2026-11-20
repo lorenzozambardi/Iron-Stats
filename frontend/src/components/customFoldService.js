@@ -3,11 +3,12 @@ import { isDateLine, isDatesHeader } from '../parser';
 
 export const isSetLine = (str) => {
   if (!str) return false;
-  const trimmed = str.trim();
+  const trimmed = str.split('--')[0].trim();
   if (isDateLine(trimmed) || trimmed.includes('|')) return false;
   const noOld = trimmed.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
   if (!noOld || !/\d/.test(noOld)) return false;
   if (/(?:^|\s)-?[\d.]+(?:\/-?[\d.]+)*\s*\.\./.test(noOld)) return true;
+  if (/^-?[\d.]+\s*,\s*\d{2,4}[/-]\d{2}[/-]\d{2,4}$/.test(noOld)) return true;
   return /^[\d().+/@,\s]+$/.test(noOld);
 };
 
