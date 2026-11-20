@@ -1000,7 +1000,7 @@ const DashboardTab = ({
     <>
         <div className={`swipe-view ${activeTab === 'dashboard' ? 'active-desktop' : ''}`} id="view-dashboard">
           {/* Mobile Floating Filter Pill next to Settings button */}
-          {isMobile && !selectedMetricDetail && (
+          {isMobile && (
             <div
               id="mobile-header-dash-controls"
               style={{
