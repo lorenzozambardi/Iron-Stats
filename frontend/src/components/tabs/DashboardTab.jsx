@@ -1454,21 +1454,53 @@ const DashboardTab = ({
 
                     {/* Muscle Group Volume */}
                     <div className="chart-container">
-                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                           {dashMuscleMacro !== 'all' 
                             ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Volume` : `${dashMuscleMacro} Sub-group Reps`)
                             : (muscleMetric === 'sets' ? 'Muscle Group Volume' : 'Muscle Group Reps')}
                         </span>
-                        <LockWheelPicker
-                          options={MUSCLE_METRIC_OPTIONS}
-                          value={muscleMetric}
-                          onChange={setMuscleMetric}
-                          itemWidth={66}
-                          gap={16}
-                          circular={false}
-                          style={{ width: isMobile ? '176px' : '210px', flexShrink: 0 }}
-                        />
+                        <div
+                          role="group"
+                          aria-label="Muscle group metric"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            padding: '3px',
+                            borderRadius: '999px',
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid var(--border-color)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {MUSCLE_METRIC_OPTIONS.map((opt) => {
+                            const active = muscleMetric === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => setMuscleMetric(opt.value)}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '999px',
+                                  border: 'none',
+                                  background: active ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                                  color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                                  fontSize: '0.72rem',
+                                  fontWeight: active ? 600 : 500,
+                                  lineHeight: 1.2,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  transition: 'background 0.15s ease, color 0.15s ease',
+                                }}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <MuscleDonutChart
                         data={displayMuscleData}
