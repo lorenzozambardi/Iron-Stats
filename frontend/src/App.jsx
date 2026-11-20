@@ -1673,17 +1673,15 @@ export default function App() {
 
               {/* Mobile Editor Mode Toggles Pill */}
               <div className="mobile-editor-pill-nav" style={{ marginLeft: 0, pointerEvents: 'auto' }}>
-                 {!editingProfileMd && (
-                   <>
-                     <div className="mobile-editor-mode-indicator" style={{ transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
-                     <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
-                     <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
-                     {editorType !== 'easy' && (
-                       <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
-                     )}
-                     <div className="pill-divider"></div>
-                   </>
-                 )}
+                 <div className={`mobile-editor-mode-group ${editingProfileMd ? 'is-collapsed' : ''}`}>
+                   <div className="mobile-editor-mode-indicator" style={{ left: 0, transform: `translateX(${editorMode === 'edit' ? 0 : editorMode === 'preview' ? 38 : 76}px)` }}></div>
+                   <button className={`mode-pill-btn ${editorMode === 'edit' ? 'active' : ''}`} onClick={() => setEditorMode('edit')}><Pencil size={18} /></button>
+                   <button className={`mode-pill-btn ${editorMode === 'preview' ? 'active' : ''}`} onClick={() => setEditorMode('preview')}><Eye size={18} /></button>
+                   {editorType !== 'easy' && (
+                     <button className={`mode-pill-btn ${editorMode === 'split' ? 'active' : ''}`} onClick={() => setEditorMode('split')}><Columns size={18} /></button>
+                   )}
+                   <div className="pill-divider"></div>
+                 </div>
                  <button
                    type="button"
                    className={`mode-pill-btn ${editingProfileMd ? 'active' : ''}`}
@@ -1759,73 +1757,77 @@ export default function App() {
             {/* Split / Main Editor container */}
             <div className={`editor-split-container mode-${editingProfileMd ? 'edit' : editorMode}`}>
               
-              {/* Text Area Column */}
-              {(editingProfileMd || editorMode === 'edit' || editorMode === 'split') && (
-                <div className="editor-panel">
-                  <div className="editor-wrapper">
-                    {editingProfileMd ? (
-                      editorType === 'easy' ? (
-                        <ProfileEasyEditor
-                          profile={parseProfileMarkdown(profileMdText)}
-                          dateFormat={dateFormat}
-                          onChange={(nextProfile) => {
-                            const nextMd = serializeProfileToMarkdown(nextProfile);
-                            setProfileMdText(nextMd);
-                            scheduleDebouncedProfileSave(nextMd);
-                            window.dispatchEvent(new CustomEvent('profile-updated', { detail: nextProfile }));
-                          }}
-                        />
-                      ) : (
-                        <FoldableEditor
-                          key="__profile_md__"
-                          value={profileMdText}
-                          onChange={(newText) => {
-                            setProfileMdText(newText);
-                            scheduleDebouncedProfileSave(newText);
-                          }}
-                          exercisesDb={activeExercises}
-                        />
-                      )
-                    ) : editorType === 'easy' ? (
-                      <EasyEditor 
-                        logbookText={logbookText}
-                        onChange={(newText) => {
-                          setLogbookText(newText);
-                          setDebouncedLogbookText(newText);
-                          scheduleDebouncedSave(newText);
+              {/* Text Area Column (kept mounted for instant edit/preview & easy/manual switching) */}
+              <div
+                className="editor-panel"
+                style={{ display: (editingProfileMd || editorMode === 'edit' || editorMode === 'split') ? 'flex' : 'none' }}
+              >
+                <div className="editor-wrapper">
+                  {editingProfileMd && (
+                    editorType === 'easy' ? (
+                      <ProfileEasyEditor
+                        profile={parseProfileMarkdown(profileMdText)}
+                        dateFormat={dateFormat}
+                        onChange={(nextProfile) => {
+                          const nextMd = serializeProfileToMarkdown(nextProfile);
+                          setProfileMdText(nextMd);
+                          scheduleDebouncedProfileSave(nextMd);
+                          window.dispatchEvent(new CustomEvent('profile-updated', { detail: nextProfile }));
                         }}
-                        exercisesDb={activeExercises}
                       />
                     ) : (
                       <FoldableEditor
-                        key={currentProgram}
-                        value={logbookText}
+                        key="__profile_md__"
+                        value={profileMdText}
                         onChange={(newText) => {
-                          setLogbookText(newText);
-                          scheduleDebouncedSave(newText);
+                          setProfileMdText(newText);
+                          scheduleDebouncedProfileSave(newText);
                         }}
                         exercisesDb={activeExercises}
-                        onCursorLineChange={(editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
                       />
-                    )}
+                    )
+                  )}
+                  <div style={{ height: '100%', display: !editingProfileMd && editorType === 'easy' ? 'block' : 'none' }}>
+                    <EasyEditor 
+                      logbookText={logbookText}
+                      onChange={(newText) => {
+                        setLogbookText(newText);
+                        setDebouncedLogbookText(newText);
+                        scheduleDebouncedSave(newText);
+                      }}
+                      exercisesDb={activeExercises}
+                    />
                   </div>
-                </div>
-              )}
-
-              {/* Live Preview Column */}
-              {!editingProfileMd && (editorMode === 'preview' || editorMode === 'split') && (
-                <div className="preview-panel">
-                  <div className="preview-container">
-                    <LogbookPreview 
-                      workoutData={workoutData} 
-                      activeExerciseStartLine={activeExerciseStartLine}
-                      activeWeekLineIndex={activeWeekLineIndex}
-                      editorMode={editorMode}
-                      dateFormat={dateFormat}
+                  <div style={{ height: '100%', display: !editingProfileMd && editorType !== 'easy' ? 'block' : 'none' }}>
+                    <FoldableEditor
+                      key={currentProgram}
+                      value={logbookText}
+                      onChange={(newText) => {
+                        setLogbookText(newText);
+                        scheduleDebouncedSave(newText);
+                      }}
+                      exercisesDb={activeExercises}
+                      onCursorLineChange={(editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
                     />
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* Live Preview Column (kept mounted for instant edit/preview switching) */}
+              <div
+                className="preview-panel"
+                style={{ display: (!editingProfileMd && (editorMode === 'preview' || editorMode === 'split')) ? 'flex' : 'none' }}
+              >
+                <div className="preview-container">
+                  <LogbookPreview 
+                    workoutData={workoutData} 
+                    activeExerciseStartLine={activeExerciseStartLine}
+                    activeWeekLineIndex={activeWeekLineIndex}
+                    editorMode={editorMode}
+                    dateFormat={dateFormat}
+                  />
+                </div>
+              </div>
 
             </div>
           </div>
