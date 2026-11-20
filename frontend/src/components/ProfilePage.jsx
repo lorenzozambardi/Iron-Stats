@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Calendar, ChevronRight, Plus } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { sampleSparklineAtTime } from './helpers';
 import { LockWheelPicker, TensionRomSlider } from './FilterControls';
@@ -126,7 +126,6 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   const todayStr = useMemo(() => formatLocalYMD(), []);
   const [logDate, setLogDate] = useState(() => formatLocalYMD());
   const [timeRange, setTimeRange] = useState('all');
-  const [logFilter, setLogFilter] = useState('all');
 
   useEffect(() => {
     pendingConfirmRef.current = pendingConfirm;
@@ -306,24 +305,6 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     applyLogStat(typesToWrite);
   };
 
-  const handleDeleteLog = (entry) => {
-    const label = PROFILE_LOG_META[entry.type]?.label || entry.type;
-    const formatted = formatProfileLogValue(entry.type, entry.value);
-    const displayDate = formatDisplayDate(entry.date, dateFormat);
-    setPendingConfirm({
-      title: 'Delete log?',
-      message: `Remove ${label} (${formatted}) for ${displayDate}?`,
-      confirmLabel: 'Delete',
-      accentColor: 'var(--color-fatigue)',
-      onConfirm: () => {
-        setProfile((prev) => ({
-          ...prev,
-          logs: (prev.logs || []).filter((item) => item.id !== entry.id),
-        }));
-      },
-    });
-  };
-
   const { seriesByType, hasAnyTrends, allWeightCount, allBfCount, weightSeries, bodyFatSeries } = useMemo(() => {
     const toPoint = (item) => ({
       t: Number.isFinite(item.ts) ? item.ts : (Date.parse(item.date) || 0),
@@ -363,11 +344,6 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
       bodyFatSeries: map.bodyFat.series,
     };
   }, [logs, timeRange, todayStr]);
-
-  const filteredLogs = useMemo(() => {
-    if (logFilter === 'all') return logs;
-    return logs.filter((entry) => PROFILE_LOG_META[entry.type]?.category === logFilter);
-  }, [logs, logFilter]);
 
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
 
@@ -920,93 +896,6 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               );
             })}
           </div>
-        </div>
-
-        {/* Logs History */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <h3 style={sectionTitleStyle}>Logs</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {logs.length > 0 && (
-                <div style={{ display: 'inline-flex', gap: '4px' }}>
-                  {[
-                    { id: 'all', label: 'All' },
-                    { id: 'core', label: 'Core' },
-                    { id: 'circumference', label: 'Circumferences' },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      className={logFilter === tab.id ? 'btn btn-primary' : 'btn'}
-                      style={{ padding: '3px 9px', fontSize: '0.7rem' }}
-                      onClick={() => setLogFilter(tab.id)}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {filteredLogs.length} {filteredLogs.length === 1 ? 'entry' : 'entries'}
-              </span>
-            </div>
-          </div>
-
-          {logs.length === 0 ? (
-            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
-              No logs yet. Press &ldquo;Log All&rdquo; at the top or &ldquo;+ Log&rdquo; on any measurement.
-            </p>
-          ) : filteredLogs.length === 0 ? (
-            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
-              No logs in this category yet.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {filteredLogs.map((entry) => (
-                <div
-                  key={entry.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    background: 'rgba(255, 255, 255, 0.025)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '88px' }}>
-                    {formatDisplayDate(entry.date, dateFormat)}
-                  </span>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                    <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-                      {PROFILE_LOG_META[entry.type]?.label || entry.type}
-                    </span>
-                    <strong style={{ color: 'var(--text-primary)' }}>
-                      {formatProfileLogValue(entry.type, entry.value)}
-                    </strong>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteLog(entry)}
-                    aria-label={`Delete log ${entry.date}`}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'inline-flex',
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

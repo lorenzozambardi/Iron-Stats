@@ -204,6 +204,7 @@ export const SettingsPanel = memo(({
                       {prog}
                     </option>
                   ))}
+                  <option value="__profile__">profile.md</option>
                 </select>
                 <button
                   type="button"

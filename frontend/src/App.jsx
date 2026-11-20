@@ -871,6 +871,19 @@ export default function App() {
 
   // Handle program switching with auto-flush
   const handleProgramChange = async (progName) => {
+    if (progName === '__profile__') {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+        await saveLogbookContent(logbookText);
+      }
+      const loaded = await loadProfileFromFile();
+      setProfileMdText(serializeProfileToMarkdown(loaded));
+      setEditingProfileMd(true);
+      setEditorMode('edit');
+      setActiveTab('editor');
+      return;
+    }
     setEditingProfileMd(false);
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -1401,7 +1414,7 @@ export default function App() {
                 setSecPalette={setSecPalette}
                 SEC_PALETTES={SEC_PALETTES}
                 showProgramSelector={true}
-                currentProgram={currentProgram}
+                currentProgram={editingProfileMd ? '__profile__' : currentProgram}
                 handleProgramChange={handleProgramChange}
                 programs={programs}
                 setShowNewProgramModal={setShowNewProgramModal}
@@ -1430,7 +1443,7 @@ export default function App() {
             <span className="program-label">Program:</span>
             <select 
               className="program-select"
-              value={currentProgram}
+              value={editingProfileMd ? '__profile__' : currentProgram}
               onChange={(e) => handleProgramChange(e.target.value)}
             >
               {programs.map(prog => (
@@ -1438,6 +1451,7 @@ export default function App() {
                   {prog}
                 </option>
               ))}
+              <option value="__profile__">profile.md</option>
             </select>
             <button 
               className="btn-icon-small" 
