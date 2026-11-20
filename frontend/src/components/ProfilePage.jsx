@@ -4,7 +4,7 @@ import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { LockWheelPicker } from './FilterControls';
-import { Latex, MathBlock } from './MathComponents';
+import { Latex } from './MathComponents';
 import {
   CIRCUMFERENCE_FIELDS,
   CIRCUMFERENCE_LOG_KEYS,
@@ -19,7 +19,6 @@ import {
   calcTDEEFromSteps,
   formatDisplayDate,
   formatProfileLogValue,
-  getBMICategory,
 } from '../profileUtils';
 
 const cardStyle = {
@@ -387,42 +386,30 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
       bmi: {
         title: 'Body Mass Index (BMI)',
         valueText: derived.bmi.toFixed(1),
-        badge: getBMICategory(derived.bmi),
         unit: '',
         invertColor: false,
-        formula: String.raw`\text{BMI} = \frac{W}{h^2}`,
-        substituted: String.raw`= \frac{${w.toFixed(1)}}{${hM.toFixed(2)}^2} = ${derived.bmi.toFixed(1)}`,
-        note: 'Weight W (kg) divided by height h (m) squared.',
+        math: String.raw`\text{BMI} = \frac{W}{h^2} = \frac{${w.toFixed(1)}}{${hM.toFixed(2)}^2} = ${derived.bmi.toFixed(1)}`,
       },
       ffmi: {
         title: 'Normalized FFMI',
         valueText: derived.ffmiData.normalizedFfmi.toFixed(1),
-        badge: derived.ffmiData.category,
         unit: '',
         invertColor: false,
-        formula: String.raw`\text{FFMI}_{\text{norm}} = \frac{\text{LBM}}{h^2} + 6.1(1.8 - h)`,
-        substituted: String.raw`= \frac{${derived.lbm.toFixed(1)}}{${hM.toFixed(2)}^2} + 6.1(1.8 - ${hM.toFixed(2)}) = ${derived.ffmiData.normalizedFfmi.toFixed(1)}`,
-        note: 'Fat-free mass relative to height, normalized to a 1.80 m reference.',
+        math: String.raw`\text{FFMI}_{\text{norm}} = \frac{\text{LBM}}{h^2} + 6.1(1.8 - h) = \frac{${derived.lbm.toFixed(1)}}{${hM.toFixed(2)}^2} + 6.1(1.8 - ${hM.toFixed(2)}) = ${derived.ffmiData.normalizedFfmi.toFixed(1)}`,
       },
       lbm: {
         title: 'Lean Body Mass (LBM)',
         valueText: `${derived.lbm.toFixed(1)} kg`,
-        badge: null,
         unit: ' kg',
         invertColor: false,
-        formula: String.raw`\text{LBM} = W \cdot \left(1 - \frac{\text{BF}\%}{100}\right)`,
-        substituted: String.raw`= ${w.toFixed(1)} \cdot \left(1 - \frac{${bf.toFixed(1)}}{100}\right) = ${derived.lbm.toFixed(1)}\text{ kg}`,
-        note: 'Total body weight minus estimated fat mass.',
+        math: String.raw`\text{LBM} = W\left(1 - \frac{\text{BF}\%}{100}\right) = ${w.toFixed(1)}\left(1 - \frac{${bf.toFixed(1)}}{100}\right) = ${derived.lbm.toFixed(1)}\text{ kg}`,
       },
       fm: {
         title: 'Fat Mass',
         valueText: `${derived.fm.toFixed(1)} kg`,
-        badge: null,
         unit: ' kg',
         invertColor: true,
-        formula: String.raw`\text{FM} = W - \text{LBM} = W \cdot \frac{\text{BF}\%}{100}`,
-        substituted: String.raw`= ${w.toFixed(1)} \cdot \frac{${bf.toFixed(1)}}{100} = ${derived.fm.toFixed(1)}\text{ kg}`,
-        note: 'Estimated adipose tissue mass from body weight and body fat percentage.',
+        math: String.raw`\text{FM} = W \cdot \frac{\text{BF}\%}{100} = ${w.toFixed(1)} \cdot \frac{${bf.toFixed(1)}}{100} = ${derived.fm.toFixed(1)}\text{ kg}`,
       },
     };
 
@@ -1061,58 +1048,44 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
           <div
             style={{
               ...cardStyle,
-              maxWidth: '540px',
+              maxWidth: '440px',
               width: '100%',
               maxHeight: '90dvh',
               overflowY: 'auto',
-              gap: '14px',
+              padding: '14px 16px',
+              gap: '10px',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-              <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
                 <h3
                   id="derived-metric-modal-title"
                   style={{
                     margin: 0,
                     fontFamily: 'var(--font-display)',
-                    fontSize: '1.1rem',
+                    fontSize: '0.95rem',
                     fontWeight: 700,
                     color: 'var(--text-primary)',
                   }}
                 >
                   {selectedMetricDetail.title}
                 </h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.35rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {selectedMetricDetail.valueText}
-                  </span>
-                  {selectedMetricDetail.badge && (
-                    <span style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      padding: '2px 8px',
-                      borderRadius: '999px',
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-secondary)',
-                    }}>
-                      {selectedMetricDetail.badge}
-                    </span>
-                  )}
-                  {selectedMetricDetail.series.length >= 2 && (
-                    <TrendBadge
-                      values={selectedMetricDetail.series}
-                      invertColor={selectedMetricDetail.invertColor}
-                    />
-                  )}
-                </div>
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {selectedMetricDetail.valueText}
+                </span>
+                {selectedMetricDetail.series.length >= 2 && (
+                  <TrendBadge
+                    values={selectedMetricDetail.series}
+                    invertColor={selectedMetricDetail.invertColor}
+                  />
+                )}
               </div>
               <button
                 type="button"
@@ -1122,10 +1095,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-secondary)',
-                  fontSize: '1.5rem',
+                  fontSize: '1.35rem',
                   lineHeight: 1,
                   cursor: 'pointer',
-                  padding: '2px 6px',
+                  padding: '0 4px',
                 }}
               >
                 ×
@@ -1135,33 +1108,33 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
             <div style={{
               background: 'rgba(255, 255, 255, 0.025)',
               border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              padding: '12px',
+              borderRadius: '10px',
+              padding: '10px',
             }}>
               {selectedMetricDetail.series.length >= 2 ? (
-                <div style={{ width: '100%', height: '200px' }}>
+                <div style={{ width: '100%', height: '150px' }}>
                   <ResponsiveContainer width="99%" height="100%" minWidth={0} minHeight={0}>
-                    <LineChart data={selectedMetricDetail.series} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                    <LineChart data={selectedMetricDetail.series} margin={{ top: 6, right: 10, left: -14, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(255, 255, 255, 0.06)" strokeDasharray="3 3" />
                       <XAxis
                         dataKey="label"
-                        tick={{ fill: '#9ca3af', fontSize: 11 }}
+                        tick={{ fill: '#9ca3af', fontSize: 10 }}
                         tickLine={false}
                         axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
                       />
                       <YAxis
                         domain={['auto', 'auto']}
-                        tick={{ fill: '#9ca3af', fontSize: 11 }}
+                        tick={{ fill: '#9ca3af', fontSize: 10 }}
                         tickLine={false}
                         axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
-                        width={46}
+                        width={42}
                       />
                       <Tooltip
                         contentStyle={{
                           background: 'var(--bg-secondary)',
                           border: '1px solid var(--border-color)',
-                          borderRadius: '10px',
-                          fontSize: '0.8rem',
+                          borderRadius: '8px',
+                          fontSize: '0.76rem',
                           color: 'var(--text-primary)',
                         }}
                         formatter={(val) => [`${Number(val).toFixed(1)}${selectedMetricDetail.unit}`, selectedMetricDetail.title]}
@@ -1171,14 +1144,14 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                         dataKey="v"
                         stroke="#a3a3a3"
                         strokeWidth={2}
-                        dot={{ r: 3, fill: '#a3a3a3' }}
-                        activeDot={{ r: 5, fill: '#ffffff' }}
+                        dot={{ r: 2.5, fill: '#a3a3a3' }}
+                        activeDot={{ r: 4.5, fill: '#ffffff' }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '18px 8px' }}>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 6px' }}>
                   {selectedMetricDetail.totalCount >= 2
                     ? 'Not enough logs in the selected time range.'
                     : `Log at least 2 ${selectedMetricDetail.key === 'bmi' ? 'Weight' : 'Weight / Body Fat'} entries to plot this graph.`}
@@ -1186,13 +1159,18 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               )}
             </div>
 
-            <MathBlock>
-              <Latex math={selectedMetricDetail.formula} block />
-              <Latex math={selectedMetricDetail.substituted} block />
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                {selectedMetricDetail.note}
-              </p>
-            </MathBlock>
+            <div style={{
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-color)',
+              padding: '10px 12px',
+              borderRadius: '10px',
+              color: 'var(--text-primary)',
+              fontSize: '0.82rem',
+              overflowX: 'auto',
+              textAlign: 'center',
+            }}>
+              <Latex math={selectedMetricDetail.math} />
+            </div>
           </div>
         </div>,
         document.body
