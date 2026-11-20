@@ -22,7 +22,7 @@ const CURVE_OPTIONS = [
   { id: 'linear', label: 'Linear Decreasing' }
 ];
 
-export default function GeneratorConfig({ isMobile, onProgramCreated }) {
+export default function GeneratorConfig({ isMobile, activeProfile = '', onProgramCreated }) {
   // ===== HOOKS — must be called unconditionally before any early return =====
   const [markdownContent, setMarkdownContent] = useState('');
 
@@ -264,14 +264,19 @@ export default function GeneratorConfig({ isMobile, onProgramCreated }) {
       });
     });
 
-    const programName = prompt("Enter the name of the new program (e.g. AI_Program):", "AI_Program");
-    if (!programName) return;
+    const rawName = prompt("Enter the name of the new program (e.g. AI_Program):", "AI_Program");
+    if (!rawName) return;
+    const programName = rawName.trim();
+    if (!programName || programName.toLowerCase() === 'profile') {
+      alert('Please enter a valid program name ("profile" is reserved).');
+      return;
+    }
 
     try {
       const res = await fetch('/api/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: programName, content: markdown })
+        body: JSON.stringify({ name: programName, profile: activeProfile, content: markdown })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

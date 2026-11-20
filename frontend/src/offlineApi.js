@@ -103,12 +103,20 @@ window.fetch = async (input, init) => {
   else if (input instanceof URL) urlStr = input.toString();
   else if (input instanceof Request) urlStr = input.url;
 
-  if (!urlStr.includes('/api/')) return originalFetch(input, init);
+  let urlObj;
+  try {
+    urlObj = new URL(urlStr, window.location.origin);
+  } catch {
+    return originalFetch(input, init);
+  }
+
+  if (urlObj.origin !== window.location.origin || !urlObj.pathname.startsWith('/api/')) {
+    return originalFetch(input, init);
+  }
   if (!Capacitor.isNativePlatform()) return originalFetch(input, init);
 
   await defaultsReadyPromise;
 
-  const urlObj  = new URL(urlStr, 'http://localhost');
   const rawMethod = init?.method || (input instanceof Request ? input.method : 'GET');
   const method  = String(rawMethod).toUpperCase();
   const { dirType, dir, safUri, subfolder } = getStorageConfig();
@@ -141,7 +149,9 @@ window.fetch = async (input, init) => {
   const getAvailableProfiles = async () => {
     try {
       const { directories } = await listDir('');
-      return directories.slice().sort((a, b) => a.localeCompare(b));
+      return directories
+        .filter((name) => typeof name === 'string' && name.toLowerCase() !== 'programs')
+        .sort((a, b) => a.localeCompare(b));
     } catch {
       return [];
     }
@@ -260,26 +270,38 @@ window.fetch = async (input, init) => {
 
   // ── /api/programs ──────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/programs') {
+    const jsonHeaders = { 'Content-Type': 'application/json' };
     if (method === 'GET') {
       try {
         const { programsDir } = await resolveProfileScope(urlObj.searchParams.get('profile'));
-        const res = await listDir(programsDir);
+        let res;
+        try {
+          res = await listDir(programsDir);
+        } catch (listErr) {
+          if (!isCustom && /does not exist|not found/i.test(String(listErr?.message || ''))) {
+            return new Response(JSON.stringify([]), { status: 200, headers: jsonHeaders });
+          }
+          throw listErr;
+        }
         const names = (res.files || [])
           .filter(n => typeof n === 'string' && n.endsWith('.md') && n.toLowerCase() !== 'profile.md')
           .map(n => n.replace(/\.md$/, ''))
           .filter(n => sanitizeLogbookName(n).length > 0);
-        return new Response(JSON.stringify(names), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      } catch {
-        return new Response(JSON.stringify(['S1M3']), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify(names), { status: 200, headers: jsonHeaders });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e?.message || 'Failed to list programs' }), { status: 500, headers: jsonHeaders });
       }
     } else if (method === 'POST') {
       try {
         const bodyText = await readRequestBodyText(input, init);
         const data     = JSON.parse(bodyText);
         const { programsDir } = await resolveProfileScope(data.profile || urlObj.searchParams.get('profile'));
-        const name     = (data.name || '').replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
+        const name     = sanitizeLogbookName(data.name);
         if (!name) {
-          return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+          return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: jsonHeaders });
+        }
+        if (name.toLowerCase() === 'profile') {
+          return new Response(JSON.stringify({ error: 'Reserved program name' }), { status: 400, headers: jsonHeaders });
         }
         const filename = `${name}.md`;
         const fileContent = data.content || `# 1\nDates:\n\nLat machine | 3' |\n90.. 9+2, 7+2\n`;
@@ -287,64 +309,67 @@ window.fetch = async (input, init) => {
         try {
           const listing = await listDir(programsDir);
           if ((listing.files || []).includes(filename)) {
-            return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400 });
+            return new Response(JSON.stringify({ error: 'Program already exists' }), { status: 400, headers: jsonHeaders });
           }
-        } catch { /* ignore */ }
+        } catch { /* ignore if folder doesn't exist yet */ }
         await writeRelFile(joinRel(programsDir, filename), fileContent);
 
-        return new Response(JSON.stringify({ success: true, name }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: true, name }), { status: 200, headers: jsonHeaders });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        const status = e instanceof SyntaxError ? 400 : 500;
+        return new Response(JSON.stringify({ error: e?.message || 'Failed to create program' }), { status, headers: jsonHeaders });
       }
     }
   }
 
   // ── /api/logbook ───────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/logbook') {
+    const jsonHeaders = { 'Content-Type': 'application/json' };
     const { programsDir } = await resolveProfileScope(urlObj.searchParams.get('profile'));
     const rawProgram = urlObj.searchParams.get('program');
     const programName = rawProgram === null ? 'S1M3' : rawProgram;
     const cleanName   = sanitizeLogbookName(programName);
-    if (!cleanName) {
-      return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    if (!cleanName || cleanName.toLowerCase() === 'profile') {
+      return new Response(JSON.stringify({ error: 'Invalid program name' }), { status: 400, headers: jsonHeaders });
     }
     const relPath = joinRel(programsDir, `${cleanName}.md`);
 
     if (method === 'GET') {
       try {
         const data = await readRelFile(relPath);
-        return new Response(data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        return new Response(data, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       } catch {
-        return new Response(`Logbook file ${cleanName}.md not found`, { status: 404 });
+        return new Response(`Logbook file ${cleanName}.md not found`, { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
     } else if (method === 'POST') {
       try {
         const bodyText = await readRequestBodyText(input, init);
         await writeRelFile(relPath, bodyText);
-        return new Response(JSON.stringify({ success: true }), { status: 200 });
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: jsonHeaders });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: e?.message || 'Failed to save logbook' }), { status: 500, headers: jsonHeaders });
       }
     }
   }
 
   // ── /api/profile ───────────────────────────────────────────────────────────
   if (urlObj.pathname === '/api/profile') {
+    const jsonHeaders = { 'Content-Type': 'application/json' };
     const { profilePath } = await resolveProfileScope(urlObj.searchParams.get('profile'));
     if (method === 'GET') {
       try {
         const data = await readRelFile(profilePath);
-        return new Response(data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        return new Response(data, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       } catch {
-        return new Response('profile.md not found', { status: 404 });
+        return new Response('profile.md not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
     } else if (method === 'POST') {
       try {
         const bodyText = await readRequestBodyText(input, init);
         await writeRelFile(profilePath, bodyText);
-        return new Response(JSON.stringify({ success: true }), { status: 200 });
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: jsonHeaders });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: e?.message || 'Failed to save profile' }), { status: 500, headers: jsonHeaders });
       }
     }
   }

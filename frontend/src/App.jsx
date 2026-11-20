@@ -745,6 +745,7 @@ export default function App() {
         setActiveProfile(resolvedProfile);
         setActiveProfileName(resolvedProfile);
         const loadedProfile = await loadProfileFromFile(resolvedProfile);
+        if (reqId !== loadRequestIdRef.current) return null;
         window.dispatchEvent(new CustomEvent('profile-updated', { detail: loadedProfile }));
         const query = resolvedProfile ? `?profile=${encodeURIComponent(resolvedProfile)}` : '';
         return fetch(`/api/programs${query}`);
@@ -757,14 +758,23 @@ export default function App() {
       .then(progs => {
         if (!progs || reqId !== loadRequestIdRef.current) return null;
         const prof = activeProfileRef.current;
-        if (progs.length > 0) {
-          setPrograms(progs);
-          const savedProg = localStorage.getItem(prof ? `lastSelectedProgram_${prof}` : 'lastSelectedProgram')
-            || localStorage.getItem('lastSelectedProgram');
-          resolvedProg = savedProg && progs.includes(savedProg)
-            ? savedProg
-            : (progs.includes('S1M3') ? 'S1M3' : progs[0]);
+        const progList = Array.isArray(progs) ? progs : [];
+        setPrograms(progList);
+        if (progList.length === 0) {
+          currentProgramRef.current = '';
+          setCurrentProgram('');
+          resetTextHistory('');
+          setLogbookText('');
+          setDebouncedLogbookText('');
+          setSyncStatus('saved');
+          setSyncError('');
+          return null;
         }
+        const savedProg = localStorage.getItem(prof ? `lastSelectedProgram_${prof}` : 'lastSelectedProgram')
+          || localStorage.getItem('lastSelectedProgram');
+        resolvedProg = savedProg && progList.includes(savedProg)
+          ? savedProg
+          : (progList.includes('S1M3') ? 'S1M3' : progList[0]);
         const profQuery = prof ? `&profile=${encodeURIComponent(prof)}` : '';
         return fetch(`/api/logbook?program=${encodeURIComponent(resolvedProg)}${profQuery}`);
       })
@@ -924,15 +934,20 @@ export default function App() {
 
   const handleProfileSelect = async (profName) => {
     if (!profName || profName === activeProfileRef.current) return;
+    const reqId = ++loadRequestIdRef.current;
     if (profileSaveTimeoutRef.current) {
       clearTimeout(profileSaveTimeoutRef.current);
       profileSaveTimeoutRef.current = null;
       await saveProfileMdContent(profileMdText);
+      if (reqId !== loadRequestIdRef.current) return;
     }
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
-      await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
+      if (currentProgramRef.current) {
+        await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
+        if (reqId !== loadRequestIdRef.current) return;
+      }
     }
     setEditingProfileMd(false);
     activeProfileRef.current = profName;
@@ -940,37 +955,53 @@ export default function App() {
     setActiveProfileName(profName);
 
     const loadedProfile = await loadProfileFromFile(profName);
+    if (reqId !== loadRequestIdRef.current) return;
     window.dispatchEvent(new CustomEvent('profile-updated', { detail: loadedProfile }));
 
     try {
       const res = await fetch(`/api/programs?profile=${encodeURIComponent(profName)}`);
-      if (res.ok) {
-        const progs = await res.json();
-        setPrograms(progs);
-        if (progs.length > 0) {
-          const savedProg = localStorage.getItem(`lastSelectedProgram_${profName}`);
-          const nextProg = savedProg && progs.includes(savedProg) ? savedProg : progs[0];
-          loadProgram(nextProg, profName);
-        } else {
-          currentProgramRef.current = '';
-          setCurrentProgram('');
-          resetTextHistory('');
-          setLogbookText('');
-          setDebouncedLogbookText('');
-        }
+      if (!res.ok) throw new Error('Failed to load programs list');
+      const progs = await res.json();
+      if (reqId !== loadRequestIdRef.current) return;
+      const progList = Array.isArray(progs) ? progs : [];
+      setPrograms(progList);
+      if (progList.length > 0) {
+        const savedProg = localStorage.getItem(`lastSelectedProgram_${profName}`);
+        const nextProg = savedProg && progList.includes(savedProg) ? savedProg : progList[0];
+        loadProgram(nextProg, profName);
+      } else {
+        currentProgramRef.current = '';
+        setCurrentProgram('');
+        resetTextHistory('');
+        setLogbookText('');
+        setDebouncedLogbookText('');
+        setSyncStatus('saved');
+        setSyncError('');
       }
-    } catch {
-      // Ignore network errors when switching profile
+    } catch (err) {
+      if (reqId !== loadRequestIdRef.current) return;
+      setPrograms([]);
+      currentProgramRef.current = '';
+      setCurrentProgram('');
+      resetTextHistory('');
+      setLogbookText('');
+      setDebouncedLogbookText('');
+      setSyncErrorKind('bootstrap');
+      setSyncStatus('error');
+      setSyncError(err?.message || `Failed to switch to profile ${profName}`);
     }
   };
 
   // Handle program switching with auto-flush
   const handleProgramChange = async (progName) => {
+    if (!progName) return;
     setEditingProfileMd(false);
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
-      await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
+      if (currentProgramRef.current) {
+        await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
+      }
     }
     loadProgram(progName);
   };
@@ -983,12 +1014,17 @@ export default function App() {
       return;
     }
 
+    if (cleanName.toLowerCase() === 'profile') {
+      setNewProgramError('The name "profile" is reserved.');
+      return;
+    }
+
     if (programs.includes(cleanName)) {
       setNewProgramError('A program with this name already exists.');
       return;
     }
 
-    if (saveTimeoutRef.current) {
+    if (saveTimeoutRef.current && currentProgramRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
       await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
@@ -1276,6 +1312,11 @@ export default function App() {
   };
 
   const handleSaveExerciseForProgramOnly = () => {
+    if (!currentProgramRef.current) {
+      setExerciseError('Create or select a program before saving program-specific overrides.');
+      return;
+    }
+
     const name = exerciseForm.name.trim();
     if (!name) {
       setExerciseError('Exercise name is required.');
@@ -1338,6 +1379,11 @@ export default function App() {
   };
 
   const handleRemoveOverride = () => {
+    if (!currentProgramRef.current) {
+      setShowExerciseModal(false);
+      return;
+    }
+
     const searchName = editingOriginalName || exerciseForm.name.trim();
     if (!searchName) return;
 
@@ -1366,6 +1412,12 @@ export default function App() {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
+    }
+    if (!progName) {
+      setSyncErrorKind('save');
+      setSyncStatus('error');
+      setSyncError('No program selected. Create a program first.');
+      return Promise.resolve();
     }
     const formattedText = formatLogbookSpaces(newText);
     if (formattedText !== newText && progName === currentProgramRef.current) {
@@ -1535,19 +1587,44 @@ export default function App() {
 
         {/* Header Controls (Desktop) */}
         <div className="header-controls desktop-only" style={{ position: 'relative' }}>
+          {/* Profile Selector */}
+          {profiles.length > 0 && (
+            <div className="program-selector-container">
+              <span className="program-label">Profile:</span>
+              <select
+                className="program-select"
+                aria-label="Active Profile"
+                value={activeProfile}
+                onChange={(e) => handleProfileSelect(e.target.value)}
+              >
+                {profiles.map(prof => (
+                  <option key={prof} value={prof}>
+                    {prof}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Program Selector */}
           <div className="program-selector-container">
             <span className="program-label">Program:</span>
             <select 
               className="program-select"
+              aria-label="Active Program"
               value={currentProgram}
               onChange={(e) => handleProgramChange(e.target.value)}
+              disabled={programs.length === 0}
             >
-              {programs.map(prog => (
-                <option key={prog} value={prog}>
-                  {prog}
-                </option>
-              ))}
+              {programs.length === 0 ? (
+                <option value="" disabled>No programs</option>
+              ) : (
+                programs.map(prog => (
+                  <option key={prog} value={prog}>
+                    {prog}
+                  </option>
+                ))
+              )}
             </select>
             <button 
               className="btn-icon-small" 
@@ -1564,7 +1641,7 @@ export default function App() {
             <span>
               {syncStatus === 'syncing' ? 'Saving...' :
                syncStatus === 'error' ? 'Sync Error' :
-               syncStatus === 'saved' ? `Synced with ${editingProfileMd ? 'profile' : currentProgram}` : 'Offline'}
+               syncStatus === 'saved' ? (editingProfileMd ? 'Synced with profile' : (currentProgram ? `Synced with ${currentProgram}` : 'Synced')) : 'Offline'}
             </span>
           </div>
 
@@ -1894,6 +1971,7 @@ export default function App() {
             <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--text-muted)' }}>Loading Generator...</div>}>
               <GeneratorConfig
                 isMobile={isMobile}
+                activeProfile={activeProfile}
                 onProgramCreated={(name) => {
                   setPrograms(prev => (prev.includes(name) ? prev : [...prev, name]));
                 }}

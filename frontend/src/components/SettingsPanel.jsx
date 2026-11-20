@@ -172,7 +172,7 @@ export const SettingsPanel = memo(({
       : syncStatus === 'error'
         ? 'Sync Error'
         : syncStatus === 'saved'
-          ? `Synced with ${currentProgram}`
+          ? (currentProgram ? `Synced with ${currentProgram}` : 'Synced')
           : 'Offline';
 
   return (
@@ -223,12 +223,17 @@ export const SettingsPanel = memo(({
                   value={currentProgram}
                   onChange={(e) => handleProgramChange(e.target.value)}
                   aria-label="Active Program"
+                  disabled={programs.length === 0}
                 >
-                  {programs.map(prog => (
-                    <option key={prog} value={prog}>
-                      {prog}
-                    </option>
-                  ))}
+                  {programs.length === 0 ? (
+                    <option value="" disabled>No programs</option>
+                  ) : (
+                    programs.map(prog => (
+                      <option key={prog} value={prog}>
+                        {prog}
+                      </option>
+                    ))
+                  )}
                 </select>
                 <button
                   type="button"

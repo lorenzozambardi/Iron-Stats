@@ -550,6 +550,23 @@ const DashboardTab = ({
   const [cmpFilterSession, setCmpFilterSession] = useState('all');
   const [cmpFilterWeekFrom, setCmpFilterWeekFrom] = useState('all');
   const [cmpFilterWeekTo, setCmpFilterWeekTo] = useState('all');
+  const [prevCompareProfile, setPrevCompareProfile] = useState(resolvedProfileName);
+  if (resolvedProfileName !== prevCompareProfile) {
+    setPrevCompareProfile(resolvedProfileName);
+    setCompareMode(false);
+    setCompareLoading(false);
+    setCompareRawText('');
+    setCompareProgram('');
+    setCmpFilterSession('all');
+    setCmpFilterWeekFrom('all');
+    setCmpFilterWeekTo('all');
+  }
+  useEffect(() => () => {
+    if (compareAbortRef.current) {
+      compareAbortRef.current.abort();
+      compareAbortRef.current = null;
+    }
+  }, [resolvedProfileName]);
   // Shared muscle group/subgroup isolation filter
   const [dashMuscleMacro, setDashMuscleMacro] = useState('all');   // 'all' or macro name e.g. 'Back'
   const [dashMuscleSubgroup, setDashMuscleSubgroup] = useState('all'); // 'all' or sub-muscle name
@@ -607,7 +624,8 @@ const DashboardTab = ({
     const controller = new AbortController();
     compareAbortRef.current = controller;
     setCompareLoading(true);
-    fetch(`/api/logbook?program=${encodeURIComponent(progName)}`, { signal: controller.signal })
+    const profQuery = resolvedProfileName ? `&profile=${encodeURIComponent(resolvedProfileName)}` : '';
+    fetch(`/api/logbook?program=${encodeURIComponent(progName)}${profQuery}`, { signal: controller.signal })
       .then(res => {
         if (!res.ok) throw new Error(`Failed to load ${progName}.md`);
         return res.text();
@@ -622,7 +640,7 @@ const DashboardTab = ({
         setCompareRawText('');
         setCompareLoading(false);
       });
-  }, []);
+  }, [resolvedProfileName]);
 
   const disableCompareMode = useCallback(() => {
     if (compareAbortRef.current) {
