@@ -1452,7 +1452,7 @@ export default function App() {
                   {prog}
                 </option>
               ))}
-              <option value="__profile__">profile.md</option>
+              <option value="__profile__">profile</option>
             </select>
             <button 
               className="btn-icon-small" 
@@ -1469,7 +1469,7 @@ export default function App() {
             <span>
               {syncStatus === 'syncing' ? 'Saving...' :
                syncStatus === 'error' ? 'Sync Error' :
-               syncStatus === 'saved' ? `Synced with ${currentProgram}.md` : 'Offline'}
+               syncStatus === 'saved' ? `Synced with ${editingProfileMd ? 'profile' : currentProgram}` : 'Offline'}
             </span>
           </div>
 
@@ -1657,9 +1657,9 @@ export default function App() {
                   type="button"
                   className={editingProfileMd ? 'btn btn-primary' : 'btn'}
                   onClick={toggleProfileMdEditor}
-                  title="Edit profile.md"
+                  title="Edit profile"
                 >
-                  profile.md
+                  profile
                 </button>
                 <button
                   className="btn btn-primary"

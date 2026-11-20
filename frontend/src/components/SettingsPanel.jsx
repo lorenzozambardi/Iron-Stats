@@ -169,7 +169,7 @@ export const SettingsPanel = memo(({
       : syncStatus === 'error'
         ? 'Sync Error'
         : syncStatus === 'saved'
-          ? `Synced with ${currentProgram}.md`
+          ? `Synced with ${currentProgram === '__profile__' ? 'profile' : currentProgram}`
           : 'Offline';
 
   return (
@@ -204,7 +204,7 @@ export const SettingsPanel = memo(({
                       {prog}
                     </option>
                   ))}
-                  <option value="__profile__">profile.md</option>
+                  <option value="__profile__">profile</option>
                 </select>
                 <button
                   type="button"
