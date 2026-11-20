@@ -121,18 +121,12 @@ public class StopwatchPlugin extends Plugin {
     @PluginMethod
     public void pause(PluginCall call) {
         Context context = getContext();
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING, false);
-        long accumulated = prefs.getLong(PREF_ACCUMULATED_TIME, 0);
-
-        if (isRunning || accumulated > 0) {
-            Intent intent = new Intent(context, StopwatchService.class);
-            intent.setAction(StopwatchService.ACTION_PAUSE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ContextCompat.startForegroundService(context, intent);
-            } else {
-                context.startService(intent);
-            }
+        Intent intent = new Intent(context, StopwatchService.class);
+        intent.setAction(StopwatchService.ACTION_PAUSE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(context, intent);
+        } else {
+            context.startService(intent);
         }
 
         JSObject ret = new JSObject();

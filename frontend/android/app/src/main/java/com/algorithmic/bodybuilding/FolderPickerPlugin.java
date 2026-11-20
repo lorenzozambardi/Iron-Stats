@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 
 @CapacitorPlugin(name = "FolderPicker")
 public class FolderPickerPlugin extends Plugin {
+    private final Object fileLock = new Object();
 
     // ── Folder Picker ──────────────────────────────────────────────────────────
 
@@ -60,11 +61,17 @@ public class FolderPickerPlugin extends Plugin {
             String displayName = treeUri.getLastPathSegment();
             if (displayName != null && displayName.contains(":")) {
                 displayName = displayName.substring(displayName.lastIndexOf(":") + 1);
+                if (displayName.trim().isEmpty()) {
+                    displayName = "Internal Storage";
+                }
+            }
+            if (displayName == null || displayName.trim().isEmpty()) {
+                displayName = treeUri.toString();
             }
 
             JSObject ret = new JSObject();
             ret.put("uri", treeUri.toString());
-            ret.put("displayName", displayName != null ? displayName : treeUri.toString());
+            ret.put("displayName", displayName);
             call.resolve(ret);
         } else {
             call.reject("Folder selection cancelled");
@@ -152,45 +159,47 @@ public class FolderPickerPlugin extends Plugin {
         String data     = call.getString("data");
         if (uriStr == null || filename == null || data == null) { call.reject("Missing parameters"); return; }
 
-        try {
-            DocumentFile root = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
-            if (root == null) { call.reject("Invalid directory"); return; }
+        synchronized (fileLock) {
+            try {
+                DocumentFile root = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+                if (root == null) { call.reject("Invalid directory"); return; }
 
-            String[] parts = splitRelativePath(filename);
-            if (parts == null) { call.reject("Invalid path: " + filename); return; }
-            DocumentFile parentDir = resolveDirectorySegments(root, parts, parts.length - 1, true);
-            if (parentDir == null) { call.reject("Failed to resolve directory for: " + filename); return; }
+                String[] parts = splitRelativePath(filename);
+                if (parts == null) { call.reject("Invalid path: " + filename); return; }
+                DocumentFile parentDir = resolveDirectorySegments(root, parts, parts.length - 1, true);
+                if (parentDir == null) { call.reject("Failed to resolve directory for: " + filename); return; }
 
-            String leafName = parts[parts.length - 1];
-            DocumentFile file = parentDir.findFile(leafName);
-            if (file == null) {
-                String mimeType = "application/octet-stream";
-                if (leafName.endsWith(".json")) {
-                    mimeType = "application/json";
-                } else if (leafName.endsWith(".md")) {
-                    mimeType = "text/markdown";
-                } else if (leafName.endsWith(".txt")) {
-                    mimeType = "text/plain";
+                String leafName = parts[parts.length - 1];
+                DocumentFile file = parentDir.findFile(leafName);
+                if (file == null) {
+                    String mimeType = leafName.contains(".") ? "application/octet-stream" : "text/plain";
+                    file = parentDir.createFile(mimeType, leafName);
+                    if (file != null && file.getName() != null && !leafName.equals(file.getName())) {
+                        boolean renamed = file.renameTo(leafName);
+                        if (!renamed) {
+                            DocumentFile existing = parentDir.findFile(leafName);
+                            if (existing != null) {
+                                file.delete();
+                                file = existing;
+                            }
+                        }
+                    }
                 }
-                file = parentDir.createFile(mimeType, leafName);
-                if (file != null && file.getName() != null && !leafName.equals(file.getName())) {
-                    file.renameTo(leafName);
+                if (file == null) { call.reject("Failed to create file: " + filename); return; }
+
+                // "wt" = write + truncate, so we always overwrite cleanly
+                try (OutputStream os = getContext().getContentResolver().openOutputStream(file.getUri(), "wt")) {
+                    if (os == null) { call.reject("Could not open output stream"); return; }
+                    os.write(data.getBytes(StandardCharsets.UTF_8));
+                    os.flush();
                 }
-            }
-            if (file == null) { call.reject("Failed to create file: " + filename); return; }
 
-            // "wt" = write + truncate, so we always overwrite cleanly
-            try (OutputStream os = getContext().getContentResolver().openOutputStream(file.getUri(), "wt")) {
-                if (os == null) { call.reject("Could not open output stream"); return; }
-                os.write(data.getBytes(StandardCharsets.UTF_8));
-                os.flush();
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("writeFile failed: " + e.getMessage());
             }
-
-            JSObject ret = new JSObject();
-            ret.put("success", true);
-            call.resolve(ret);
-        } catch (Exception e) {
-            call.reject("writeFile failed: " + e.getMessage());
         }
     }
 

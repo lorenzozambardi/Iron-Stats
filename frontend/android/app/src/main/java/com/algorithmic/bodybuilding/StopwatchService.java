@@ -35,7 +35,7 @@ public class StopwatchService extends Service {
         void onStateChanged(boolean isRunning, long startTime, long accumulatedMs);
     }
 
-    private static StateChangeListener stateListener = null;
+    private static volatile StateChangeListener stateListener = null;
 
     public static void setStateListener(StateChangeListener listener) {
         stateListener = listener;
@@ -126,7 +126,6 @@ public class StopwatchService extends Service {
                 .putLong(PREF_START_TIME, now)
                 .apply();
 
-            updateNotification();
             notifyListener(true, now, accumulated);
         }
     }
@@ -146,7 +145,6 @@ public class StopwatchService extends Service {
                 .putLong(PREF_START_TIME, 0)
                 .apply();
 
-            updateNotification();
             notifyListener(false, 0, newAccumulated);
         }
     }
@@ -160,31 +158,21 @@ public class StopwatchService extends Service {
             .apply();
 
         notifyListener(false, 0, 0);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE);
-        } else {
-            stopForeground(true);
-        }
-        try {
-            NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
-        } catch (Exception ignored) {}
-        stopSelf();
     }
 
     private void notifyListener(boolean running, long startTime, long accumulatedMs) {
-        if (stateListener != null) {
-            stateListener.onStateChanged(running, startTime, accumulatedMs);
+        StateChangeListener listener = stateListener;
+        if (listener != null) {
+            listener.onStateChanged(running, startTime, accumulatedMs);
         }
     }
 
-    private void updateNotification() {
-        try {
-            NotificationManagerCompat manager = NotificationManagerCompat.from(this);
-            manager.notify(NOTIFICATION_ID, buildNotification());
-        } catch (SecurityException e) {
-            // Handled safely
+    private PendingIntent createServicePendingIntent(int requestCode, Intent intent) {
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return PendingIntent.getForegroundService(this, requestCode, intent, flags);
         }
+        return PendingIntent.getService(this, requestCode, intent, flags);
     }
 
     private Notification buildNotification() {
@@ -219,23 +207,13 @@ public class StopwatchService extends Service {
         // Reset Action
         Intent resetIntent = new Intent(this, StopwatchService.class);
         resetIntent.setAction(ACTION_RESET);
-        PendingIntent resetPendingIntent = PendingIntent.getService(
-            this,
-            3,
-            resetIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+        PendingIntent resetPendingIntent = createServicePendingIntent(3, resetIntent);
 
         if (isRunning) {
             // Pause Action
             Intent pauseIntent = new Intent(this, StopwatchService.class);
             pauseIntent.setAction(ACTION_PAUSE);
-            PendingIntent pausePendingIntent = PendingIntent.getService(
-                this,
-                1,
-                pauseIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+            PendingIntent pausePendingIntent = createServicePendingIntent(1, pauseIntent);
 
             builder.setShowWhen(true)
                 .setUsesChronometer(true)
@@ -248,12 +226,7 @@ public class StopwatchService extends Service {
             // Start / Resume Action
             Intent startIntent = new Intent(this, StopwatchService.class);
             startIntent.setAction(ACTION_START);
-            PendingIntent startPendingIntent = PendingIntent.getService(
-                this,
-                2,
-                startIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+            PendingIntent startPendingIntent = createServicePendingIntent(2, startIntent);
 
             String status = currentElapsed == 0 ? "Ready • 00:00" : "Paused • " + formatTime(currentElapsed);
             builder.setUsesChronometer(false)

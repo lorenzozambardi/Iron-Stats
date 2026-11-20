@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -17,6 +17,11 @@ const SESSION_STORAGE_KEYS = {
   ACCUMULATED: 'iron_stats_session_accumulated'
 };
 
+const safeParseInt = (val) => {
+  const n = parseInt(val || '0', 10);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
 const formatTime = (ms) => {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
@@ -33,9 +38,7 @@ const formatSessionTime = (ms) => {
 };
 
 const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
-  const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [sessionTime, setSessionTime] = useState(0);
   const [isSessionRunning, setIsSessionRunning] = useState(false);
 
   const containerRef = useRef(null);
@@ -232,8 +235,8 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
 
     const loadFromLocalStorage = () => {
       const storedRunning = localStorage.getItem(STORAGE_KEYS.RUNNING) === 'true';
-      const storedStartTime = parseInt(localStorage.getItem(STORAGE_KEYS.START_TIME) || '0', 10);
-      const storedAccumulated = parseInt(localStorage.getItem(STORAGE_KEYS.ACCUMULATED) || '0', 10);
+      const storedStartTime = safeParseInt(localStorage.getItem(STORAGE_KEYS.START_TIME));
+      const storedAccumulated = safeParseInt(localStorage.getItem(STORAGE_KEYS.ACCUMULATED));
 
       accumulatedRef.current = storedAccumulated;
       startTimeRef.current = storedStartTime;
@@ -241,21 +244,19 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
 
       if (storedRunning && storedStartTime > 0) {
         const cur = storedAccumulated + Math.max(0, Date.now() - storedStartTime);
-        setTime(cur);
         latestTabStateRef.current.updateDisplay(cur);
         if (isCurrentlyVisible()) {
           latestTabStateRef.current.startLoop();
         }
       } else {
-        setTime(storedAccumulated);
         latestTabStateRef.current.updateDisplay(storedAccumulated);
       }
     };
 
     // Always restore session timer from localStorage
     const storedSessionRunning = localStorage.getItem(SESSION_STORAGE_KEYS.RUNNING) === 'true';
-    const storedSessionStart = parseInt(localStorage.getItem(SESSION_STORAGE_KEYS.START_TIME) || '0', 10);
-    const storedSessionAccumulated = parseInt(localStorage.getItem(SESSION_STORAGE_KEYS.ACCUMULATED) || '0', 10);
+    const storedSessionStart = safeParseInt(localStorage.getItem(SESSION_STORAGE_KEYS.START_TIME));
+    const storedSessionAccumulated = safeParseInt(localStorage.getItem(SESSION_STORAGE_KEYS.ACCUMULATED));
 
     sessionAccumulatedRef.current = storedSessionAccumulated;
     sessionStartTimeRef.current = storedSessionStart;
@@ -263,13 +264,11 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
 
     if (storedSessionRunning && storedSessionStart > 0) {
       const curSession = storedSessionAccumulated + Math.max(0, Date.now() - storedSessionStart);
-      setSessionTime(curSession);
       latestTabStateRef.current.updateSessionDisplay(curSession);
       if (isCurrentlyVisible()) {
         latestTabStateRef.current.startSessionLoop();
       }
     } else {
-      setSessionTime(storedSessionAccumulated);
       latestTabStateRef.current.updateSessionDisplay(storedSessionAccumulated);
     }
 
@@ -294,7 +293,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
           startTimeRef.current = state.startTime || 0;
           setRunningState(running);
           const t = state.time || 0;
-          setTime(t);
           latestTabStateRef.current.updateDisplay(t);
           if (running && isCurrentlyVisible()) {
             latestTabStateRef.current.startLoop();
@@ -325,7 +323,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         const currentElapsed = data.time != null
           ? data.time
           : (running && st > 0 ? (acc + Math.max(0, Date.now() - st)) : acc);
-        setTime(currentElapsed);
         latestTabStateRef.current.updateDisplay(currentElapsed);
         if (running && isCurrentlyVisible()) {
           latestTabStateRef.current.startLoop();
@@ -348,7 +345,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       const isVisible = isCurrentlyVisible();
 
       const s = latestTabStateRef.current.calculateSessionElapsed();
-      setSessionTime(s);
       latestTabStateRef.current.updateSessionDisplay(s);
       if (isSessionRunningRef.current && isVisible) {
         latestTabStateRef.current.startSessionLoop();
@@ -362,7 +358,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
           startTimeRef.current = state.startTime || 0;
           setRunningState(running);
           const t = state.time || 0;
-          setTime(t);
           latestTabStateRef.current.updateDisplay(t);
           if (running && isVisible) {
             latestTabStateRef.current.startLoop();
@@ -370,12 +365,10 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
         }).catch(() => {
           if (cancelled) return;
           const t = latestTabStateRef.current.calculateElapsed();
-          setTime(t);
           latestTabStateRef.current.updateDisplay(t);
         });
       } else {
         const t = latestTabStateRef.current.calculateElapsed();
-        setTime(t);
         latestTabStateRef.current.updateDisplay(t);
       }
     };
@@ -409,6 +402,11 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    updateDisplay(calculateElapsed());
+    updateSessionDisplay(calculateSessionElapsed());
+  }, [isMobile, activeTab, isRunning, isSessionRunning, calculateElapsed, calculateSessionElapsed, updateDisplay, updateSessionDisplay]);
+
   // Cleanup intervals/frames on unmount
   useEffect(() => {
     return () => {
@@ -433,7 +431,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       sessionStartTimeRef.current = 0;
       setSessionRunningState(false);
       stopSessionLoop();
-      setSessionTime(currentElapsed);
       updateSessionDisplay(currentElapsed);
 
       localStorage.setItem(SESSION_STORAGE_KEYS.ACCUMULATED, currentElapsed.toString());
@@ -448,7 +445,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     sessionStartTimeRef.current = 0;
     setSessionRunningState(false);
     stopSessionLoop();
-    setSessionTime(0);
     updateSessionDisplay(0);
 
     localStorage.setItem(SESSION_STORAGE_KEYS.ACCUMULATED, '0');
@@ -465,7 +461,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
       startTimeRef.current = 0;
       setRunningState(false);
       stopLoop();
-      setTime(currentElapsed);
       updateDisplay(currentElapsed);
 
       localStorage.setItem(STORAGE_KEYS.ACCUMULATED, currentElapsed.toString());
@@ -509,7 +504,6 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
     startTimeRef.current = 0;
     setRunningState(false);
     stopLoop();
-    setTime(0);
     updateDisplay(0);
 
     localStorage.setItem(STORAGE_KEYS.ACCUMULATED, '0');
@@ -558,9 +552,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                 fontVariantNumeric: 'tabular-nums',
                 fontWeight: 500
               }}
-            >
-              {formatSessionTime(sessionTime)}
-            </span>
+            />
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               <button
                 className={isSessionRunning ? 'btn' : 'btn btn-primary'}
@@ -611,9 +603,7 @@ const StopwatchTab = React.memo(({ activeTab, isMobile }) => {
                 fontVariantNumeric: 'tabular-nums',
                 letterSpacing: '-2px'
               }}
-            >
-              {formatTime(time)}
-            </div>
+            />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
               <button 
