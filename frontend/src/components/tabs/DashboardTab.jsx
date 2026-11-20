@@ -488,7 +488,7 @@ const DashboardTab = ({
   useEffect(() => {
     saveProfile(profile);
   }, [profile]);
-  const [muscleMetric, setMuscleMetric] = useState('sets');
+  const [muscleMetric, setMuscleMetric] = useState('effective');
   const [cardModes, setCardModes] = useState({
     reps: 'effective',
     tonnage: 'effective',
