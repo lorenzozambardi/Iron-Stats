@@ -565,4 +565,11 @@ describe('WorkoutSolver', () => {
     const clonedCost = solver.evaluateWorkout(cloned);
     expect(typeof clonedCost).toBe('number');
   });
+
+  it('validates finiteness and bounds for weights and target_ratios', () => {
+    expect(() => new WorkoutSolver({ ...defaultConfig, weights: { curve: -0.1 } }, MINI_DB)).toThrow(RangeError);
+    expect(() => new WorkoutSolver({ ...defaultConfig, weights: { vol: Number.NaN } }, MINI_DB)).toThrow(RangeError);
+    expect(() => new WorkoutSolver({ ...defaultConfig, target_ratios: { vol: 1.5 } }, MINI_DB)).toThrow(RangeError);
+    expect(() => new WorkoutSolver({ ...defaultConfig, target_ratios: { tut: -0.2 } }, MINI_DB)).toThrow(RangeError);
+  });
 });

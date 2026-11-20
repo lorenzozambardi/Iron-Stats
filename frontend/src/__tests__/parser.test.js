@@ -335,5 +335,43 @@ Lat Machine | 2' | 1-0-2-0
       expect(workoutData[0].weeks[1].sets.map((s) => s.base_reps)).toEqual([9]);
       expect(workoutData[0].weeks[2].sets.map((s) => s.base_reps)).toEqual([10, 8]);
     });
+
+    it('skips frontmatter/blockquotes/notes, handles stray dates, decimal tempo, ## headings, comma carry-forward, and empty weeks', () => {
+      const log = `---
+tags:
+  - bodybuilding
+---
+Focus: Intensity
+> Quote note before sessions
+
+# Push
+## Warmup Subheading
+Lat Machine | | 1.5-0.5-2.5-0.5
+05/01/2026
+80.. 10, 8
+85.., 75..
+
+# Pull
+Flat Barbell Bench | 2' |
+36..`;
+
+      const workoutData = parseLogbook(log, mockExercises);
+      expect(workoutData).toHaveLength(2);
+      expect(workoutData[0].session).toBe(1);
+      expect(workoutData[0].exercise_obj.name).toBe('Lat Machine');
+      expect([
+        workoutData[0].concentric,
+        workoutData[0].shortening_pause,
+        workoutData[0].eccentric,
+        workoutData[0].lengthening_pause,
+      ]).toEqual([1.5, 0.5, 2.5, 0.5]);
+      // Stray slash date outside Dates: is ignored; comma carry-forward creates week 2
+      expect(workoutData[0].weeks).toHaveLength(2);
+      expect(workoutData[0].weeks[1].sets.map(s => s.load)).toEqual([85, 75]);
+      expect(workoutData[0].weeks[1].sets.map(s => s.base_reps)).toEqual([10, 8]);
+      // # Pull increments session number; week 1 bare carry-forward skips appending empty WeekData
+      expect(workoutData[1].session).toBe(2);
+      expect(workoutData[1].weeks).toHaveLength(0);
+    });
   });
 });

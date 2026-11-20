@@ -187,7 +187,13 @@ class BezierProfile:
 
 def _coerce_bezier_float(mapping: dict[str, Any], key: str, default: float) -> float:
     raw = mapping.get(key)
-    return float(default if raw is None else raw)
+    if raw is None:
+        return float(default)
+    if isinstance(raw, bool):
+        raise TypeError(f"Boolean is not valid for Bezier coordinate '{key}': {raw!r}")
+    if isinstance(raw, str) and not raw.strip():
+        raise ValueError(f"Blank string is not valid for Bezier coordinate '{key}'")
+    return float(raw)
 
 
 def coerce_muscles_distr(muscles_distr: dict[str, Any]) -> dict[str, "BezierProfile"]:

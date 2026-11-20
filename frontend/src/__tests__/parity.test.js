@@ -338,5 +338,18 @@ describe('Mathematical invariants and frontend/solver parity', () => {
     expect(() => new WorkoutSolver({ days: 1, calibration_steps: 0 }, overDb)).not.toThrow();
     expect(() => new WorkoutSolver({}, [{ ...defaultExercises[0], fatigue: -1 }])).toThrow(RangeError);
     expect(() => new WorkoutSolver({}, [{ ...defaultExercises[0], load_multiplier: 0 }])).toThrow(RangeError);
+
+    // Boolean or blank Bezier coordinates in override JSON must be rejected
+    const lrOrig = defaultExercises.find((e) => e.name === 'LR').muscles_distr['Lateral Deltoid'];
+    const badBoolOver = getExercisesWithOverrides(
+      'override: LR | muscles_distr={"Lateral Deltoid": {"x0": true, "magnitude": 1.0}}',
+      defaultExercises
+    );
+    expect(badBoolOver.find((e) => e.name === 'LR').muscles_distr['Lateral Deltoid'].x0).toBe(lrOrig.x0);
+    const badBlankOver = getExercisesWithOverrides(
+      'override: LR | muscles_distr={"Lateral Deltoid": {"x1": " ", "magnitude": 1.0}}',
+      defaultExercises
+    );
+    expect(badBlankOver.find((e) => e.name === 'LR').muscles_distr['Lateral Deltoid'].x1).toBe(lrOrig.x1);
   });
 });

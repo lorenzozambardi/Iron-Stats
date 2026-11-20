@@ -98,6 +98,30 @@ function parseStrictFloat(val) {
   return Number.isFinite(num) ? num : NaN;
 }
 
+function toStrictBezierNumber(raw, defaultVal, key) {
+  if (raw === undefined || raw === null) return defaultVal;
+  if (typeof raw === 'boolean') {
+    throw new TypeError(`Boolean is not valid for Bezier coordinate '${key}'`);
+  }
+  if (typeof raw === 'string') {
+    if (!raw.trim()) {
+      throw new RangeError(`Blank string is not valid for Bezier coordinate '${key}'`);
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      throw new RangeError(`Non-finite Bezier value in override`);
+    }
+    return parsed;
+  }
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) {
+      throw new RangeError(`Non-finite Bezier value in override`);
+    }
+    return raw;
+  }
+  throw new TypeError(`Invalid Bezier coordinate type for '${key}'`);
+}
+
 // Parse overrides from program markdown and clone/modify exercises list
 export function getExercisesWithOverrides(logText, globalExercises) {
   if (!logText || !logText.toLowerCase().includes('override:')) return globalExercises;
@@ -159,18 +183,15 @@ export function getExercisesWithOverrides(logText, globalExercises) {
                 const normalizedDistr = {};
                 for (const [mKey, prof] of Object.entries(parsedDistr)) {
                   if (prof && typeof prof === 'object' && !Array.isArray(prof)) {
-                    const x0 = Number(prof.x0 ?? 0.0);
-                    const y0 = Number(prof.y0 ?? 1.0);
-                    const x1 = Number(prof.x1 ?? 0.33);
-                    const y1 = Number(prof.y1 ?? 1.0);
-                    const x2 = Number(prof.x2 ?? 0.66);
-                    const y2 = Number(prof.y2 ?? 1.0);
-                    const x3 = Number(prof.x3 ?? 1.0);
-                    const y3 = Number(prof.y3 ?? 1.0);
-                    const mag = Number(prof.magnitude ?? 0.0);
-                    if (![x0, y0, x1, y1, x2, y2, x3, y3, mag].every(Number.isFinite)) {
-                      throw new RangeError(`Non-finite Bezier value in override`);
-                    }
+                    const x0 = toStrictBezierNumber(prof.x0, 0.0, 'x0');
+                    const y0 = toStrictBezierNumber(prof.y0, 1.0, 'y0');
+                    const x1 = toStrictBezierNumber(prof.x1, 0.33, 'x1');
+                    const y1 = toStrictBezierNumber(prof.y1, 1.0, 'y1');
+                    const x2 = toStrictBezierNumber(prof.x2, 0.66, 'x2');
+                    const y2 = toStrictBezierNumber(prof.y2, 1.0, 'y2');
+                    const x3 = toStrictBezierNumber(prof.x3, 1.0, 'x3');
+                    const y3 = toStrictBezierNumber(prof.y3, 1.0, 'y3');
+                    const mag = toStrictBezierNumber(prof.magnitude, 0.0, 'magnitude');
                     if (!(0.0 <= x0 && x0 < x1 && x1 < x2 && x2 < x3 && x3 <= 1.0)) {
                       throw new RangeError(`Non-monotone or out-of-domain Bezier x profile: ${x0}, ${x1}, ${x2}, ${x3}`);
                     }
@@ -472,7 +493,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
 
 function parseTempoFromComment(comment) {
   const commentClean = (comment || "").trim();
-  const match = commentClean.match(/\b(\d+)-(\d+)-(\d+)-(\d+)\b/);
+  const match = commentClean.match(/\b(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\b/);
   if (match) {
     return [
       parseFloat(match[1]),
@@ -486,7 +507,7 @@ function parseTempoFromComment(comment) {
 
 export function parseTempoFromLine(line) {
   const parts = line.split('|');
-  const comment = parts.length > 2 ? parts[2] : "";
+  const comment = parts.length > 2 ? parts.slice(2).join(' | ') : "";
   return parseTempoFromComment(comment);
 }
 
@@ -697,17 +718,37 @@ export function parseLogbook(logText, exercises) {
   let currentWeek = 1;
   let currentSession = 0;
   let inDatesBlock = false;
+  let startIdx = 0;
 
-  for (let i = 0; i < lines.length; i++) {
+  // Skip leading closed YAML frontmatter block (`--- ... ---` / `...`)
+  let firstNonEmpty = -1;
+  for (let k = 0; k < lines.length; k++) {
+    if (lines[k].trim().length > 0) {
+      firstNonEmpty = k;
+      break;
+    }
+  }
+  if (firstNonEmpty !== -1 && lines[firstNonEmpty].trim() === '---') {
+    for (let k = firstNonEmpty + 1; k < lines.length; k++) {
+      const t = lines[k].trim();
+      if (t.startsWith('#')) break;
+      if (t === '---' || t === '...') {
+        startIdx = k + 1;
+        break;
+      }
+    }
+  }
+
+  for (let i = startIdx; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.length === 0) {
       continue;
     }
     try {
       if (line.startsWith('#')) {
-        const match = line.match(/\d+/);
-        if (match) {
-          currentSession = parseInt(match[0], 10);
+        if (/^#(?!#)/.test(line)) {
+          const match = line.match(/\d+/);
+          currentSession = match ? parseInt(match[0], 10) : (currentSession + 1);
         }
         inDatesBlock = false;
         currentExercise = null;
@@ -736,10 +777,19 @@ export function parseLogbook(logText, exercises) {
         inDatesBlock = false;
       }
 
+      if (
+        line.startsWith('>') ||
+        /^(?:[-*_]\s*){3,}$/.test(line) ||
+        /^[-*+]\s+/.test(line)
+      ) {
+        continue;
+      }
+
       // Check if it's a rep/set log line (contains load.. or rep/set syntax with optional 'old ' prefixes)
       const lineNoComment = line.split('--')[0];
+      const lineNoCommentTrim = lineNoComment.trim();
       const lineNoOld = lineNoComment.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
-      const isLogLine = !lineNoComment.includes('|') && (
+      const isLogLine = !lineNoComment.includes('|') && !isDateLine(lineNoCommentTrim) && (
         /(?:^|\s)-?[\d.]+(?:\/-?[\d.]+)*\s*\.\./.test(lineNoOld) ||
         (lineNoOld.length > 0 && /\d/.test(lineNoOld) && /^[\d().+/@,\s]+$/.test(lineNoOld))
       );
@@ -747,15 +797,32 @@ export function parseLogbook(logText, exercises) {
       if (isLogLine) {
         if (currentExercise) {
           let parsedSets = parseLine(line, i);
-          
-          // Carry forward load if empty (e.g. line is just loads.. and reps exist from prev week)
+
+          // Carry forward load if empty (e.g. "85.." or "85.., 75.." when reps exist from prev week)
           if (parsedSets.length === 0 && lineNoComment.includes('..') && currentExercise.weeks.length > 0) {
             const cleanCf = lineNoComment.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
-            const cfSubparts = cleanCf.split('..');
-            const loadStr = cfSubparts.length > 2
-              ? cfSubparts.slice(0, -1).join('/').trim()
-              : cfSubparts[0].trim();
-            const loads = parseLoadSpec(loadStr);
+            const rawTokens = cleanCf.split(',').map(t => t.trim()).filter(Boolean);
+            const collectedLoads = [];
+            let validCf = rawTokens.length > 0;
+            for (const tok of rawTokens) {
+              if (!tok.includes('..')) {
+                validCf = false;
+                break;
+              }
+              const sub = tok.split('..');
+              if (sub[sub.length - 1].trim().length > 0) {
+                validCf = false;
+                break;
+              }
+              const loadStr = sub.length > 2 ? sub.slice(0, -1).join('/').trim() : sub[0].trim();
+              const parsed = parseLoadSpec(loadStr);
+              if (!parsed) {
+                validCf = false;
+                break;
+              }
+              collectedLoads.push(...parsed);
+            }
+            const loads = validCf && collectedLoads.length > 0 ? collectedLoads : null;
             if (loads) {
               const prevSets = currentExercise.weeks[currentExercise.weeks.length - 1].sets;
               const dsDropCounters = new Map();
@@ -781,6 +848,10 @@ export function parseLogbook(logText, exercises) {
                 };
               });
             }
+          }
+
+          if (parsedSets.length === 0) {
+            continue;
           }
 
           parsedSets = parsedSets.map(s => {
@@ -828,6 +899,12 @@ export function parseLogbook(logText, exercises) {
           currentWeek++;
         }
       } else {
+        if (
+          isDateLine(lineNoCommentTrim) ||
+          (!line.includes('|') && /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]{1,32}:\s+/.test(line))
+        ) {
+          continue;
+        }
         // Exercise header
         const matchedObj = matchExercise(line, localExercises);
         if (matchedObj) {

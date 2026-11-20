@@ -37,13 +37,17 @@ export const formatLogbookSpaces = (text) => {
           .replace(/\s+,$/g, ',')
           .trimEnd();
       } else if (isSetLine(line)) {
-        line = line
+        const commentIdx = line.indexOf('--');
+        const setPart = commentIdx === -1 ? line : line.slice(0, commentIdx).trimEnd();
+        const commentPart = commentIdx === -1 ? '' : ` ${line.slice(commentIdx).trim()}`;
+        const formattedSet = setPart
           .replace(/^old\s+/i, 'old ')
           .replace(/(\d)\s*\.\.(?!\.)\s*(?=\S)/g, '$1.. ')
           .replace(/(\d)\s+\.\.(?!\.)$/g, '$1..')
           .replace(/\s*,\s*(?=\S)/g, ', ')
           .replace(/\s+,$/g, ',')
           .replace(/\s*([+@/])\s*/g, '$1');
+        line = `${formattedSet}${commentPart}`;
       }
     }
 

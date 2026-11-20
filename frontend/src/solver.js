@@ -206,6 +206,19 @@ export class WorkoutSolver {
             throw new RangeError(`Invalid min_reps/max_reps: ${this.config.min_reps}, ${this.config.max_reps}`);
         }
 
+        for (const [wKey, wVal] of Object.entries(this.config.weights || {})) {
+            const fw = Number(wVal);
+            if (typeof wVal === 'boolean' || !Number.isFinite(fw) || fw < 0.0) {
+                throw new RangeError(`Weight '${wKey}' must be finite and >= 0, got ${wVal}`);
+            }
+        }
+        for (const [rKey, rVal] of Object.entries(this.config.target_ratios || {})) {
+            const fr = Number(rVal);
+            if (typeof rVal === 'boolean' || !Number.isFinite(fr) || fr < 0.0 || fr > 1.0) {
+                throw new RangeError(`Target ratio '${rKey}' must be in [0, 1], got ${rVal}`);
+            }
+        }
+
         if (this.config.iterations !== undefined) {
             const rawIter = Number(this.config.iterations);
             this.config.iterations = Number.isFinite(rawIter) ? Math.min(Math.max(0, Math.floor(rawIter)), 100000) : 10000;

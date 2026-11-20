@@ -71,4 +71,9 @@ describe('formatLogbookSpaces', () => {
 
     expect(formatLogbookSpaces(input)).toBe(expected);
   });
+
+  it('preserves inline -- comments verbatim on set lines', () => {
+    const input = '  90 ..9 + 2 ,  7@ 8 -- keep + / @ .. intact  \n';
+    expect(formatLogbookSpaces(input)).toBe('90.. 9+2, 7@8 -- keep + / @ .. intact\n');
+  });
 });

@@ -42,8 +42,14 @@ RE_CLEAN_EXERCISE = re.compile(
 )
 # Matches rest times in a single pipe-separated segment (e.g. "2'", '90"', "1'30\"", "2' 30\"")
 RE_REST_SEGMENT = re.compile(r"^(?:(\d+)'\s*)?(?:(\d+)\")?$")
-# Matches tempo notations like 1-0-2-0 (concentric-pause-eccentric-pause)
-RE_TEMPO_COMMENT = re.compile(r"\b(\d+)-(\d+)-(\d+)-(\d+)\b")
+# Matches tempo notations like 1-0-2-0 (concentric-pause-eccentric-pause), including decimals
+RE_TEMPO_COMMENT = re.compile(
+    r"\b(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\b"
+)
+RE_NON_EXERCISE_PROSE = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]{1,32}:\s+")
+RE_BULLET_LINE = re.compile(r"^[-*+]\s+")
+RE_HR_LINE = re.compile(r"^(?:[-*_]\s*){3,}$")
+RE_TOP_HEADER = re.compile(r"^#(?!#)")
 # Matches set structures like "10(2)+3@8.5" (10 base reps, 2 assisted, 3 partials, @8.5 RPE)
 RE_REP_TOKEN = re.compile(r"^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?$")
 RE_OLD_PREFIX = re.compile(r"(?i)(?:\b|(?<=^))old\s+")
@@ -193,7 +199,7 @@ def parse_tempo_from_comment(comment: str) -> tuple[float, float, float, float]:
 
 def parse_tempo_from_line(line: str) -> tuple[float, float, float, float]:
     parts = line.split("|")
-    comment = parts[2] if len(parts) > 2 else ""
+    comment = " | ".join(parts[2:]) if len(parts) > 2 else ""
     return parse_tempo_from_comment(comment)
 
 
@@ -251,7 +257,7 @@ def parse_rep_token(
 
 
 def parse_line(line: str, line_index: int = 0) -> list[SetData]:
-    line = RE_OLD_PREFIX.sub("", line).strip()
+    line = RE_OLD_PREFIX.sub("", line.split("--", 1)[0]).strip()
     if not line:
         return []
 
@@ -412,16 +418,27 @@ def analyze_workout_log(
     session_dates: dict[int, list[str | None]] = {}
     current_exercise, current_week, current_session = None, 1, 0
     in_dates_block = False
+    start_idx = 0
 
-    for i, raw_line in enumerate(raw_lines):
-        line = raw_line.strip()
+    first_non_empty = next((k for k, rl in enumerate(raw_lines) if rl.strip()), -1)
+    if first_non_empty != -1 and raw_lines[first_non_empty].strip() == "---":
+        for k in range(first_non_empty + 1, len(raw_lines)):
+            t = raw_lines[k].strip()
+            if t.startswith("#"):
+                break
+            if t in ("---", "..."):
+                start_idx = k + 1
+                break
+
+    for i in range(start_idx, len(raw_lines)):
+        line = raw_lines[i].strip()
         if not line:
             continue
         try:
             if line.startswith("#"):
-                match = RE_DIGITS.search(line)
-                if match:
-                    current_session = int(match.group())
+                if RE_TOP_HEADER.match(line):
+                    match = RE_DIGITS.search(line)
+                    current_session = int(match.group()) if match else (current_session + 1)
                 in_dates_block = False
                 current_exercise = None
                 continue
@@ -441,26 +458,50 @@ def analyze_workout_log(
                     continue
                 in_dates_block = False
 
-            line_no_old = RE_OLD_PREFIX.sub("", line).strip()
-            if "|" not in line and (
-                RE_LOG_LINE_LOAD.search(line_no_old)
-                or (
-                    bool(line_no_old)
-                    and bool(RE_DIGITS.search(line_no_old))
-                    and bool(RE_LOG_LINE_LONG.match(line_no_old))
+            if (
+                line.startswith(">")
+                or RE_HR_LINE.match(line)
+                or RE_BULLET_LINE.match(line)
+            ):
+                continue
+
+            line_no_comment = line.split("--", 1)[0]
+            line_no_comment_trim = line_no_comment.strip()
+            line_no_old = RE_OLD_PREFIX.sub("", line_no_comment).strip()
+            if (
+                "|" not in line_no_comment
+                and not is_date_line(line_no_comment_trim)
+                and (
+                    RE_LOG_LINE_LOAD.search(line_no_old)
+                    or (
+                        bool(line_no_old)
+                        and bool(RE_DIGITS.search(line_no_old))
+                        and bool(RE_LOG_LINE_LONG.match(line_no_old))
+                    )
                 )
             ):
                 if current_exercise:
                     parsed_sets = parse_line(line, i)
-                    if not parsed_sets and ".." in line and current_exercise.weeks:
-                        clean_cf = RE_OLD_PREFIX.sub("", line).strip()
-                        cf_subparts = clean_cf.split("..")
-                        load_str = (
-                            "/".join(cf_subparts[:-1]).strip()
-                            if len(cf_subparts) > 2
-                            else cf_subparts[0].strip()
-                        )
-                        loads = _parse_load_spec(load_str)
+                    if not parsed_sets and ".." in line_no_comment and current_exercise.weeks:
+                        clean_cf = RE_OLD_PREFIX.sub("", line_no_comment).strip()
+                        raw_tokens = [t.strip() for t in clean_cf.split(",") if t.strip()]
+                        collected_loads: list[float] = []
+                        valid_cf = len(raw_tokens) > 0
+                        for tok in raw_tokens:
+                            if ".." not in tok:
+                                valid_cf = False
+                                break
+                            sub = tok.split("..")
+                            if sub[-1].strip():
+                                valid_cf = False
+                                break
+                            load_str = "/".join(sub[:-1]).strip() if len(sub) > 2 else sub[0].strip()
+                            parsed_tok_loads = _parse_load_spec(load_str)
+                            if not parsed_tok_loads:
+                                valid_cf = False
+                                break
+                            collected_loads.extend(parsed_tok_loads)
+                        loads = collected_loads if (valid_cf and collected_loads) else None
                         if loads:
                             prev_sets = current_exercise.weeks[-1].sets
                             ds_drop_counters: dict[str, int] = {}
@@ -486,6 +527,9 @@ def analyze_workout_log(
                                     )
                                 )
                             parsed_sets = carried
+
+                    if not parsed_sets:
+                        continue
 
                     for s in parsed_sets:
                         tuts = (
@@ -525,6 +569,10 @@ def analyze_workout_log(
                     )
                     current_week += 1
             else:
+                if is_date_line(line_no_comment_trim) or (
+                    "|" not in line and RE_NON_EXERCISE_PROSE.match(line)
+                ):
+                    continue
                 matched_obj = match_exercise(line, local_exercises)
                 if matched_obj:
                     c, s_pause, e, l = parse_tempo_from_line(line)

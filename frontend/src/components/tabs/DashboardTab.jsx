@@ -398,12 +398,14 @@ const getCachedNormalizedCurve = (cacheKey, distr) => {
 
 const getFullWeeksList = (weeksList, targetSession, sessionsList, workoutData) => {
   if (targetSession !== null || sessionsList.length === 0) return weeksList;
+  const activeSessions = new Set();
   const weekSessionsMap = new Map();
   for (let i = 0; i < workoutData.length; i++) {
     const d = workoutData[i];
     for (let j = 0; j < d.weeks.length; j++) {
       const w = d.weeks[j];
       if (w.sets.length === 0) continue;
+      activeSessions.add(d.session);
       let sessSet = weekSessionsMap.get(w.week_num);
       if (!sessSet) {
         sessSet = new Set();
@@ -412,12 +414,13 @@ const getFullWeeksList = (weeksList, targetSession, sessionsList, workoutData) =
       sessSet.add(d.session);
     }
   }
-  const requiredCount = sessionsList.length;
+  const requiredCount = activeSessions.size;
+  if (requiredCount === 0) return [];
   return weeksList.filter(week => {
     const sessSet = weekSessionsMap.get(week);
     if (!sessSet || sessSet.size < requiredCount) return false;
-    for (let i = 0; i < requiredCount; i++) {
-      if (!sessSet.has(sessionsList[i])) return false;
+    for (const s of activeSessions) {
+      if (!sessSet.has(s)) return false;
     }
     return true;
   });

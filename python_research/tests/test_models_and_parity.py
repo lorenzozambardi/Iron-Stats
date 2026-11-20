@@ -584,4 +584,59 @@ def test_word_boundary_matching_multiload_negative_dropsets_and_packaged_db() ->
     assert [s.base_reps for s in parsed[0].weeks[2].sets] == [10, 8, 6]
 
 
+def test_parser_inline_comments_frontmatter_and_solver_validation() -> None:
+    log = (
+        "---\n"
+        "tags:\n"
+        "  - bodybuilding\n"
+        "---\n"
+        "Focus: Intensity\n"
+        "> Blockquote note\n\n"
+        "# Push\n"
+        "## Warmup\n"
+        "Lat Machine | | 1.5-0.5-2.5-0.5\n"
+        "05/01/2026\n"
+        "90.. 10, 8+2 -- sporche\n"
+        "95.., 85.. -- carry\n"
+        "10, 8 -- no load\n"
+    )
+    parsed = analyze_workout_log(log, exercises_list)
+    assert len(parsed) == 1
+    assert parsed[0].session == 1
+    assert (parsed[0].concentric, parsed[0].shortening_pause, parsed[0].eccentric, parsed[0].lengthening_pause) == (1.5, 0.5, 2.5, 0.5)
+    assert len(parsed[0].weeks) == 3
+    assert [s.load for s in parsed[0].weeks[1].sets] == [95.0, 85.0]
+    assert [s.base_reps for s in parsed[0].weeks[1].sets] == [10, 8]
+    assert [s.base_reps for s in parsed[0].weeks[2].sets] == [10, 8]
+
+    # Boolean/blank Bezier coordinates in override JSON are rejected
+    bad_over = analyze_workout_log(
+        'override: LR | muscles_distr={"Lateral Deltoid": {"x0": true, "magnitude": 1.0}}\n# 1\nLR\n10.. 10\n',
+        exercises_list,
+    )
+    assert bad_over[0].exercise_obj.muscles_distr["Lateral Deltoid"].x0 == 0.2
+
+    # WorkoutSolver deduplicates DB by name and validates weights / target_ratios
+    lr = next(e for e in exercises_list if e.name == "LR")
+    cfg = SolverConfig()
+    cfg.days = 1
+    cfg.min_ex = 1
+    cfg.max_ex = 1
+    cfg.calibration_steps = 0
+    dedup_solver = WorkoutSolver(cfg, db=[lr, lr])
+    assert len(dedup_solver.db) == 1
+    assert dedup_solver.unique_ex_count == 1
+
+    bad_w_cfg = SolverConfig()
+    bad_w_cfg.weights["curve"] = -1.0
+    with pytest.raises(ValueError, match="Weight"):
+        WorkoutSolver(bad_w_cfg)
+
+    bad_r_cfg = SolverConfig()
+    bad_r_cfg.target_ratios["vol"] = 1.5
+    with pytest.raises(ValueError, match="Target ratio"):
+        WorkoutSolver(bad_r_cfg)
+
+
+
 

@@ -17,8 +17,11 @@ def main():
     args = parser.parse_args()
 
     if args.file:
-        with open(args.file, encoding="utf-8") as f:
-            raw_log = f.read()
+        try:
+            with open(args.file, encoding="utf-8") as f:
+                raw_log = f.read()
+        except OSError as exc:
+            sys.exit(f"Error reading file '{args.file}': {exc}")
     else:
         raw_log = sys.stdin.read() if not sys.stdin.isatty() else ""
 

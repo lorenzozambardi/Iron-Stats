@@ -162,7 +162,7 @@ class SolverConfig:
 
 # --- SOLVER CORE ---
 class WorkoutSolver:
-    def __init__(self, config: SolverConfig):
+    def __init__(self, config: SolverConfig, db: list[Exercise] | None = None):
         self.config = config
         if self.config.days < 1:
             raise ValueError(f"days must be >= 1, got {self.config.days}")
@@ -172,9 +172,34 @@ class WorkoutSolver:
             raise ValueError(f"Invalid min_sets/max_sets: {self.config.min_sets}, {self.config.max_sets}")
         if self.config.min_reps < 1 or self.config.max_reps < self.config.min_reps:
             raise ValueError(f"Invalid min_reps/max_reps: {self.config.min_reps}, {self.config.max_reps}")
-        self.db = exercises_list
-        if not self.db:
+
+        weights_dict = self.config.weights if isinstance(self.config.weights, dict) else {}
+        for w_key, w_val in weights_dict.items():
+            if isinstance(w_val, bool):
+                raise TypeError(f"Weight '{w_key}' cannot be boolean: {w_val!r}")
+            try:
+                fw = float(w_val)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Invalid weight for '{w_key}': {w_val!r}") from exc
+            if not math.isfinite(fw) or fw < 0.0:
+                raise ValueError(f"Weight '{w_key}' must be finite and >= 0, got {w_val!r}")
+
+        ratios_dict = self.config.target_ratios if isinstance(self.config.target_ratios, dict) else {}
+        for r_key, r_val in ratios_dict.items():
+            if isinstance(r_val, bool):
+                raise TypeError(f"Target ratio '{r_key}' cannot be boolean: {r_val!r}")
+            try:
+                fr = float(r_val)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Invalid target ratio for '{r_key}': {r_val!r}") from exc
+            if not math.isfinite(fr) or fr < 0.0 or fr > 1.0:
+                raise ValueError(f"Target ratio '{r_key}' must be in [0, 1], got {r_val!r}")
+
+        raw_db = exercises_list if db is None else db
+        if not raw_db:
             raise ValueError("Exercise database cannot be empty")
+        # Deduplicate by exercise name (keeping last definition) matching solver.js
+        self.db = list({ex.name: ex for ex in raw_db}.values())
         self.resolution = 50
         self.max_ex_fatigue = max(10.0, max((ex.fatigue for ex in self.db), default=10.0))
         
@@ -588,7 +613,7 @@ class WorkoutSolver:
         over ``calibration_steps`` random states (empirical sample mean, not exact expectation).
         Any zero scale is guarded to ``1e-6`` inside ``evaluate_workout``.
         """
-        steps = getattr(self.config, 'calibration_steps', 500)
+        steps = min(5000, max(0, int(getattr(self.config, 'calibration_steps', 500))))
         if steps <= 0:
             self.scales.clear()
             return
@@ -620,7 +645,7 @@ class WorkoutSolver:
         by `cooling_rate`. At each step, a mutation (e.g. add/swap exercise, change reps) 
         is applied and the new state is evaluated.
         """
-        iterations = max(0, int(iterations))
+        iterations = min(100000, max(0, int(iterations)))
         initial_temp = float(initial_temp)
         if not math.isfinite(initial_temp) or initial_temp <= 0.0:
             raise ValueError(f"initial_temp must be finite and > 0, got {initial_temp}")
@@ -697,8 +722,9 @@ if __name__ == "__main__":
                 val = data.get(key_c, data.get(key_s))
                 if val is not None:
                     setattr(config, attr, int(val))
+            config.calibration_steps = min(5000, max(0, config.calibration_steps))
             if 'iterations' in data and data['iterations'] is not None:
-                iterations = int(data['iterations'])
+                iterations = min(100000, max(0, int(data['iterations'])))
 
             if isinstance(data.get('weights'), dict):
                 w = data['weights']
@@ -743,10 +769,15 @@ if __name__ == "__main__":
                     "partial_reps": s.partial_reps,
                     "rpe": s.rpe
                 })
+            sorted_muscles = sorted(
+                ex.exercise.muscles_distr.items(),
+                key=lambda kv: kv[1].magnitude,
+                reverse=True,
+            )
             day_exs.append({
                 "exercise": ex.exercise.name,
                 "rest": calculate_rest(ex.exercise.fatigue),
-                "muscles": ", ".join(list(ex.exercise.muscles_distr.keys())[:2]),
+                "muscles": ", ".join(m for m, _ in sorted_muscles[:2]),
                 "sets": sets_data
             })
         out_days.append(day_exs)
