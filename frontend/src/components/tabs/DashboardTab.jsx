@@ -1454,53 +1454,54 @@ const DashboardTab = ({
 
                     {/* Muscle Group Volume */}
                     <div className="chart-container">
-                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                         <span className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                           {dashMuscleMacro !== 'all' 
                             ? (muscleMetric === 'sets' ? `${dashMuscleMacro} Sub-group Volume` : `${dashMuscleMacro} Sub-group Reps`)
                             : (muscleMetric === 'sets' ? 'Muscle Group Volume' : 'Muscle Group Reps')}
                         </span>
-                        <div
-                          role="group"
-                          aria-label="Muscle group metric"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '2px',
-                            padding: '3px',
-                            borderRadius: '999px',
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid var(--border-color)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {MUSCLE_METRIC_OPTIONS.map((opt) => {
-                            const active = muscleMetric === opt.value;
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                aria-pressed={active}
-                                onClick={() => setMuscleMetric(opt.value)}
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '999px',
-                                  border: 'none',
-                                  background: active ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
-                                  color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-                                  fontSize: '0.72rem',
-                                  fontWeight: active ? 600 : 500,
-                                  lineHeight: 1.2,
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap',
-                                  transition: 'background 0.15s ease, color 0.15s ease',
-                                }}
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        {(() => {
+                          const curIdx = MUSCLE_METRIC_OPTIONS.findIndex((o) => o.value === muscleMetric);
+                          const currentOpt = MUSCLE_METRIC_OPTIONS[curIdx >= 0 ? curIdx : 1];
+                          const nextOpt = MUSCLE_METRIC_OPTIONS[(curIdx + 1) % MUSCLE_METRIC_OPTIONS.length];
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setMuscleMetric(nextOpt.value)}
+                              aria-label={`Switch to ${nextOpt.label}`}
+                              title={`Switch to ${nextOpt.label}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '5px',
+                                padding: '0 9px',
+                                height: '24px',
+                                borderRadius: '999px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-secondary)',
+                                boxShadow: 'var(--card-shadow)',
+                                color: '#ffffff',
+                                fontSize: '0.64rem',
+                                fontWeight: 500,
+                                letterSpacing: '0.03em',
+                                lineHeight: 1,
+                                textTransform: 'uppercase',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                                transition: 'background 0.15s ease, border-color 0.15s ease',
+                              }}
+                            >
+                              <span style={{ transform: 'translateY(0.5px)' }}>{currentOpt.label}</span>
+                              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                                <path d="M11 2l3 3-3 3" />
+                                <path d="M14 5H3" />
+                                <path d="M5 14l-3-3 3-3" />
+                                <path d="M2 11h11" />
+                              </svg>
+                            </button>
+                          );
+                        })()}
                       </div>
                       <MuscleDonutChart
                         data={displayMuscleData}
