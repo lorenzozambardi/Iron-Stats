@@ -189,7 +189,10 @@ export default function ProfileEasyEditor({ profile, onChange, dateFormat = 'dd/
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '14px', overflowY: 'auto', height: '100%' }}>
+    <div
+      className="easy-editor-container"
+      style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '14px', overflowY: 'auto', height: '100%' }}
+    >
       {/* Log Date + Log All */}
       <div style={cardStyle}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', alignItems: 'stretch' }}>
