@@ -188,7 +188,8 @@ describe('profileUtils', () => {
     expect(parsed.current.avgSteps).toBe(9500);
     expect(parsed.current.weight).toBe(71.5);
     expect(parsed.current.armLeft).toBe(39.5);
-    expect(parsed.logs).toHaveLength(3);
+    expect(parsed.logs.filter((l) => l.type === 'weight')).toHaveLength(2);
+    expect(parsed.logs.filter((l) => l.type === 'armLeft')).toHaveLength(1);
     expect(parsed.logs[0].date).toBe('2026-11-20');
   });
 });

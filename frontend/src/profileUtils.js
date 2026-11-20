@@ -248,6 +248,14 @@ const SCALAR_SECTION_MAP = {
   avgsteps: 'avgSteps',
 };
 
+const getLocalTodayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export function serializeProfileToMarkdown(profile) {
   const cur = { ...DEFAULT_PROFILE.current, ...(profile?.current || {}) };
   const logs = Array.isArray(profile?.logs) ? profile.logs : [];
@@ -284,7 +292,7 @@ export function serializeProfileToMarkdown(profile) {
     } else if (cur[key] !== '' && cur[key] !== undefined && cur[key] !== null) {
       const val = Number(cur[key]);
       if (Number.isFinite(val)) {
-        lines.push(key.toLowerCase(), String(Number(val.toFixed(meta.decimals))));
+        lines.push(key.toLowerCase(), `${Number(val.toFixed(meta.decimals))} , ${formatDMY(getLocalTodayISO())}`);
       }
     }
   }
@@ -382,14 +390,6 @@ export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) 
 
   return { current: baseCurrent, logs: deduped };
 }
-
-const getLocalTodayISO = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
 
 export async function loadProfileFromFile() {
   const local = loadProfile();
