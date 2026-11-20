@@ -276,7 +276,7 @@ export function serializeProfileToMarkdown(profile) {
 
   for (const [key, meta] of Object.entries(PROFILE_LOG_META)) {
     const entries = (byType.get(key) || []).slice().sort(
-      (a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)
+      (a, b) => (a.date || '').localeCompare(b.date || '') || (a.ts || 0) - (b.ts || 0)
     );
     if (entries.length > 0) {
       const sectionLines = [key.toLowerCase()];

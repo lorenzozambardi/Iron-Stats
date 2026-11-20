@@ -179,7 +179,7 @@ describe('profileUtils', () => {
     expect(md).toContain('birthdate\n10-05-1999');
     expect(md).toContain('height\n172');
     expect(md).toContain('avgsteps\n9500');
-    expect(md).toContain('weight\n71.5 , 20-11-2026\n70.8 , 10-11-2026');
+    expect(md).toContain('weight\n70.8 , 10-11-2026\n71.5 , 20-11-2026');
     expect(md).toContain('armleft\n39.5 , 20-11-2026');
 
     const parsed = parseProfileMarkdown(md);
