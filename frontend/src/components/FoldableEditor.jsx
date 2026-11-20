@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import { memo, useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { memo, useMemo, useCallback, useRef, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { Transaction } from '@codemirror/state';
@@ -169,7 +169,6 @@ function FoldableEditor({
   const lastEmittedValueRef = useRef(value);
   const pendingLocalValuesRef = useRef([]);
   const isSyncingExternalRef = useRef(false);
-  const [initialValue] = useState(value);
 
   const exerciseCompletion = useMemo(() => {
     return autocompletion({
@@ -211,12 +210,20 @@ function FoldableEditor({
 
           return {
             from: startOffset,
-            options: scored.map(({ ex }) => ({
-              label: ex.name,
-              type: 'keyword',
-              detail: Object.keys(ex.muscles_distr || {})[0] || '',
-              apply: `${ex.name} | 2'`
-            }))
+            options: scored.map(({ ex }) => {
+              const primaryMuscle = Object.entries(ex.muscles_distr || {})
+                .sort(([, a], [, b]) => {
+                  const magA = typeof a === 'number' ? a : (a?.magnitude || 0);
+                  const magB = typeof b === 'number' ? b : (b?.magnitude || 0);
+                  return magB - magA;
+                })[0]?.[0] || '';
+              return {
+                label: ex.name,
+                type: 'keyword',
+                detail: primaryMuscle,
+                apply: `${ex.name} | 2'`
+              };
+            })
           };
         }
       ]
@@ -347,7 +354,6 @@ function FoldableEditor({
   return (
     <div className="foldable-editor-root">
       <CodeMirror
-        value={initialValue}
         height="100%"
         theme="none"
         extensions={extensions}

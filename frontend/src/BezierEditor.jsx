@@ -88,22 +88,28 @@ const BezierEditor = ({ value, onChange }) => {
 
       const nextVal = { ...currentVal };
 
-      const eps = 0.01;
+      const cp3X = Math.min(1, Math.max(0, cp3.x));
+      const cp0X = Math.max(0, Math.min(cp3X, cp0.x));
+
       if (dragging === 'p0') {
-        nextVal.x0 = Math.min(newX, cp3.x - 3 * eps);
+        const gap = Math.min(0.01, Math.max(1e-6, cp3X / 6));
+        nextVal.x0 = Math.max(0, Math.min(newX, cp3X - 3 * gap));
         nextVal.y0 = newY;
-        nextVal.x1 = Math.min(cp3.x - 2 * eps, Math.max(cp1.x, nextVal.x0 + eps));
-        nextVal.x2 = Math.min(cp3.x - eps, Math.max(cp2.x, nextVal.x1 + eps));
+        nextVal.x1 = Math.min(cp3X - 2 * gap, Math.max(cp1.x, nextVal.x0 + gap));
+        nextVal.x2 = Math.min(cp3X - gap, Math.max(cp2.x, nextVal.x1 + gap));
       } else if (dragging === 'p3') {
-        nextVal.x3 = Math.max(newX, cp0.x + 3 * eps);
+        const gap = Math.min(0.01, Math.max(1e-6, (1 - cp0X) / 6));
+        nextVal.x3 = Math.min(1, Math.max(newX, cp0X + 3 * gap));
         nextVal.y3 = newY;
-        nextVal.x2 = Math.max(cp0.x + 2 * eps, Math.min(cp2.x, nextVal.x3 - eps));
-        nextVal.x1 = Math.max(cp0.x + eps, Math.min(cp1.x, nextVal.x2 - eps));
+        nextVal.x2 = Math.max(cp0X + 2 * gap, Math.min(cp2.x, nextVal.x3 - gap));
+        nextVal.x1 = Math.max(cp0X + gap, Math.min(cp1.x, nextVal.x2 - gap));
       } else if (dragging === 'p1') {
-        nextVal.x1 = Math.max(cp0.x + eps, Math.min(newX, cp2.x - eps));
+        const gap = Math.min(0.01, Math.max(1e-6, (cp2.x - cp0X) / 3));
+        nextVal.x1 = Math.max(cp0X + gap, Math.min(newX, cp2.x - gap));
         nextVal.y1 = newY;
       } else if (dragging === 'p2') {
-        nextVal.x2 = Math.max(cp1.x + eps, Math.min(newX, cp3.x - eps));
+        const gap = Math.min(0.01, Math.max(1e-6, (cp3X - cp1.x) / 3));
+        nextVal.x2 = Math.max(cp1.x + gap, Math.min(newX, cp3X - gap));
         nextVal.y2 = newY;
       }
 

@@ -106,8 +106,21 @@ export default function App() {
   const [logbookText, setLogbookText] = useState('');
   const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
   const [editingProfileMd, setEditingProfileMd] = useState(false);
+  const editingProfileMdRef = useRef(false);
+  useEffect(() => {
+    editingProfileMdRef.current = editingProfileMd;
+  }, [editingProfileMd]);
   const [profileMdText, setProfileMdText] = useState('');
+  const profileMdTextRef = useRef('');
+  useEffect(() => {
+    profileMdTextRef.current = profileMdText;
+  }, [profileMdText]);
   const profileSaveTimeoutRef = useRef(null);
+  const profileMdReqIdRef = useRef(0);
+  const profileMdDirtyRef = useRef(false);
+  useEffect(() => () => {
+    if (profileSaveTimeoutRef.current) clearTimeout(profileSaveTimeoutRef.current);
+  }, []);
   const [exercisesDb, setExercisesDb] = useState([]);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
@@ -192,6 +205,7 @@ export default function App() {
   // History State for Undo/Redo
   const [historyIndex, setHistoryIndex] = useState(0);
   const [historyLength, setHistoryLength] = useState(1);
+  const [committedHistoryText, setCommittedHistoryText] = useState('');
   const textHistoryRef = useRef(['']);
   const isUndoRedoAction = useRef(false);
   const skipNextHistoryPushRef = useRef(false);
@@ -213,6 +227,7 @@ export default function App() {
     historyIndexRef.current = 0;
     setHistoryIndex(0);
     setHistoryLength(1);
+    setCommittedHistoryText(initialText);
   }, []);
 
   useEffect(() => {
@@ -256,18 +271,41 @@ export default function App() {
             const nextIdx = textHistoryRef.current.length - 1;
             historyIndexRef.current = nextIdx;
             setHistoryIndex(nextIdx);
+            setCommittedHistoryText(logbookText);
          }
          setHistoryLength(textHistoryRef.current.length);
      }, 500);
   }, [logbookText]);
 
+  const flushPendingHistory = useCallback(() => {
+    if (textHistoryTimeoutRef.current) {
+      clearTimeout(textHistoryTimeoutRef.current);
+      textHistoryTimeoutRef.current = null;
+    }
+    let idx = historyIndexRef.current;
+    const latest = logbookTextRef.current;
+    if (textHistoryRef.current[idx] !== latest) {
+      if (idx < textHistoryRef.current.length - 1) {
+        textHistoryRef.current = textHistoryRef.current.slice(0, idx + 1);
+      }
+      textHistoryRef.current.push(latest);
+      if (textHistoryRef.current.length > 50) {
+        textHistoryRef.current.shift();
+      }
+      idx = textHistoryRef.current.length - 1;
+      historyIndexRef.current = idx;
+      setHistoryIndex(idx);
+      setHistoryLength(textHistoryRef.current.length);
+      setCommittedHistoryText(latest);
+    }
+    return idx;
+  }, []);
+
   const handleUndo = useCallback(() => {
-     if (textHistoryTimeoutRef.current) {
-        clearTimeout(textHistoryTimeoutRef.current);
-        textHistoryTimeoutRef.current = null;
-     }
-     if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
+     if (editingProfileMdRef.current) return;
+     const currentIdx = flushPendingHistory();
+     if (currentIdx > 0) {
+        const newIndex = currentIdx - 1;
         const targetText = textHistoryRef.current[newIndex];
         if (targetText !== logbookTextRef.current) {
           isUndoRedoAction.current = true;
@@ -277,16 +315,19 @@ export default function App() {
         }
         historyIndexRef.current = newIndex;
         setHistoryIndex(newIndex);
+        setCommittedHistoryText(targetText);
      }
-  }, [historyIndex]);
+  }, [flushPendingHistory]);
 
   const handleRedo = useCallback(() => {
+     if (editingProfileMdRef.current) return;
      if (textHistoryTimeoutRef.current) {
         clearTimeout(textHistoryTimeoutRef.current);
         textHistoryTimeoutRef.current = null;
      }
-     if (historyIndex < textHistoryRef.current.length - 1) {
-        const newIndex = historyIndex + 1;
+     const currentIdx = historyIndexRef.current;
+     if (currentIdx < textHistoryRef.current.length - 1) {
+        const newIndex = currentIdx + 1;
         const targetText = textHistoryRef.current[newIndex];
         if (targetText !== logbookTextRef.current) {
           isUndoRedoAction.current = true;
@@ -296,8 +337,12 @@ export default function App() {
         }
         historyIndexRef.current = newIndex;
         setHistoryIndex(newIndex);
+        setCommittedHistoryText(targetText);
      }
-  }, [historyIndex]);
+  }, []);
+
+  const canUndo = !editingProfileMd && (historyIndex > 0 || logbookText !== committedHistoryText);
+  const canRedo = !editingProfileMd && historyIndex < historyLength - 1;
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -305,27 +350,33 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const baselineHeightRef = useRef(
+    typeof window !== 'undefined'
+      ? (window.visualViewport ? window.visualViewport.height : window.innerHeight) || 800
+      : 800
+  );
+
   // Hide bottom nav when virtual keyboard is active on mobile.
-  // Compares visualViewport height against physical screen.height to accurately detect keyboard open/close,
-  // preventing the navbar from sliding up on top of the keyboard on mobile Chrome/Android.
+  // Compares visualViewport height against the tracked non-keyboard viewport baseline,
+  // ignoring pinch-zoom so split-screen mode and zoom don't falsely hide navigation.
   useEffect(() => {
-    const getNav = () => document.querySelector('.mobile-bottom-nav');
+    const updateBaselineOnOrientation = () => {
+      baselineHeightRef.current = (window.visualViewport ? window.visualViewport.height : window.innerHeight) || 800;
+      setIsKeyboardOpen(false);
+    };
 
     const updateKeyboardState = () => {
-      const nav = getNav();
-      if (!nav) return;
-
-      const screenH = window.screen.height || window.outerHeight || 800;
-      const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
-      // Virtual keyboard is open if visible viewport height drops below 75% of physical screen height
-      const isKeyboardOpen = currentH < screenH * 0.75;
-
-      if (isKeyboardOpen) {
-        nav.classList.add('keyboard-open');
-      } else {
-        nav.classList.remove('keyboard-open');
+      if (window.visualViewport && window.visualViewport.scale > 1.05) {
+        return;
       }
+      const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      if (currentH > baselineHeightRef.current) {
+        baselineHeightRef.current = currentH;
+      }
+      const baseH = baselineHeightRef.current || 800;
+      const keyboardVisible = currentH < baseH * 0.75;
+      setIsKeyboardOpen(keyboardVisible);
     };
 
     let focusTimer = null;
@@ -336,19 +387,25 @@ export default function App() {
 
     document.addEventListener('focusin', handleFocus);
     document.addEventListener('focusout', handleFocus);
+    window.addEventListener('orientationchange', updateBaselineOnOrientation);
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', updateKeyboardState);
       window.visualViewport.addEventListener('scroll', updateKeyboardState);
+    } else {
+      window.addEventListener('resize', updateKeyboardState);
     }
 
     return () => {
       if (focusTimer) clearTimeout(focusTimer);
       document.removeEventListener('focusin', handleFocus);
       document.removeEventListener('focusout', handleFocus);
+      window.removeEventListener('orientationchange', updateBaselineOnOrientation);
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', updateKeyboardState);
         window.visualViewport.removeEventListener('scroll', updateKeyboardState);
+      } else {
+        window.removeEventListener('resize', updateKeyboardState);
       }
     };
   }, []);
@@ -393,6 +450,9 @@ export default function App() {
 
   const syncCurrentTab = useCallback(() => {
     if (isTouchingRef.current || !swipeContainerRef.current) return;
+    if (bottomNavIndicatorRef.current) {
+      bottomNavIndicatorRef.current.style.transition = '';
+    }
     const container = swipeContainerRef.current;
     const width = container.clientWidth;
     if (width === 0) return;
@@ -496,6 +556,9 @@ export default function App() {
         if (scrollTabTimeout.current) clearTimeout(scrollTabTimeout.current);
         scrollTabTimeout.current = setTimeout(() => {
           isScrollingToTab.current = false;
+          if (bottomNavIndicatorRef.current) {
+            bottomNavIndicatorRef.current.style.transition = '';
+          }
         }, 50); // clear flag quickly since it's instant
 
         if (bottomNavIndicatorRef.current) {
@@ -886,6 +949,10 @@ export default function App() {
   };
 
   const saveProfileMdContent = useCallback(async (textToSave) => {
+    if (profileSaveTimeoutRef.current) {
+      clearTimeout(profileSaveTimeoutRef.current);
+      profileSaveTimeoutRef.current = null;
+    }
     setSyncStatus('syncing');
     try {
       const parsed = parseProfileMarkdown(textToSave);
@@ -894,7 +961,7 @@ export default function App() {
       setSyncStatus('saved');
       setSyncError('');
     } catch (err) {
-      setSyncErrorKind('save');
+      setSyncErrorKind('save-profile');
       setSyncStatus('error');
       setSyncError(err.message);
     }
@@ -903,42 +970,58 @@ export default function App() {
   const scheduleDebouncedProfileSave = useCallback((newText) => {
     if (profileSaveTimeoutRef.current) clearTimeout(profileSaveTimeoutRef.current);
     profileSaveTimeoutRef.current = setTimeout(() => {
+      profileSaveTimeoutRef.current = null;
       saveProfileMdContent(newText);
     }, 800);
   }, [saveProfileMdContent]);
 
   const toggleProfileMdEditor = useCallback(async () => {
+    const reqId = ++profileMdReqIdRef.current;
     if (editingProfileMd) {
+      editingProfileMdRef.current = false;
       setEditingProfileMd(false);
       if (profileSaveTimeoutRef.current) {
         clearTimeout(profileSaveTimeoutRef.current);
         profileSaveTimeoutRef.current = null;
-        await saveProfileMdContent(profileMdText);
+        await saveProfileMdContent(profileMdTextRef.current);
       }
       return;
     }
     const profName = activeProfileRef.current;
     const cached = loadProfile(profName);
     const cachedMd = serializeProfileToMarkdown(cached);
+    profileMdDirtyRef.current = false;
+    profileMdTextRef.current = cachedMd;
     setProfileMdText(cachedMd);
+    editingProfileMdRef.current = true;
     setEditingProfileMd(true);
     setEditorMode('edit');
 
     loadProfileFromFile(profName).then((loaded) => {
+      if (
+        reqId !== profileMdReqIdRef.current ||
+        !editingProfileMdRef.current ||
+        profileMdDirtyRef.current ||
+        activeProfileRef.current !== profName
+      ) {
+        return;
+      }
       const freshMd = serializeProfileToMarkdown(loaded);
       if (freshMd !== cachedMd) {
+        profileMdTextRef.current = freshMd;
         setProfileMdText(freshMd);
       }
     }).catch(() => {});
-  }, [editingProfileMd, profileMdText, saveProfileMdContent]);
+  }, [editingProfileMd, saveProfileMdContent]);
 
   const handleProfileSelect = async (profName) => {
     if (!profName || profName === activeProfileRef.current) return;
     const reqId = ++loadRequestIdRef.current;
+    profileMdReqIdRef.current += 1;
     if (profileSaveTimeoutRef.current) {
       clearTimeout(profileSaveTimeoutRef.current);
       profileSaveTimeoutRef.current = null;
-      await saveProfileMdContent(profileMdText);
+      await saveProfileMdContent(profileMdTextRef.current);
       if (reqId !== loadRequestIdRef.current) return;
     }
     if (saveTimeoutRef.current) {
@@ -949,6 +1032,7 @@ export default function App() {
         if (reqId !== loadRequestIdRef.current) return;
       }
     }
+    editingProfileMdRef.current = false;
     setEditingProfileMd(false);
     activeProfileRef.current = profName;
     setActiveProfile(profName);
@@ -1076,7 +1160,7 @@ export default function App() {
     setEditingOriginalName(ex.name);
     setEditingCurveIndex(null);
     setMuscleSearch('');
-    const entries = Object.entries(ex.muscles_distr);
+    const entries = Object.entries(ex.muscles_distr || {});
     const rawPcts = entries.map(([, p]) => (typeof p === 'number' ? p : (p.magnitude || 0)) * 100);
     const floored = rawPcts.map(v => Math.floor(v));
     const sumRaw = rawPcts.reduce((a, b) => a + b, 0);
@@ -1114,6 +1198,11 @@ export default function App() {
   }, []);
 
   const buildValidatedExercise = (name) => {
+    if (name.includes('|')) {
+      setExerciseError('Exercise name cannot contain "|".');
+      return null;
+    }
+
     const fatigue = parseFloat(exerciseForm.fatigue);
     const load_coeff = parseFloat(exerciseForm.load_coeff);
     const load_multiplier = parseFloat(exerciseForm.load_multiplier);
@@ -1242,6 +1331,28 @@ export default function App() {
       })
       .then(() => {
         setExercisesDb(updatedList);
+        if (existsInGlobalDb && editingOriginalName && editingOriginalName.toLowerCase() !== name.toLowerCase()) {
+          const lines = logbookTextRef.current.split('\n');
+          let modified = false;
+          const updatedLines = lines.map((line) => {
+            const trimmed = line.trim();
+            if (!trimmed.toLowerCase().startsWith('override:')) return line;
+            const match = trimmed.match(/^override:\s*([^|]+)(\|.*)$/i);
+            if (match && match[1].trim().toLowerCase() === editingOriginalName.toLowerCase()) {
+              modified = true;
+              return `override: ${name} ${match[2].trimStart()}`;
+            }
+            return line;
+          });
+          if (modified) {
+            const newText = updatedLines.join('\n');
+            setLogbookText(newText);
+            setDebouncedLogbookText(newText);
+            if (currentProgramRef.current) {
+              saveLogbookContent(newText, currentProgramRef.current);
+            }
+          }
+        }
         setShowExerciseModal(false);
         setSyncStatus('saved');
         setSyncError('');
@@ -1423,6 +1534,7 @@ export default function App() {
     if (formattedText !== newText && progName === currentProgramRef.current) {
       skipNextHistoryPushRef.current = true;
       setLogbookText(formattedText);
+      setCommittedHistoryText(formattedText);
     }
     setSyncStatus('syncing');
     const prof = activeProfileRef.current;
@@ -1723,6 +1835,7 @@ export default function App() {
             onClick={() => {
               if (syncErrorKind === 'bootstrap') loadInitialData(true);
               else if (syncErrorKind === 'load') loadProgram(currentProgramRef.current);
+              else if (syncErrorKind === 'save-profile') saveProfileMdContent(profileMdTextRef.current);
               else saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
             }}
           >
@@ -1765,16 +1878,16 @@ export default function App() {
                 <button 
                    className="mode-pill-btn" 
                    onClick={handleUndo} 
-                   disabled={historyIndex === 0}
-                   style={{ opacity: historyIndex === 0 ? 0.3 : 1 }}
+                   disabled={!canUndo}
+                   style={{ opacity: !canUndo ? 0.3 : 1 }}
                 >
                   <Undo2 size={18} />
                 </button>
                 <button 
                    className="mode-pill-btn" 
                    onClick={handleRedo} 
-                   disabled={historyIndex >= historyLength - 1}
-                   style={{ opacity: historyIndex >= historyLength - 1 ? 0.3 : 1 }}
+                   disabled={!canRedo}
+                   style={{ opacity: !canRedo ? 0.3 : 1 }}
                 >
                   <Redo2 size={18} />
                 </button>
@@ -1875,10 +1988,13 @@ export default function App() {
                   {editingProfileMd && (
                     editorType === 'easy' ? (
                       <ProfileEasyEditor
+                        key={activeProfile}
                         profile={parseProfileMarkdown(profileMdText)}
                         dateFormat={dateFormat}
                         onChange={(nextProfile) => {
                           const nextMd = serializeProfileToMarkdown(nextProfile);
+                          profileMdDirtyRef.current = true;
+                          profileMdTextRef.current = nextMd;
                           setProfileMdText(nextMd);
                           scheduleDebouncedProfileSave(nextMd);
                           window.dispatchEvent(new CustomEvent('profile-updated', { detail: nextProfile }));
@@ -1886,13 +2002,15 @@ export default function App() {
                       />
                     ) : (
                       <FoldableEditor
-                        key="__profile_md__"
+                        key={`__profile_md__:${activeProfile}`}
                         value={profileMdText}
                         onChange={(newText) => {
+                          profileMdDirtyRef.current = true;
+                          profileMdTextRef.current = newText;
                           setProfileMdText(newText);
                           scheduleDebouncedProfileSave(newText);
                         }}
-                        exercisesDb={activeExercises}
+                        exercisesDb={[]}
                       />
                     )
                   )}
@@ -1908,7 +2026,7 @@ export default function App() {
                   {editorType !== 'easy' && (
                     <div style={{ height: '100%', display: !editingProfileMd ? 'block' : 'none' }}>
                       <FoldableEditor
-                        key={currentProgram}
+                        key={`${activeProfile}:${currentProgram}`}
                         value={logbookText}
                         onChange={handleManualLogbookChange}
                         exercisesDb={activeExercises}
@@ -2059,7 +2177,7 @@ export default function App() {
 
       {/* Mobile Bottom Navigation Bar */}
       {!showMobileSettings && (
-        <div className="mobile-bottom-nav">
+        <div className={`mobile-bottom-nav${isKeyboardOpen ? ' keyboard-open' : ''}`}>
         <div 
           className="mobile-bottom-nav-indicator" 
           ref={bottomNavIndicatorRef}
