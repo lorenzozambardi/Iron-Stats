@@ -429,11 +429,14 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
             <div className="profile-derived-box">
               <span className="profile-stat-label">Age</span>
               <span className="profile-derived-val">{age !== null ? `${age} yrs` : '—'}</span>
-              <span className="profile-stat-sub">{current.birthDate ? formatDisplayDate(current.birthDate, dateFormat) : '—'}</span>
             </div>
             <div className="profile-derived-box">
-              <span className="profile-stat-label">Sex &amp; Height</span>
-              <span className="profile-derived-val">{current.sex || 'M'} · {current.height || 0} cm</span>
+              <span className="profile-stat-label">Sex</span>
+              <span className="profile-derived-val">{current.sex || 'M'}</span>
+            </div>
+            <div className="profile-derived-box">
+              <span className="profile-stat-label">Height</span>
+              <span className="profile-derived-val">{current.height || 0} cm</span>
             </div>
             <div className="profile-derived-box">
               <span className="profile-stat-label">Avg. Steps / Day</span>
@@ -442,15 +445,11 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
             <div className="profile-derived-box">
               <span className="profile-stat-label">BMR (Katch-McArdle)</span>
               <span className="profile-derived-val">{Math.round(derived.bmr).toLocaleString()} kcal</span>
-              <span className="profile-stat-sub">Resting expenditure</span>
             </div>
             <div className="profile-derived-box">
               <span className="profile-stat-label">Estimated TDEE</span>
               <span className="profile-derived-val">
                 {Math.round(derived.tdeeData.tdee).toLocaleString()} kcal
-              </span>
-              <span className="profile-stat-sub">
-                Base {Math.round(derived.tdeeData.baseline)} + Steps {Math.round(derived.tdeeData.stepsKcal)} kcal
               </span>
             </div>
           </div>
