@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_PROFILE,
+  PROFILE_STORAGE_KEY,
   CIRCUMFERENCE_FIELDS,
+  CIRCUMFERENCE_LOG_KEYS,
+  PROFILE_LOG_META,
+  loadProfile,
+  formatProfileLogValue,
   calcAge,
   getLimbAverage,
   calcBMI,
@@ -86,5 +91,40 @@ describe('profileUtils', () => {
     expect(formatDisplayDate('2026-11-18', 'dd/mm/yyyy')).toBe('18/11/2026');
     expect(formatDisplayDate('2026-11-18', 'mm/dd/yyyy')).toBe('11/18/2026');
     expect(formatDisplayDate('2026-11-18', 'yyyy-mm-dd')).toBe('2026-11-18');
+  });
+
+  it('preserves circumference logs in loadProfile and formats all profile log values', () => {
+    expect(CIRCUMFERENCE_LOG_KEYS).toHaveLength(13);
+    expect(PROFILE_LOG_META.armLeft).toEqual({
+      label: 'Arm L',
+      unit: 'cm',
+      decimals: 1,
+      category: 'circumference',
+    });
+    expect(formatProfileLogValue('weight', 78.5)).toBe('78.5 kg');
+    expect(formatProfileLogValue('bodyFat', 13.5)).toBe('13.5%');
+    expect(formatProfileLogValue('waist', 79)).toBe('79.0 cm');
+
+    const store = {};
+    const origLocalStorage = globalThis.localStorage;
+    globalThis.localStorage = {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+    };
+    try {
+      store[PROFILE_STORAGE_KEY] = JSON.stringify({
+        current: DEFAULT_PROFILE.current,
+        logs: [
+          { id: '1', date: '2026-11-19', ts: 1, type: 'weight', value: 78.5 },
+          { id: '2', date: '2026-11-19', ts: 1, type: 'neck', value: 39 },
+          { id: '3', date: '2026-11-19', ts: 1, type: 'armLeft', value: 39.5 },
+          { id: '4', date: '2026-11-19', ts: 1, type: 'unknownMetric', value: 99 },
+        ],
+      });
+      const loaded = loadProfile();
+      expect(loaded.logs.map((l) => l.type)).toEqual(['weight', 'neck', 'armLeft']);
+    } finally {
+      globalThis.localStorage = origLocalStorage;
+    }
   });
 });

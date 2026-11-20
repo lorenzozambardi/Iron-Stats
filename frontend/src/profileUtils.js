@@ -39,6 +39,32 @@ export const CIRCUMFERENCE_FIELDS = [
   { key: 'calf', label: 'Calf', bilateral: true, leftKey: 'calfLeft', rightKey: 'calfRight' },
 ];
 
+export const CIRCUMFERENCE_LOG_KEYS = CIRCUMFERENCE_FIELDS.flatMap((f) =>
+  f.bilateral ? [f.leftKey, f.rightKey] : [f.key]
+);
+
+export const PROFILE_LOG_META = {
+  weight: { label: 'Weight', unit: 'kg', decimals: 1, category: 'core' },
+  bodyFat: { label: 'Body Fat', unit: '%', decimals: 1, category: 'core' },
+  ...Object.fromEntries(
+    CIRCUMFERENCE_FIELDS.flatMap((f) =>
+      f.bilateral
+        ? [
+            [f.leftKey, { label: `${f.label} L`, unit: 'cm', decimals: 1, category: 'circumference' }],
+            [f.rightKey, { label: `${f.label} R`, unit: 'cm', decimals: 1, category: 'circumference' }],
+          ]
+        : [[f.key, { label: f.label, unit: 'cm', decimals: 1, category: 'circumference' }]]
+    )
+  ),
+};
+
+export function formatProfileLogValue(type, value) {
+  const meta = PROFILE_LOG_META[type];
+  const num = Number(value);
+  if (!meta || !Number.isFinite(num)) return String(value ?? '');
+  return meta.unit === '%' ? `${num.toFixed(meta.decimals)}%` : `${num.toFixed(meta.decimals)} ${meta.unit}`;
+}
+
 export const DEFAULT_PROFILE = {
   current: {
     birthDate: '1998-01-01',
@@ -86,7 +112,7 @@ export function loadProfile() {
     const rawLogs = Array.isArray(parsed.logs) ? parsed.logs : [];
     const logs = [];
     for (const item of rawLogs) {
-      if (item && (item.type === 'weight' || item.type === 'bodyFat')) {
+      if (item && typeof item.type === 'string' && Object.hasOwn(PROFILE_LOG_META, item.type)) {
         logs.push(item);
       } else if (item && (item.weight !== undefined || item.bodyFat !== undefined)) {
         if (item.weight !== undefined) {

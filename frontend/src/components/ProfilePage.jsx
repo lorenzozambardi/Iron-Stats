@@ -5,6 +5,8 @@ import { MetricSparkline, TrendBadge } from './Sparkline';
 import { LockWheelPicker } from './FilterControls';
 import {
   CIRCUMFERENCE_FIELDS,
+  CIRCUMFERENCE_LOG_KEYS,
+  PROFILE_LOG_META,
   calcAge,
   calcBMI,
   calcLeanMass,
@@ -13,6 +15,7 @@ import {
   calcKatchMcArdleBMR,
   calcTDEEFromSteps,
   formatDisplayDate,
+  formatProfileLogValue,
 } from '../profileUtils';
 
 const cardStyle = {
@@ -115,6 +118,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   const todayStr = useMemo(() => formatLocalYMD(), []);
   const [logDate, setLogDate] = useState(() => formatLocalYMD());
   const [timeRange, setTimeRange] = useState('all');
+  const [logFilter, setLogFilter] = useState('all');
 
   useEffect(() => {
     pendingConfirmRef.current = pendingConfirm;
@@ -185,10 +189,29 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     }));
   };
 
-  const applyLogStat = (type) => {
+  const getTypesToLog = (typeOrTypes) => {
+    let candidates;
+    if (typeOrTypes === 'all') {
+      candidates = ['weight', 'bodyFat', ...CIRCUMFERENCE_LOG_KEYS];
+    } else if (typeOrTypes === 'circumferences') {
+      candidates = CIRCUMFERENCE_LOG_KEYS;
+    } else if (Array.isArray(typeOrTypes)) {
+      candidates = typeOrTypes;
+    } else {
+      candidates = [typeOrTypes];
+    }
+    return candidates.filter((t) => {
+      const raw = current[t];
+      if (raw === '' || raw === null || raw === undefined) return false;
+      const num = Number(raw);
+      return Number.isFinite(num) && num > 0;
+    });
+  };
+
+  const applyLogStat = (typesToWrite) => {
     const targetDate = logDate || todayStr;
     const targetTs = Date.parse(`${targetDate}T12:00:00`) || Date.now();
-    const typesToWrite = type === 'all' ? ['weight', 'bodyFat'] : [type];
+    const now = Date.now();
 
     setProfile((prev) => {
       const existing = Array.isArray(prev.logs) ? prev.logs : [];
@@ -196,56 +219,56 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         (item) => !(item.date === targetDate && typesToWrite.includes(item.type))
       );
       const newEntries = typesToWrite.map((t) => ({
-        id: `${Date.now()}-${t === 'weight' ? 'w' : 'bf'}`,
+        id: `${now}-${t}`,
         date: targetDate,
         ts: targetTs,
         type: t,
-        value: Number(t === 'weight' ? current.weight : current.bodyFat) || 0,
+        value: Number(prev.current?.[t] ?? current[t]) || 0,
       }));
       const merged = [...newEntries, ...filtered].sort(
         (a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0)
       );
       return {
         ...prev,
-        logs: merged.slice(0, 150),
+        logs: merged.slice(0, 2000),
       };
     });
   };
 
-  const handleLogStat = (type) => {
+  const handleLogStat = (typeOrTypes) => {
+    const typesToWrite = getTypesToLog(typeOrTypes);
+    if (typesToWrite.length === 0) return;
+
     const targetDate = logDate || todayStr;
-    const typesToCheck = type === 'all' ? ['weight', 'bodyFat'] : [type];
     const conflicts = logs.filter(
-      (item) => item.date === targetDate && typesToCheck.includes(item.type)
+      (item) => item.date === targetDate && typesToWrite.includes(item.type)
     );
 
     if (conflicts.length > 0) {
       const displayDate = formatDisplayDate(targetDate, dateFormat);
-      const details = conflicts
-        .map((c) => (
-          c.type === 'weight'
-            ? `Weight (${Number(c.value).toFixed(1)} kg)`
-            : `Body Fat (${Number(c.value).toFixed(1)}%)`
-        ))
-        .join(' and ');
+      const formattedConflicts = conflicts.map((c) => {
+        const label = PROFILE_LOG_META[c.type]?.label || c.type;
+        return `${label} (${formatProfileLogValue(c.type, c.value)})`;
+      });
+      const details = formattedConflicts.length <= 3
+        ? formattedConflicts.join(', ')
+        : `${formattedConflicts.slice(0, 2).join(', ')} and ${formattedConflicts.length - 2} more`;
       setPendingConfirm({
         title: `Overwrite log for ${displayDate}?`,
         message: `You already logged ${details} for ${displayDate}. Continuing will overwrite that day's entry.`,
         confirmLabel: 'Overwrite',
         accentColor: 'var(--color-volume)',
-        onConfirm: () => applyLogStat(type),
+        onConfirm: () => applyLogStat(typesToWrite),
       });
       return;
     }
 
-    applyLogStat(type);
+    applyLogStat(typesToWrite);
   };
 
   const handleDeleteLog = (entry) => {
-    const label = entry.type === 'weight' ? 'Weight' : 'Body Fat';
-    const formatted = entry.type === 'weight'
-      ? `${Number(entry.value).toFixed(1)} kg`
-      : `${Number(entry.value).toFixed(1)}%`;
+    const label = PROFILE_LOG_META[entry.type]?.label || entry.type;
+    const formatted = formatProfileLogValue(entry.type, entry.value);
     const displayDate = formatDisplayDate(entry.date, dateFormat);
     setPendingConfirm({
       title: 'Delete log?',
@@ -261,27 +284,50 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
     });
   };
 
-  const { allWeightCount, allBfCount, weightSeries, bodyFatSeries } = useMemo(() => {
+  const { seriesByType, hasAnyTrends, allWeightCount, allBfCount, weightSeries, bodyFatSeries } = useMemo(() => {
     const toPoint = (item) => ({
       t: Number.isFinite(item.ts) ? item.ts : (Date.parse(item.date) || 0),
       v: Number(item.value) || 0,
     });
     const byTime = (a, b) => a.t - b.t;
-    const allW = logs.filter((item) => item.type === 'weight').map(toPoint).sort(byTime);
-    const allBf = logs.filter((item) => item.type === 'bodyFat').map(toPoint).sort(byTime);
 
     const rangeDef = TIME_RANGES.find((r) => r.value === timeRange);
     const cutoff = rangeDef?.days
       ? Date.parse(`${todayStr}T23:59:59`) - rangeDef.days * 86400000
       : null;
 
+    const grouped = {};
+    for (const item of logs) {
+      if (!item || !item.type) continue;
+      if (!grouped[item.type]) grouped[item.type] = [];
+      grouped[item.type].push(toPoint(item));
+    }
+
+    const map = {};
+    let anyTrends = false;
+    for (const key of Object.keys(PROFILE_LOG_META)) {
+      const allPts = (grouped[key] || []).sort(byTime);
+      if (allPts.length >= 2) anyTrends = true;
+      map[key] = {
+        allCount: allPts.length,
+        series: cutoff ? allPts.filter((p) => p.t >= cutoff) : allPts,
+      };
+    }
+
     return {
-      allWeightCount: allW.length,
-      allBfCount: allBf.length,
-      weightSeries: cutoff ? allW.filter((p) => p.t >= cutoff) : allW,
-      bodyFatSeries: cutoff ? allBf.filter((p) => p.t >= cutoff) : allBf,
+      seriesByType: map,
+      hasAnyTrends: anyTrends,
+      allWeightCount: map.weight.allCount,
+      allBfCount: map.bodyFat.allCount,
+      weightSeries: map.weight.series,
+      bodyFatSeries: map.bodyFat.series,
     };
   }, [logs, timeRange, todayStr]);
+
+  const filteredLogs = useMemo(() => {
+    if (logFilter === 'all') return logs;
+    return logs.filter((entry) => PROFILE_LOG_META[entry.type]?.category === logFilter);
+  }, [logs, logFilter]);
 
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
 
@@ -378,7 +424,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               </button>
             </div>
           </div>
-          {(allWeightCount >= 2 || allBfCount >= 2) && (
+          {hasAnyTrends && (
             <div style={{
               display: 'flex',
               justifyContent: 'center',
@@ -612,85 +658,188 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
 
         {/* Circumferences Table/Grid */}
         <div style={cardStyle}>
-          <h3 style={sectionTitleStyle}>Circumferences (cm)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <h3 style={sectionTitleStyle}>Circumferences (cm)</h3>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: '5px 12px', fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              onClick={() => handleLogStat('circumferences')}
+            >
+              <Plus size={13} /> Log Circumferences
+            </button>
+          </div>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '10px',
           }}>
-            {CIRCUMFERENCE_FIELDS.map((field) => (
-              <div
-                key={field.key}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.025)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <span className="profile-stat-label">{field.label} (cm)</span>
-                {field.bilateral ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontWeight: 600 }}>L</span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="10"
-                        max="250"
-                        style={inputStyle}
-                        value={current[field.leftKey] ?? ''}
-                        onChange={(e) => updateCurrent(field.leftKey, e.target.value)}
-                      />
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontWeight: 600 }}>R</span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="10"
-                        max="250"
-                        style={inputStyle}
-                        value={current[field.rightKey] ?? ''}
-                        onChange={(e) => updateCurrent(field.rightKey, e.target.value)}
-                      />
-                    </label>
+            {CIRCUMFERENCE_FIELDS.map((field) => {
+              const singleData = !field.bilateral ? seriesByType[field.key] : null;
+              const leftData = field.bilateral ? seriesByType[field.leftKey] : null;
+              const rightData = field.bilateral ? seriesByType[field.rightKey] : null;
+              const hasAnyCircumferenceLogs = field.bilateral
+                ? (leftData.allCount >= 2 || rightData.allCount >= 2)
+                : singleData.allCount >= 2;
+              const hasInRange = field.bilateral
+                ? (leftData.series.length >= 2 || rightData.series.length >= 2)
+                : singleData.series.length >= 2;
+
+              return (
+                <div
+                  key={field.key}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.025)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                    <span className="profile-stat-label">{field.label} (cm)</span>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.68rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        flexShrink: 0,
+                      }}
+                      onClick={() => handleLogStat(field.bilateral ? [field.leftKey, field.rightKey] : field.key)}
+                    >
+                      <Plus size={11} /> Log
+                    </button>
                   </div>
-                ) : (
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="10"
-                    max="250"
-                    style={inputStyle}
-                    value={current[field.key] ?? ''}
-                    onChange={(e) => updateCurrent(field.key, e.target.value)}
-                  />
-                )}
-              </div>
-            ))}
+                  {field.bilateral ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontWeight: 600 }}>L</span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="10"
+                          max="250"
+                          style={inputStyle}
+                          value={current[field.leftKey] ?? ''}
+                          onChange={(e) => updateCurrent(field.leftKey, e.target.value)}
+                        />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', fontWeight: 600 }}>R</span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="10"
+                          max="250"
+                          style={inputStyle}
+                          value={current[field.rightKey] ?? ''}
+                          onChange={(e) => updateCurrent(field.rightKey, e.target.value)}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="10"
+                      max="250"
+                      style={inputStyle}
+                      value={current[field.key] ?? ''}
+                      onChange={(e) => updateCurrent(field.key, e.target.value)}
+                    />
+                  )}
+                  {hasAnyCircumferenceLogs && (
+                    <div style={{ paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {hasInRange ? (
+                        <>
+                          {field.bilateral ? (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              {leftData.series.length >= 2 && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  <span style={{ width: '8px', height: '2px', background: '#a3a3a3', display: 'inline-block' }} />
+                                  L <TrendBadge values={leftData.series} />
+                                </span>
+                              )}
+                              {rightData.series.length >= 2 && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  <span style={{ width: '8px', height: '0', borderTop: '2px dashed var(--accent-secondary)', display: 'inline-block' }} />
+                                  R <TrendBadge values={rightData.series} />
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              <TrendBadge values={singleData.series} invertColor={field.key === 'waist'} />
+                            </div>
+                          )}
+                          <MetricSparkline
+                            values={field.bilateral ? leftData.series : singleData.series}
+                            compareValues={field.bilateral ? rightData.series : undefined}
+                            color="#a3a3a3"
+                            compareColor="var(--accent-secondary)"
+                            gradId={`profile-spark-${field.key}`}
+                          />
+                        </>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          Not enough logs in range
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Logs History */}
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <h3 style={sectionTitleStyle}>Logs</h3>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {logs.length > 0 && (
+                <div style={{ display: 'inline-flex', gap: '4px' }}>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'core', label: 'Core' },
+                    { id: 'circumference', label: 'Circumferences' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={logFilter === tab.id ? 'btn btn-primary' : 'btn'}
+                      style={{ padding: '3px 9px', fontSize: '0.7rem' }}
+                      onClick={() => setLogFilter(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {filteredLogs.length} {filteredLogs.length === 1 ? 'entry' : 'entries'}
+              </span>
+            </div>
           </div>
 
           {logs.length === 0 ? (
             <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
-              No logs yet. Press &ldquo;Log All&rdquo; at the top or &ldquo;+ Log&rdquo; on Weight / Body Fat.
+              No logs yet. Press &ldquo;Log All&rdquo; at the top or &ldquo;+ Log&rdquo; on any measurement.
+            </p>
+          ) : filteredLogs.length === 0 ? (
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
+              No logs in this category yet.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {logs.map((entry) => (
+              {filteredLogs.map((entry) => (
                 <div
                   key={entry.id}
                   style={{
@@ -710,12 +859,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                   </span>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
                     <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
-                      {entry.type === 'weight' ? 'Weight' : 'Body Fat'}
+                      {PROFILE_LOG_META[entry.type]?.label || entry.type}
                     </span>
                     <strong style={{ color: 'var(--text-primary)' }}>
-                      {entry.type === 'weight'
-                        ? `${Number(entry.value).toFixed(1)} kg`
-                        : `${Number(entry.value).toFixed(1)}%`}
+                      {formatProfileLogValue(entry.type, entry.value)}
                     </strong>
                   </div>
                   <button
