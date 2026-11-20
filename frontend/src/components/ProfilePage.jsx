@@ -54,6 +54,11 @@ const formatLocalYMD = (date = new Date()) => {
   return `${y}-${m}-${d}`;
 };
 
+const fmtNum = (val, decimals = 1, fallback = '0.0') => {
+  const n = Number(val);
+  return Number.isFinite(n) ? n.toFixed(decimals) : fallback;
+};
+
 export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack }) {
   const [visible, setVisible] = useState(false);
   const [selectedDerivedMetric, setSelectedDerivedMetric] = useState(null);
@@ -63,8 +68,21 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
   const [metricSliderPos, setMetricSliderPos] = useState(100);
   const [bilateralSide, setBilateralSide] = useState('left');
   const closeTimeoutRef = useRef(null);
-  const todayStr = useMemo(() => formatLocalYMD(), []);
+  const [todayStr, setTodayStr] = useState(() => formatLocalYMD());
   const [timeRange, setTimeRange] = useState('all');
+
+  useEffect(() => {
+    const syncToday = () => {
+      const fresh = formatLocalYMD();
+      setTodayStr((prev) => (prev === fresh ? prev : fresh));
+    };
+    window.addEventListener('focus', syncToday);
+    document.addEventListener('visibilitychange', syncToday);
+    return () => {
+      window.removeEventListener('focus', syncToday);
+      document.removeEventListener('visibilitychange', syncToday);
+    };
+  }, []);
 
   useEffect(() => {
     selectedDerivedMetricRef.current = selectedDerivedMetric;
@@ -136,7 +154,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
 
   const { seriesByType, hasAnyTrends, allWeightCount, allBfCount, weightSeries, bodyFatSeries } = useMemo(() => {
     const toPoint = (item) => ({
-      t: Number.isFinite(item.ts) ? item.ts : (Date.parse(item.date) || 0),
+      t: Number.isFinite(item.ts) ? item.ts : (item.date ? Date.parse(`${item.date}T12:00:00`) || 0 : 0),
       v: Number(item.value) || 0,
       date: item.date,
       label: formatDisplayDate(item.date, dateFormat),
@@ -281,7 +299,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         key: 'weight',
         title: 'Weight',
         subtitle: 'Body weight tracked over time.',
-        valueText: `${Number(current.weight).toFixed(1)} kg`,
+        valueText: `${fmtNum(current.weight, 1, '—')} kg`,
         unit: ' kg',
         invertColor: false,
         emptyHint: 'Weight',
@@ -296,7 +314,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         key: 'bodyFat',
         title: 'Body Fat',
         subtitle: 'Estimated body fat percentage tracked over time.',
-        valueText: `${Number(current.bodyFat).toFixed(1)}%`,
+        valueText: `${fmtNum(current.bodyFat, 1, '—')}%`,
         unit: '%',
         invertColor: true,
         emptyHint: 'Body Fat',
@@ -315,7 +333,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
           key: circField.key,
           title: circField.label,
           subtitle: `Left and right ${circField.label.toLowerCase()} circumference tracked over time.`,
-          valueText: `${Number(current[circField.leftKey] || 0).toFixed(1)} / ${Number(current[circField.rightKey] || 0).toFixed(1)} cm`,
+          valueText: `${fmtNum(current[circField.leftKey] ?? 0, 1)} / ${fmtNum(current[circField.rightKey] ?? 0, 1)} cm`,
           unit: ' cm',
           invertColor: false,
           isBilateral: true,
@@ -331,7 +349,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         key: circField.key,
         title: circField.label,
         subtitle: `${circField.label} circumference tracked over time.`,
-        valueText: `${Number(current[circField.key] || 0).toFixed(1)} cm`,
+        valueText: `${fmtNum(current[circField.key] ?? 0, 1)} cm`,
         unit: ' cm',
         invertColor: circField.key === 'waist',
         emptyHint: circField.label,
@@ -429,7 +447,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               style={{ textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}
             >
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
-              <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
+              <span className="metric-value">{fmtNum(current.weight, 1, '—')} kg</span>
               {allWeightCount >= 2 && (
                 weightSeries.length >= 2 ? (
                   <>
@@ -454,7 +472,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               style={{ textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}
             >
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
-              <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
+              <span className="metric-value">{fmtNum(current.bodyFat, 1, '—')}%</span>
               {allBfCount >= 2 && (
                 bodyFatSeries.length >= 2 ? (
                   <>
@@ -529,11 +547,15 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
             </div>
             <div className="metric-summary-card profile-static-card">
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Height</span>
-              <span className="metric-value">{current.height || 0} cm</span>
+              <span className="metric-value">
+                {Number.isFinite(Number(current.height)) && Number(current.height) > 0 ? `${Math.round(Number(current.height))} cm` : '—'}
+              </span>
             </div>
             <div className="metric-summary-card profile-static-card">
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Avg. Steps / Day</span>
-              <span className="metric-value">{Number(current.avgSteps ?? 8000).toLocaleString()}</span>
+              <span className="metric-value">
+                {Number.isFinite(Number(current.avgSteps ?? 8000)) ? Math.round(Number(current.avgSteps ?? 8000)).toLocaleString() : '8,000'}
+              </span>
             </div>
             <div className="metric-summary-card profile-static-card">
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>BMR (Katch-McArdle)</span>
@@ -564,8 +586,8 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                 : singleData.series.length >= 2;
 
               const valText = field.bilateral
-                ? `${Number(current[field.leftKey] || 0).toFixed(1)} / ${Number(current[field.rightKey] || 0).toFixed(1)} cm`
-                : `${Number(current[field.key] || 0).toFixed(1)} cm`;
+                ? `${fmtNum(current[field.leftKey] ?? 0, 1)} / ${fmtNum(current[field.rightKey] ?? 0, 1)} cm`
+                : `${fmtNum(current[field.key] ?? 0, 1)} cm`;
 
               return (
                 <button
@@ -797,8 +819,8 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                 const tMin = pts[0].t;
                 const tMax = pts[pts.length - 1].t;
                 const tRange = tMax - tMin;
-                const targetT = tMin + (metricSliderPos / 100) * tRange;
-                const sampledVal = sampleSparklineAtTime(pts, targetT);
+                const targetT = tRange > 0 ? tMin + (metricSliderPos / 100) * tRange : tMax;
+                const sampledVal = tRange > 0 ? sampleSparklineAtTime(pts, targetT) : pts[pts.length - 1].v;
                 const sampledDate = formatDisplayDate(formatLocalYMD(new Date(targetT)), dateFormat);
                 const xPct = tRange > 0 ? metricSliderPos : 100;
 

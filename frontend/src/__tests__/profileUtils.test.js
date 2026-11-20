@@ -7,6 +7,7 @@ import {
   PROFILE_LOG_META,
   buildDerivedMetricSeries,
   loadProfile,
+  saveProfile,
   parseProfileMarkdown,
   serializeProfileToMarkdown,
   formatProfileLogValue,
@@ -190,6 +191,47 @@ describe('profileUtils', () => {
     expect(parsed.current.armLeft).toBe(39.5);
     expect(parsed.logs.filter((l) => l.type === 'weight')).toHaveLength(2);
     expect(parsed.logs.filter((l) => l.type === 'armLeft')).toHaveLength(1);
+    expect(parsed.logs.filter((l) => l.type === 'bodyFat')).toHaveLength(0);
+    expect(parsed.logs).toHaveLength(3);
     expect(parsed.logs[0].date).toBe('2026-11-20');
+  });
+
+  it('rejects impossible calendar dates and keeps last duplicate entry in parseProfileMarkdown', () => {
+    const md = [
+      'birthdate',
+      '31-02-2026',
+      '',
+      'weight',
+      '75.0 , 31-02-2026',
+      '74.0 , 99-99-9999',
+      '70.0 , 15-11-2026',
+      '71.5 , 15-11-2026',
+    ].join('\n');
+
+    const parsed = parseProfileMarkdown(md);
+    expect(parsed.current.birthDate).toBe(DEFAULT_PROFILE.current.birthDate);
+    expect(parsed.logs).toHaveLength(1);
+    expect(parsed.logs[0].date).toBe('2026-11-15');
+    expect(parsed.logs[0].value).toBe(71.5);
+    expect(parsed.current.weight).toBe(71.5);
+  });
+
+  it('scopes saveProfile storage writes by profileName', () => {
+    const store = {};
+    const origLocalStorage = globalThis.localStorage;
+    globalThis.localStorage = {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+    };
+    try {
+      const pCamilla = { ...DEFAULT_PROFILE, current: { ...DEFAULT_PROFILE.current, weight: 58 } };
+      saveProfile(pCamilla, 'Camilla');
+      expect(Object.keys(store)).toEqual([`${PROFILE_STORAGE_KEY}_Camilla`]);
+      expect(loadProfile('Camilla').current.weight).toBe(58);
+      expect(loadProfile('Lorenzo').current.weight).toBe(DEFAULT_PROFILE.current.weight);
+    } finally {
+      globalThis.localStorage = origLocalStorage;
+    }
   });
 });

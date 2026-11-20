@@ -1875,6 +1875,7 @@ export default function App() {
           profileOpen={profileOpen}
           setProfileOpen={setProfileOpen}
           dateFormat={dateFormat}
+          activeProfile={activeProfile}
         />
         {/* TAB CONTENT: EXERCISE DATABASE */}
         <DatabaseTab

@@ -233,9 +233,9 @@ export function calcAge(birthDateStr, refDate = new Date()) {
   return age >= 0 && age <= 130 ? age : null;
 }
 
-export function saveProfile(profile) {
+export function saveProfile(profile, profileName = getActiveProfileName()) {
   try {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    localStorage.setItem(getProfileStorageKey(profileName), JSON.stringify(profile));
   } catch {
     // Ignore storage quota errors
   }
@@ -252,10 +252,27 @@ const METRIC_ALIAS_MAP = (() => {
 
 const normalizeProfileDate = (raw) => {
   const s = (raw || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const dmy = s.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
-  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
-  return null;
+  let y;
+  let m;
+  let d;
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    y = Number(isoMatch[1]);
+    m = Number(isoMatch[2]);
+    d = Number(isoMatch[3]);
+  } else {
+    const dmy = s.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+    if (!dmy) return null;
+    d = Number(dmy[1]);
+    m = Number(dmy[2]);
+    y = Number(dmy[3]);
+  }
+  if (y < 1900 || y > 2150 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+    return null;
+  }
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 };
 
 const formatDMY = (isoDateStr) => {
@@ -270,14 +287,6 @@ const SCALAR_SECTION_MAP = {
   sex: 'sex',
   height: 'height',
   avgsteps: 'avgSteps',
-};
-
-const getLocalTodayISO = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 };
 
 export function serializeProfileToMarkdown(profile) {
@@ -313,7 +322,7 @@ export function serializeProfileToMarkdown(profile) {
     } else if (cur[key] !== '' && cur[key] !== undefined && cur[key] !== null) {
       const val = Number(cur[key]);
       if (Number.isFinite(val)) {
-        blocks.push([key.toLowerCase(), `${Number(val.toFixed(meta.decimals))} , ${formatDMY(getLocalTodayISO())}`]);
+        blocks.push([key.toLowerCase(), `${Number(val.toFixed(meta.decimals))}`]);
       }
     }
   }
@@ -389,15 +398,12 @@ export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) 
     }
   }
 
-  // Deduplicate same date+type (keep first occurrence) and sort newest first
-  const seen = new Set();
-  const deduped = [];
+  // Deduplicate same date+type (keep last occurrence in file) and sort newest first
+  const dedupedMap = new Map();
   for (const entry of logs) {
-    const key = `${entry.date}|${entry.type}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(entry);
+    dedupedMap.set(`${entry.date}|${entry.type}`, entry);
   }
+  const deduped = Array.from(dedupedMap.values());
   deduped.sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
 
   // Populate current values from the latest log entry for each metric
@@ -442,15 +448,21 @@ export async function saveProfileToFile(profile, profileName = getActiveProfileN
     // Ignore storage errors
   }
   const query = profileName ? `?profile=${encodeURIComponent(profileName)}` : '';
-  try {
-    const md = serializeProfileToMarkdown(profile);
-    await fetch(`/api/profile${query}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: md,
-    });
-  } catch {
-    // Ignore when /api/profile is unavailable (e.g., plain browser preview)
+  const md = serializeProfileToMarkdown(profile);
+  const res = await fetch(`/api/profile${query}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: md,
+  });
+  if (!res.ok) {
+    let errMsg = `Failed to save profile (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.error) errMsg = data.error;
+    } catch {
+      // Ignore non-JSON error body
+    }
+    throw new Error(errMsg);
   }
 }
 

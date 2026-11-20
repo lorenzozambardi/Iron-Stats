@@ -94,9 +94,22 @@ function FormattedDateInput({ value, max, dateFormat, onChange, ariaLabel, style
 }
 
 export default function ProfileEasyEditor({ profile, onChange, dateFormat = 'dd/mm/yyyy' }) {
-  const todayStr = useMemo(() => formatLocalYMD(), []);
+  const [todayStr, setTodayStr] = useState(() => formatLocalYMD());
   const [logDate, setLogDate] = useState(() => formatLocalYMD());
   const [pendingConfirm, setPendingConfirm] = useState(null);
+
+  useEffect(() => {
+    const syncToday = () => {
+      const fresh = formatLocalYMD();
+      setTodayStr((prev) => (prev === fresh ? prev : fresh));
+    };
+    window.addEventListener('focus', syncToday);
+    document.addEventListener('visibilitychange', syncToday);
+    return () => {
+      window.removeEventListener('focus', syncToday);
+      document.removeEventListener('visibilitychange', syncToday);
+    };
+  }, []);
 
   const { current: savedCurrent, logs = [] } = profile;
   const [current, setDraftCurrent] = useState(savedCurrent);
@@ -133,7 +146,7 @@ export default function ProfileEasyEditor({ profile, onChange, dateFormat = 'dd/
     const nextCurrent = { ...current, [key]: nextVal };
     setDraftCurrent(nextCurrent);
     if (SCALAR_KEYS.has(key)) {
-      onChange({ ...profile, current: nextCurrent });
+      onChange({ ...profile, current: { ...profile.current, [key]: nextVal } });
     }
   };
 
@@ -157,7 +170,9 @@ export default function ProfileEasyEditor({ profile, onChange, dateFormat = 'dd/
   };
 
   const applyLogStat = (typesToWrite) => {
-    const targetDate = logDate || todayStr;
+    const freshToday = formatLocalYMD();
+    if (freshToday !== todayStr) setTodayStr(freshToday);
+    const targetDate = logDate || freshToday;
     const targetTs = Date.parse(`${targetDate}T12:00:00`) || Date.now();
     const now = Date.now();
     const filtered = logs.filter(
@@ -170,10 +185,18 @@ export default function ProfileEasyEditor({ profile, onChange, dateFormat = 'dd/
       type: t,
       value: Number(current[t]) || 0,
     }));
-    const merged = [...newEntries, ...filtered].sort(
-      (a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0)
-    );
-    onChange({ ...profile, logs: merged.slice(0, 2000) });
+    const merged = [...newEntries, ...filtered]
+      .sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0))
+      .slice(0, 2000);
+    const nextCurrent = { ...profile.current };
+    const latestApplied = new Set();
+    for (const entry of merged) {
+      if (entry && entry.type && !latestApplied.has(entry.type)) {
+        nextCurrent[entry.type] = entry.value;
+        latestApplied.add(entry.type);
+      }
+    }
+    onChange({ ...profile, current: nextCurrent, logs: merged });
   };
 
   const handleLogStat = (typeOrTypes) => {

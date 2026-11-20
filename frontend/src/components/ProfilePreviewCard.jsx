@@ -11,6 +11,11 @@ const PREVIEW_CIRCUMFERENCES = [
   { key: 'calf', label: 'Calves' },
 ];
 
+const fmtNum = (val, decimals = 1, fallback = '—') => {
+  const n = Number(val);
+  return Number.isFinite(n) ? n.toFixed(decimals) : fallback;
+};
+
 const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
   const { current } = profile;
 
@@ -23,11 +28,12 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
     };
   }, [current]);
 
+  const heightNum = Number(current.height);
   const primaryStats = [
-    { label: 'Height', value: `${Math.round(current.height)}`, unit: 'cm' },
-    { label: 'Weight', value: `${Number(current.weight).toFixed(1)}`, unit: 'kg' },
+    { label: 'Height', value: Number.isFinite(heightNum) && heightNum > 0 ? `${Math.round(heightNum)}` : '—', unit: 'cm' },
+    { label: 'Weight', value: fmtNum(current.weight, 1), unit: 'kg' },
     { label: 'BMI', value: bmi, unit: '' },
-    { label: 'BF', value: `${Number(current.bodyFat).toFixed(1)}`, unit: '%' },
+    { label: 'BF', value: fmtNum(current.bodyFat, 1), unit: '%' },
     { label: 'FFMI', value: ffmiVal, unit: '' },
   ];
 
@@ -74,7 +80,7 @@ const ProfilePreviewCard = React.memo(({ profile, onOpen }) => {
             <div key={item.key} className="profile-circ-summary-item">
               <span className="profile-circ-chip-label">{item.label}</span>
               <span className="profile-circ-chip-val">
-                {val.toFixed(1)}
+                {fmtNum(val, 1, '0.0')}
                 <small> cm</small>
               </span>
             </div>
