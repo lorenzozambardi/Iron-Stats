@@ -17,17 +17,61 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           const urlObj = new URL(req.url, 'http://localhost');
           const examplesDir = path.resolve(__dirname, '../logbooks');
-          const lorenzoDir = path.resolve(examplesDir, 'Lorenzo');
-          const lorenzoProgramsDir = path.resolve(lorenzoDir, 'Programs');
-          const programsSubdir = path.resolve(examplesDir, 'Programs');
-          const programsDir = fs.existsSync(lorenzoProgramsDir)
-            ? lorenzoProgramsDir
-            : (fs.existsSync(programsSubdir) ? programsSubdir : examplesDir);
+          const cleanName = (val) => (val || '').replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
+
+          const getAvailableProfiles = () => {
+            if (!fs.existsSync(examplesDir)) return [];
+            return fs.readdirSync(examplesDir)
+              .filter((entry) => {
+                if (entry.startsWith('.')) return false;
+                try {
+                  return fs.statSync(path.resolve(examplesDir, entry)).isDirectory();
+                } catch {
+                  return false;
+                }
+              })
+              .sort((a, b) => a.localeCompare(b));
+          };
+
+          const resolveProfileScope = (rawProfile) => {
+            const profiles = getAvailableProfiles();
+            const requested = cleanName(rawProfile);
+            const selected = requested && profiles.includes(requested)
+              ? requested
+              : (profiles.includes('Lorenzo') ? 'Lorenzo' : (profiles[0] || ''));
+            if (selected) {
+              const profileRoot = path.resolve(examplesDir, selected);
+              const subPrograms = path.resolve(profileRoot, 'Programs');
+              return {
+                profileName: selected,
+                profilePath: path.resolve(profileRoot, 'profile.md'),
+                programsDir: fs.existsSync(subPrograms) ? subPrograms : profileRoot,
+              };
+            }
+            const programsSubdir = path.resolve(examplesDir, 'Programs');
+            return {
+              profileName: '',
+              profilePath: path.resolve(examplesDir, 'profile.md'),
+              programsDir: fs.existsSync(programsSubdir) ? programsSubdir : examplesDir,
+            };
+          };
+
+          if (urlObj.pathname === '/api/profiles' && req.method === 'GET') {
+            try {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(getAvailableProfiles()));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+            return;
+          }
 
           if (urlObj.pathname === '/api/logbook') {
+            const { programsDir } = resolveProfileScope(urlObj.searchParams.get('profile'));
             const rawProgram = urlObj.searchParams.get('program');
             const programName = rawProgram === null ? 'S1M3' : rawProgram;
-            const cleanProgramName = programName.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim();
+            const cleanProgramName = cleanName(programName);
             if (!cleanProgramName) {
               res.writeHead(400, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: 'Invalid program name' }));
@@ -62,9 +106,7 @@ export default defineConfig({
           }
 
           if (urlObj.pathname === '/api/profile') {
-            const profilePath = fs.existsSync(lorenzoDir)
-              ? path.resolve(lorenzoDir, 'profile.md')
-              : path.resolve(examplesDir, 'profile.md');
+            const { profilePath } = resolveProfileScope(urlObj.searchParams.get('profile'));
             if (req.method === 'GET') {
               if (fs.existsSync(profilePath)) {
                 res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -94,6 +136,7 @@ export default defineConfig({
           if (urlObj.pathname === '/api/programs') {
             if (req.method === 'GET') {
               try {
+                const { programsDir } = resolveProfileScope(urlObj.searchParams.get('profile'));
                 const files = fs.readdirSync(programsDir);
                 const programs = files
                   .filter(file => file.endsWith('.md') && file.toLowerCase() !== 'profile.md')
@@ -113,7 +156,8 @@ export default defineConfig({
               req.on('end', () => {
                 try {
                   const data = JSON.parse(body);
-                  const name = data.name ? data.name.replace(/[^a-zA-Z0-9_\- ()]/g, '').trim() : '';
+                  const { programsDir } = resolveProfileScope(data.profile || urlObj.searchParams.get('profile'));
+                  const name = data.name ? cleanName(data.name) : '';
                   if (!name) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Invalid program name' }));

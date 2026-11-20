@@ -1,5 +1,29 @@
 export const PROFILE_STORAGE_KEY = 'iron_stats_profile_v1';
+export const ACTIVE_PROFILE_STORAGE_KEY = 'iron_stats_active_profile';
 export const DATE_FORMAT_STORAGE_KEY = 'iron_stats_date_format';
+
+export function getActiveProfileName() {
+  try {
+    return localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setActiveProfileName(name) {
+  try {
+    if (name) {
+      localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, name);
+    } else {
+      localStorage.removeItem(ACTIVE_PROFILE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+const getProfileStorageKey = (profileName = getActiveProfileName()) =>
+  profileName ? `${PROFILE_STORAGE_KEY}_${profileName}` : PROFILE_STORAGE_KEY;
 
 export const DATE_FORMATS = [
   { id: 'dd/mm/yyyy', label: 'DD/MM/YYYY' },
@@ -137,9 +161,9 @@ export const DEFAULT_PROFILE = {
   logs: [],
 };
 
-export function loadProfile() {
+export function loadProfile(profileName = getActiveProfileName()) {
   try {
-    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    const raw = localStorage.getItem(getProfileStorageKey(profileName));
     if (!raw) return structuredClone(DEFAULT_PROFILE);
     const parsed = JSON.parse(raw);
     const saved = parsed.current || {};
@@ -388,39 +412,22 @@ export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) 
   return { current: baseCurrent, logs: deduped };
 }
 
-export async function loadProfileFromFile() {
-  const local = loadProfile();
+export async function loadProfileFromFile(profileName = getActiveProfileName()) {
+  const local = loadProfile(profileName);
+  const query = profileName ? `?profile=${encodeURIComponent(profileName)}` : '';
   try {
-    const res = await fetch('/api/profile');
+    const res = await fetch(`/api/profile${query}`);
     if (res.ok) {
       const text = await res.text();
       if (text && text.trim()) {
         const parsed = parseProfileMarkdown(text, local);
-        saveProfile(parsed);
+        try {
+          localStorage.setItem(getProfileStorageKey(profileName), JSON.stringify(parsed));
+        } catch {
+          // Ignore storage errors
+        }
         return parsed;
       }
-    } else if (res.status === 404) {
-      let seedProfile = local;
-      if (!Array.isArray(local.logs) || local.logs.length === 0) {
-        const todayIso = getLocalTodayISO();
-        const ts = Date.parse(`${todayIso}T12:00:00`) || Date.now();
-        const seedLogs = [];
-        for (const key of Object.keys(PROFILE_LOG_META)) {
-          const val = Number(local.current?.[key]);
-          if (Number.isFinite(val) && val > 0) {
-            seedLogs.push({ id: `${ts}-${key}`, date: todayIso, ts, type: key, value: val });
-          }
-        }
-        seedProfile = { ...local, logs: seedLogs };
-        saveProfile(seedProfile);
-      }
-      const md = serializeProfileToMarkdown(seedProfile);
-      await fetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: md,
-      }).catch(() => {});
-      return seedProfile;
     }
   } catch {
     // Offline/web fallback uses localStorage
@@ -428,11 +435,16 @@ export async function loadProfileFromFile() {
   return local;
 }
 
-export async function saveProfileToFile(profile) {
-  saveProfile(profile);
+export async function saveProfileToFile(profile, profileName = getActiveProfileName()) {
+  try {
+    localStorage.setItem(getProfileStorageKey(profileName), JSON.stringify(profile));
+  } catch {
+    // Ignore storage errors
+  }
+  const query = profileName ? `?profile=${encodeURIComponent(profileName)}` : '';
   try {
     const md = serializeProfileToMarkdown(profile);
-    await fetch('/api/profile', {
+    await fetch(`/api/profile${query}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: md,

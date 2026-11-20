@@ -43,6 +43,9 @@ export const SettingsPanel = memo(({
   SEC_PALETTES,
   // Optional program / storage controls
   showProgramSelector = false,
+  profiles = [],
+  activeProfile = '',
+  handleProfileSelect,
   currentProgram,
   handleProgramChange,
   programs,
@@ -169,7 +172,7 @@ export const SettingsPanel = memo(({
       : syncStatus === 'error'
         ? 'Sync Error'
         : syncStatus === 'saved'
-          ? `Synced with ${currentProgram === '__profile__' ? 'profile' : currentProgram}`
+          ? `Synced with ${currentProgram}`
           : 'Offline';
 
   return (
@@ -183,6 +186,28 @@ export const SettingsPanel = memo(({
       <div className="settings-section">
         <div className="settings-section-label">Workspace</div>
         <div className="settings-group-card">
+          {showProgramSelector && profiles.length > 0 && (
+            <div className="settings-group-row settings-program-row-wrap" style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <div className="settings-program-left">
+                <span className="settings-row-label">Profile</span>
+              </div>
+              <div className="settings-program-controls">
+                <select
+                  className="settings-program-select"
+                  value={activeProfile}
+                  onChange={(e) => handleProfileSelect?.(e.target.value)}
+                  aria-label="Active Profile"
+                >
+                  {profiles.map((prof) => (
+                    <option key={prof} value={prof}>
+                      {prof}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {showProgramSelector && (
             <div className="settings-group-row settings-program-row-wrap">
               <div className="settings-program-left">
@@ -204,7 +229,6 @@ export const SettingsPanel = memo(({
                       {prog}
                     </option>
                   ))}
-                  <option value="__profile__">profile</option>
                 </select>
                 <button
                   type="button"

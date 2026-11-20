@@ -15,7 +15,8 @@ import {
   Undo2,
   Redo2,
   Settings,
-  Timer
+  Timer,
+  User
 } from 'lucide-react';
 import {
   parseLogbook,
@@ -36,11 +37,13 @@ import { formatLogbookSpaces } from './formatLogbook';
 import { SettingsPanel } from './components/SettingsPanel';
 import {
   DATE_FORMAT_STORAGE_KEY,
+  getActiveProfileName,
   getDateFormat,
   loadProfileFromFile,
   parseProfileMarkdown,
   saveProfileToFile,
   serializeProfileToMarkdown,
+  setActiveProfileName,
 } from './profileUtils';
 const ExerciseModal = lazy(() => import('./components/ExerciseModal').then(m => ({ default: m.ExerciseModal })));
 
@@ -606,7 +609,13 @@ export default function App() {
     return getExercisesWithOverrides(overrideLinesText, exercisesDb);
   }, [overrideLinesText, exercisesDb]);
 
-  // Programs State
+  // Profiles & Programs State
+  const [profiles, setProfiles] = useState([]);
+  const [activeProfile, setActiveProfile] = useState(() => getActiveProfileName());
+  const activeProfileRef = useRef(activeProfile);
+  useEffect(() => {
+    activeProfileRef.current = activeProfile;
+  }, [activeProfile]);
   const [currentProgram, setCurrentProgram] = useState(() => localStorage.getItem('lastSelectedProgram') || 'S1M3');
   const currentProgramRef = useRef(currentProgram);
   useEffect(() => {
@@ -713,7 +722,23 @@ export default function App() {
       .then(exs => {
         if (reqId !== loadRequestIdRef.current) return null;
         setExercisesDb(exs);
-        return fetch('/api/programs');
+        return fetch('/api/profiles').then(r => (r.ok ? r.json() : [])).catch(() => []);
+      })
+      .then(async (profs) => {
+        if (profs === null || reqId !== loadRequestIdRef.current) return null;
+        const profileList = Array.isArray(profs) ? profs : [];
+        setProfiles(profileList);
+        const savedProfile = getActiveProfileName();
+        const resolvedProfile = savedProfile && profileList.includes(savedProfile)
+          ? savedProfile
+          : (profileList.includes('Lorenzo') ? 'Lorenzo' : (profileList[0] || ''));
+        activeProfileRef.current = resolvedProfile;
+        setActiveProfile(resolvedProfile);
+        setActiveProfileName(resolvedProfile);
+        const loadedProfile = await loadProfileFromFile(resolvedProfile);
+        window.dispatchEvent(new CustomEvent('profile-updated', { detail: loadedProfile }));
+        const query = resolvedProfile ? `?profile=${encodeURIComponent(resolvedProfile)}` : '';
+        return fetch(`/api/programs${query}`);
       })
       .then(res => {
         if (!res || reqId !== loadRequestIdRef.current) return null;
@@ -722,14 +747,17 @@ export default function App() {
       })
       .then(progs => {
         if (!progs || reqId !== loadRequestIdRef.current) return null;
+        const prof = activeProfileRef.current;
         if (progs.length > 0) {
           setPrograms(progs);
-          const savedProg = localStorage.getItem('lastSelectedProgram');
+          const savedProg = localStorage.getItem(prof ? `lastSelectedProgram_${prof}` : 'lastSelectedProgram')
+            || localStorage.getItem('lastSelectedProgram');
           resolvedProg = savedProg && progs.includes(savedProg)
             ? savedProg
             : (progs.includes('S1M3') ? 'S1M3' : progs[0]);
         }
-        return fetch(`/api/logbook?program=${encodeURIComponent(resolvedProg)}`);
+        const profQuery = prof ? `&profile=${encodeURIComponent(prof)}` : '';
+        return fetch(`/api/logbook?program=${encodeURIComponent(resolvedProg)}${profQuery}`);
       })
       .then(res => {
         if (!res || reqId !== loadRequestIdRef.current) return null;
@@ -805,10 +833,11 @@ export default function App() {
 
 
   // Load a program's markdown content dynamically
-  const loadProgram = (progName) => {
+  const loadProgram = (progName, profName = activeProfileRef.current) => {
     const reqId = ++loadRequestIdRef.current;
     setSyncStatus('syncing');
-    fetch(`/api/logbook?program=${encodeURIComponent(progName)}`)
+    const profQuery = profName ? `&profile=${encodeURIComponent(profName)}` : '';
+    fetch(`/api/logbook?program=${encodeURIComponent(progName)}${profQuery}`)
       .then(res => {
         if (!res.ok) throw new Error(`Failed to load ${progName}.md`);
         return res.text();
@@ -821,6 +850,7 @@ export default function App() {
         setDebouncedLogbookText(text);
         setCurrentProgram(progName);
         localStorage.setItem('lastSelectedProgram', progName); // Save program selection
+        if (profName) localStorage.setItem(`lastSelectedProgram_${profName}`, progName);
         setSyncStatus('saved');
         setSyncError('');
       })
@@ -836,7 +866,7 @@ export default function App() {
     setSyncStatus('syncing');
     try {
       const parsed = parseProfileMarkdown(textToSave);
-      await saveProfileToFile(parsed);
+      await saveProfileToFile(parsed, activeProfileRef.current);
       window.dispatchEvent(new CustomEvent('profile-updated', { detail: parsed }));
       setSyncStatus('saved');
       setSyncError('');
@@ -864,27 +894,56 @@ export default function App() {
       setEditingProfileMd(false);
       return;
     }
-    const loaded = await loadProfileFromFile();
+    const loaded = await loadProfileFromFile(activeProfileRef.current);
     setProfileMdText(serializeProfileToMarkdown(loaded));
     setEditingProfileMd(true);
     setEditorMode('edit');
   }, [editingProfileMd, profileMdText, saveProfileMdContent]);
 
+  const handleProfileSelect = async (profName) => {
+    if (!profName || profName === activeProfileRef.current) return;
+    if (profileSaveTimeoutRef.current) {
+      clearTimeout(profileSaveTimeoutRef.current);
+      profileSaveTimeoutRef.current = null;
+      await saveProfileMdContent(profileMdText);
+    }
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+      await saveLogbookContent(logbookTextRef.current, currentProgramRef.current);
+    }
+    setEditingProfileMd(false);
+    activeProfileRef.current = profName;
+    setActiveProfile(profName);
+    setActiveProfileName(profName);
+
+    const loadedProfile = await loadProfileFromFile(profName);
+    window.dispatchEvent(new CustomEvent('profile-updated', { detail: loadedProfile }));
+
+    try {
+      const res = await fetch(`/api/programs?profile=${encodeURIComponent(profName)}`);
+      if (res.ok) {
+        const progs = await res.json();
+        setPrograms(progs);
+        if (progs.length > 0) {
+          const savedProg = localStorage.getItem(`lastSelectedProgram_${profName}`);
+          const nextProg = savedProg && progs.includes(savedProg) ? savedProg : progs[0];
+          loadProgram(nextProg, profName);
+        } else {
+          currentProgramRef.current = '';
+          setCurrentProgram('');
+          resetTextHistory('');
+          setLogbookText('');
+          setDebouncedLogbookText('');
+        }
+      }
+    } catch {
+      // Ignore network errors when switching profile
+    }
+  };
+
   // Handle program switching with auto-flush
   const handleProgramChange = async (progName) => {
-    if (progName === '__profile__') {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-        await saveLogbookContent(logbookText);
-      }
-      const loaded = await loadProfileFromFile();
-      setProfileMdText(serializeProfileToMarkdown(loaded));
-      setEditingProfileMd(true);
-      setEditorMode('edit');
-      setActiveTab('editor');
-      return;
-    }
     setEditingProfileMd(false);
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -916,7 +975,7 @@ export default function App() {
     fetch('/api/programs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: cleanName })
+      body: JSON.stringify({ name: cleanName, profile: activeProfileRef.current })
     })
       .then(res => {
         if (!res.ok) {
@@ -1292,7 +1351,9 @@ export default function App() {
       setLogbookText(formattedText);
     }
     setSyncStatus('syncing');
-    return fetch(`/api/logbook?program=${encodeURIComponent(progName)}`, {
+    const prof = activeProfileRef.current;
+    const profQuery = prof ? `&profile=${encodeURIComponent(prof)}` : '';
+    return fetch(`/api/logbook?program=${encodeURIComponent(progName)}${profQuery}`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: formattedText
@@ -1415,7 +1476,10 @@ export default function App() {
                 setSecPalette={setSecPalette}
                 SEC_PALETTES={SEC_PALETTES}
                 showProgramSelector={true}
-                currentProgram={editingProfileMd ? '__profile__' : currentProgram}
+                profiles={profiles}
+                activeProfile={activeProfile}
+                handleProfileSelect={handleProfileSelect}
+                currentProgram={currentProgram}
                 handleProgramChange={handleProgramChange}
                 programs={programs}
                 setShowNewProgramModal={setShowNewProgramModal}
@@ -1444,7 +1508,7 @@ export default function App() {
             <span className="program-label">Program:</span>
             <select 
               className="program-select"
-              value={editingProfileMd ? '__profile__' : currentProgram}
+              value={currentProgram}
               onChange={(e) => handleProgramChange(e.target.value)}
             >
               {programs.map(prog => (
@@ -1452,7 +1516,6 @@ export default function App() {
                   {prog}
                 </option>
               ))}
-              <option value="__profile__">profile</option>
             </select>
             <button 
               className="btn-icon-small" 
@@ -1622,6 +1685,16 @@ export default function App() {
                    </>
                  )}
                  <button
+                   type="button"
+                   className={`mode-pill-btn ${editingProfileMd ? 'active' : ''}`}
+                   onClick={toggleProfileMdEditor}
+                   title="Profile Editor"
+                   aria-label="Profile Editor"
+                 >
+                   <User size={18} />
+                 </button>
+                 <div className="pill-divider"></div>
+                 <button
                    className="btn-save-circle"
                    onClick={() => (editingProfileMd ? saveProfileMdContent(profileMdText) : saveLogbookContent(logbookText))}
                    title="Save Now"
@@ -1669,9 +1742,10 @@ export default function App() {
                   type="button"
                   className={editingProfileMd ? 'btn btn-primary' : 'btn'}
                   onClick={toggleProfileMdEditor}
-                  title="Edit profile"
+                  title="Profile Editor"
+                  aria-label="Profile Editor"
                 >
-                  profile
+                  <User size={15} />
                 </button>
                 <button
                   className="btn btn-primary"
