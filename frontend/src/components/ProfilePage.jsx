@@ -119,6 +119,8 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
   const pendingConfirmRef = useRef(null);
   const [selectedDerivedMetric, setSelectedDerivedMetric] = useState(null);
   const selectedDerivedMetricRef = useRef(null);
+  const [derivedModalVisible, setDerivedModalVisible] = useState(false);
+  const derivedCloseTimeoutRef = useRef(null);
   const [metricSliderPos, setMetricSliderPos] = useState(100);
   const closeTimeoutRef = useRef(null);
   const todayStr = useMemo(() => formatLocalYMD(), []);
@@ -142,8 +144,32 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         clearTimeout(closeTimeoutRef.current);
         closeTimeoutRef.current = null;
       }
+      if (derivedCloseTimeoutRef.current) {
+        clearTimeout(derivedCloseTimeoutRef.current);
+        derivedCloseTimeoutRef.current = null;
+      }
     };
   }, []);
+
+  const openDerivedMetric = (key) => {
+    if (derivedCloseTimeoutRef.current) {
+      clearTimeout(derivedCloseTimeoutRef.current);
+      derivedCloseTimeoutRef.current = null;
+    }
+    setMetricSliderPos(100);
+    setDerivedModalVisible(false);
+    setSelectedDerivedMetric(key);
+    requestAnimationFrame(() => setDerivedModalVisible(true));
+  };
+
+  const closeDerivedMetric = () => {
+    setDerivedModalVisible(false);
+    if (derivedCloseTimeoutRef.current) clearTimeout(derivedCloseTimeoutRef.current);
+    derivedCloseTimeoutRef.current = setTimeout(() => {
+      derivedCloseTimeoutRef.current = null;
+      setSelectedDerivedMetric(null);
+    }, 200);
+  };
 
   const handleClose = () => {
     setVisible(false);
@@ -161,7 +187,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
         return;
       }
       if (selectedDerivedMetricRef.current) {
-        setSelectedDerivedMetric(null);
+        closeDerivedMetric();
         return;
       }
       setVisible(false);
@@ -584,10 +610,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 key={item.key}
                 type="button"
                 className="profile-derived-box"
-                onClick={() => {
-                  setMetricSliderPos(100);
-                  setSelectedDerivedMetric(item.key);
-                }}
+                onClick={() => openDerivedMetric(item.key)}
                 style={{
                   textAlign: 'left',
                   cursor: 'pointer',
@@ -1051,8 +1074,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
+            opacity: derivedModalVisible ? 1 : 0,
+            transition: 'opacity 0.2s ease',
           }}
-          onClick={() => setSelectedDerivedMetric(null)}
+          onClick={closeDerivedMetric}
         >
           <div
             style={{
@@ -1063,6 +1088,8 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               overflowY: 'auto',
               padding: '14px 16px',
               gap: '10px',
+              transform: derivedModalVisible ? 'none' : 'translateY(16px)',
+              transition: 'transform 0.2s ease',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1099,7 +1126,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
               <button
                 type="button"
                 aria-label="Close metric details"
-                onClick={() => setSelectedDerivedMetric(null)}
+                onClick={closeDerivedMetric}
                 style={{
                   background: 'transparent',
                   border: 'none',
