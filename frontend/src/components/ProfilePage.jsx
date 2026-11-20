@@ -112,6 +112,39 @@ const formatLocalYMD = (date = new Date()) => {
   return `${y}-${m}-${d}`;
 };
 
+const sampleSparklineAtTime = (pts, targetT) => {
+  if (!pts || pts.length === 0) return 0;
+  if (pts.length === 1 || targetT <= pts[0].t) return pts[0].v;
+  if (targetT >= pts[pts.length - 1].t) return pts[pts.length - 1].v;
+
+  let idx = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (targetT >= pts[i].t && targetT <= pts[i + 1].t) {
+      idx = i;
+      break;
+    }
+  }
+  const p0 = pts[idx];
+  const p1 = pts[idx + 1];
+  const dt = p1.t - p0.t;
+  if (dt <= 0) return p1.v;
+
+  const targetFrac = (targetT - p0.t) / dt;
+  // Invert the horizontal cubic Bezier x(u) with control points at x = 0.5
+  let lo = 0;
+  let hi = 1;
+  for (let k = 0; k < 18; k++) {
+    const u = (lo + hi) * 0.5;
+    const oneMinusU = 1 - u;
+    const x = 3 * oneMinusU * oneMinusU * u * 0.5 + 3 * oneMinusU * u * u * 0.5 + u * u * u;
+    if (x < targetFrac) lo = u;
+    else hi = u;
+  }
+  const u = (lo + hi) * 0.5;
+  const smoothY = 3 * u * u - 2 * u * u * u;
+  return p0.v + (p1.v - p0.v) * smoothY;
+};
+
 export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/yyyy', onBack }) {
   const [visible, setVisible] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(null);
@@ -1120,16 +1153,9 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                 const tMax = pts[pts.length - 1].t;
                 const tRange = tMax - tMin;
                 const targetT = tMin + (metricSliderPos / 100) * tRange;
-                let closestPt = pts[0];
-                let minDist = Math.abs(pts[0].t - targetT);
-                for (let i = 1; i < pts.length; i++) {
-                  const dist = Math.abs(pts[i].t - targetT);
-                  if (dist < minDist) {
-                    minDist = dist;
-                    closestPt = pts[i];
-                  }
-                }
-                const xPct = tRange > 0 ? ((closestPt.t - tMin) / tRange) * 100 : 100;
+                const sampledVal = sampleSparklineAtTime(pts, targetT);
+                const sampledDate = formatDisplayDate(formatLocalYMD(new Date(targetT)), dateFormat);
+                const xPct = tRange > 0 ? metricSliderPos : 100;
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1148,10 +1174,10 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                         color: 'var(--text-secondary)',
                         fontWeight: 600,
                       }}>
-                        {closestPt.label}
+                        {sampledDate}
                       </span>
                       <strong style={{ color: 'var(--text-primary)', fontSize: '0.84rem' }}>
-                        {closestPt.v.toFixed(1)}{selectedMetricDetail.unit}
+                        {sampledVal.toFixed(1)}{selectedMetricDetail.unit}
                       </strong>
                     </div>
                     <div style={{ position: 'relative' }}>
