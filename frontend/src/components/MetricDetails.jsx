@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Latex, MathBlock } from './MathComponents';
-import { MetricSparkline, TrendBadge } from './Sparkline';
+import { MetricSparkline, MetricBarSparkline, TrendBadge } from './Sparkline';
 import { sampleSparklineAtTime } from './helpers';
 import { TensionRomSlider } from './FilterControls';
 
@@ -651,13 +651,18 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
                   }
                 }
               }
+              const isHistogram = activeMetric === 'sets';
+              const activeBarIdx = isHistogram
+                ? Math.min(pts.length - 1, Math.max(0, Math.round((sliderPos / 100) * (pts.length - 1))))
+                : null;
+              const displayWeek = isHistogram ? weeks[activeBarIdx] : currentWeek;
+              const displayVal = isHistogram ? pts[activeBarIdx].v : sampledVal;
+
               const formatMicrocycle = (w) => (
                 Math.abs(w - Math.round(w)) < 0.05 ? `m${Math.round(w)}` : `m${w.toFixed(1)}`
               );
               const unit = METRIC_UNITS[activeMetric] ?? '';
-              const formattedVal = Number.isInteger(Math.round(sampledVal)) && (activeMetric === 'sets' || activeMetric === 'fatigue')
-                ? Math.round(sampledVal).toLocaleString()
-                : sampledVal.toLocaleString(undefined, { maximumFractionDigits: 1 });
+              const formattedVal = displayVal.toLocaleString(undefined, { maximumFractionDigits: 1 });
               const xPct = tRange > 0 ? sliderPos : 100;
 
               return (
@@ -681,32 +686,42 @@ export default function MetricDetailsPage({ metric, series, compareSeries, weekN
                       color: 'var(--text-secondary)',
                       fontWeight: 600,
                     }}>
-                      {formatMicrocycle(currentWeek)}
+                      {formatMicrocycle(displayWeek)}
                     </span>
                     <strong style={{ color: 'var(--text-primary)', fontSize: '0.86rem' }}>
                       {formattedVal}{unit}
                     </strong>
                   </div>
-                  <div style={{ position: 'relative' }}>
-                    <MetricSparkline
+                  {isHistogram ? (
+                    <MetricBarSparkline
                       values={pts}
                       compareValues={comparePts}
                       color={data.color}
-                      gradId={`detail-spark-${activeMetric}`}
                       height={92}
+                      activeIndex={activeBarIdx}
                     />
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        bottom: 0,
-                        left: `${xPct}%`,
-                        borderLeft: '1.5px dashed rgba(255, 255, 255, 0.4)',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                  </div>
+                  ) : (
+                    <div style={{ position: 'relative' }}>
+                      <MetricSparkline
+                        values={pts}
+                        compareValues={comparePts}
+                        color={data.color}
+                        gradId={`detail-spark-${activeMetric}`}
+                        height={92}
+                      />
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          left: `${xPct}%`,
+                          borderLeft: '1.5px dashed rgba(255, 255, 255, 0.4)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    </div>
+                  )}
                   <TensionRomSlider
                     value={sliderPos}
                     onChange={setSliderPos}

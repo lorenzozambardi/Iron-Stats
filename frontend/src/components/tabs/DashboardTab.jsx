@@ -17,10 +17,10 @@ const DETAIL_TO_SERIES_KEY = {
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
-import { MetricSparkline, TrendBadge } from '../Sparkline';
+import { MetricSparkline, MetricBarSparkline, TrendBadge } from '../Sparkline';
 import { loadProfile, saveProfile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
-import { bezierArea, getMinMax, solveBezierY } from '../helpers';
+import { bezierArea, solveBezierY } from '../helpers';
 import { LockWheelPicker, DualWeekSlider, TensionRomSlider } from '../FilterControls';
 
 const CURVE_RESOLUTION = 50;
@@ -47,8 +47,6 @@ const formatWeekRangeLabel = (fromVal, toVal) => {
   if (toVal !== 'all') return `≤m${toVal}`;
   return null;
 };
-
-const getNumericVal = (item) => (typeof item === 'number' ? item : item?.v ?? 0);
 
 const isoDateToUtcMs = (iso) => {
   if (typeof iso !== 'string') return null;
@@ -154,45 +152,6 @@ const CardModeToggle = React.memo(({ cardId, mode, onToggle }) => {
         <path d="M2 11h11" />
       </svg>
     </button>
-  );
-});
-
-const MetricBarSparkline = React.memo(({ values, compareValues, color, compareColor = 'var(--accent-secondary)' }) => {
-  const hasB = compareValues && compareValues.length >= 1;
-  const hasA = values && (hasB ? values.length >= 1 : values.length >= 2);
-  if (!hasA && !hasB) return null;
-
-  const len = Math.max(hasA ? values.length : 0, hasB ? compareValues.length : 0);
-  const { min: minVal, range } = getMinMax(values, compareValues, hasA, hasB);
-
-  const barHeight = (v) => {
-    if (v <= 0) return 0;
-    if (range <= 0) return 28;
-    return 14 + ((v - minVal) / range) * 40;
-  };
-
-  const bars = [];
-  for (let i = 0; i < len; i++) {
-    const vA = hasA && i < values.length ? getNumericVal(values[i]) : 0;
-    const vB = hasB && i < compareValues.length ? getNumericVal(compareValues[i]) : 0;
-    const hA = barHeight(vA);
-    const hB = barHeight(vB);
-    bars.push(
-      <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '2px' }}>
-        {hasA && (
-          <div style={{ flex: 1, maxWidth: '8px', height: `${hA}px`, background: color, borderRadius: '3px 3px 1px 1px', opacity: 0.85 }} />
-        )}
-        {hasB && (
-          <div style={{ flex: 1, maxWidth: '8px', height: `${hB}px`, background: compareColor, borderRadius: '3px 3px 1px 1px', opacity: 0.72 }} />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: len > 10 ? '4px' : '5px', width: '100%', height: '58px', marginTop: '4px' }}>
-      {bars}
-    </div>
   );
 });
 

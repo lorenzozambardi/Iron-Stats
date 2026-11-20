@@ -107,3 +107,55 @@ export const MetricSparkline = React.memo(({ values, compareValues, color, compa
     </svg>
   );
 });
+
+export const MetricBarSparkline = React.memo(({
+  values,
+  compareValues,
+  color,
+  compareColor = 'var(--accent-secondary)',
+  height = 58,
+  activeIndex = null,
+}) => {
+  const hasB = compareValues && compareValues.length >= 1;
+  const hasA = values && (hasB ? values.length >= 1 : values.length >= 2);
+  if (!hasA && !hasB) return null;
+
+  const len = Math.max(hasA ? values.length : 0, hasB ? compareValues.length : 0);
+  const { min: minVal, range } = getMinMax(values, compareValues, hasA, hasB);
+  const maxBarH = Math.max(16, height - 18);
+  const minBarH = Math.round(height * 0.24);
+
+  const barHeight = (v) => {
+    if (v <= 0) return 0;
+    if (range <= 0) return Math.round(height * 0.5);
+    return minBarH + ((v - minVal) / range) * (maxBarH - minBarH);
+  };
+
+  const hasActive = Number.isInteger(activeIndex);
+  const bars = [];
+  for (let i = 0; i < len; i++) {
+    const vA = hasA && i < values.length ? getVal(values[i]) : 0;
+    const vB = hasB && i < compareValues.length ? getVal(compareValues[i]) : 0;
+    const hA = barHeight(vA);
+    const hB = barHeight(vB);
+    const isActive = hasActive && i === activeIndex;
+    const opacityA = hasActive ? (isActive ? 1 : 0.35) : 0.85;
+    const opacityB = hasActive ? (isActive ? 0.95 : 0.28) : 0.72;
+    bars.push(
+      <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '2px' }}>
+        {hasA && (
+          <div style={{ flex: 1, maxWidth: hasActive ? '14px' : '8px', height: `${hA}px`, background: color, borderRadius: '3px 3px 1px 1px', opacity: opacityA, transition: 'opacity 0.1s ease' }} />
+        )}
+        {hasB && (
+          <div style={{ flex: 1, maxWidth: hasActive ? '14px' : '8px', height: `${hB}px`, background: compareColor, borderRadius: '3px 3px 1px 1px', opacity: opacityB, transition: 'opacity 0.1s ease' }} />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: len > 10 ? '4px' : '5px', width: '100%', height: `${height}px`, marginTop: '4px' }}>
+      {bars}
+    </div>
+  );
+});
