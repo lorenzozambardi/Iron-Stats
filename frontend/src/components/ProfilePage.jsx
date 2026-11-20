@@ -404,39 +404,38 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
       .map((pt) => ({ ...pt, label: formatDisplayDate(pt.date, dateFormat) }));
     const totalCount = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, null).length;
 
-    const w = Number(current.weight) || 0;
-    const hCm = Number(current.height) || 0;
-    const hM = hCm / 100;
-    const bf = Math.min(Math.max(Number(current.bodyFat) || 0, 0), 75);
-
     const configs = {
       bmi: {
         title: 'Body Mass Index (BMI)',
+        subtitle: 'Weight (kg) relative to height squared (m²).',
         valueText: derived.bmi.toFixed(1),
         unit: '',
         invertColor: false,
-        math: String.raw`\text{BMI} = \frac{W}{h^2} = \frac{${w.toFixed(1)}}{${hM.toFixed(2)}^2} = ${derived.bmi.toFixed(1)}`,
+        math: String.raw`\text{BMI} = \frac{W}{h^2}`,
       },
       ffmi: {
         title: 'Normalized FFMI',
+        subtitle: 'Fat-free mass relative to height, normalized to 1.80 m.',
         valueText: derived.ffmiData.normalizedFfmi.toFixed(1),
         unit: '',
         invertColor: false,
-        math: String.raw`\text{FFMI}_{\text{norm}} = \frac{\text{LBM}}{h^2} + 6.1(1.8 - h) = \frac{${derived.lbm.toFixed(1)}}{${hM.toFixed(2)}^2} + 6.1(1.8 - ${hM.toFixed(2)}) = ${derived.ffmiData.normalizedFfmi.toFixed(1)}`,
+        math: String.raw`\text{FFMI}_{\text{norm}} = \frac{\text{LBM}}{h^2} + 6.1(1.8 - h)`,
       },
       lbm: {
         title: 'Lean Body Mass (LBM)',
+        subtitle: 'Estimated non-fat body mass from weight and body fat %.',
         valueText: `${derived.lbm.toFixed(1)} kg`,
         unit: ' kg',
         invertColor: false,
-        math: String.raw`\text{LBM} = W\left(1 - \frac{\text{BF}\%}{100}\right) = ${w.toFixed(1)}\left(1 - \frac{${bf.toFixed(1)}}{100}\right) = ${derived.lbm.toFixed(1)}\text{ kg}`,
+        math: String.raw`\text{LBM} = W\left(1 - \frac{\text{BF}\%}{100}\right)`,
       },
       fm: {
         title: 'Fat Mass',
+        subtitle: 'Estimated adipose mass from weight and body fat %.',
         valueText: `${derived.fm.toFixed(1)} kg`,
         unit: ' kg',
         invertColor: true,
-        math: String.raw`\text{FM} = W \cdot \frac{\text{BF}\%}{100} = ${w.toFixed(1)} \cdot \frac{${bf.toFixed(1)}}{100} = ${derived.fm.toFixed(1)}\text{ kg}`,
+        math: String.raw`\text{FM} = W \cdot \frac{\text{BF}\%}{100}`,
       },
     };
 
@@ -1093,35 +1092,40 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                <h3
-                  id="derived-metric-modal-title"
-                  style={{
-                    margin: 0,
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                  <h3
+                    id="derived-metric-modal-title"
+                    style={{
+                      margin: 0,
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    {selectedMetricDetail.title}
+                  </h3>
+                  <span style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: '0.95rem',
+                    fontSize: '1.05rem',
                     fontWeight: 700,
                     color: 'var(--text-primary)',
-                  }}
-                >
-                  {selectedMetricDetail.title}
-                </h3>
-                <span style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '1.05rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}>
-                  {selectedMetricDetail.valueText}
-                </span>
-                {selectedMetricDetail.series.length >= 2 && (
-                  <TrendBadge
-                    values={selectedMetricDetail.series}
-                    invertColor={selectedMetricDetail.invertColor}
-                  />
-                )}
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {selectedMetricDetail.valueText}
+                  </span>
+                  {selectedMetricDetail.series.length >= 2 && (
+                    <TrendBadge
+                      values={selectedMetricDetail.series}
+                      invertColor={selectedMetricDetail.invertColor}
+                    />
+                  )}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                  {selectedMetricDetail.subtitle}
+                </p>
               </div>
               <button
                 type="button"
