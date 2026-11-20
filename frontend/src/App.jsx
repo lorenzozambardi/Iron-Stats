@@ -2015,7 +2015,7 @@ export default function App() {
                     )
                   )}
                   {!editingProfileMd && editorType === 'easy' && (
-                    <div style={{ height: '100%' }}>
+                    <div style={{ flex: 1, width: '100%', minWidth: 0, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
                       <EasyEditor 
                         logbookText={logbookText}
                         onChange={handleEasyLogbookChange}
@@ -2024,7 +2024,7 @@ export default function App() {
                     </div>
                   )}
                   {editorType !== 'easy' && (
-                    <div style={{ height: '100%', display: !editingProfileMd ? 'block' : 'none' }}>
+                    <div style={{ flex: 1, width: '100%', minWidth: 0, minHeight: 0, height: '100%', display: !editingProfileMd ? 'flex' : 'none', flexDirection: 'column' }}>
                       <FoldableEditor
                         key={`${activeProfile}:${currentProgram}`}
                         value={logbookText}

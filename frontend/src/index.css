@@ -330,6 +330,10 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
   flex: 1;
   display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   background: transparent;
   border-radius: 0;
   overflow: hidden;
@@ -370,6 +374,7 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   height: 100%;
   width: 100%;
@@ -382,6 +387,7 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
+  min-width: 0 !important;
   min-height: 0 !important;
   height: 100% !important;
   width: 100% !important;
@@ -389,6 +395,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .foldable-editor-root .cm-scroller {
   flex: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
   min-height: 0 !important;
   height: 100% !important;
   overflow-y: auto !important;
@@ -3168,6 +3176,8 @@ input::-webkit-list-button {
   flex-direction: column;
   flex: 1;
   width: 100%;
+  min-width: 0;
+  min-height: 0;
   gap: 16px;
   padding: 16px;
   height: 100%;
