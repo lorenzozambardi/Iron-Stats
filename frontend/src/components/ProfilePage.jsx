@@ -307,13 +307,11 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               onClick={handleClose}
               aria-label="Close profile"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '10px',
-                color: 'var(--text-secondary)',
-                fontSize: '1.35rem',
-                width: '34px',
-                height: '34px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '1.75rem',
+                padding: '4px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
