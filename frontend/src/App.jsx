@@ -39,6 +39,7 @@ import {
   DATE_FORMAT_STORAGE_KEY,
   getActiveProfileName,
   getDateFormat,
+  loadProfile,
   loadProfileFromFile,
   parseProfileMarkdown,
   saveProfileToFile,
@@ -797,12 +798,16 @@ export default function App() {
 
   // Cursor Tracking State for scroll sync
   const [activeCursorLine, setActiveCursorLine] = useState(null);
+  const editorModeRef = useRef(editorMode);
+  useEffect(() => {
+    editorModeRef.current = editorMode;
+  }, [editorMode]);
 
   const handleCursorLineChange = useCallback((line) => {
-    if (editorMode === 'preview' || editorMode === 'split') {
+    if (editorModeRef.current === 'preview' || editorModeRef.current === 'split') {
       setActiveCursorLine(line);
     }
-  }, [editorMode]);
+  }, []);
 
   const activeExerciseStartLine = useMemo(() => {
     if (activeCursorLine === null || !workoutData || workoutData.length === 0) return null;
@@ -886,18 +891,27 @@ export default function App() {
 
   const toggleProfileMdEditor = useCallback(async () => {
     if (editingProfileMd) {
+      setEditingProfileMd(false);
       if (profileSaveTimeoutRef.current) {
         clearTimeout(profileSaveTimeoutRef.current);
         profileSaveTimeoutRef.current = null;
         await saveProfileMdContent(profileMdText);
       }
-      setEditingProfileMd(false);
       return;
     }
-    const loaded = await loadProfileFromFile(activeProfileRef.current);
-    setProfileMdText(serializeProfileToMarkdown(loaded));
+    const profName = activeProfileRef.current;
+    const cached = loadProfile(profName);
+    const cachedMd = serializeProfileToMarkdown(cached);
+    setProfileMdText(cachedMd);
     setEditingProfileMd(true);
     setEditorMode('edit');
+
+    loadProfileFromFile(profName).then((loaded) => {
+      const freshMd = serializeProfileToMarkdown(loaded);
+      if (freshMd !== cachedMd) {
+        setProfileMdText(freshMd);
+      }
+    }).catch(() => {});
   }, [editingProfileMd, profileMdText, saveProfileMdContent]);
 
   const handleProfileSelect = async (profName) => {
@@ -1383,6 +1397,17 @@ export default function App() {
     }, 1500);
   }, [saveLogbookContent]);
 
+  const handleEasyLogbookChange = useCallback((newText) => {
+    setLogbookText(newText);
+    setDebouncedLogbookText(newText);
+    scheduleDebouncedSave(newText);
+  }, [scheduleDebouncedSave]);
+
+  const handleManualLogbookChange = useCallback((newText) => {
+    setLogbookText(newText);
+    scheduleDebouncedSave(newText);
+  }, [scheduleDebouncedSave]);
+
   useEffect(() => {
     scheduleSaveRef.current = scheduleDebouncedSave;
   }, [scheduleDebouncedSave]);
@@ -1790,11 +1815,7 @@ export default function App() {
                   <div style={{ height: '100%', display: !editingProfileMd && editorType === 'easy' ? 'block' : 'none' }}>
                     <EasyEditor 
                       logbookText={logbookText}
-                      onChange={(newText) => {
-                        setLogbookText(newText);
-                        setDebouncedLogbookText(newText);
-                        scheduleDebouncedSave(newText);
-                      }}
+                      onChange={handleEasyLogbookChange}
                       exercisesDb={activeExercises}
                     />
                   </div>
@@ -1802,12 +1823,9 @@ export default function App() {
                     <FoldableEditor
                       key={currentProgram}
                       value={logbookText}
-                      onChange={(newText) => {
-                        setLogbookText(newText);
-                        scheduleDebouncedSave(newText);
-                      }}
+                      onChange={handleManualLogbookChange}
                       exercisesDb={activeExercises}
-                      onCursorLineChange={(editorMode === 'preview' || editorMode === 'split') ? handleCursorLineChange : undefined}
+                      onCursorLineChange={handleCursorLineChange}
                     />
                   </div>
                 </div>

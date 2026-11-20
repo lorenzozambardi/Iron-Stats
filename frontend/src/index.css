@@ -1233,7 +1233,7 @@ input::-webkit-list-button {
   background: var(--accent-primary);
   border-radius: 100px;
   box-shadow: 0 0 8px var(--accent-primary-glow);
-  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
   z-index: 0;
 }
@@ -1329,7 +1329,7 @@ input::-webkit-list-button {
   min-height: 0;
   min-width: 0;
   max-width: 100%;
-  animation: editorPanelFadeIn 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: editorPanelFadeIn 0.1s ease-out;
 }
 
 .preview-container {
@@ -3032,7 +3032,7 @@ input::-webkit-list-button {
   box-shadow: 0 4px 12px var(--accent-primary-glow);
   z-index: 1;
   pointer-events: none;
-  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 

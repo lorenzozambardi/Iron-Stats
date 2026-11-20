@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { memo, useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MUSCLES, isDateLine, isDatesHeader } from '../parser';
 import { formatTodayDDMMYYYY } from './editorSnippets';
@@ -237,7 +237,7 @@ const sessionPillBtnStyle = {
   WebkitAppearance: 'none',
 };
 
-export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) {
+const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb = [] }) {
   const [sessions, setSessions] = useState(() => parseLogbookToStructure(logbookText));
   const lastEmittedTextRef = useRef(logbookText);
 
@@ -1015,4 +1015,6 @@ export default function EasyEditor({ logbookText, onChange, exercisesDb = [] }) 
       ))}
     </div>
   );
-}
+});
+
+export default EasyEditor;

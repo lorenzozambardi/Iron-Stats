@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { memo, useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { Transaction } from '@codemirror/state';
@@ -148,7 +148,7 @@ const computeMinimalChange = (oldText, newText) => {
   };
 };
 
-export default function FoldableEditor({
+function FoldableEditor({
   value,
   onChange,
   exercisesDb = [],
@@ -353,3 +353,5 @@ export default function FoldableEditor({
     </div>
   );
 }
+
+export default memo(FoldableEditor);
