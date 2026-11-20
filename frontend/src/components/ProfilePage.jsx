@@ -489,28 +489,69 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                     hasInRange ? (
                       <>
                         {field.bilateral ? (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            {leftData.series.length >= 2 && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                L <TrendBadge values={leftData.series} />
-                              </span>
-                            )}
-                            {rightData.series.length >= 2 && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                R <TrendBadge values={rightData.series} />
-                              </span>
-                            )}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                            gap: '10px',
+                            marginTop: '2px',
+                          }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                              {leftData.series.length >= 2 && (
+                                <>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 600,
+                                    color: 'var(--text-muted)',
+                                    whiteSpace: 'nowrap',
+                                  }}>
+                                    L <TrendBadge values={leftData.series} />
+                                  </span>
+                                  <MetricSparkline
+                                    values={leftData.series}
+                                    color="#a3a3a3"
+                                    gradId={`profile-spark-${field.key}-left`}
+                                    height={46}
+                                  />
+                                </>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                              {rightData.series.length >= 2 && (
+                                <>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 600,
+                                    color: 'var(--text-muted)',
+                                    whiteSpace: 'nowrap',
+                                  }}>
+                                    R <TrendBadge values={rightData.series} />
+                                  </span>
+                                  <MetricSparkline
+                                    values={rightData.series}
+                                    color="#a3a3a3"
+                                    gradId={`profile-spark-${field.key}-right`}
+                                    height={46}
+                                  />
+                                </>
+                              )}
+                            </div>
                           </div>
                         ) : (
-                          <TrendBadge values={singleData.series} invertColor={field.key === 'waist'} />
+                          <>
+                            <TrendBadge values={singleData.series} invertColor={field.key === 'waist'} />
+                            <MetricSparkline
+                              values={singleData.series}
+                              color="#a3a3a3"
+                              gradId={`profile-spark-${field.key}`}
+                            />
+                          </>
                         )}
-                        <MetricSparkline
-                          values={field.bilateral ? leftData.series : singleData.series}
-                          compareValues={field.bilateral ? rightData.series : undefined}
-                          color="#a3a3a3"
-                          compareColor="var(--accent-secondary)"
-                          gradId={`profile-spark-${field.key}`}
-                        />
                       </>
                     ) : (
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
