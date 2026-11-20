@@ -173,7 +173,7 @@ window.fetch = async (input, init) => {
         if (isCustom) {
           const res = await FolderPicker.listDirectory({ uri: safUri });
           names = (res.files || [])
-            .filter(n => typeof n === 'string' && n.endsWith('.md'))
+            .filter(n => typeof n === 'string' && n.endsWith('.md') && n.toLowerCase() !== 'profile.md')
             .map(n => n.replace(/\.md$/, ''))
             .filter(n => sanitizeLogbookName(n).length > 0);
         } else {
@@ -181,7 +181,7 @@ window.fetch = async (input, init) => {
           const res = await Filesystem.readdir({ path: subfolder || '', directory: dir });
           names = res.files
             .map(f => f.name)
-            .filter(n => typeof n === 'string' && n.endsWith('.md'))
+            .filter(n => typeof n === 'string' && n.endsWith('.md') && n.toLowerCase() !== 'profile.md')
             .map(n => n.replace(/\.md$/, ''))
             .filter(n => sanitizeLogbookName(n).length > 0);
         }
@@ -245,6 +245,36 @@ window.fetch = async (input, init) => {
         }
       } catch {
         return new Response(`Logbook file ${filename} not found`, { status: 404 });
+      }
+    } else if (method === 'POST') {
+      try {
+        const bodyText = await readRequestBodyText(input, init);
+        if (isCustom) {
+          await FolderPicker.writeFile({ uri: safUri, filename, data: bodyText });
+        } else {
+          await Filesystem.writeFile({ path: filePath(filename), data: bodyText, directory: dir, encoding: Encoding.UTF8, recursive: true });
+        }
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+  }
+
+  // ── /api/profile ───────────────────────────────────────────────────────────
+  if (urlObj.pathname === '/api/profile') {
+    const filename = 'profile.md';
+    if (method === 'GET') {
+      try {
+        if (isCustom) {
+          const res = await FolderPicker.readFile({ uri: safUri, filename });
+          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        } else {
+          const res = await Filesystem.readFile({ path: filePath(filename), directory: dir, encoding: Encoding.UTF8 });
+          return new Response(res.data, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        }
+      } catch {
+        return new Response('profile.md not found', { status: 404 });
       }
     } else if (method === 'POST') {
       try {

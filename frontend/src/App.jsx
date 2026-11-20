@@ -33,7 +33,14 @@ import EasyEditor from './components/EasyEditor';
 import FoldableEditor from './components/FoldableEditor';
 import { formatLogbookSpaces } from './formatLogbook';
 import { SettingsPanel } from './components/SettingsPanel';
-import { DATE_FORMAT_STORAGE_KEY, getDateFormat } from './profileUtils';
+import {
+  DATE_FORMAT_STORAGE_KEY,
+  getDateFormat,
+  loadProfileFromFile,
+  parseProfileMarkdown,
+  saveProfileToFile,
+  serializeProfileToMarkdown,
+} from './profileUtils';
 const ExerciseModal = lazy(() => import('./components/ExerciseModal').then(m => ({ default: m.ExerciseModal })));
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#a855f7', '#f43f5e'];
@@ -93,6 +100,9 @@ export default function App() {
   // Data State
   const [logbookText, setLogbookText] = useState('');
   const [debouncedLogbookText, setDebouncedLogbookText] = useState('');
+  const [editingProfileMd, setEditingProfileMd] = useState(false);
+  const [profileMdText, setProfileMdText] = useState('');
+  const profileSaveTimeoutRef = useRef(null);
   const [exercisesDb, setExercisesDb] = useState([]);
   const [activeTab, setActiveTab] = useState('editor'); // Default to editor view
   const [selectedMetricDetail, setSelectedMetricDetail] = useState(null);
@@ -821,8 +831,47 @@ export default function App() {
       });
   };
 
+  const saveProfileMdContent = useCallback(async (textToSave) => {
+    setSyncStatus('syncing');
+    try {
+      const parsed = parseProfileMarkdown(textToSave);
+      await saveProfileToFile(parsed);
+      window.dispatchEvent(new CustomEvent('profile-updated', { detail: parsed }));
+      setSyncStatus('saved');
+      setSyncError('');
+    } catch (err) {
+      setSyncErrorKind('save');
+      setSyncStatus('error');
+      setSyncError(err.message);
+    }
+  }, []);
+
+  const scheduleDebouncedProfileSave = useCallback((newText) => {
+    if (profileSaveTimeoutRef.current) clearTimeout(profileSaveTimeoutRef.current);
+    profileSaveTimeoutRef.current = setTimeout(() => {
+      saveProfileMdContent(newText);
+    }, 800);
+  }, [saveProfileMdContent]);
+
+  const toggleProfileMdEditor = useCallback(async () => {
+    if (editingProfileMd) {
+      if (profileSaveTimeoutRef.current) {
+        clearTimeout(profileSaveTimeoutRef.current);
+        profileSaveTimeoutRef.current = null;
+        await saveProfileMdContent(profileMdText);
+      }
+      setEditingProfileMd(false);
+      return;
+    }
+    const loaded = await loadProfileFromFile();
+    setProfileMdText(serializeProfileToMarkdown(loaded));
+    setEditingProfileMd(true);
+    setEditorMode('edit');
+  }, [editingProfileMd, profileMdText, saveProfileMdContent]);
+
   // Handle program switching with auto-flush
   const handleProgramChange = async (progName) => {
+    setEditingProfileMd(false);
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
@@ -1588,21 +1637,42 @@ export default function App() {
               </div>
 
               {/* Action Buttons */}
-              <div className="editor-actions">
-                <button className="btn btn-primary" onClick={() => saveLogbookContent(logbookText)}>
+              <div className="editor-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className={editingProfileMd ? 'btn btn-primary' : 'btn'}
+                  onClick={toggleProfileMdEditor}
+                  title="Edit profile.md"
+                >
+                  profile.md
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => (editingProfileMd ? saveProfileMdContent(profileMdText) : saveLogbookContent(logbookText))}
+                >
                   <Save size={14} /> Save Now
                 </button>
               </div>
             </div>
 
             {/* Split / Main Editor container */}
-            <div className={`editor-split-container mode-${editorMode}`}>
+            <div className={`editor-split-container mode-${editingProfileMd ? 'edit' : editorMode}`}>
               
               {/* Text Area Column */}
-              {(editorMode === 'edit' || editorMode === 'split') && (
+              {(editingProfileMd || editorMode === 'edit' || editorMode === 'split') && (
                 <div className="editor-panel">
                   <div className="editor-wrapper">
-                    {editorType === 'easy' ? (
+                    {editingProfileMd ? (
+                      <FoldableEditor
+                        key="__profile_md__"
+                        value={profileMdText}
+                        onChange={(newText) => {
+                          setProfileMdText(newText);
+                          scheduleDebouncedProfileSave(newText);
+                        }}
+                        exercisesDb={activeExercises}
+                      />
+                    ) : editorType === 'easy' ? (
                       <EasyEditor 
                         logbookText={logbookText}
                         onChange={(newText) => {
@@ -1629,7 +1699,7 @@ export default function App() {
               )}
 
               {/* Live Preview Column */}
-              {(editorMode === 'preview' || editorMode === 'split') && (
+              {!editingProfileMd && (editorMode === 'preview' || editorMode === 'split') && (
                 <div className="preview-panel">
                   <div className="preview-container">
                     <LogbookPreview 

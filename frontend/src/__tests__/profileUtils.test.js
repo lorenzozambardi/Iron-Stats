@@ -7,6 +7,8 @@ import {
   PROFILE_LOG_META,
   buildDerivedMetricSeries,
   loadProfile,
+  parseProfileMarkdown,
+  serializeProfileToMarkdown,
   formatProfileLogValue,
   calcAge,
   getLimbAverage,
@@ -154,5 +156,37 @@ describe('profileUtils', () => {
     const ffmiSeries = buildDerivedMetricSeries(logs, current, 'ffmi');
     expect(ffmiSeries[0].v).toBeCloseTo(20.99, 2);
     expect(ffmiSeries[1].v).toBeCloseTo(21.51, 2);
+  });
+
+  it('round-trips profile.md serialization and parsing', () => {
+    const sample = {
+      current: {
+        ...DEFAULT_PROFILE.current,
+        birthDate: '1999-05-10',
+        sex: 'M',
+        height: 172,
+        avgSteps: 9500,
+        weight: 71.5,
+        armLeft: 39.5,
+      },
+      logs: [
+        { id: '1', date: '2026-11-20', ts: 2, type: 'weight', value: 71.5 },
+        { id: '2', date: '2026-11-20', ts: 2, type: 'armLeft', value: 39.5 },
+        { id: '3', date: '2026-11-10', ts: 1, type: 'weight', value: 70.8 },
+      ],
+    };
+    const md = serializeProfileToMarkdown(sample);
+    expect(md).toContain('birthDate: 1999-05-10');
+    expect(md).toContain('| 2026-11-20 | Weight | 71.5 |');
+    expect(md).toContain('| 2026-11-20 | Arm L | 39.5 |');
+
+    const parsed = parseProfileMarkdown(md);
+    expect(parsed.current.birthDate).toBe('1999-05-10');
+    expect(parsed.current.height).toBe(172);
+    expect(parsed.current.avgSteps).toBe(9500);
+    expect(parsed.current.weight).toBe(71.5);
+    expect(parsed.current.armLeft).toBe(39.5);
+    expect(parsed.logs).toHaveLength(3);
+    expect(parsed.logs[0].date).toBe('2026-11-20');
   });
 });

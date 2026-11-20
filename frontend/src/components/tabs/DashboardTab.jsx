@@ -18,7 +18,7 @@ const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
 import { MetricSparkline, MetricBarSparkline, TrendBadge } from '../Sparkline';
-import { loadProfile, saveProfile } from '../../profileUtils';
+import { loadProfile, loadProfileFromFile, saveProfileToFile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
 import { LockWheelPicker, DualWeekSlider, TensionRomSlider } from '../FilterControls';
@@ -485,8 +485,34 @@ const DashboardTab = ({
 }) => {
   const isDashboardActive = isMobile || activeTab === 'dashboard';
   const [profile, setProfile] = useState(() => loadProfile());
+  const profileLoadedRef = useRef(false);
   useEffect(() => {
-    saveProfile(profile);
+    let cancelled = false;
+    loadProfileFromFile().then((loaded) => {
+      if (!cancelled) {
+        profileLoadedRef.current = true;
+        setProfile(loaded);
+      }
+    });
+    const handleProfileUpdated = (e) => {
+      if (e?.detail) {
+        profileLoadedRef.current = true;
+        setProfile(e.detail);
+      } else {
+        loadProfileFromFile().then((loaded) => {
+          if (!cancelled) setProfile(loaded);
+        });
+      }
+    };
+    window.addEventListener('profile-updated', handleProfileUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('profile-updated', handleProfileUpdated);
+    };
+  }, []);
+  useEffect(() => {
+    if (!profileLoadedRef.current) return;
+    saveProfileToFile(profile);
   }, [profile]);
   const [muscleMetric, setMuscleMetric] = useState('effective');
   const [cardModes, setCardModes] = useState({

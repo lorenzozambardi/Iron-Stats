@@ -217,6 +217,183 @@ export function saveProfile(profile) {
   }
 }
 
+const METRIC_ALIAS_MAP = (() => {
+  const map = new Map();
+  for (const [key, meta] of Object.entries(PROFILE_LOG_META)) {
+    map.set(key.toLowerCase(), key);
+    map.set(meta.label.toLowerCase(), key);
+  }
+  return map;
+})();
+
+const normalizeProfileDate = (raw) => {
+  const s = (raw || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const dmy = s.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  return null;
+};
+
+export function serializeProfileToMarkdown(profile) {
+  const cur = { ...DEFAULT_PROFILE.current, ...(profile?.current || {}) };
+  const logs = Array.isArray(profile?.logs) ? profile.logs : [];
+
+  const fmLines = [
+    '---',
+    `birthDate: ${cur.birthDate || DEFAULT_PROFILE.current.birthDate}`,
+    `sex: ${cur.sex || 'M'}`,
+    `height: ${cur.height ?? DEFAULT_PROFILE.current.height}`,
+    `avgSteps: ${cur.avgSteps ?? DEFAULT_PROFILE.current.avgSteps}`,
+  ];
+  for (const key of Object.keys(PROFILE_LOG_META)) {
+    if (cur[key] !== '' && cur[key] !== undefined && cur[key] !== null) {
+      fmLines.push(`${key}: ${cur[key]}`);
+    }
+  }
+  fmLines.push('---', '');
+
+  const tableLines = [
+    '# Profile Logs',
+    '',
+    '| Date | Metric | Value |',
+    '| --- | --- | --- |',
+  ];
+
+  const sorted = [...logs].sort(
+    (a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)
+  );
+  for (const entry of sorted) {
+    const meta = PROFILE_LOG_META[entry.type];
+    if (!meta || !entry.date) continue;
+    const val = Number(entry.value);
+    if (!Number.isFinite(val)) continue;
+    tableLines.push(`| ${entry.date} | ${meta.label} | ${Number(val.toFixed(meta.decimals))} |`);
+  }
+
+  return `${fmLines.join('\n')}\n${tableLines.join('\n')}\n`;
+}
+
+export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) {
+  const baseCurrent = { ...DEFAULT_PROFILE.current, ...(fallbackProfile?.current || {}) };
+  if (typeof mdText !== 'string' || !mdText.trim()) {
+    return { current: baseCurrent, logs: Array.isArray(fallbackProfile?.logs) ? fallbackProfile.logs : [] };
+  }
+
+  const lines = mdText.split(/\r?\n/);
+  let inFrontmatter = false;
+  let fmDone = false;
+  const logs = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (i === 0 && trimmed === '---') {
+      inFrontmatter = true;
+      continue;
+    }
+    if (inFrontmatter) {
+      if (trimmed === '---') {
+        inFrontmatter = false;
+        fmDone = true;
+        continue;
+      }
+      const colonIdx = trimmed.indexOf(':');
+      if (colonIdx > 0) {
+        const k = trimmed.slice(0, colonIdx).trim();
+        const rawVal = trimmed.slice(colonIdx + 1).trim();
+        if (k === 'birthDate' || k === 'sex') {
+          if (rawVal) baseCurrent[k] = rawVal;
+        } else if (Object.hasOwn(baseCurrent, k)) {
+          const num = Number(rawVal);
+          if (Number.isFinite(num)) baseCurrent[k] = num;
+        }
+      }
+      continue;
+    }
+    if (!fmDone && trimmed === '---') continue;
+    if (!trimmed.startsWith('|')) continue;
+
+    const cells = trimmed.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.length < 3) continue;
+    const [rawDate, rawMetric, rawValue] = cells;
+    if (/^-+$/.test(rawDate) || rawDate.toLowerCase() === 'date') continue;
+
+    const date = normalizeProfileDate(rawDate);
+    const type = METRIC_ALIAS_MAP.get(rawMetric.toLowerCase());
+    const value = parseFloat(rawValue);
+    if (!date || !type || !Number.isFinite(value)) continue;
+
+    const ts = Date.parse(`${date}T12:00:00`) || 0;
+    logs.push({
+      id: `md-${date}-${type}-${i}`,
+      date,
+      ts,
+      type,
+      value,
+    });
+  }
+
+  // Deduplicate same date+type (keep first occurrence) and sort newest first
+  const seen = new Set();
+  const deduped = [];
+  for (const entry of logs) {
+    const key = `${entry.date}|${entry.type}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(entry);
+  }
+  deduped.sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
+
+  // Populate current values from the latest log entry for each metric
+  const latestApplied = new Set();
+  for (const entry of deduped) {
+    if (!latestApplied.has(entry.type)) {
+      baseCurrent[entry.type] = entry.value;
+      latestApplied.add(entry.type);
+    }
+  }
+
+  return { current: baseCurrent, logs: deduped };
+}
+
+export async function loadProfileFromFile() {
+  const local = loadProfile();
+  try {
+    const res = await fetch('/api/profile');
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim()) {
+        const parsed = parseProfileMarkdown(text, local);
+        saveProfile(parsed);
+        return parsed;
+      }
+    } else if (res.status === 404) {
+      const md = serializeProfileToMarkdown(local);
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: md,
+      }).catch(() => {});
+    }
+  } catch {
+    // Offline/web fallback uses localStorage
+  }
+  return local;
+}
+
+export async function saveProfileToFile(profile) {
+  saveProfile(profile);
+  try {
+    const md = serializeProfileToMarkdown(profile);
+    await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: md,
+    });
+  } catch {
+    // Ignore when /api/profile is unavailable (e.g., plain browser preview)
+  }
+}
+
 const safePositive = (val, fallback = 0) => {
   const n = Number(val);
   return Number.isFinite(n) && n > 0 ? n : fallback;
