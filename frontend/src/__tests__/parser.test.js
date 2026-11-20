@@ -321,20 +321,19 @@ Flat Barbell Bench | 3' | 1-0-2-0
       expect(workoutData[1].weeks.map((w) => w.date)).toEqual(['2026-01-08', null, '2026-01-22']);
     });
 
-    it('preserves sets that have trailing lateral comments', () => {
+    it('strips -- inline comments from set log lines without dropping sets', () => {
       const log = `# 1
 Lat Machine | 2' | 1-0-2-0
-90.. 8+2, 80.. 8+2 sporche
-85.. 5, 75.. 5 (sporche)`;
+90.. 10, 8+2 -- sporche
+95.. 9 -- (sporche)
+10, 8 -- no load prefix`;
 
       const workoutData = parseLogbook(log, mockExercises);
       expect(workoutData).toHaveLength(1);
-      expect(workoutData[0].weeks).toHaveLength(2);
-      expect(workoutData[0].weeks[0].sets).toHaveLength(2);
-      expect(workoutData[0].weeks[0].sets[1].base_reps).toBe(8);
-      expect(workoutData[0].weeks[0].sets[1].partial_reps).toBe(2);
-      expect(workoutData[0].weeks[1].sets).toHaveLength(2);
-      expect(workoutData[0].weeks[1].sets[1].base_reps).toBe(5);
+      expect(workoutData[0].weeks).toHaveLength(3);
+      expect(workoutData[0].weeks[0].sets.map((s) => s.base_reps)).toEqual([10, 8]);
+      expect(workoutData[0].weeks[1].sets.map((s) => s.base_reps)).toEqual([9]);
+      expect(workoutData[0].weeks[2].sets.map((s) => s.base_reps)).toEqual([10, 8]);
     });
   });
 });

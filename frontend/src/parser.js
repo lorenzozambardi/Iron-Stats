@@ -438,7 +438,7 @@ function parseRepToken(repStr, loads, dropsetId = null) {
     // Group 2: assisted reps
     // Group 3: partial reps
     // Group 4: RPE
-    const match = rp.match(/^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?(?:\s+.*)?$/);
+    const match = rp.match(/^(\d+)(?:\((\d+)\))?(?:\+(\d+))?(?:@(\d+(?:\.\d+)?))?$/);
     if (match) {
       let base = parseInt(match[1], 10);
       const rawAssisted = match[2] ? parseInt(match[2], 10) : 0;
@@ -620,7 +620,7 @@ function parseLoadSpec(loadStr) {
 }
 
 export function parseLine(line, lineIndex = 0) {
-  let cleanLine = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
+  let cleanLine = line.split('--')[0].replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
   if (!cleanLine) return [];
 
   let dropsetCounter = 0;
@@ -737,8 +737,9 @@ export function parseLogbook(logText, exercises) {
       }
 
       // Check if it's a rep/set log line (contains load.. or rep/set syntax with optional 'old ' prefixes)
-      const lineNoOld = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
-      const isLogLine = !line.includes('|') && (
+      const lineNoComment = line.split('--')[0];
+      const lineNoOld = lineNoComment.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
+      const isLogLine = !lineNoComment.includes('|') && (
         /(?:^|\s)-?[\d.]+(?:\/-?[\d.]+)*\s*\.\./.test(lineNoOld) ||
         (lineNoOld.length > 0 && /\d/.test(lineNoOld) && /^[\d().+/@,\s]+$/.test(lineNoOld))
       );
@@ -748,8 +749,8 @@ export function parseLogbook(logText, exercises) {
           let parsedSets = parseLine(line, i);
           
           // Carry forward load if empty (e.g. line is just loads.. and reps exist from prev week)
-          if (parsedSets.length === 0 && line.includes('..') && currentExercise.weeks.length > 0) {
-            const cleanCf = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
+          if (parsedSets.length === 0 && lineNoComment.includes('..') && currentExercise.weeks.length > 0) {
+            const cleanCf = lineNoComment.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
             const cfSubparts = cleanCf.split('..');
             const loadStr = cfSubparts.length > 2
               ? cfSubparts.slice(0, -1).join('/').trim()
