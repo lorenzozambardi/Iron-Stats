@@ -702,7 +702,7 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                     <span className="profile-stat-label">{field.label} (cm)</span>
                     <button
                       type="button"
-                      className="btn"
+                      className="btn btn-primary"
                       style={{
                         padding: '3px 8px',
                         fontSize: '0.68rem',
