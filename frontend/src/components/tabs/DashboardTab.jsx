@@ -1544,7 +1544,7 @@ const DashboardTab = ({
                 metric={selectedMetricDetail}
                 series={sparkSeriesA[DETAIL_TO_SERIES_KEY[selectedMetricDetail]]}
                 compareSeries={compareMode ? sparkSeriesB[DETAIL_TO_SERIES_KEY[selectedMetricDetail]] : undefined}
-                dateFormat={dateFormat}
+                weekNums={metricsByWeek.map((m) => m.weekNum)}
                 onBack={() => setSelectedMetricDetail(null)}
               />
             </React.Suspense>

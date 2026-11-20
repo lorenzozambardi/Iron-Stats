@@ -4,9 +4,6 @@ import { Latex, MathBlock } from './MathComponents';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { sampleSparklineAtTime } from './helpers';
 import { TensionRomSlider } from './FilterControls';
-import { formatDisplayDate } from '../profileUtils';
-
-const formatUtcYMD = (ms) => new Date(ms).toISOString().slice(0, 10);
 
 const METRIC_UNITS = {
   'volume': ' reps',
@@ -268,7 +265,7 @@ const TensionProfileExplainer = () => {
   );
 };
 
-export default function MetricDetailsPage({ metric, series, compareSeries, dateFormat = 'dd/mm/yyyy', onBack }) {
+export default function MetricDetailsPage({ metric, series, compareSeries, weekNums, onBack }) {
   const [lastValidMetric, setLastValidMetric] = useState(metric);
   const [sliderPos, setSliderPos] = useState(100);
   useEffect(() => {
@@ -622,28 +619,40 @@ export default function MetricDetailsPage({ metric, series, compareSeries, dateF
           <>
             {/* Trend Card */}
             {Array.isArray(series) && series.length >= 2 && (() => {
-              const hasRealTs = typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].ts);
-              const hasRelTs = !hasRealTs && typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].t);
-              const pts = hasRealTs
-                ? series.map((pt) => ({ t: pt.ts, v: pt.v }))
-                : (hasRelTs ? series : series.map((v, i) => ({ t: i, v: Number(v) || 0 })));
+              const hasTs = typeof series[0] === 'object' && series[0] !== null && Number.isFinite(series[0].t);
+              const pts = hasTs
+                ? series
+                : series.map((v, i) => ({ t: i, v: Number(v) || 0 }));
               const comparePts = Array.isArray(compareSeries) && compareSeries.length >= 2
-                ? (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].ts)
-                  ? compareSeries.map((pt) => ({ t: pt.ts, v: pt.v }))
-                  : (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].t)
-                    ? compareSeries
-                    : compareSeries.map((v, i) => ({ t: i, v: Number(v) || 0 }))))
+                ? (typeof compareSeries[0] === 'object' && compareSeries[0] !== null && Number.isFinite(compareSeries[0].t)
+                  ? compareSeries
+                  : compareSeries.map((v, i) => ({ t: i, v: Number(v) || 0 })))
                 : undefined;
 
+              const weeks = Array.isArray(weekNums) && weekNums.length === pts.length
+                ? weekNums
+                : pts.map((_, i) => i + 1);
               const tMin = pts[0].t;
               const tMax = pts[pts.length - 1].t;
               const tRange = tMax - tMin;
               const targetT = tMin + (sliderPos / 100) * tRange;
               const sampledVal = sampleSparklineAtTime(pts, targetT);
-              const formatTime = (t) => (
-                hasRealTs
-                  ? formatDisplayDate(formatUtcYMD(t), dateFormat)
-                  : `Week ${Math.round(t) + 1}`
+
+              let currentWeek = weeks[weeks.length - 1];
+              if (targetT <= tMin) {
+                currentWeek = weeks[0];
+              } else if (targetT < tMax) {
+                for (let i = 0; i < pts.length - 1; i++) {
+                  if (targetT >= pts[i].t && targetT <= pts[i + 1].t) {
+                    const dt = pts[i + 1].t - pts[i].t;
+                    const frac = dt > 0 ? (targetT - pts[i].t) / dt : 0;
+                    currentWeek = weeks[i] + (weeks[i + 1] - weeks[i]) * frac;
+                    break;
+                  }
+                }
+              }
+              const formatMicrocycle = (w) => (
+                Math.abs(w - Math.round(w)) < 0.05 ? `m${Math.round(w)}` : `m${w.toFixed(1)}`
               );
               const unit = METRIC_UNITS[activeMetric] ?? '';
               const formattedVal = Number.isInteger(Math.round(sampledVal)) && (activeMetric === 'sets' || activeMetric === 'fatigue')
@@ -672,7 +681,7 @@ export default function MetricDetailsPage({ metric, series, compareSeries, dateF
                       color: 'var(--text-secondary)',
                       fontWeight: 600,
                     }}>
-                      {formatTime(targetT)}
+                      {formatMicrocycle(currentWeek)}
                     </span>
                     <strong style={{ color: 'var(--text-primary)', fontSize: '0.86rem' }}>
                       {formattedVal}{unit}
@@ -701,9 +710,9 @@ export default function MetricDetailsPage({ metric, series, compareSeries, dateF
                   <TensionRomSlider
                     value={sliderPos}
                     onChange={setSliderPos}
-                    leftLabel={formatTime(tMin)}
-                    rightLabel={formatTime(tMax)}
-                    ariaLabel="Metric timeline"
+                    leftLabel={`m${weeks[0]}`}
+                    rightLabel={`m${weeks[weeks.length - 1]}`}
+                    ariaLabel="Metric microcycle timeline"
                   />
                 </div>
               );
