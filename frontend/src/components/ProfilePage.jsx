@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { sampleSparklineAtTime } from './helpers';
 import { LockWheelPicker, TensionRomSlider } from './FilterControls';
@@ -409,38 +408,30 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                 className="metric-summary-card"
                 onClick={() => openDerivedMetric(item.key)}
                 style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px',
                   textAlign: 'left',
                   cursor: 'pointer',
                   width: '100%',
                   font: 'inherit',
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
-                  <span className="metric-value">{item.value}</span>
-                  {item.totalSeries.length >= 2 && (
-                    item.rangeSeries.length >= 2 ? (
-                      <>
-                        <TrendBadge values={item.rangeSeries} invertColor={item.invertColor} />
-                        <MetricSparkline
-                          values={item.rangeSeries}
-                          color="#a3a3a3"
-                          gradId={`profile-spark-derived-card-${item.key}`}
-                        />
-                      </>
-                    ) : (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Not enough logs in range
-                      </span>
-                    )
-                  )}
-                </div>
-                <ChevronRight size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+                <span className="metric-value">{item.value}</span>
+                {item.totalSeries.length >= 2 && (
+                  item.rangeSeries.length >= 2 ? (
+                    <>
+                      <TrendBadge values={item.rangeSeries} invertColor={item.invertColor} />
+                      <MetricSparkline
+                        values={item.rangeSeries}
+                        color="#a3a3a3"
+                        gradId={`profile-spark-derived-card-${item.key}`}
+                      />
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Not enough logs in range
+                    </span>
+                  )
+                )}
               </button>
             ))}
           </div>
