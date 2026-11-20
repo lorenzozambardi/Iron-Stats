@@ -176,9 +176,11 @@ describe('profileUtils', () => {
       ],
     };
     const md = serializeProfileToMarkdown(sample);
-    expect(md).toContain('birthDate: 1999-05-10');
-    expect(md).toContain('| 2026-11-20 | Weight | 71.5 |');
-    expect(md).toContain('| 2026-11-20 | Arm L | 39.5 |');
+    expect(md).toContain('birthdate\n10-05-1999');
+    expect(md).toContain('height\n172');
+    expect(md).toContain('avgsteps\n9500');
+    expect(md).toContain('weight\n71.5 , 20-11-2026\n70.8 , 10-11-2026');
+    expect(md).toContain('armleft\n39.5 , 20-11-2026');
 
     const parsed = parseProfileMarkdown(md);
     expect(parsed.current.birthDate).toBe('1999-05-10');

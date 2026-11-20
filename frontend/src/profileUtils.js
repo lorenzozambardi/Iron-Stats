@@ -234,43 +234,62 @@ const normalizeProfileDate = (raw) => {
   return null;
 };
 
+const formatDMY = (isoDateStr) => {
+  if (!isoDateStr || typeof isoDateStr !== 'string') return '';
+  const parts = isoDateStr.split('-');
+  if (parts.length !== 3) return isoDateStr;
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+
+const SCALAR_SECTION_MAP = {
+  birthdate: 'birthDate',
+  sex: 'sex',
+  height: 'height',
+  avgsteps: 'avgSteps',
+};
+
 export function serializeProfileToMarkdown(profile) {
   const cur = { ...DEFAULT_PROFILE.current, ...(profile?.current || {}) };
   const logs = Array.isArray(profile?.logs) ? profile.logs : [];
 
-  const fmLines = [
-    '---',
-    `birthDate: ${cur.birthDate || DEFAULT_PROFILE.current.birthDate}`,
-    `sex: ${cur.sex || 'M'}`,
-    `height: ${cur.height ?? DEFAULT_PROFILE.current.height}`,
-    `avgSteps: ${cur.avgSteps ?? DEFAULT_PROFILE.current.avgSteps}`,
+  const lines = [
+    'birthdate',
+    formatDMY(cur.birthDate || DEFAULT_PROFILE.current.birthDate),
+    'sex',
+    String(cur.sex || 'M'),
+    'height',
+    String(cur.height ?? DEFAULT_PROFILE.current.height),
+    'avgsteps',
+    String(cur.avgSteps ?? DEFAULT_PROFILE.current.avgSteps),
   ];
-  for (const key of Object.keys(PROFILE_LOG_META)) {
-    if (cur[key] !== '' && cur[key] !== undefined && cur[key] !== null) {
-      fmLines.push(`${key}: ${cur[key]}`);
+
+  const byType = new Map();
+  for (const entry of logs) {
+    if (!entry || !Object.hasOwn(PROFILE_LOG_META, entry.type)) continue;
+    if (!byType.has(entry.type)) byType.set(entry.type, []);
+    byType.get(entry.type).push(entry);
+  }
+
+  for (const [key, meta] of Object.entries(PROFILE_LOG_META)) {
+    const entries = (byType.get(key) || []).slice().sort(
+      (a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)
+    );
+    if (entries.length > 0) {
+      lines.push(key.toLowerCase());
+      for (const entry of entries) {
+        const val = Number(entry.value);
+        if (!Number.isFinite(val) || !entry.date) continue;
+        lines.push(`${Number(val.toFixed(meta.decimals))} , ${formatDMY(entry.date)}`);
+      }
+    } else if (cur[key] !== '' && cur[key] !== undefined && cur[key] !== null) {
+      const val = Number(cur[key]);
+      if (Number.isFinite(val)) {
+        lines.push(key.toLowerCase(), String(Number(val.toFixed(meta.decimals))));
+      }
     }
   }
-  fmLines.push('---', '');
 
-  const tableLines = [
-    '# Profile Logs',
-    '',
-    '| Date | Metric | Value |',
-    '| --- | --- | --- |',
-  ];
-
-  const sorted = [...logs].sort(
-    (a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)
-  );
-  for (const entry of sorted) {
-    const meta = PROFILE_LOG_META[entry.type];
-    if (!meta || !entry.date) continue;
-    const val = Number(entry.value);
-    if (!Number.isFinite(val)) continue;
-    tableLines.push(`| ${entry.date} | ${meta.label} | ${Number(val.toFixed(meta.decimals))} |`);
-  }
-
-  return `${fmLines.join('\n')}\n${tableLines.join('\n')}\n`;
+  return `${lines.join('\n')}\n`;
 }
 
 export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) {
@@ -280,56 +299,65 @@ export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) 
   }
 
   const lines = mdText.split(/\r?\n/);
-  let inFrontmatter = false;
-  let fmDone = false;
   const logs = [];
+  let activeSection = null;
+  let activeKind = null; // 'scalar' | 'metric'
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (i === 0 && trimmed === '---') {
-      inFrontmatter = true;
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const lower = trimmed.toLowerCase().replace(/^[-*]\s*/, '');
+    if (Object.hasOwn(SCALAR_SECTION_MAP, lower)) {
+      activeSection = SCALAR_SECTION_MAP[lower];
+      activeKind = 'scalar';
       continue;
     }
-    if (inFrontmatter) {
-      if (trimmed === '---') {
-        inFrontmatter = false;
-        fmDone = true;
-        continue;
+    const metricKey = METRIC_ALIAS_MAP.get(lower);
+    if (metricKey) {
+      activeSection = metricKey;
+      activeKind = 'metric';
+      continue;
+    }
+
+    if (!activeSection) continue;
+
+    if (activeKind === 'scalar') {
+      if (activeSection === 'birthDate') {
+        const iso = normalizeProfileDate(trimmed);
+        if (iso) baseCurrent.birthDate = iso;
+      } else if (activeSection === 'sex') {
+        const s = trimmed.toUpperCase();
+        if (s === 'M' || s === 'F') baseCurrent.sex = s;
+      } else {
+        const num = Number(trimmed);
+        if (Number.isFinite(num)) baseCurrent[activeSection] = num;
       }
-      const colonIdx = trimmed.indexOf(':');
-      if (colonIdx > 0) {
-        const k = trimmed.slice(0, colonIdx).trim();
-        const rawVal = trimmed.slice(colonIdx + 1).trim();
-        if (k === 'birthDate' || k === 'sex') {
-          if (rawVal) baseCurrent[k] = rawVal;
-        } else if (Object.hasOwn(baseCurrent, k)) {
-          const num = Number(rawVal);
-          if (Number.isFinite(num)) baseCurrent[k] = num;
+      continue;
+    }
+
+    if (activeKind === 'metric') {
+      const commaIdx = trimmed.indexOf(',');
+      if (commaIdx !== -1) {
+        const val = parseFloat(trimmed.slice(0, commaIdx));
+        const date = normalizeProfileDate(trimmed.slice(commaIdx + 1));
+        if (date && Number.isFinite(val)) {
+          const ts = Date.parse(`${date}T12:00:00`) || 0;
+          logs.push({
+            id: `md-${date}-${activeSection}-${i}`,
+            date,
+            ts,
+            type: activeSection,
+            value: val,
+          });
+        }
+      } else {
+        const val = parseFloat(trimmed);
+        if (Number.isFinite(val)) {
+          baseCurrent[activeSection] = val;
         }
       }
-      continue;
     }
-    if (!fmDone && trimmed === '---') continue;
-    if (!trimmed.startsWith('|')) continue;
-
-    const cells = trimmed.split('|').slice(1, -1).map((c) => c.trim());
-    if (cells.length < 3) continue;
-    const [rawDate, rawMetric, rawValue] = cells;
-    if (/^-+$/.test(rawDate) || rawDate.toLowerCase() === 'date') continue;
-
-    const date = normalizeProfileDate(rawDate);
-    const type = METRIC_ALIAS_MAP.get(rawMetric.toLowerCase());
-    const value = parseFloat(rawValue);
-    if (!date || !type || !Number.isFinite(value)) continue;
-
-    const ts = Date.parse(`${date}T12:00:00`) || 0;
-    logs.push({
-      id: `md-${date}-${type}-${i}`,
-      date,
-      ts,
-      type,
-      value,
-    });
   }
 
   // Deduplicate same date+type (keep first occurrence) and sort newest first
