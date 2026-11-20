@@ -17,7 +17,7 @@ const DETAIL_TO_SERIES_KEY = {
 const MetricDetailsPage = React.lazy(() => import('../MetricDetails'));
 const ProfilePage = React.lazy(() => import('../ProfilePage'));
 import ProfilePreviewCard from '../ProfilePreviewCard';
-import { MetricSparkline, MetricBarSparkline, TrendBadge } from '../Sparkline';
+import { MetricHistogramSparkline, TrendBadge } from '../Sparkline';
 import { loadProfile, saveProfile } from '../../profileUtils';
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
@@ -1354,22 +1354,13 @@ const DashboardTab = ({
                                   )}
                                 </div>
                               </div>
-                              {card.isBar ? (
-                                <MetricBarSparkline
-                                  values={valsA}
-                                  compareValues={valsB}
-                                  color="var(--accent-primary)"
-                                  compareColor="var(--accent-secondary)"
-                                />
-                              ) : (
-                                <MetricSparkline
-                                  values={valsA}
-                                  compareValues={valsB}
-                                  color="var(--accent-primary)"
-                                  compareColor="var(--accent-secondary)"
-                                  gradId={`spark-cmp-${card.id}`}
-                                />
-                              )}
+                              <MetricHistogramSparkline
+                                values={valsA}
+                                compareValues={valsB}
+                                color="var(--accent-primary)"
+                                compareColor="var(--accent-secondary)"
+                                gradId={`spark-cmp-${card.id}`}
+                              />
                             </div>
                           );
                         })}
@@ -1438,11 +1429,7 @@ const DashboardTab = ({
                             </div>
                             <span className="metric-value">{formattedVal}</span>
                             <TrendBadge values={vals} invertColor={cls === 'fatigue'} />
-                            {card.isBar ? (
-                              <MetricBarSparkline values={vals} color={color} />
-                            ) : (
-                              <MetricSparkline values={vals} color={color} gradId={`spark-${card.id}`} />
-                            )}
+                            <MetricHistogramSparkline values={vals} color={color} gradId={`spark-${card.id}`} />
                           </div>
                         );
                       })}
