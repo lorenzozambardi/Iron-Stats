@@ -61,6 +61,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
   const [derivedModalVisible, setDerivedModalVisible] = useState(false);
   const derivedCloseTimeoutRef = useRef(null);
   const [metricSliderPos, setMetricSliderPos] = useState(100);
+  const [bilateralSide, setBilateralSide] = useState('left');
   const closeTimeoutRef = useRef(null);
   const todayStr = useMemo(() => formatLocalYMD(), []);
   const [timeRange, setTimeRange] = useState('all');
@@ -90,6 +91,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
       derivedCloseTimeoutRef.current = null;
     }
     setMetricSliderPos(100);
+    setBilateralSide('left');
     setDerivedModalVisible(false);
     setSelectedDerivedMetric(key);
     requestAnimationFrame(() => setDerivedModalVisible(true));
@@ -136,6 +138,8 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
     const toPoint = (item) => ({
       t: Number.isFinite(item.ts) ? item.ts : (Date.parse(item.date) || 0),
       v: Number(item.value) || 0,
+      date: item.date,
+      label: formatDisplayDate(item.date, dateFormat),
     });
     const byTime = (a, b) => a.t - b.t;
 
@@ -170,7 +174,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
       weightSeries: map.weight.series,
       bodyFatSeries: map.bodyFat.series,
     };
-  }, [logs, timeRange, todayStr]);
+  }, [logs, timeRange, todayStr, dateFormat]);
 
   const age = useMemo(() => calcAge(current.birthDate), [current.birthDate]);
 
@@ -220,17 +224,14 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
       ? Date.parse(`${todayStr}T23:59:59`) - rangeDef.days * 86400000
       : null;
 
-    const series = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, cutoff)
-      .map((pt) => ({ ...pt, label: formatDisplayDate(pt.date, dateFormat) }));
-    const totalCount = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, null).length;
-
-    const configs = {
+    const derivedConfigs = {
       bmi: {
         title: 'Body Mass Index (BMI)',
         subtitle: 'Weight (kg) relative to height squared (m²).',
         valueText: derived.bmi.toFixed(1),
         unit: '',
         invertColor: false,
+        emptyHint: 'Weight',
         math: String.raw`\text{BMI} = \frac{W}{h^2}`,
       },
       ffmi: {
@@ -239,6 +240,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         valueText: derived.ffmiData.normalizedFfmi.toFixed(1),
         unit: '',
         invertColor: false,
+        emptyHint: 'Weight / Body Fat',
         math: String.raw`\text{FFMI}_{\text{norm}} = \frac{\text{LBM}}{h^2} + 6.1(1.8 - h)`,
       },
       lbm: {
@@ -247,6 +249,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         valueText: `${derived.lbm.toFixed(1)} kg`,
         unit: ' kg',
         invertColor: false,
+        emptyHint: 'Weight / Body Fat',
         math: String.raw`\text{LBM} = W\left(1 - \frac{\text{BF}\%}{100}\right)`,
       },
       fm: {
@@ -255,17 +258,90 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         valueText: `${derived.fm.toFixed(1)} kg`,
         unit: ' kg',
         invertColor: true,
+        emptyHint: 'Weight / Body Fat',
         math: String.raw`\text{FM} = W \cdot \frac{\text{BF}\%}{100}`,
       },
     };
 
-    return {
-      key: selectedDerivedMetric,
-      ...configs[selectedDerivedMetric],
-      series,
-      totalCount,
-    };
-  }, [selectedDerivedMetric, logs, current, derived, timeRange, todayStr, dateFormat]);
+    if (Object.hasOwn(derivedConfigs, selectedDerivedMetric)) {
+      const series = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, cutoff)
+        .map((pt) => ({ ...pt, label: formatDisplayDate(pt.date, dateFormat) }));
+      const totalCount = buildDerivedMetricSeries(logs, current, selectedDerivedMetric, null).length;
+      return {
+        key: selectedDerivedMetric,
+        ...derivedConfigs[selectedDerivedMetric],
+        series,
+        totalCount,
+      };
+    }
+
+    if (selectedDerivedMetric === 'weight') {
+      const data = seriesByType.weight;
+      return {
+        key: 'weight',
+        title: 'Weight',
+        subtitle: 'Body weight tracked over time.',
+        valueText: `${Number(current.weight).toFixed(1)} kg`,
+        unit: ' kg',
+        invertColor: false,
+        emptyHint: 'Weight',
+        series: data.series,
+        totalCount: data.allCount,
+      };
+    }
+
+    if (selectedDerivedMetric === 'bodyFat') {
+      const data = seriesByType.bodyFat;
+      return {
+        key: 'bodyFat',
+        title: 'Body Fat',
+        subtitle: 'Estimated body fat percentage tracked over time.',
+        valueText: `${Number(current.bodyFat).toFixed(1)}%`,
+        unit: '%',
+        invertColor: true,
+        emptyHint: 'Body Fat',
+        series: data.series,
+        totalCount: data.allCount,
+      };
+    }
+
+    const circField = CIRCUMFERENCE_FIELDS.find((f) => f.key === selectedDerivedMetric);
+    if (circField) {
+      if (circField.bilateral) {
+        const leftData = seriesByType[circField.leftKey];
+        const rightData = seriesByType[circField.rightKey];
+        const activeData = bilateralSide === 'right' ? rightData : leftData;
+        return {
+          key: circField.key,
+          title: circField.label,
+          subtitle: `Left and right ${circField.label.toLowerCase()} circumference tracked over time.`,
+          valueText: `${Number(current[circField.leftKey] || 0).toFixed(1)} / ${Number(current[circField.rightKey] || 0).toFixed(1)} cm`,
+          unit: ' cm',
+          invertColor: false,
+          isBilateral: true,
+          emptyHint: `${circField.label} (${bilateralSide === 'right' ? 'R' : 'L'})`,
+          series: activeData.series,
+          totalCount: activeData.allCount,
+          leftSeries: leftData.series,
+          rightSeries: rightData.series,
+        };
+      }
+      const data = seriesByType[circField.key];
+      return {
+        key: circField.key,
+        title: circField.label,
+        subtitle: `${circField.label} circumference tracked over time.`,
+        valueText: `${Number(current[circField.key] || 0).toFixed(1)} cm`,
+        unit: ' cm',
+        invertColor: circField.key === 'waist',
+        emptyHint: circField.label,
+        series: data.series,
+        totalCount: data.allCount,
+      };
+    }
+
+    return null;
+  }, [selectedDerivedMetric, bilateralSide, logs, current, derived, seriesByType, timeRange, todayStr, dateFormat]);
 
   return createPortal(
     <div style={{
@@ -346,7 +422,12 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
         <section className="profile-section">
           <h3 style={sectionTitleStyle}>Body Composition</h3>
           <div className="profile-metric-grid-2">
-            <div className="metric-summary-card profile-static-card">
+            <button
+              type="button"
+              className="metric-summary-card"
+              onClick={() => openDerivedMetric('weight')}
+              style={{ textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}
+            >
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Weight</span>
               <span className="metric-value">{Number(current.weight).toFixed(1)} kg</span>
               {allWeightCount >= 2 && (
@@ -365,8 +446,13 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                   </span>
                 )
               )}
-            </div>
-            <div className="metric-summary-card profile-static-card">
+            </button>
+            <button
+              type="button"
+              className="metric-summary-card"
+              onClick={() => openDerivedMetric('bodyFat')}
+              style={{ textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}
+            >
               <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>Body Fat</span>
               <span className="metric-value">{Number(current.bodyFat).toFixed(1)}%</span>
               {allBfCount >= 2 && (
@@ -385,7 +471,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                   </span>
                 )
               )}
-            </div>
+            </button>
           </div>
         </section>
 
@@ -482,7 +568,13 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                 : `${Number(current[field.key] || 0).toFixed(1)} cm`;
 
               return (
-                <div key={field.key} className="metric-summary-card profile-static-card">
+                <button
+                  key={field.key}
+                  type="button"
+                  className="metric-summary-card"
+                  onClick={() => openDerivedMetric(field.key)}
+                  style={{ textAlign: 'left', cursor: 'pointer', width: '100%', font: 'inherit' }}
+                >
                   <span className="metric-label" style={{ color: 'var(--text-secondary)' }}>{field.label}</span>
                   <span className="metric-value" style={{ fontSize: field.bilateral ? '1.1rem' : undefined }}>{valText}</span>
                   {hasAnyCircumferenceLogs && (
@@ -559,7 +651,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                       </span>
                     )
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -659,6 +751,46 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
               borderRadius: '10px',
               padding: '12px',
             }}>
+              {selectedMetricDetail.isBilateral && (
+                <div style={{
+                  display: 'inline-flex',
+                  gap: '4px',
+                  padding: '3px',
+                  marginBottom: '10px',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--border-color)',
+                }}>
+                  {[
+                    { id: 'left', label: 'Left' },
+                    { id: 'right', label: 'Right' },
+                  ].map((side) => {
+                    const active = bilateralSide === side.id;
+                    return (
+                      <button
+                        key={side.id}
+                        type="button"
+                        onClick={() => {
+                          setBilateralSide(side.id);
+                          setMetricSliderPos(100);
+                        }}
+                        style={{
+                          padding: '4px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: active ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
+                          color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {side.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {selectedMetricDetail.series.length >= 2 ? (() => {
                 const pts = selectedMetricDetail.series;
                 const tMin = pts[0].t;
@@ -696,7 +828,7 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                       <MetricSparkline
                         values={pts}
                         color="#a3a3a3"
-                        gradId={`profile-spark-derived-${selectedMetricDetail.key}`}
+                        gradId={`profile-spark-modal-${selectedMetricDetail.key}-${bilateralSide}`}
                         height={92}
                       />
                       <div
@@ -724,22 +856,24 @@ export default function ProfilePage({ profile, dateFormat = 'dd/mm/yyyy', onBack
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 6px' }}>
                   {selectedMetricDetail.totalCount >= 2
                     ? 'Not enough logs in the selected time range.'
-                    : `Log at least 2 ${selectedMetricDetail.key === 'bmi' ? 'Weight' : 'Weight / Body Fat'} entries to plot this graph.`}
+                    : `Log at least 2 ${selectedMetricDetail.emptyHint || selectedMetricDetail.title} entries to plot this graph.`}
                 </p>
               )}
             </div>
 
-            <div style={{
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border-color)',
-              padding: '10px 12px',
-              borderRadius: '10px',
-              color: 'var(--text-primary)',
-              overflowX: 'auto',
-              textAlign: 'center',
-            }}>
-              <Latex math={selectedMetricDetail.math} block />
-            </div>
+            {selectedMetricDetail.math && (
+              <div style={{
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                color: 'var(--text-primary)',
+                overflowX: 'auto',
+                textAlign: 'center',
+              }}>
+                <Latex math={selectedMetricDetail.math} block />
+              </div>
+            )}
           </div>
         </div>,
         document.body
