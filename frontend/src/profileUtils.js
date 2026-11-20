@@ -260,15 +260,11 @@ export function serializeProfileToMarkdown(profile) {
   const cur = { ...DEFAULT_PROFILE.current, ...(profile?.current || {}) };
   const logs = Array.isArray(profile?.logs) ? profile.logs : [];
 
-  const lines = [
-    'birthdate',
-    formatDMY(cur.birthDate || DEFAULT_PROFILE.current.birthDate),
-    'sex',
-    String(cur.sex || 'M'),
-    'height',
-    String(cur.height ?? DEFAULT_PROFILE.current.height),
-    'avgsteps',
-    String(cur.avgSteps ?? DEFAULT_PROFILE.current.avgSteps),
+  const blocks = [
+    ['birthdate', formatDMY(cur.birthDate || DEFAULT_PROFILE.current.birthDate)],
+    ['sex', String(cur.sex || 'M')],
+    ['height', String(cur.height ?? DEFAULT_PROFILE.current.height)],
+    ['avgsteps', String(cur.avgSteps ?? DEFAULT_PROFILE.current.avgSteps)],
   ];
 
   const byType = new Map();
@@ -283,21 +279,22 @@ export function serializeProfileToMarkdown(profile) {
       (a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)
     );
     if (entries.length > 0) {
-      lines.push(key.toLowerCase());
+      const sectionLines = [key.toLowerCase()];
       for (const entry of entries) {
         const val = Number(entry.value);
         if (!Number.isFinite(val) || !entry.date) continue;
-        lines.push(`${Number(val.toFixed(meta.decimals))} , ${formatDMY(entry.date)}`);
+        sectionLines.push(`${Number(val.toFixed(meta.decimals))} , ${formatDMY(entry.date)}`);
       }
+      if (sectionLines.length > 1) blocks.push(sectionLines);
     } else if (cur[key] !== '' && cur[key] !== undefined && cur[key] !== null) {
       const val = Number(cur[key]);
       if (Number.isFinite(val)) {
-        lines.push(key.toLowerCase(), `${Number(val.toFixed(meta.decimals))} , ${formatDMY(getLocalTodayISO())}`);
+        blocks.push([key.toLowerCase(), `${Number(val.toFixed(meta.decimals))} , ${formatDMY(getLocalTodayISO())}`]);
       }
     }
   }
 
-  return `${lines.join('\n')}\n`;
+  return `${blocks.map((block) => block.join('\n')).join('\n\n')}\n`;
 }
 
 export function parseProfileMarkdown(mdText, fallbackProfile = DEFAULT_PROFILE) {
