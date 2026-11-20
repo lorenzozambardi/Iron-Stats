@@ -634,7 +634,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: transform var(--transition-fast);
 }
 
-.metric-summary-card:focus-within {
+.metric-summary-card:focus-visible {
   transform: translateY(-2px);
   z-index: 20;
 }
