@@ -93,6 +93,12 @@ const buildTimeSeries = (rows, metricKey) => {
     resolvedTs[i] = resolvedTs[lastIdx] + avgStep * (i - lastIdx);
   }
 
+  for (let i = 1; i < resolvedTs.length; i++) {
+    if (resolvedTs[i] < resolvedTs[i - 1]) {
+      return rows.map((m) => m[metricKey] || 0);
+    }
+  }
+
   const t0 = resolvedTs[0];
   let tMin = Infinity;
   let tMax = -Infinity;
@@ -857,7 +863,9 @@ const DashboardTab = ({
     }
 
     const topMusclesSet = new Set(topMuscles);
-    const allowedWeeks = new Set(activeWeeksList);
+    const allowedWeeks = isCompareActive && lastFullWeekA !== null
+      ? new Set([lastFullWeekA])
+      : new Set(activeWeeksList);
     const isMacroView = deferredMacro === 'all';
     const partialCutoffIdx = Math.floor(resolution * 0.3333);
 
@@ -903,7 +911,7 @@ const DashboardTab = ({
     });
 
     return data;
-  }, [isDashboardActive, exerciseWeekRepTotals, activeWeeksList, deferredMacro, displayMuscleData]);
+  }, [isDashboardActive, exerciseWeekRepTotals, activeWeeksList, deferredMacro, displayMuscleData, isCompareActive, lastFullWeekA]);
 
   // Overall totals (filtered; in compare mode, uses each selection's last full microcycle so programs of different lengths compare fairly)
   const mainTotals = useMemo(() => {
@@ -972,7 +980,7 @@ const DashboardTab = ({
   const delta = (a, b) => {
     if (b === 0) return null;
     const d = ((a - b) / Math.abs(b)) * 100;
-    return { val: d.toFixed(2), pos: d >= 0 };
+    return { val: d.toFixed(2), pos: Number(d.toFixed(2)) >= 0 };
   };
 
   // Helper: clear all dashboard filters

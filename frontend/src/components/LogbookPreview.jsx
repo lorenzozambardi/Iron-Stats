@@ -148,7 +148,12 @@ function LogbookPreview({ workoutData, activeExerciseStartLine, activeWeekLineIn
             {exercises.map((ex, exIdx) => {
               const isActive = activeExerciseStartLine === ex.startLine;
               const primaryMuscleKey = ex.exercise_obj?.muscles_distr
-                ? Object.keys(ex.exercise_obj.muscles_distr)[0]
+                ? Object.entries(ex.exercise_obj.muscles_distr)
+                  .sort(([, a], [, b]) => {
+                    const magA = typeof a === 'number' ? a : (a?.magnitude || 0);
+                    const magB = typeof b === 'number' ? b : (b?.magnitude || 0);
+                    return magB - magA;
+                  })[0]?.[0] || null
                 : null;
               const primaryMuscleLabel = primaryMuscleKey
                 ? (MUSCLES[primaryMuscleKey] || primaryMuscleKey)

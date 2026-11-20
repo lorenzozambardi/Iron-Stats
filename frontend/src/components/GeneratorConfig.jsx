@@ -22,6 +22,49 @@ const CURVE_OPTIONS = [
   { id: 'linear', label: 'Linear Decreasing' }
 ];
 
+const buildDefaultVolumeDist = (exercises) => {
+  const dbSubSet = new Set();
+  (exercises || []).forEach(ex => {
+    Object.keys(ex?.muscles_distr || {}).forEach(s => dbSubSet.add(s));
+  });
+  const activeMacros = MACRO_MUSCLES.filter(m =>
+    MACRO_SUB_MAP[m].some(s => dbSubSet.has(s))
+  );
+  const activeSet = new Set(activeMacros);
+
+  const initial = { macros: {}, subs: {} };
+  const numActive = activeMacros.length || MACRO_MUSCLES.length;
+  const baseMacroPct = Math.floor(100 / numActive);
+  let macroRemainder = 100 - baseMacroPct * numActive;
+
+  MACRO_MUSCLES.forEach(m => {
+    if (activeSet.has(m)) {
+      initial.macros[m] = baseMacroPct + (macroRemainder > 0 ? 1 : 0);
+      macroRemainder--;
+    } else {
+      initial.macros[m] = 0;
+    }
+
+    initial.subs[m] = {};
+    const allSubs = MACRO_SUB_MAP[m];
+    const activeSubs = allSubs.filter(s => dbSubSet.has(s));
+    const targetSubs = activeSubs.length > 0 ? activeSubs : allSubs;
+    const targetSubSet = new Set(targetSubs);
+    const baseSubPct = Math.floor(100 / targetSubs.length);
+    let subRemainder = 100 - baseSubPct * targetSubs.length;
+
+    allSubs.forEach(s => {
+      if (targetSubSet.has(s)) {
+        initial.subs[m][s] = baseSubPct + (subRemainder > 0 ? 1 : 0);
+        subRemainder--;
+      } else {
+        initial.subs[m][s] = 0;
+      }
+    });
+  });
+  return initial;
+};
+
 export default function GeneratorConfig({ isMobile, activeProfile = '', onProgramCreated }) {
   // ===== HOOKS — must be called unconditionally before any early return =====
   const [markdownContent, setMarkdownContent] = useState('');
@@ -98,55 +141,34 @@ export default function GeneratorConfig({ isMobile, activeProfile = '', onProgra
   });
 
 
-  const [volumeDist, setVolumeDist] = useState(() => {
-    const dbSubSet = new Set();
-    defaultExercises.forEach(ex => {
-      Object.keys(ex.muscles_distr || {}).forEach(s => dbSubSet.add(s));
-    });
-    const activeMacros = MACRO_MUSCLES.filter(m =>
-      MACRO_SUB_MAP[m].some(s => dbSubSet.has(s))
-    );
-    const activeSet = new Set(activeMacros);
-
-    const initial = { macros: {}, subs: {} };
-    const numActive = activeMacros.length || MACRO_MUSCLES.length;
-    const baseMacroPct = Math.floor(100 / numActive);
-    let macroRemainder = 100 - baseMacroPct * numActive;
-
-    MACRO_MUSCLES.forEach(m => {
-      if (activeSet.has(m)) {
-        initial.macros[m] = baseMacroPct + (macroRemainder > 0 ? 1 : 0);
-        macroRemainder--;
-      } else {
-        initial.macros[m] = 0;
-      }
-
-      initial.subs[m] = {};
-      const allSubs = MACRO_SUB_MAP[m];
-      const activeSubs = allSubs.filter(s => dbSubSet.has(s));
-      const targetSubs = activeSubs.length > 0 ? activeSubs : allSubs;
-      const targetSubSet = new Set(targetSubs);
-      const baseSubPct = Math.floor(100 / targetSubs.length);
-      let subRemainder = 100 - baseSubPct * targetSubs.length;
-
-      allSubs.forEach(s => {
-        if (targetSubSet.has(s)) {
-          initial.subs[m][s] = baseSubPct + (subRemainder > 0 ? 1 : 0);
-          subRemainder--;
-        } else {
-          initial.subs[m][s] = 0;
-        }
-      });
-    });
-    return initial;
-  });
+  const [volumeDist, setVolumeDist] = useState(() => buildDefaultVolumeDist(defaultExercises));
+  const volumeDistTouchedRef = useRef(false);
 
   const [expandedMacro, setExpandedMacro] = useState(null);
 
   useEffect(() => {
+    fetch('/api/exercises')
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(exs => {
+        if (mountedRef.current && !volumeDistTouchedRef.current && Array.isArray(exs) && exs.length > 0) {
+          setVolumeDist(buildDefaultVolumeDist(exs));
+        }
+      })
+      .catch(() => {
+        // Keep bundled defaultExercises fallback on error
+      });
+
     fetch('/GENERATOR_MATH_MODEL.md')
-      .then(res => res.text())
-      .then(text => setMarkdownContent(text))
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then(text => {
+        if (mountedRef.current) setMarkdownContent(text);
+      })
       .catch(err => console.error("Failed to load Markdown", err));
   }, []);
 
@@ -215,7 +237,15 @@ export default function GeneratorConfig({ isMobile, activeProfile = '', onProgra
             partial_reps: s.partial_reps,
             rpe: s.rpe
           }));
-          const muscles = Object.keys(ex.exercise.muscles_distr).slice(0, 2).join(', ');
+          const muscles = Object.entries(ex.exercise.muscles_distr || {})
+            .sort(([, a], [, b]) => {
+              const magA = typeof a === 'number' ? a : (a?.magnitude || 0);
+              const magB = typeof b === 'number' ? b : (b?.magnitude || 0);
+              return magB - magA;
+            })
+            .slice(0, 2)
+            .map(([m]) => m)
+            .join(', ');
           dayExs.push({
             exercise: ex.exercise.name,
             rest: calculateRest(ex.exercise.fatigue),
@@ -292,6 +322,7 @@ export default function GeneratorConfig({ isMobile, activeProfile = '', onProgra
   };
 
   const handleVolumeChange = (type, macro, sub, val) => {
+    volumeDistTouchedRef.current = true;
     const v = parseInt(val) || 0;
     setVolumeDist(prev => {
       const next = { ...prev };
@@ -553,7 +584,7 @@ export default function GeneratorConfig({ isMobile, activeProfile = '', onProgra
                   p: (props) => <p style={{marginBottom: '10px'}} {...props} />,
                   ul: (props) => <ul style={{marginLeft: '20px', marginBottom: '15px'}} {...props} />,
                   li: (props) => <li style={{marginBottom: '5px'}} {...props} />,
-                  blockquote: (props) => <blockquote style={{borderLeft: '4px solid #007aff', paddingLeft: '10px', margin: '10px 0', background: 'rgba(0, 122, 255, 0.1)', padding: '10px'}} {...props} />
+                  blockquote: (props) => <blockquote style={{borderLeft: '4px solid #007aff', margin: '10px 0', background: 'rgba(0, 122, 255, 0.1)', padding: '10px'}} {...props} />
                 }}
               >
                 {markdownContent}

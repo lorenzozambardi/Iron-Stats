@@ -9,7 +9,7 @@ export const TrendBadge = React.memo(({ values, invertColor = false }) => {
   const last = getVal(values[values.length - 1]);
   if (first === 0) return null;
   const pct = ((last - first) / Math.abs(first)) * 100;
-  const pos = pct >= 0;
+  const pos = Number(pct.toFixed(2)) >= 0;
   const isGood = invertColor ? !pos : pos;
   return (
     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isGood ? '#10b981' : '#f43f5e', lineHeight: 1.1 }}>

@@ -103,6 +103,7 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
 
   const handlePointerMove = (e) => {
     if (!dragRef.current.active) return;
+    if (dragRef.current.pointerId !== undefined && e.pointerId !== dragRef.current.pointerId) return;
     const dx = e.clientX - dragRef.current.startX;
     if (Math.abs(dx) > 4) {
       if (!dragRef.current.moved) {
@@ -125,11 +126,17 @@ export const LockWheelPicker = ({ label, options, value, onChange, itemWidth = 8
 
   const handlePointerUp = (e) => {
     if (!dragRef.current.active) return;
+    if (dragRef.current.pointerId !== undefined && e.pointerId !== dragRef.current.pointerId) return;
     const didMove = dragRef.current.moved;
     dragRef.current.active = false;
+    dragRef.current.pointerId = undefined;
     setIsDragging(false);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore capture release errors
     }
     if (didMove) {
       commitStep(virtualRef.current);
@@ -276,7 +283,8 @@ export const DualWeekSlider = ({
 
   const maxIdx = Math.max(0, weeks.length - 1);
   const resolvedFrom = fromVal === 'all' ? 0 : Math.max(0, weeks.indexOf(parseInt(fromVal, 10)));
-  const resolvedTo = toVal === 'all' ? maxIdx : Math.max(0, weeks.indexOf(parseInt(toVal, 10)));
+  const toFoundIdx = weeks.indexOf(parseInt(toVal, 10));
+  const resolvedTo = toVal === 'all' ? maxIdx : (toFoundIdx === -1 ? maxIdx : toFoundIdx);
   const fromIdx = Math.min(resolvedFrom, resolvedTo);
   const toIdx = Math.max(resolvedFrom, resolvedTo);
 
@@ -298,7 +306,11 @@ export const DualWeekSlider = ({
 
   const handlePointerDown = (e) => {
     if (weeks.length <= 1) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore capture errors on synthetic/cancelled pointers
+    }
     const rect = trackRef.current?.getBoundingClientRect() || null;
     const thumbAttr = e.target.getAttribute('data-thumb');
     const clickIdx = idxFromClientX(e.clientX, rect);
@@ -326,7 +338,7 @@ export const DualWeekSlider = ({
       }
     }
 
-    dragStateRef.current = { thumb: activeThumb, fromIdx, toIdx, pendingOverlap, startX: e.clientX, rect };
+    dragStateRef.current = { thumb: activeThumb, pointerId: e.pointerId, fromIdx, toIdx, pendingOverlap, startX: e.clientX, rect };
     setDraggingThumb(activeThumb);
 
     if (!thumbAttr) {
@@ -344,7 +356,7 @@ export const DualWeekSlider = ({
 
   const handlePointerMove = (e) => {
     const st = dragStateRef.current;
-    if (!st.thumb) return;
+    if (!st.thumb || (st.pointerId !== undefined && e.pointerId !== st.pointerId)) return;
     if (st.pendingOverlap) {
       const dx = e.clientX - st.startX;
       if (Math.abs(dx) < 2) return;
@@ -369,11 +381,17 @@ export const DualWeekSlider = ({
   };
 
   const handlePointerUp = (e) => {
-    if (!dragStateRef.current.thumb) return;
-    dragStateRef.current.thumb = null;
+    const st = dragStateRef.current;
+    if (!st.thumb || (st.pointerId !== undefined && e.pointerId !== st.pointerId)) return;
+    st.thumb = null;
+    st.pointerId = undefined;
     setDraggingThumb(null);
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore capture release errors
     }
   };
 
@@ -501,6 +519,7 @@ export const TensionRomSlider = ({
   ariaLabel = 'Range of motion percentage',
 }) => {
   const trackRef = useRef(null);
+  const activePointerIdRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
   const updateFromClientX = useCallback((clientX) => {
@@ -514,18 +533,50 @@ export const TensionRomSlider = ({
 
   const handlePointerDown = (e) => {
     e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
+    activePointerIdRef.current = e.pointerId;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore capture errors on synthetic/cancelled pointers
+    }
     setDragging(true);
     updateFromClientX(e.clientX);
   };
 
   const handlePointerMove = (e) => {
-    if (!dragging) return;
+    if (!dragging || (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current)) return;
     updateFromClientX(e.clientX);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+    activePointerIdRef.current = null;
     setDragging(false);
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore capture release errors
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    const step = e.shiftKey ? 10 : 1;
+    let next = null;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      next = Math.max(0, value - step);
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      next = Math.min(100, value + step);
+    } else if (e.key === 'Home') {
+      next = 0;
+    } else if (e.key === 'End') {
+      next = 100;
+    }
+    if (next !== null) {
+      e.preventDefault();
+      onChange(next);
+    }
   };
 
   return (
@@ -538,10 +589,12 @@ export const TensionRomSlider = ({
       <div
         ref={trackRef}
         role="slider"
+        tabIndex={0}
         aria-label={ariaLabel}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={value}
+        onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

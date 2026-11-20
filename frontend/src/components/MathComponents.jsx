@@ -2,29 +2,35 @@ import { useMemo } from 'react';
 import katex from 'katex';
 
 const Latex = ({ math, block = false }) => {
-  const html = useMemo(() => {
+  const { html, error } = useMemo(() => {
     try {
-      return katex.renderToString(math, {
-        displayMode: block,
-        throwOnError: false
-      });
+      return {
+        html: katex.renderToString(math, {
+          displayMode: block,
+          throwOnError: false
+        }),
+        error: false,
+      };
     } catch (err) {
       console.error("KaTeX rendering error:", err);
-      return math;
+      return { html: '', error: true };
     }
   }, [math, block]);
 
   if (block) {
-    return (
-      <div
-        style={{
-          fontSize: 'clamp(0.72rem, 2.6vw, 0.94rem)',
-          lineHeight: 1.5,
-          maxWidth: '100%',
-        }}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    );
+    const blockStyle = {
+      fontSize: 'clamp(0.72rem, 2.6vw, 0.94rem)',
+      lineHeight: 1.5,
+      maxWidth: '100%',
+    };
+    if (error) {
+      return <div style={blockStyle}>{math}</div>;
+    }
+    return <div style={blockStyle} dangerouslySetInnerHTML={{ __html: html }} />;
+  }
+
+  if (error) {
+    return <span>{math}</span>;
   }
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
