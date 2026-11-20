@@ -55,12 +55,40 @@ export default defineConfig({
             }
           }
 
+          if (urlObj.pathname === '/api/profile') {
+            const profilePath = path.resolve(examplesDir, 'profile.md');
+            if (req.method === 'GET') {
+              if (fs.existsSync(profilePath)) {
+                res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+                res.end(fs.readFileSync(profilePath, 'utf-8'));
+              } else {
+                res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+                res.end('profile.md not found');
+              }
+              return;
+            } else if (req.method === 'POST') {
+              let body = '';
+              req.on('data', chunk => { body += chunk; });
+              req.on('end', () => {
+                try {
+                  fs.writeFileSync(profilePath, body, 'utf-8');
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ success: true }));
+                } catch (err) {
+                  res.writeHead(500, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: err.message }));
+                }
+              });
+              return;
+            }
+          }
+
           if (urlObj.pathname === '/api/programs') {
             if (req.method === 'GET') {
               try {
                 const files = fs.readdirSync(examplesDir);
                 const programs = files
-                  .filter(file => file.endsWith('.md'))
+                  .filter(file => file.endsWith('.md') && file.toLowerCase() !== 'profile.md')
                   .map(file => path.basename(file, '.md'))
                   .filter(name => /^[a-zA-Z0-9_\- ()]+$/.test(name));
                 
