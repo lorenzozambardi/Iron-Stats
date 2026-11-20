@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Plus, Trash2 } from 'lucide-react';
+import { Calendar, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { MetricSparkline, TrendBadge } from './Sparkline';
 import { sampleSparklineAtTime } from './helpers';
 import { LockWheelPicker, TensionRomSlider } from './FilterControls';
@@ -593,10 +593,18 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
                   cursor: 'pointer',
                   width: '100%',
                   font: 'inherit',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
                 }}
               >
-                <span className="profile-stat-label">{item.label}</span>
-                <span className="profile-derived-val">{item.value}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span className="profile-stat-label">{item.label}</span>
+                  <span className="profile-derived-val">{item.value}</span>
+                </div>
+                <ChevronRight size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
               </button>
             ))}
           </div>
