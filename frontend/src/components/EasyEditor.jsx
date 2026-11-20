@@ -1,12 +1,20 @@
 import { memo, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { MUSCLES, isDateLine, isDatesHeader } from '../parser';
+import { formatLogbookSpaces } from '../formatLogbook';
+import { isSetLine } from './customFoldService';
 import { formatTodayDDMMYYYY } from './editorSnippets';
 
 function parseSetLineToSets(line) {
-  if (!line || !line.trim()) return [];
-  const rawSets = line.trim().split(',');
-  return rawSets.map(s => s.trim()).filter(s => s.length > 0);
+  if (!line || !line.trim()) return { sets: [], comment: '' };
+  const commentIdx = line.indexOf('--');
+  const setPart = commentIdx === -1 ? line.trim() : line.slice(0, commentIdx).trim();
+  const comment = commentIdx === -1 ? '' : line.slice(commentIdx).trim();
+  const rawSets = setPart.split(',');
+  return {
+    sets: rawSets.map(s => s.trim()).filter(s => s.length > 0),
+    comment,
+  };
 }
 
 function parseLogbookToStructure(text) {
@@ -20,7 +28,7 @@ function parseLogbookToStructure(text) {
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i];
     const line = rawLine.trim();
-    
+
     if (!line) continue;
 
     if (line.startsWith('#')) {
@@ -54,21 +62,19 @@ function parseLogbookToStructure(text) {
       inDatesBlock = false;
     }
 
-    const lineNoOld = line.replace(/(?:\b|(?<=^))old\s+/gi, '').trim();
-    const isSetLine = !line.includes('|') && (
-      /(?:^|\s)-?[\d.]+(?:\/-?[\d.]+)*\s*\.\./.test(lineNoOld) ||
-      (lineNoOld.length > 0 && /\d/.test(lineNoOld) && /^[\d().+/@,\s]+$/.test(lineNoOld))
-    );
+    const lineNoComment = line.split('--')[0];
+    const lineNoCommentTrim = lineNoComment.trim();
+    const isSet = isSetLine(line);
 
-    if (!isSetLine && !line.toLowerCase().startsWith('override:')) {
+    if (!isSet && !isDateLine(lineNoCommentTrim) && !line.toLowerCase().startsWith('override:')) {
       const parts = line.split('|').map(p => p.trim());
       const exName = parts[0];
-      const rest = parts.length > 1 ? parts[1] : "2'";
+      const rest = parts.length > 1 ? parts[1] : '';
       const restStr = parts.slice(2).join(' | ');
-      
+
       let tempo = '';
       let note = restStr;
-      const tempoMatch = restStr.match(/\b(\d+\s*-\s*\d+\s*-\s*\d+\s*-\s*\d+)\b/);
+      const tempoMatch = restStr.match(/\b(\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?)\b/);
       if (tempoMatch) {
         tempo = tempoMatch[1].replace(/\s+/g, '');
         note = restStr.replace(tempoMatch[0], '').replace(/^[\s,|,-]+|[\s,|,-]+$/g, '').trim();
@@ -82,9 +88,12 @@ function parseLogbookToStructure(text) {
         weeks: []
       };
       currentSession.exercises.push(currentExercise);
-    } else if (currentExercise && isSetLine) {
-      const parsedSets = parseSetLineToSets(line);
-      currentExercise.weeks.push({ sets: parsedSets.length > 0 ? parsedSets : [line] });
+    } else if (currentExercise && isSet) {
+      const { sets: parsedSets, comment } = parseSetLineToSets(line);
+      currentExercise.weeks.push({
+        sets: parsedSets.length > 0 ? parsedSets : [lineNoCommentTrim],
+        ...(comment ? { comment } : {}),
+      });
     }
   }
 
@@ -107,7 +116,11 @@ function serializeStructureToText(sessions, overrides = []) {
       else if (hasMetaAfterRest) header += ' |';
       if (ex.tempo) header += ` | ${ex.tempo}`;
       if (ex.note) header += ` | ${ex.note}`;
-      const weeksStr = ex.weeks.map(wk => wk.sets.map(s => (s || '').trim()).filter(Boolean).join(', ')).filter(w => w.length > 0).join('\n');
+      const weeksStr = ex.weeks.map(wk => {
+        const setsPart = wk.sets.map(s => (s || '').trim()).filter(Boolean).join(', ');
+        if (!setsPart) return '';
+        return wk.comment ? `${setsPart} ${wk.comment}` : setsPart;
+      }).filter(w => w.length > 0).join('\n');
       return weeksStr ? `${header}\n${weeksStr}` : header;
     });
     return [sStr, ...exStrs].join('\n\n');
@@ -126,12 +139,12 @@ function parseSetDisplayValues(stVal) {
     rpeVal = mainStr.substring(firstAt + 1).trim();
     mainStr = mainStr.substring(0, firstAt).trim();
   }
-  if (!mainStr.includes('..')) {
+  const lastDots = mainStr.lastIndexOf('..');
+  if (lastDots === -1) {
     return { loadVal: '', repsVal: mainStr, rpeVal };
   }
-  const parts = mainStr.split('..');
-  const loadVal = parts[0].trim();
-  const repsVal = parts.slice(1).join('..').trim();
+  const loadVal = mainStr.slice(0, lastDots).trim();
+  const repsVal = mainStr.slice(lastDots + 2).trim();
   return { loadVal, repsVal, rpeVal };
 }
 
@@ -728,6 +741,7 @@ const EasySessionGroup = memo(function EasySessionGroup({
 
 const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb = [] }) {
   const [sessions, setSessions] = useState(() => parseLogbookToStructure(logbookText));
+  const sessionsRef = useRef(sessions);
   const lastEmittedTextRef = useRef(logbookText);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -735,11 +749,16 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
   exercisesDbRef.current = exercisesDb;
 
   useEffect(() => {
-    if (logbookText === lastEmittedTextRef.current) {
+    if (
+      logbookText === lastEmittedTextRef.current ||
+      logbookText === formatLogbookSpaces(lastEmittedTextRef.current)
+    ) {
       return;
     }
     lastEmittedTextRef.current = logbookText;
-    setSessions(parseLogbookToStructure(logbookText));
+    const parsed = parseLogbookToStructure(logbookText);
+    sessionsRef.current = parsed;
+    setSessions(parsed);
   }, [logbookText]);
 
   const overrideLines = useMemo(() => {
@@ -753,13 +772,14 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
   overrideLinesRef.current = overrideLines;
 
   const commitSessions = useCallback((updater) => {
-    setSessions(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      const newText = serializeStructureToText(next, overrideLinesRef.current);
-      lastEmittedTextRef.current = newText;
-      onChangeRef.current(newText);
-      return next;
-    });
+    const prev = sessionsRef.current;
+    const next = typeof updater === 'function' ? updater(prev) : updater;
+    if (next === prev) return;
+    sessionsRef.current = next;
+    setSessions(next);
+    const newText = serializeStructureToText(next, overrideLinesRef.current);
+    lastEmittedTextRef.current = newText;
+    onChangeRef.current(newText);
   }, []);
 
   const updateSessionTitle = useCallback((sIdx, newTitle) => {
@@ -821,11 +841,9 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
   }, [commitSessions]);
 
   const deleteSession = useCallback((sIdx) => {
-    commitSessions(prev => {
-      const sTitle = prev[sIdx]?.title || 'this session';
-      if (!window.confirm(`Are you sure you want to delete "${sTitle}"?`)) return prev;
-      return prev.filter((_, idx) => idx !== sIdx);
-    });
+    const sTitle = sessionsRef.current[sIdx]?.title || 'this session';
+    if (!window.confirm(`Are you sure you want to delete "${sTitle}"?`)) return;
+    commitSessions(prev => prev.filter((_, idx) => idx !== sIdx));
   }, [commitSessions]);
 
   const insertExerciseAtIndex = useCallback((sIdx, targetIndex) => {
@@ -836,7 +854,7 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
       rest: "2'",
       tempo: '',
       note: '',
-      weeks: [{ sets: ['35..5', '30..7'] }]
+      weeks: [{ sets: ['35.. 5', '30.. 7'] }]
     };
     commitSessions(prev => prev.map((s, idx) => {
       if (idx === sIdx) {
@@ -859,13 +877,11 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
   }, [commitSessions]);
 
   const deleteExercise = useCallback((sIdx, eIdx) => {
-    commitSessions(prev => {
-      const exName = prev[sIdx]?.exercises[eIdx]?.name || 'this exercise';
-      if (!window.confirm(`Are you sure you want to delete "${exName}"?`)) return prev;
-      return prev.map((s, idx) =>
-        idx === sIdx ? { ...s, exercises: s.exercises.filter((_, exIdx) => exIdx !== eIdx) } : s
-      );
-    });
+    const exName = sessionsRef.current[sIdx]?.exercises[eIdx]?.name || 'this exercise';
+    if (!window.confirm(`Are you sure you want to delete "${exName}"?`)) return;
+    commitSessions(prev => prev.map((s, idx) =>
+      idx === sIdx ? { ...s, exercises: s.exercises.filter((_, exIdx) => exIdx !== eIdx) } : s
+    ));
   }, [commitSessions]);
 
   const addWeek = useCallback((sIdx, eIdx) => {
@@ -873,7 +889,7 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
       if (idx === sIdx) {
         const updatedExs = s.exercises.map((ex, exIdx) => {
           if (exIdx === eIdx) {
-            const lastWeekSets = ex.weeks.length > 0 ? [...ex.weeks[ex.weeks.length - 1].sets] : ['35..5'];
+            const lastWeekSets = ex.weeks.length > 0 ? [...ex.weeks[ex.weeks.length - 1].sets] : ['35.. 5'];
             return { ...ex, weeks: [...ex.weeks, { sets: lastWeekSets }] };
           }
           return ex;
@@ -907,7 +923,7 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
           if (exIdx === eIdx) {
             const updatedWeeks = ex.weeks.map((wk, wkIdx) => {
               if (wkIdx === wIdx) {
-                const lastSetVal = wk.sets.length > 0 ? wk.sets[wk.sets.length - 1] : '35..5';
+                const lastSetVal = wk.sets.length > 0 ? wk.sets[wk.sets.length - 1] : '35.. 5';
                 return { ...wk, sets: [...wk.sets, lastSetVal] };
               }
               return wk;
@@ -923,13 +939,13 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
   }, [commitSessions]);
 
   const updateSetLoadRepsRpe = useCallback((sIdx, eIdx, wIdx, stIdx, newLoad, newReps, newRpe) => {
-    const l = (newLoad || '').trim();
-    const r = (newReps || '').trim();
-    const rp = (newRpe || '').trim();
+    const l = (newLoad || '').replace(/,/g, '').trim();
+    const r = (newReps || '').replace(/,/g, '').trim();
+    const rp = (newRpe || '').replace(/,/g, '').trim();
     let newVal = '';
     if (l || r || rp) {
       newVal = l ? (r ? `${l}.. ${r}` : `${l}..`) : r;
-      if (rp) {
+      if (rp && !r.includes('@')) {
         newVal += `@${rp}`;
       }
     }
@@ -981,9 +997,14 @@ const EasyEditor = memo(function EasyEditor({ logbookText, onChange, exercisesDb
     if (!exercisesDb) return map;
     for (const ex of exercisesDb) {
       if (ex.muscles_distr) {
-        const keys = Object.keys(ex.muscles_distr);
-        if (keys.length > 0) {
-          map.set(ex.name.toLowerCase(), MUSCLES[keys[0]] || keys[0]);
+        const sortedEntries = Object.entries(ex.muscles_distr).sort(([, a], [, b]) => {
+          const magA = typeof a === 'number' ? a : (a?.magnitude || 0);
+          const magB = typeof b === 'number' ? b : (b?.magnitude || 0);
+          return magB - magA;
+        });
+        if (sortedEntries.length > 0) {
+          const primaryKey = sortedEntries[0][0];
+          map.set(ex.name.toLowerCase(), MUSCLES[primaryKey] || primaryKey);
         }
       }
     }
