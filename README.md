@@ -168,10 +168,10 @@ Analyze a workout logbook using either the installed CLI entrypoint or the scrip
 
 ```bash
 # Installed CLI (after `pip install -e .`)
-iron-stats --file logbooks/S1M3.md
+iron-stats --file logbooks/Lorenzo/Programs/S1M3.md
 
 # Or run directly via the script wrapper
-python python_research/scripts/Analyzer.py --file logbooks/S1M3.md
+python python_research/scripts/Analyzer.py --file logbooks/Lorenzo/Programs/S1M3.md
 ```
 
 Optional filter flags: `--session <int>`, `--week <int>`, `--macro <group>` (e.g., `Chest`, `Back`, `Legs`), `--sub <muscle>` (e.g., `Latissimus Dorsi`). For full logbook syntax details, see [`HOW_TO_READ_THE_PROGRAM.md`](HOW_TO_READ_THE_PROGRAM.md).

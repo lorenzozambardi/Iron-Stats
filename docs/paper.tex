@@ -313,7 +313,12 @@ When target distribution shares $p_m^{\mathrm{target}}$ are configured, we evalu
       &\text{targets set,} \\
       &\textstyle\sum_{m'} W_{m'} > 0,
     \end{aligned} \\
-    0, & \text{otherwise},
+    \frac{1}{2} \sum_{m} \bigl( p_m^{\mathrm{target}} \bigr)^2, &
+    \begin{aligned}[t]
+      &\text{targets set,} \\
+      &\textstyle\sum_{m'} W_{m'} = 0,
+    \end{aligned} \\
+    0, & \text{no targets set},
   \end{cases} \\
   E_{\mathrm{variety}} &= \left( 1 - \frac{|\mathcal{U}(\omega)|}{N_{\mathrm{tot}}(\omega)} \right)^2, \\
   E_{\mathrm{balance}} &= \begin{cases}
