@@ -499,19 +499,19 @@ export default function ProfilePage({ profile, setProfile, dateFormat = 'dd/mm/y
             }}>
               Profile
             </h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', alignItems: 'stretch' }}>
               <FormattedDateInput
                 value={logDate}
                 max={todayStr}
                 dateFormat={dateFormat}
                 ariaLabel="Log date"
                 onChange={(e) => setLogDate(e.target.value || todayStr)}
-                style={{ width: 'auto', padding: '7px 14px', fontSize: '0.78rem', borderRadius: '999px' }}
+                style={{ width: '100%', padding: '7px 14px', fontSize: '0.78rem', borderRadius: '999px', justifyContent: 'center' }}
               />
               <button
                 type="button"
                 className="btn btn-primary"
-                style={{ padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                style={{ width: '100%', padding: '7px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 onClick={() => handleLogStat('all')}
               >
                 <Plus size={14} /> Log All
