@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import { memo, useMemo, useCallback, useRef, useEffect } from 'react';
+import { memo, useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
 import { Transaction } from '@codemirror/state';
@@ -163,10 +163,10 @@ function FoldableEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const editorViewRef = useRef(null);
-  const latestValueRef = useRef(value);
-  latestValueRef.current = value;
-  const lastEmittedValueRef = useRef(value);
+  // Defer initial sync via state so it runs after @uiw/react-codemirror's own [value, view] effect
+  const [editorView, setEditorView] = useState(null);
+  // CodeMirror mounts with an empty doc ('') because value is synced via transactions
+  const lastEmittedValueRef = useRef('');
   const pendingLocalValuesRef = useRef([]);
   const isSyncingExternalRef = useRef(false);
 
@@ -319,19 +319,11 @@ function FoldableEditor({
     }
   }, []);
 
-  const handleCreateEditor = useCallback((view) => {
-    editorViewRef.current = view;
-    const targetValue = latestValueRef.current;
-    if (view.state.doc.toString() !== targetValue) {
-      pendingLocalValuesRef.current = [];
-      lastEmittedValueRef.current = targetValue;
-      syncExternalDoc(view, targetValue);
-    }
-  }, [syncExternalDoc]);
-
   // Only sync external value changes (program switch, undo/redo, modal edits, save-time formatting) into CodeMirror.
   // Never echo back stale intermediate keystrokes, and apply minimal diffs with mapped selection to prevent cursor resets.
   useEffect(() => {
+    if (!editorView) return;
+
     if (value === lastEmittedValueRef.current) {
       pendingLocalValuesRef.current = [];
       return;
@@ -346,10 +338,8 @@ function FoldableEditor({
 
     pendingLocalValuesRef.current = [];
     lastEmittedValueRef.current = value;
-    const view = editorViewRef.current;
-    if (!view) return;
-    syncExternalDoc(view, value);
-  }, [value, syncExternalDoc]);
+    syncExternalDoc(editorView, value);
+  }, [value, editorView, syncExternalDoc]);
 
   return (
     <div className="foldable-editor-root">
@@ -358,7 +348,7 @@ function FoldableEditor({
         theme="none"
         extensions={extensions}
         onChange={handleChange}
-        onCreateEditor={handleCreateEditor}
+        onCreateEditor={setEditorView}
         basicSetup={BASIC_SETUP}
       />
     </div>

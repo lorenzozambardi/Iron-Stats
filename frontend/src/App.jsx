@@ -425,7 +425,20 @@ export default function App() {
   const scrollTabTimeout = useRef(null);
   const scrollTabStateTimeoutRef = useRef(null);
   const isTouchingRef = useRef(false);
+  const touchStartPosRef = useRef(null);
   const prevIsMobileRef = useRef(null);
+
+  const dismissVirtualKeyboard = useCallback((onlyTextInputs = false) => {
+    const active = document.activeElement;
+    if (!active || active === document.body || typeof active.blur !== 'function') return;
+    if (onlyTextInputs) {
+      const isTextInput = typeof active.matches === 'function' && active.matches(
+        'input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="button"]):not([type="submit"]), textarea, [contenteditable="true"]'
+      );
+      if (!isTextInput) return;
+    }
+    active.blur();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -448,6 +461,10 @@ export default function App() {
     }
   }, [isMobile, activeTab]);
 
+  useEffect(() => {
+    dismissVirtualKeyboard(false);
+  }, [activeTab, dismissVirtualKeyboard]);
+
   const syncCurrentTab = useCallback(() => {
     if (isTouchingRef.current || !swipeContainerRef.current) return;
     if (bottomNavIndicatorRef.current) {
@@ -462,16 +479,20 @@ export default function App() {
     if (index >= 0 && index < tabOrder.length) {
       const currentTab = tabOrder[index];
       if (activeTab !== currentTab) {
+        dismissVirtualKeyboard(false);
         setActiveTab(currentTab);
       }
       if (selectedMetricDetail && currentTab !== 'dashboard') {
         setSelectedMetricDetail(null);
       }
     }
-  }, [activeTab, selectedMetricDetail]);
+  }, [activeTab, selectedMetricDetail, dismissVirtualKeyboard]);
 
   const handleTouchStart = useCallback((e) => {
     isTouchingRef.current = true;
+    touchStartPosRef.current = e.touches?.length === 1
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      : null;
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
@@ -481,13 +502,25 @@ export default function App() {
     const isInteractiveTarget = target && typeof target.closest === 'function' && Boolean(
       target.closest('input, textarea, select, [contenteditable="true"], .cm-editor')
     );
-    if (!isInteractiveTarget && active && typeof active.blur === 'function' && active !== document.body && (!target || !active.contains(target))) {
-      active.blur();
+    if (!isInteractiveTarget && (!target || !active?.contains?.(target))) {
+      dismissVirtualKeyboard(false);
     }
-  }, []);
+  }, [dismissVirtualKeyboard]);
+
+  const handleTouchMove = useCallback((e) => {
+    const start = touchStartPosRef.current;
+    if (!start || !e.touches || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - start.x;
+    const dy = e.touches[0].clientY - start.y;
+    if ((dx * dx) + (dy * dy) > 100) {
+      touchStartPosRef.current = null;
+      dismissVirtualKeyboard(true);
+    }
+  }, [dismissVirtualKeyboard]);
 
   const handleTouchEnd = useCallback(() => {
     isTouchingRef.current = false;
+    touchStartPosRef.current = null;
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
@@ -506,6 +539,11 @@ export default function App() {
     if (width === 0) return;
     
     const exactIndex = scrollLeft / width;
+    const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
+    const activeIndex = tabOrder.indexOf(activeTab);
+    if (activeIndex !== -1 && Math.abs(exactIndex - activeIndex) > 0.08) {
+      dismissVirtualKeyboard(true);
+    }
     
     // Dynamically track the finger
     if (bottomNavIndicatorRef.current) {
@@ -522,7 +560,7 @@ export default function App() {
     }
     
     scrollTimeoutRef.current = setTimeout(syncCurrentTab, 100);
-  }, [syncCurrentTab]);
+  }, [syncCurrentTab, activeTab, dismissVirtualKeyboard]);
 
   // Listen to native scrollend event when browser snap animation finishes
   useEffect(() => {
@@ -543,9 +581,7 @@ export default function App() {
 
   // Helper to scroll to tab programmatically
   const scrollToTab = useCallback((tabName) => {
-    if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== document.body) {
-      document.activeElement.blur();
-    }
+    dismissVirtualKeyboard(false);
 
     if (swipeContainerRef.current) {
       const tabOrder = ['stopwatch', 'editor', 'dashboard', 'db', 'generator'];
@@ -594,7 +630,7 @@ export default function App() {
         }, 0);
       }
     }
-  }, []);
+  }, [dismissVirtualKeyboard]);
 
 
   // Ref to control SettingsPanel's local storage drawer without re-rendering App
@@ -1851,6 +1887,7 @@ export default function App() {
           ref={swipeContainerRef} 
           onScroll={handleScroll}
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchEnd}
         >
