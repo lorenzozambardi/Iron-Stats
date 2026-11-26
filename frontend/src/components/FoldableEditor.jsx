@@ -65,20 +65,20 @@ const editorTheme = EditorView.theme({
     color: 'var(--accent-primary, #6366f1)'
   },
   '.cm-foldPlaceholder': {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
-    color: 'var(--accent-primary, #818cf8)',
-    borderRadius: '999px',
-    padding: '1px 8px',
-    marginLeft: '6px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: '#ffffff',
+    padding: '0 4px',
+    marginLeft: '4px',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    lineHeight: '1.2',
+    fontSize: '1.15em',
+    fontWeight: '700',
+    letterSpacing: '1px',
+    lineHeight: '1',
     display: 'inline-flex',
     alignItems: 'center',
-    verticalAlign: 'middle'
+    verticalAlign: 'baseline'
   },
   '.cm-activeLine': {
     backgroundColor: 'rgba(255, 255, 255, 0.03)'
