@@ -2075,8 +2075,7 @@ export default function App() {
                      <button
                        type="button"
                        id="mobile-editor-filters-toggle"
-                       className="mode-pill-btn"
-                       style={(editorFiltersOpen || hasAnyEditorFilter) ? { color: 'var(--accent-primary)', background: 'var(--accent-primary-subtle)' } : undefined}
+                       className={`mode-pill-btn ${(editorFiltersOpen || hasAnyEditorFilter) ? 'filter-active' : ''}`}
                        onClick={() => setEditorFiltersOpen(prev => !prev)}
                        title="Filter Sessions & Microcycles"
                        aria-label="Filter Sessions & Microcycles"
@@ -2136,7 +2135,7 @@ export default function App() {
                   <button
                     type="button"
                     id="editor-filters-toggle"
-                    className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-secondary' : ''}`}
+                    className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-primary' : ''}`}
                     onClick={() => setEditorFiltersOpen(prev => !prev)}
                     title="Filter Sessions & Microcycles"
                   >

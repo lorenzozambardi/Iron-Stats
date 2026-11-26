@@ -3080,6 +3080,12 @@ input::-webkit-list-button {
   color: #fff;
 }
 
+.mode-pill-btn.filter-active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px var(--accent-primary-glow);
+}
+
 .pill-divider {
   width: 1px;
   height: 24px;
