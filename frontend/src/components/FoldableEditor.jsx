@@ -2,8 +2,8 @@
 import { memo, useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { foldGutter } from '@codemirror/language';
-import { Transaction } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { Transaction, RangeSetBuilder } from '@codemirror/state';
+import { EditorView, ViewPlugin, Decoration } from '@codemirror/view';
 import { autocompletion } from '@codemirror/autocomplete';
 import { customFoldService } from './customFoldService';
 import { resolveImmediateSnippet } from './editorSnippets';
@@ -33,6 +33,12 @@ const editorTheme = EditorView.theme({
   },
   '.cm-line': {
     padding: '0 2px'
+  },
+  '.cm-rendered-heading': {
+    fontWeight: '700',
+    fontSize: '1.22em',
+    color: '#ffffff',
+    lineHeight: '1.5'
   },
   '&.cm-focused': {
     outline: 'none'
@@ -112,6 +118,47 @@ const foldGutterExtension = foldGutter({
     return span;
   }
 });
+
+const buildHeadingDecorations = (view) => {
+  const builder = new RangeSetBuilder();
+  const sel = view.state.selection.main;
+  const selFromLine = view.state.doc.lineAt(sel.from).number;
+  const selToLine = view.state.doc.lineAt(sel.to).number;
+
+  for (const { from, to } of view.visibleRanges) {
+    let pos = from;
+    while (pos <= to) {
+      const line = view.state.doc.lineAt(pos);
+      const match = line.text.match(/^(\s*#+\s*)/);
+      if (match) {
+        const isCursorOnLine = line.number >= selFromLine && line.number <= selToLine;
+        const hashEnd = line.from + match[1].length;
+        if (!isCursorOnLine && hashEnd < line.to) {
+          builder.add(line.from, line.from, Decoration.line({ class: 'cm-rendered-heading' }));
+          builder.add(line.from, hashEnd, Decoration.replace({}));
+        }
+      }
+      pos = line.to + 1;
+    }
+  }
+  return builder.finish();
+};
+
+const markdownHeadingPlugin = ViewPlugin.fromClass(
+  class {
+    constructor(view) {
+      this.decorations = buildHeadingDecorations(view);
+    }
+    update(update) {
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        this.decorations = buildHeadingDecorations(update.view);
+      }
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  }
+);
 
 const BASIC_SETUP = {
   lineNumbers: false,
@@ -233,6 +280,7 @@ function FoldableEditor({
   const extensions = useMemo(() => [
     customFoldService,
     foldGutterExtension,
+    markdownHeadingPlugin,
     EditorView.lineWrapping,
     exerciseCompletion,
     editorTheme,
