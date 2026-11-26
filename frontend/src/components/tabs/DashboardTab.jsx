@@ -22,6 +22,7 @@ import { loadProfile, loadProfileFromFile, getActiveProfileName } from '../../pr
 import MuscleDonutChart from '../MuscleDonutChart';
 import { bezierArea, solveBezierY } from '../helpers';
 import { LockWheelPicker, DualWeekSlider, TensionRomSlider } from '../FilterControls';
+import { isWeekInRange, formatWeekRangeLabel } from '../helpers';
 
 const CURVE_RESOLUTION = 50;
 const MAX_CURVE_CACHE_SIZE = 500;
@@ -32,21 +33,6 @@ const MUSCLE_METRIC_OPTIONS = [
   { value: 'sets', label: 'Volume' },
   { value: 'volume', label: 'Reps' },
 ];
-
-const isWeekInRange = (weekNum, fromVal, toVal) => {
-  if (fromVal !== 'all' && weekNum < parseInt(fromVal, 10)) return false;
-  if (toVal !== 'all' && weekNum > parseInt(toVal, 10)) return false;
-  return true;
-};
-
-const formatWeekRangeLabel = (fromVal, toVal) => {
-  if (fromVal !== 'all' && toVal !== 'all') {
-    return fromVal === toVal ? `m${fromVal}` : `m${fromVal}–m${toVal}`;
-  }
-  if (fromVal !== 'all') return `m${fromVal}+`;
-  if (toVal !== 'all') return `≤m${toVal}`;
-  return null;
-};
 
 const isoDateToUtcMs = (iso) => {
   if (typeof iso !== 'string') return null;

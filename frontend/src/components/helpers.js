@@ -1,4 +1,19 @@
 // Helper to format rest times using ' for minutes and " for seconds, avoiding fractions
+export const isWeekInRange = (weekNum, fromVal, toVal) => {
+  if (fromVal !== 'all' && weekNum < parseInt(fromVal, 10)) return false;
+  if (toVal !== 'all' && weekNum > parseInt(toVal, 10)) return false;
+  return true;
+};
+
+export const formatWeekRangeLabel = (fromVal, toVal) => {
+  if (fromVal !== 'all' && toVal !== 'all') {
+    return fromVal === toVal ? `m${fromVal}` : `m${fromVal}–m${toVal}`;
+  }
+  if (fromVal !== 'all') return `m${fromVal}+`;
+  if (toVal !== 'all') return `≤m${toVal}`;
+  return null;
+};
+
 export const formatRestTime = (seconds) => {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;

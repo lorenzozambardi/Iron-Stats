@@ -16,7 +16,8 @@ import {
   Redo2,
   Settings,
   Timer,
-  User
+  User,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   parseLogbook,
@@ -33,6 +34,9 @@ import StopwatchTab from './components/tabs/StopwatchTab';
 import EasyEditor from './components/EasyEditor';
 import ProfileEasyEditor from './components/ProfileEasyEditor';
 import FoldableEditor from './components/FoldableEditor';
+import { LockWheelPicker, DualWeekSlider } from './components/FilterControls';
+import { isWeekInRange, formatWeekRangeLabel } from './components/helpers';
+import { getLogbookFilterMeta, filterLogbookText, mergeFilteredLogbook } from './components/editorFilterUtils';
 import { formatLogbookSpaces } from './formatLogbook';
 import { SettingsPanel } from './components/SettingsPanel';
 import {
@@ -738,6 +742,37 @@ export default function App() {
     });
   }, [optimisticEditorMode, setOptimisticEditorMode]);
 
+  // Manual Editor Filter State (Session & Microcycles)
+  const [editorFiltersOpen, setEditorFiltersOpen] = useState(false);
+  const [editorFilterSession, setEditorFilterSession] = useState('all');
+  const [editorFilterWeekFrom, setEditorFilterWeekFrom] = useState('all');
+  const [editorFilterWeekTo, setEditorFilterWeekTo] = useState('all');
+  const [prevEditorProgram, setPrevEditorProgram] = useState(currentProgram);
+  const [prevEditorProfile, setPrevEditorProfile] = useState(activeProfile);
+  if (currentProgram !== prevEditorProgram || activeProfile !== prevEditorProfile) {
+    setPrevEditorProgram(currentProgram);
+    setPrevEditorProfile(activeProfile);
+    setEditorFilterSession('all');
+    setEditorFilterWeekFrom('all');
+    setEditorFilterWeekTo('all');
+  }
+  const editorFilterContentRef = useRef(null);
+  const [editorFilterHeight, setEditorFilterHeight] = useState(0);
+  useEffect(() => {
+    const el = editorFilterContentRef.current;
+    if (!el) return;
+    const update = () => {
+      const next = Math.ceil(el.getBoundingClientRect().height);
+      setEditorFilterHeight(prev => (prev === next ? prev : next));
+    };
+    update();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, [isMobile, activeTab, editorType, editingProfileMd, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
+
   // Exercise CRUD State
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState(null);
@@ -913,6 +948,75 @@ export default function App() {
     return [];
   }, [debouncedLogbookText, exercisesDb]);
 
+  const isManualLogbookMode = !editingProfileMd && editorType !== 'easy';
+
+  const editorFilterMeta = useMemo(
+    () => (isManualLogbookMode ? getLogbookFilterMeta(logbookText) : { sessions: [], getWeeksForSession: () => [] }),
+    [isManualLogbookMode, logbookText]
+  );
+
+  const editorSessionsList = editorFilterMeta.sessions;
+
+  const editorWeeksList = useMemo(
+    () => editorFilterMeta.getWeeksForSession(editorFilterSession),
+    [editorFilterMeta, editorFilterSession]
+  );
+
+  const editorSessionWheelOptions = useMemo(() => [
+    { value: 'all', label: 'All' },
+    ...editorSessionsList.map(s => ({ value: String(s), label: `S${s}` }))
+  ], [editorSessionsList]);
+
+  const editorWeekRangeLabel = formatWeekRangeLabel(editorFilterWeekFrom, editorFilterWeekTo);
+  const hasAnyEditorFilter = editorFilterSession !== 'all' || editorWeekRangeLabel !== null;
+
+  const editorFilterSummary = useMemo(() => {
+    const parts = [];
+    if (editorFilterSession !== 'all') parts.push(`S${editorFilterSession}`);
+    if (editorWeekRangeLabel) parts.push(editorWeekRangeLabel);
+    return parts.length > 0 ? parts.join(' · ') : 'Filters';
+  }, [editorFilterSession, editorWeekRangeLabel]);
+
+  const clearAllEditorFilters = useCallback(() => {
+    setEditorFilterSession('all');
+    setEditorFilterWeekFrom('all');
+    setEditorFilterWeekTo('all');
+  }, []);
+
+  const filteredEditorResult = useMemo(() => {
+    if (!isManualLogbookMode || !hasAnyEditorFilter) {
+      return { text: logbookText, lineMap: null, isFiltered: false };
+    }
+    return filterLogbookText(logbookText, {
+      session: editorFilterSession,
+      weekFrom: editorFilterWeekFrom,
+      weekTo: editorFilterWeekTo,
+    });
+  }, [isManualLogbookMode, hasAnyEditorFilter, logbookText, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
+
+  const filteredEditorLineMapRef = useRef(null);
+  useEffect(() => {
+    filteredEditorLineMapRef.current = filteredEditorResult.lineMap;
+  }, [filteredEditorResult.lineMap]);
+
+  const editorFilteredWorkoutData = useMemo(() => {
+    if (!isManualLogbookMode || !hasAnyEditorFilter) return workoutData;
+    let data = workoutData;
+    if (editorFilterSession !== 'all') {
+      const sNum = parseInt(editorFilterSession, 10);
+      data = data.filter(d => d.session === sNum);
+    }
+    if (editorFilterWeekFrom !== 'all' || editorFilterWeekTo !== 'all') {
+      data = data
+        .map(ex => ({
+          ...ex,
+          weeks: ex.weeks.filter(w => isWeekInRange(w.week_num, editorFilterWeekFrom, editorFilterWeekTo)),
+        }))
+        .filter(ex => ex.weeks.length > 0);
+    }
+    return data;
+  }, [isManualLogbookMode, hasAnyEditorFilter, workoutData, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
+
   // Cursor Tracking State for scroll sync
   const [activeCursorLine, setActiveCursorLine] = useState(null);
   const editorModeRef = useRef(editorMode);
@@ -922,7 +1026,21 @@ export default function App() {
 
   const handleCursorLineChange = useCallback((line) => {
     if (editorModeRef.current === 'preview' || editorModeRef.current === 'split') {
-      setActiveCursorLine(line);
+      const lineMap = filteredEditorLineMapRef.current;
+      if (!lineMap) {
+        setActiveCursorLine(line);
+        return;
+      }
+      let mapped = lineMap[line];
+      if (mapped === null || mapped === undefined) {
+        for (let i = Math.min(line, lineMap.length - 1); i >= 0; i--) {
+          if (lineMap[i] !== null && lineMap[i] !== undefined) {
+            mapped = lineMap[i];
+            break;
+          }
+        }
+      }
+      setActiveCursorLine(mapped ?? null);
     }
   }, []);
 
@@ -1615,6 +1733,27 @@ export default function App() {
     scheduleDebouncedSave(newText);
   }, [scheduleDebouncedSave]);
 
+  const handleFilteredManualLogbookChange = useCallback((editedText) => {
+    if (!hasAnyEditorFilter) {
+      handleManualLogbookChange(editedText);
+      return;
+    }
+    const prevMaxWeek = editorWeeksList.length > 0 ? editorWeeksList[editorWeeksList.length - 1] : null;
+    const merged = mergeFilteredLogbook(logbookTextRef.current, editedText, {
+      session: editorFilterSession,
+      weekFrom: editorFilterWeekFrom,
+      weekTo: editorFilterWeekTo,
+    });
+    if (editorFilterWeekTo !== 'all' && prevMaxWeek !== null && Number(editorFilterWeekTo) === prevMaxWeek) {
+      const nextWeeks = getLogbookFilterMeta(merged).getWeeksForSession(editorFilterSession);
+      const nextMaxWeek = nextWeeks.length > 0 ? nextWeeks[nextWeeks.length - 1] : prevMaxWeek;
+      if (nextMaxWeek > prevMaxWeek) {
+        setEditorFilterWeekTo(String(nextMaxWeek));
+      }
+    }
+    handleManualLogbookChange(merged);
+  }, [hasAnyEditorFilter, editorWeeksList, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo, handleManualLogbookChange]);
+
   useEffect(() => {
     scheduleSaveRef.current = scheduleDebouncedSave;
   }, [scheduleDebouncedSave]);
@@ -1904,12 +2043,33 @@ export default function App() {
               position: 'absolute', 
               top: '18px', 
               right: '12px', 
+              maxWidth: 'calc(100vw - 74px)',
               zIndex: 50, 
               display: 'flex', 
               alignItems: 'center', 
               gap: '8px', 
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
               pointerEvents: 'none' 
             }}>
+              {isManualLogbookMode && (
+                <button
+                  id="mobile-editor-filters-toggle"
+                  className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-secondary' : ''}`}
+                  style={{
+                    pointerEvents: 'auto',
+                    padding: '6px 12px',
+                    fontSize: '0.75rem',
+                    borderRadius: '99px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
+                  }}
+                  onClick={() => setEditorFiltersOpen(prev => !prev)}
+                >
+                  {editorFilterSummary}
+                </button>
+              )}
               {/* Undo / Redo */}
               <div className="mobile-editor-pill-nav" style={{ margin: 0, padding: '4px', pointerEvents: 'auto' }}>
                 <button 
@@ -1995,6 +2155,17 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="editor-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {isManualLogbookMode && (
+                  <button
+                    type="button"
+                    id="editor-filters-toggle"
+                    className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-secondary' : ''}`}
+                    onClick={() => setEditorFiltersOpen(prev => !prev)}
+                    title="Filter Sessions & Microcycles"
+                  >
+                    <SlidersHorizontal size={14} /> {editorFilterSummary}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={editingProfileMd ? 'btn btn-primary' : 'btn'}
@@ -2012,6 +2183,57 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* Manual Editor Filter Bar (Session & Microcycles, smoothly expands/collapses) */}
+            {isManualLogbookMode && (
+              <div style={{
+                height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
+                opacity: editorFiltersOpen ? 1 : 0,
+                marginBottom: editorFiltersOpen ? (isMobile ? '8px' : '12px') : '0px',
+                overflow: 'hidden',
+                borderRadius: 'var(--card-radius)',
+                willChange: 'height, opacity',
+                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: editorFiltersOpen ? 'auto' : 'none',
+                flexShrink: 0,
+              }}>
+                <div ref={editorFilterContentRef} style={{
+                  display: 'flex', flexDirection: 'column', gap: '12px',
+                  padding: isMobile ? '12px' : '14px 16px',
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--card-radius)', boxShadow: 'var(--card-shadow)'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '18px' : '12px' }}>
+                    <LockWheelPicker
+                      label="Session"
+                      options={editorSessionWheelOptions}
+                      value={editorFilterSession}
+                      onChange={val => { setEditorFilterSession(val); setEditorFilterWeekFrom('all'); setEditorFilterWeekTo('all'); }}
+                      itemWidth={38}
+                    />
+                    <DualWeekSlider
+                      label="Microcycles"
+                      weeks={editorWeeksList}
+                      fromVal={editorFilterWeekFrom}
+                      toVal={editorFilterWeekTo}
+                      onChange={(f, t) => { setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
+                    />
+                  </div>
+                  {hasAnyEditorFilter && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
+                        onClick={clearAllEditorFilters}
+                      >
+                        ✕ Clear Filters
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Split / Main Editor container */}
             <div className={`editor-split-container mode-${editingProfileMd ? 'edit' : editorMode}`}>
@@ -2064,8 +2286,8 @@ export default function App() {
                     <div style={{ flex: 1, width: '100%', minWidth: 0, minHeight: 0, height: '100%', display: !editingProfileMd ? 'flex' : 'none', flexDirection: 'column' }}>
                       <FoldableEditor
                         key={`${activeProfile}:${currentProgram}`}
-                        value={logbookText}
-                        onChange={handleManualLogbookChange}
+                        value={filteredEditorResult.text}
+                        onChange={handleFilteredManualLogbookChange}
                         exercisesDb={activeExercises}
                         onCursorLineChange={handleCursorLineChange}
                       />
@@ -2079,7 +2301,7 @@ export default function App() {
                 <div className="preview-panel" style={{ display: 'flex' }}>
                   <div className="preview-container">
                     <LogbookPreview 
-                      workoutData={workoutData} 
+                      workoutData={editorFilteredWorkoutData} 
                       activeExerciseStartLine={activeExerciseStartLine}
                       activeWeekLineIndex={activeWeekLineIndex}
                       editorMode={editorMode}
