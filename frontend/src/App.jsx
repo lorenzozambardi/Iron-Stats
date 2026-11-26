@@ -2186,7 +2186,7 @@ export default function App() {
                       label="Session"
                       options={editorSessionWheelOptions}
                       value={editorFilterSession}
-                      onChange={val => { setEditorFilterSession(val); setEditorFilterWeekFrom('all'); setEditorFilterWeekTo('all'); }}
+                      onChange={val => setEditorFilterSession(val)}
                       itemWidth={38}
                     />
                     <DualWeekSlider

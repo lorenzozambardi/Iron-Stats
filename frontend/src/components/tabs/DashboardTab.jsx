@@ -1171,7 +1171,7 @@ const DashboardTab = ({
                               label="Session"
                               options={sessionWheelOptions}
                               value={dashFilterSession}
-                              onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
+                              onChange={val => setDashFilterSession(val)}
                               itemWidth={38}
                             />
                             <DualWeekSlider
@@ -1196,7 +1196,7 @@ const DashboardTab = ({
                               label="Session"
                               options={cmpSessionWheelOptions}
                               value={cmpFilterSession}
-                              onChange={val => { setCmpFilterSession(val); setCmpFilterWeekFrom('all'); setCmpFilterWeekTo('all'); }}
+                              onChange={val => setCmpFilterSession(val)}
                               itemWidth={38}
                             />
                             <DualWeekSlider
@@ -1237,7 +1237,7 @@ const DashboardTab = ({
                           label="Session"
                           options={sessionWheelOptions}
                           value={dashFilterSession}
-                          onChange={val => { setDashFilterSession(val); setDashFilterWeekFrom('all'); setDashFilterWeekTo('all'); }}
+                          onChange={val => setDashFilterSession(val)}
                           itemWidth={38}
                         />
                         <LockWheelPicker
