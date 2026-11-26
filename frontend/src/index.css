@@ -2202,6 +2202,10 @@ input::-webkit-list-button {
     padding-top: 84px !important;
     padding-bottom: 100px !important;
   }
+  .editor-tab-workspace.has-editor-filters-open .foldable-editor-root .cm-content,
+  .editor-tab-workspace.has-editor-filters-open .preview-container {
+    padding-top: 8px !important;
+  }
   .db-tab-workspace {
     padding-top: 80px !important;
   }

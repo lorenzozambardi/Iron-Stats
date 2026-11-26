@@ -2107,7 +2107,7 @@ export default function App() {
           )}
           
           {(isMobile || activeTab === 'editor') && (
-          <div className="editor-tab-workspace">
+          <div className={`editor-tab-workspace ${isManualLogbookMode && editorFiltersOpen ? 'has-editor-filters-open' : ''}`}>
             {/* Editor Sub-Header */}
             <div className="editor-control-bar" style={editingProfileMd ? { justifyContent: 'flex-end' } : undefined}>
               {/* Edit Mode Toggles */}
@@ -2166,7 +2166,7 @@ export default function App() {
                 height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
                 opacity: editorFiltersOpen ? 1 : 0,
                 marginTop: isMobile && editorFiltersOpen ? '72px' : '0px',
-                marginBottom: editorFiltersOpen ? (isMobile ? '8px' : '12px') : '0px',
+                marginBottom: editorFiltersOpen ? (isMobile ? '0px' : '12px') : '0px',
                 overflow: 'hidden',
                 borderRadius: 'var(--card-radius)',
                 willChange: 'height, opacity',
