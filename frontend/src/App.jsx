@@ -757,6 +757,7 @@ export default function App() {
     setEditorFilterWeekTo('all');
   }
   const editorFilterContentRef = useRef(null);
+  const mobileEditorFilterWrapRef = useRef(null);
   const [editorFilterHeight, setEditorFilterHeight] = useState(0);
   useEffect(() => {
     const el = editorFilterContentRef.current;
@@ -772,6 +773,25 @@ export default function App() {
       return () => ro.disconnect();
     }
   }, [isMobile, activeTab, editorType, editingProfileMd, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
+
+  useEffect(() => {
+    if (!isMobile || editingProfileMd || editorType === 'easy') return;
+    const viewEl = document.getElementById('view-editor');
+    const wrapEl = mobileEditorFilterWrapRef.current;
+    if (!viewEl || !wrapEl) return;
+    wrapEl.style.transform = 'translate3d(0, 0, 0)';
+    const onScrollCapture = (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.classList.contains('cm-scroller') || target.classList.contains('preview-container')) {
+        wrapEl.style.transform = `translate3d(0, ${-target.scrollTop}px, 0)`;
+      }
+    };
+    viewEl.addEventListener('scroll', onScrollCapture, { capture: true, passive: true });
+    return () => {
+      viewEl.removeEventListener('scroll', onScrollCapture, { capture: true });
+    };
+  }, [isMobile, editingProfileMd, editorType, editorMode, currentProgram, activeProfile]);
 
   // Exercise CRUD State
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -2043,33 +2063,12 @@ export default function App() {
               position: 'absolute', 
               top: '18px', 
               right: '12px', 
-              maxWidth: 'calc(100vw - 74px)',
               zIndex: 50, 
               display: 'flex', 
               alignItems: 'center', 
               gap: '8px', 
-              overflowX: 'auto',
-              scrollbarWidth: 'none',
               pointerEvents: 'none' 
             }}>
-              {isManualLogbookMode && (
-                <button
-                  id="mobile-editor-filters-toggle"
-                  className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-secondary' : ''}`}
-                  style={{
-                    pointerEvents: 'auto',
-                    padding: '6px 12px',
-                    fontSize: '0.75rem',
-                    borderRadius: '99px',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
-                  }}
-                  onClick={() => setEditorFiltersOpen(prev => !prev)}
-                >
-                  {editorFilterSummary}
-                </button>
-              )}
               {/* Undo / Redo */}
               <div className="mobile-editor-pill-nav" style={{ margin: 0, padding: '4px', pointerEvents: 'auto' }}>
                 <button 
@@ -2184,53 +2183,89 @@ export default function App() {
               </div>
             </div>
 
-            {/* Manual Editor Filter Bar (Session & Microcycles, smoothly expands/collapses) */}
+            {/* Manual Editor Filter Bar (Desktop: under control bar; Mobile: top-right under editing menu, scrolls with content) */}
             {isManualLogbookMode && (
-              <div style={{
-                height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
-                opacity: editorFiltersOpen ? 1 : 0,
-                marginBottom: editorFiltersOpen ? (isMobile ? '8px' : '12px') : '0px',
-                overflow: 'hidden',
-                borderRadius: 'var(--card-radius)',
-                willChange: 'height, opacity',
-                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-                pointerEvents: editorFiltersOpen ? 'auto' : 'none',
-                flexShrink: 0,
-              }}>
-                <div ref={editorFilterContentRef} style={{
-                  display: 'flex', flexDirection: 'column', gap: '12px',
-                  padding: isMobile ? '12px' : '14px 16px',
-                  background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--card-radius)', boxShadow: 'var(--card-shadow)'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '18px' : '12px' }}>
-                    <LockWheelPicker
-                      label="Session"
-                      options={editorSessionWheelOptions}
-                      value={editorFilterSession}
-                      onChange={val => { setEditorFilterSession(val); setEditorFilterWeekFrom('all'); setEditorFilterWeekTo('all'); }}
-                      itemWidth={38}
-                    />
-                    <DualWeekSlider
-                      label="Microcycles"
-                      weeks={editorWeeksList}
-                      fromVal={editorFilterWeekFrom}
-                      toVal={editorFilterWeekTo}
-                      onChange={(f, t) => { setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
-                    />
+              <div
+                ref={isMobile ? mobileEditorFilterWrapRef : undefined}
+                style={isMobile ? {
+                  position: 'absolute',
+                  top: '72px',
+                  left: '8px',
+                  right: '8px',
+                  zIndex: 30,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  pointerEvents: 'none',
+                  willChange: 'transform',
+                } : undefined}
+              >
+                {isMobile && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      id="mobile-editor-filters-toggle"
+                      className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-secondary' : ''}`}
+                      style={{
+                        pointerEvents: 'auto',
+                        padding: '5px 12px',
+                        fontSize: '0.75rem',
+                        borderRadius: '99px',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
+                      }}
+                      onClick={() => setEditorFiltersOpen(prev => !prev)}
+                    >
+                      <SlidersHorizontal size={13} /> {editorFilterSummary}
+                    </button>
                   </div>
-                  {hasAnyEditorFilter && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
-                      <button
-                        type="button"
-                        className="btn"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
-                        onClick={clearAllEditorFilters}
-                      >
-                        ✕ Clear Filters
-                      </button>
+                )}
+                <div style={{
+                  height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
+                  opacity: editorFiltersOpen ? 1 : 0,
+                  marginBottom: editorFiltersOpen ? (isMobile ? '8px' : '12px') : '0px',
+                  overflow: 'hidden',
+                  borderRadius: 'var(--card-radius)',
+                  willChange: 'height, opacity',
+                  transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                  pointerEvents: editorFiltersOpen ? 'auto' : 'none',
+                  flexShrink: 0,
+                }}>
+                  <div ref={editorFilterContentRef} style={{
+                    display: 'flex', flexDirection: 'column', gap: '12px',
+                    padding: isMobile ? '12px' : '14px 16px',
+                    background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--card-radius)', boxShadow: 'var(--card-shadow)'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '18px' : '12px' }}>
+                      <LockWheelPicker
+                        label="Session"
+                        options={editorSessionWheelOptions}
+                        value={editorFilterSession}
+                        onChange={val => { setEditorFilterSession(val); setEditorFilterWeekFrom('all'); setEditorFilterWeekTo('all'); }}
+                        itemWidth={38}
+                      />
+                      <DualWeekSlider
+                        label="Microcycles"
+                        weeks={editorWeeksList}
+                        fromVal={editorFilterWeekFrom}
+                        toVal={editorFilterWeekTo}
+                        onChange={(f, t) => { setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
+                      />
                     </div>
-                  )}
+                    {hasAnyEditorFilter && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
+                          onClick={clearAllEditorFilters}
+                        >
+                          ✕ Clear Filters
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
