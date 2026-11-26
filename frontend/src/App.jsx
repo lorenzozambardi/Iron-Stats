@@ -738,11 +738,43 @@ export default function App() {
     });
   }, [optimisticEditorMode, setOptimisticEditorMode]);
 
-  // Manual Editor Filter State (Session & Microcycles)
+  // Manual Editor Filter State (Session & Microcycles; persisted in sessionStorage across backgrounding, cleared on close)
   const [editorFiltersOpen, setEditorFiltersOpen] = useState(false);
-  const [editorFilterSession, setEditorFilterSession] = useState('all');
-  const [editorFilterWeekFrom, setEditorFilterWeekFrom] = useState('all');
-  const [editorFilterWeekTo, setEditorFilterWeekTo] = useState('all');
+  const [editorFilterSession, setEditorFilterSession] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('iron-stats-editor-filter') || '{}');
+      return saved.session || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [editorFilterWeekFrom, setEditorFilterWeekFrom] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('iron-stats-editor-filter') || '{}');
+      return saved.weekFrom || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [editorFilterWeekTo, setEditorFilterWeekTo] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('iron-stats-editor-filter') || '{}');
+      return saved.weekTo || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('iron-stats-editor-filter', JSON.stringify({
+        session: editorFilterSession,
+        weekFrom: editorFilterWeekFrom,
+        weekTo: editorFilterWeekTo,
+      }));
+    } catch {
+      // Ignore storage quota/availability errors
+    }
+  }, [editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
   const [prevEditorProgram, setPrevEditorProgram] = useState(currentProgram);
   const [prevEditorProfile, setPrevEditorProfile] = useState(activeProfile);
   if (currentProgram !== prevEditorProgram || activeProfile !== prevEditorProfile) {
