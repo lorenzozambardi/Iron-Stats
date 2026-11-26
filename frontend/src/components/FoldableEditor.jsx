@@ -67,7 +67,7 @@ const editorTheme = EditorView.theme({
   '.cm-foldPlaceholder': {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#ffffff',
+    color: '#a3a3a3',
     padding: '0 4px',
     marginLeft: '4px',
     cursor: 'pointer',
