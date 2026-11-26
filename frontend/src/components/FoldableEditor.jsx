@@ -121,6 +121,7 @@ const foldGutterExtension = foldGutter({
 
 const buildHeadingDecorations = (view) => {
   const builder = new RangeSetBuilder();
+  const hasFocus = view.hasFocus;
   const sel = view.state.selection.main;
   const selFromLine = view.state.doc.lineAt(sel.from).number;
   const selToLine = view.state.doc.lineAt(sel.to).number;
@@ -131,7 +132,7 @@ const buildHeadingDecorations = (view) => {
       const line = view.state.doc.lineAt(pos);
       const match = line.text.match(/^(\s*#+\s*)/);
       if (match) {
-        const isCursorOnLine = line.number >= selFromLine && line.number <= selToLine;
+        const isCursorOnLine = hasFocus && line.number >= selFromLine && line.number <= selToLine;
         const hashEnd = line.from + match[1].length;
         if (!isCursorOnLine && hashEnd < line.to) {
           builder.add(line.from, line.from, Decoration.line({ class: 'cm-rendered-heading' }));
@@ -150,7 +151,7 @@ const markdownHeadingPlugin = ViewPlugin.fromClass(
       this.decorations = buildHeadingDecorations(view);
     }
     update(update) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+      if (update.docChanged || update.selectionSet || update.viewportChanged || update.focusChanged) {
         this.decorations = buildHeadingDecorations(update.view);
       }
     }
