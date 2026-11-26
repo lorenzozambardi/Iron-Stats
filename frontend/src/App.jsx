@@ -11,7 +11,6 @@ import {
   Edit,
   Pencil,
   Eye,
-  Columns,
   Undo2,
   Redo2,
   Settings,
@@ -729,10 +728,7 @@ export default function App() {
   const [showNewProgramModal, setShowNewProgramModal] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [newProgramError, setNewProgramError] = useState('');
-  const [editorMode, setEditorMode] = useState(() => {
-    const savedEditorType = localStorage.getItem('editor-type') || 'manual';
-    return (window.innerWidth <= 768 || savedEditorType === 'easy') ? 'edit' : 'split';
-  }); // 'edit', 'preview', 'split'
+  const [editorMode, setEditorMode] = useState('edit'); // 'edit', 'preview'
   const [optimisticEditorMode, setOptimisticEditorMode] = useOptimistic(editorMode);
   const handleEditorModeChange = useCallback((nextMode) => {
     if (nextMode === optimisticEditorMode) return;
@@ -757,7 +753,6 @@ export default function App() {
     setEditorFilterWeekTo('all');
   }
   const editorFilterContentRef = useRef(null);
-  const mobileEditorFilterWrapRef = useRef(null);
   const [editorFilterHeight, setEditorFilterHeight] = useState(0);
   useEffect(() => {
     const el = editorFilterContentRef.current;
@@ -773,25 +768,6 @@ export default function App() {
       return () => ro.disconnect();
     }
   }, [isMobile, activeTab, editorType, editingProfileMd, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
-
-  useEffect(() => {
-    if (!isMobile || editingProfileMd || editorType === 'easy') return;
-    const viewEl = document.getElementById('view-editor');
-    const wrapEl = mobileEditorFilterWrapRef.current;
-    if (!viewEl || !wrapEl) return;
-    wrapEl.style.transform = 'translate3d(0, 0, 0)';
-    const onScrollCapture = (e) => {
-      const target = e.target;
-      if (!(target instanceof Element)) return;
-      if (target.classList.contains('cm-scroller') || target.classList.contains('preview-container')) {
-        wrapEl.style.transform = `translate3d(0, ${-target.scrollTop}px, 0)`;
-      }
-    };
-    viewEl.addEventListener('scroll', onScrollCapture, { capture: true, passive: true });
-    return () => {
-      viewEl.removeEventListener('scroll', onScrollCapture, { capture: true });
-    };
-  }, [isMobile, editingProfileMd, editorType, editorMode, currentProgram, activeProfile]);
 
   // Exercise CRUD State
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -1045,7 +1021,7 @@ export default function App() {
   }, [editorMode]);
 
   const handleCursorLineChange = useCallback((line) => {
-    if (editorModeRef.current === 'preview' || editorModeRef.current === 'split') {
+    if (editorModeRef.current === 'preview') {
       const lineMap = filteredEditorLineMapRef.current;
       if (!lineMap) {
         setActiveCursorLine(line);
@@ -2092,11 +2068,21 @@ export default function App() {
               {/* Mobile Editor Mode Toggles Pill */}
               <div className="mobile-editor-pill-nav" style={{ marginLeft: 0, pointerEvents: 'auto' }}>
                  <div className={`mobile-editor-mode-group ${editingProfileMd ? 'is-collapsed' : ''}`}>
-                   <div className="mobile-editor-mode-indicator" style={{ left: 0, transform: `translateX(${optimisticEditorMode === 'edit' ? 0 : optimisticEditorMode === 'preview' ? 38 : 76}px)` }}></div>
+                   <div className="mobile-editor-mode-indicator" style={{ left: 0, transform: `translateX(${optimisticEditorMode === 'edit' ? 0 : 38}px)` }}></div>
                    <button className={`mode-pill-btn ${optimisticEditorMode === 'edit' ? 'active' : ''}`} onClick={() => handleEditorModeChange('edit')}><Pencil size={18} /></button>
                    <button className={`mode-pill-btn ${optimisticEditorMode === 'preview' ? 'active' : ''}`} onClick={() => handleEditorModeChange('preview')}><Eye size={18} /></button>
                    {editorType !== 'easy' && (
-                     <button className={`mode-pill-btn ${optimisticEditorMode === 'split' ? 'active' : ''}`} onClick={() => handleEditorModeChange('split')}><Columns size={18} /></button>
+                     <button
+                       type="button"
+                       id="mobile-editor-filters-toggle"
+                       className="mode-pill-btn"
+                       style={(editorFiltersOpen || hasAnyEditorFilter) ? { color: 'var(--accent-primary)', background: 'var(--accent-primary-subtle)' } : undefined}
+                       onClick={() => setEditorFiltersOpen(prev => !prev)}
+                       title="Filter Sessions & Microcycles"
+                       aria-label="Filter Sessions & Microcycles"
+                     >
+                       <SlidersHorizontal size={18} />
+                     </button>
                    )}
                    <div className="pill-divider"></div>
                  </div>
@@ -2127,7 +2113,7 @@ export default function App() {
             <div className="editor-control-bar" style={editingProfileMd ? { justifyContent: 'flex-end' } : undefined}>
               {/* Edit Mode Toggles */}
               {!editingProfileMd && (
-                <div className={`editor-mode-toggles mode-${optimisticEditorMode} ${editorType === 'easy' ? 'easy-toggles' : ''}`}>
+                <div className={`editor-mode-toggles mode-${optimisticEditorMode}`}>
                   <div className="editor-mode-indicator"></div>
                   <button 
                     className={`mode-toggle-btn ${optimisticEditorMode === 'edit' ? 'active' : ''}`}
@@ -2141,14 +2127,6 @@ export default function App() {
                   >
                     Preview
                   </button>
-                  {editorType !== 'easy' && (
-                    <button 
-                      className={`mode-toggle-btn ${optimisticEditorMode === 'split' ? 'active' : ''}`}
-                      onClick={() => handleEditorModeChange('split')}
-                    >
-                      Split View
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -2183,89 +2161,55 @@ export default function App() {
               </div>
             </div>
 
-            {/* Manual Editor Filter Bar (Desktop: under control bar; Mobile: top-right under editing menu, scrolls with content) */}
+            {/* Manual Editor Filter Bar (Session & Microcycles, smoothly expands/collapses) */}
             {isManualLogbookMode && (
-              <div
-                ref={isMobile ? mobileEditorFilterWrapRef : undefined}
-                style={isMobile ? {
-                  position: 'absolute',
-                  top: '72px',
-                  left: '8px',
-                  right: '8px',
-                  zIndex: 30,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  pointerEvents: 'none',
-                  willChange: 'transform',
-                } : undefined}
-              >
-                {isMobile && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      id="mobile-editor-filters-toggle"
-                      className={`btn ${editorFiltersOpen || hasAnyEditorFilter ? 'btn-secondary' : ''}`}
-                      style={{
-                        pointerEvents: 'auto',
-                        padding: '5px 12px',
-                        fontSize: '0.75rem',
-                        borderRadius: '99px',
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
-                      }}
-                      onClick={() => setEditorFiltersOpen(prev => !prev)}
-                    >
-                      <SlidersHorizontal size={13} /> {editorFilterSummary}
-                    </button>
-                  </div>
-                )}
-                <div style={{
-                  height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
-                  opacity: editorFiltersOpen ? 1 : 0,
-                  marginBottom: editorFiltersOpen ? (isMobile ? '8px' : '12px') : '0px',
-                  overflow: 'hidden',
-                  borderRadius: 'var(--card-radius)',
-                  willChange: 'height, opacity',
-                  transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-                  pointerEvents: editorFiltersOpen ? 'auto' : 'none',
-                  flexShrink: 0,
+              <div style={{
+                height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
+                opacity: editorFiltersOpen ? 1 : 0,
+                marginTop: isMobile && editorFiltersOpen ? '72px' : '0px',
+                marginBottom: editorFiltersOpen ? (isMobile ? '8px' : '12px') : '0px',
+                overflow: 'hidden',
+                borderRadius: 'var(--card-radius)',
+                willChange: 'height, opacity',
+                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-top 350ms cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: editorFiltersOpen ? 'auto' : 'none',
+                flexShrink: 0,
+              }}>
+                <div ref={editorFilterContentRef} style={{
+                  display: 'flex', flexDirection: 'column', gap: '12px',
+                  padding: isMobile ? '12px' : '14px 16px',
+                  margin: isMobile ? '0 8px' : 0,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--card-radius)', boxShadow: 'var(--card-shadow)'
                 }}>
-                  <div ref={editorFilterContentRef} style={{
-                    display: 'flex', flexDirection: 'column', gap: '12px',
-                    padding: isMobile ? '12px' : '14px 16px',
-                    background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--card-radius)', boxShadow: 'var(--card-shadow)'
-                  }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '18px' : '12px' }}>
-                      <LockWheelPicker
-                        label="Session"
-                        options={editorSessionWheelOptions}
-                        value={editorFilterSession}
-                        onChange={val => { setEditorFilterSession(val); setEditorFilterWeekFrom('all'); setEditorFilterWeekTo('all'); }}
-                        itemWidth={38}
-                      />
-                      <DualWeekSlider
-                        label="Microcycles"
-                        weeks={editorWeeksList}
-                        fromVal={editorFilterWeekFrom}
-                        toVal={editorFilterWeekTo}
-                        onChange={(f, t) => { setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
-                      />
-                    </div>
-                    {hasAnyEditorFilter && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
-                          onClick={clearAllEditorFilters}
-                        >
-                          ✕ Clear Filters
-                        </button>
-                      </div>
-                    )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '18px' : '12px' }}>
+                    <LockWheelPicker
+                      label="Session"
+                      options={editorSessionWheelOptions}
+                      value={editorFilterSession}
+                      onChange={val => { setEditorFilterSession(val); setEditorFilterWeekFrom('all'); setEditorFilterWeekTo('all'); }}
+                      itemWidth={38}
+                    />
+                    <DualWeekSlider
+                      label="Microcycles"
+                      weeks={editorWeeksList}
+                      fromVal={editorFilterWeekFrom}
+                      toVal={editorFilterWeekTo}
+                      onChange={(f, t) => { setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
+                    />
                   </div>
+                  {hasAnyEditorFilter && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '99px', color: 'var(--color-fatigue)', borderColor: 'rgba(244,63,94,0.25)' }}
+                        onClick={clearAllEditorFilters}
+                      >
+                        ✕ Clear Filters
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2276,7 +2220,7 @@ export default function App() {
               {/* Text Area Column (kept mounted for instant edit/preview & easy/manual switching) */}
               <div
                 className="editor-panel"
-                style={{ display: (editingProfileMd || editorMode === 'edit' || editorMode === 'split') ? 'flex' : 'none' }}
+                style={{ display: (editingProfileMd || editorMode === 'edit') ? 'flex' : 'none' }}
               >
                 <div className="editor-wrapper">
                   {editingProfileMd && (
@@ -2331,8 +2275,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Live Preview Column (only rendered when preview or split mode is active) */}
-              {!editingProfileMd && (editorMode === 'preview' || editorMode === 'split') && (
+              {/* Live Preview Column (only rendered when preview mode is active) */}
+              {!editingProfileMd && editorMode === 'preview' && (
                 <div className="preview-panel" style={{ display: 'flex' }}>
                   <div className="preview-container">
                     <LogbookPreview 
