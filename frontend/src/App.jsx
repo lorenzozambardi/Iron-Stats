@@ -777,12 +777,14 @@ export default function App() {
   }, [editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
   const [prevEditorProgram, setPrevEditorProgram] = useState(currentProgram);
   const [prevEditorProfile, setPrevEditorProfile] = useState(activeProfile);
+  const [localFilteredEdit, setLocalFilteredEdit] = useState(null);
   if (currentProgram !== prevEditorProgram || activeProfile !== prevEditorProfile) {
     setPrevEditorProgram(currentProgram);
     setPrevEditorProfile(activeProfile);
     setEditorFilterSession('all');
     setEditorFilterWeekFrom('all');
     setEditorFilterWeekTo('all');
+    setLocalFilteredEdit(null);
   }
   const editorFilterContentRef = useRef(null);
   const [editorFilterHeight, setEditorFilterHeight] = useState(0);
@@ -1009,18 +1011,29 @@ export default function App() {
     setEditorFilterSession('all');
     setEditorFilterWeekFrom('all');
     setEditorFilterWeekTo('all');
+    setLocalFilteredEdit(null);
   }, []);
 
   const filteredEditorResult = useMemo(() => {
     if (!isManualLogbookMode || !hasAnyEditorFilter) {
       return { text: logbookText, lineMap: null, isFiltered: false };
     }
-    return filterLogbookText(logbookText, {
+    const computed = filterLogbookText(logbookText, {
       session: editorFilterSession,
       weekFrom: editorFilterWeekFrom,
       weekTo: editorFilterWeekTo,
     });
-  }, [isManualLogbookMode, hasAnyEditorFilter, logbookText, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo]);
+    if (
+      localFilteredEdit &&
+      localFilteredEdit.mergedText === logbookText &&
+      localFilteredEdit.session === editorFilterSession &&
+      localFilteredEdit.weekFrom === editorFilterWeekFrom &&
+      localFilteredEdit.weekTo === editorFilterWeekTo
+    ) {
+      return { ...computed, text: localFilteredEdit.editedText };
+    }
+    return computed;
+  }, [isManualLogbookMode, hasAnyEditorFilter, logbookText, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo, localFilteredEdit]);
 
   const filteredEditorLineMapRef = useRef(null);
   useEffect(() => {
@@ -1763,6 +1776,7 @@ export default function App() {
 
   const handleFilteredManualLogbookChange = useCallback((editedText) => {
     if (!hasAnyEditorFilter) {
+      setLocalFilteredEdit(null);
       handleManualLogbookChange(editedText);
       return;
     }
@@ -1772,13 +1786,22 @@ export default function App() {
       weekFrom: editorFilterWeekFrom,
       weekTo: editorFilterWeekTo,
     });
+    let nextWeekTo = editorFilterWeekTo;
     if (editorFilterWeekTo !== 'all' && prevMaxWeek !== null && Number(editorFilterWeekTo) === prevMaxWeek) {
       const nextWeeks = getLogbookFilterMeta(merged).getWeeksForSession(editorFilterSession);
       const nextMaxWeek = nextWeeks.length > 0 ? nextWeeks[nextWeeks.length - 1] : prevMaxWeek;
       if (nextMaxWeek > prevMaxWeek) {
-        setEditorFilterWeekTo(String(nextMaxWeek));
+        nextWeekTo = String(nextMaxWeek);
+        setEditorFilterWeekTo(nextWeekTo);
       }
     }
+    setLocalFilteredEdit({
+      editedText,
+      mergedText: merged,
+      session: editorFilterSession,
+      weekFrom: editorFilterWeekFrom,
+      weekTo: nextWeekTo,
+    });
     handleManualLogbookChange(merged);
   }, [hasAnyEditorFilter, editorWeeksList, editorFilterSession, editorFilterWeekFrom, editorFilterWeekTo, handleManualLogbookChange]);
 
