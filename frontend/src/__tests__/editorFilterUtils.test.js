@@ -119,4 +119,29 @@ describe('editorFilterUtils', () => {
     expect(res.text).toBe(SAMPLE_LOGBOOK);
     expect(mergeFilteredLogbook(SAMPLE_LOGBOOK, SAMPLE_LOGBOOK, filter)).toBe(SAMPLE_LOGBOOK);
   });
+
+  it('does not splice hidden microcycles onto wrong exercises when deleting one and adding another', () => {
+    const filter = { session: '4', weekFrom: '2', weekTo: '3' };
+    const { text } = filterLogbookText(SAMPLE_LOGBOOK, filter);
+    // Delete RDL and add Calf Raise at the end (same exercise count = 2)
+    const edited = text
+      .replace("RDL | 3'\n140.. 10\n145.. 8\n\n", '')
+      + "\n\nCalf Raise | 2'\n60.. 15";
+    const merged = mergeFilteredLogbook(SAMPLE_LOGBOOK, edited, filter);
+    expect(merged).not.toContain("RDL | 3'");
+    expect(merged).not.toContain('140.. 9');
+    // Leg Curl keeps its hidden m1 set (50.. 12, 12)
+    expect(merged).toContain("Leg Curl | 2'\n50.. 12, 12\n50.. 13, 12\n55.. 12, 11");
+    // Calf Raise only has its newly added set
+    expect(merged).toContain("Calf Raise | 2'\n60.. 15");
+  });
+
+  it('preserves other markdown lines (notes, subheadings) when microcycle filter is active', () => {
+    const logWithOther = `# 1\n> Deload week note\n\nBench | 3'\n100.. 8\n105.. 8`;
+    const filter = { session: '1', weekFrom: '2', weekTo: '2' };
+    const { text } = filterLogbookText(logWithOther, filter);
+    expect(text).toContain('> Deload week note');
+    expect(text).toContain('105.. 8');
+    expect(text).not.toContain('100.. 8');
+  });
 });

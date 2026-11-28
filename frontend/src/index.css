@@ -1204,7 +1204,7 @@ input::-webkit-list-button {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 12px;
+  gap: 0;
   min-height: 0;
 }
 
@@ -1220,7 +1220,7 @@ input::-webkit-list-button {
   border-radius: 0;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .editor-mode-toggles {

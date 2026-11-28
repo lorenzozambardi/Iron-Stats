@@ -1728,6 +1728,9 @@ export default function App() {
     const formattedText = formatLogbookSpaces(newText);
     if (formattedText !== newText && progName === currentProgramRef.current) {
       skipNextHistoryPushRef.current = true;
+      setLocalFilteredEdit((prev) =>
+        prev && prev.mergedText === newText ? { ...prev, mergedText: formattedText } : prev
+      );
       setLogbookText(formattedText);
       setCommittedHistoryText(formattedText);
     }
@@ -2221,11 +2224,11 @@ export default function App() {
                 height: editorFiltersOpen ? `${editorFilterHeight}px` : '0px',
                 opacity: editorFiltersOpen ? 1 : 0,
                 marginTop: isMobile && editorFiltersOpen ? '72px' : '0px',
-                marginBottom: editorFiltersOpen ? (isMobile ? '0px' : '12px') : '0px',
+                marginBottom: '0px',
                 overflow: 'hidden',
                 borderRadius: 'var(--card-radius)',
                 willChange: 'height, opacity',
-                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-top 350ms cubic-bezier(0.4, 0, 0.2, 1), margin-bottom 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease, margin-top 350ms cubic-bezier(0.4, 0, 0.2, 1)',
                 pointerEvents: editorFiltersOpen ? 'auto' : 'none',
                 flexShrink: 0,
               }}>
@@ -2241,7 +2244,7 @@ export default function App() {
                       label="Session"
                       options={editorSessionWheelOptions}
                       value={editorFilterSession}
-                      onChange={val => setEditorFilterSession(val)}
+                      onChange={val => { setLocalFilteredEdit(null); setEditorFilterSession(val); }}
                       itemWidth={38}
                     />
                     <DualWeekSlider
@@ -2249,7 +2252,7 @@ export default function App() {
                       weeks={editorWeeksList}
                       fromVal={editorFilterWeekFrom}
                       toVal={editorFilterWeekTo}
-                      onChange={(f, t) => { setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
+                      onChange={(f, t) => { setLocalFilteredEdit(null); setEditorFilterWeekFrom(f); setEditorFilterWeekTo(t); }}
                     />
                   </div>
                   {hasAnyEditorFilter && (

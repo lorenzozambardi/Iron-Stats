@@ -201,18 +201,31 @@ export function filterLogbookText(fullText, { session = 'all', weekFrom = 'all',
       }
     }
 
-    const exercises = sess.items.filter(it => it.type === 'exercise');
-    exercises.forEach((ex, exIdx) => {
-      if (exIdx > 0 || (sess.datesBlock && sess.datesBlock.dateLines.some((_, idx) => isWeekInRange(idx + 1, weekFrom, weekTo)))) {
-        pushLine('', null);
-      }
-      pushLine(ex.headerLine, ex.headerLineIdx);
-      ex.setLines.forEach((sl, idx) => {
-        if (isWeekInRange(idx + 1, weekFrom, weekTo)) {
-          pushLine(sl.text, sl.lineIdx);
+    const hasVisibleDates = Boolean(
+      sess.datesBlock &&
+      sess.datesBlock.dateLines.some((_, idx) => isWeekInRange(idx + 1, weekFrom, weekTo))
+    );
+    let hasEmittedContent = hasVisibleDates;
+    for (const item of sess.items) {
+      if (item.type === 'exercise') {
+        if (hasEmittedContent) {
+          pushLine('', null);
         }
-      });
-    });
+        pushLine(item.headerLine, item.headerLineIdx);
+        item.setLines.forEach((sl, idx) => {
+          if (isWeekInRange(idx + 1, weekFrom, weekTo)) {
+            pushLine(sl.text, sl.lineIdx);
+          }
+        });
+        hasEmittedContent = true;
+      } else if (item.type === 'other') {
+        if (hasEmittedContent) {
+          pushLine('', null);
+        }
+        pushLine(item.text, item.lineIdx);
+        hasEmittedContent = true;
+      }
+    }
   });
 
   return { text: outLines.join('\n'), lineMap, isFiltered: true };
@@ -349,23 +362,26 @@ export function mergeFilteredLogbook(fullText, editedSlice, { session = 'all', w
     const usedEd = new Set();
     const matchedEdForOrig = new Array(origExercises.length).fill(null);
 
+    // Match by exercise name first, preserving order
+    let searchStart = 0;
+    for (let i = 0; i < origExercises.length; i++) {
+      const key = getExKey(origExercises[i].headerLine);
+      for (let j = searchStart; j < edExercises.length; j++) {
+        if (!usedEd.has(j) && getExKey(edExercises[j].headerLine) === key) {
+          matchedEdForOrig[i] = edExercises[j];
+          usedEd.add(j);
+          searchStart = j + 1;
+          break;
+        }
+      }
+    }
+
+    // Positional fallback when exercise count is unchanged (e.g. in-place rename)
     if (origExercises.length === edExercises.length) {
       for (let i = 0; i < origExercises.length; i++) {
-        matchedEdForOrig[i] = edExercises[i];
-        usedEd.add(i);
-      }
-    } else {
-      // Match by exercise name first, preserving order
-      let searchStart = 0;
-      for (let i = 0; i < origExercises.length; i++) {
-        const key = getExKey(origExercises[i].headerLine);
-        for (let j = searchStart; j < edExercises.length; j++) {
-          if (!usedEd.has(j) && getExKey(edExercises[j].headerLine) === key) {
-            matchedEdForOrig[i] = edExercises[j];
-            usedEd.add(j);
-            searchStart = j + 1;
-            break;
-          }
+        if (!matchedEdForOrig[i] && !usedEd.has(i)) {
+          matchedEdForOrig[i] = edExercises[i];
+          usedEd.add(i);
         }
       }
     }
